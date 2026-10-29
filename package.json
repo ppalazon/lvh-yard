@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "description": "Builds dashboard/src/main/resources/static/app.css from dashboard/src/main/css/app.css: run `mise run css`.",
+  "devDependencies": {
+    "@tailwindcss/cli": "4.3.3",
+    "basecoat-css": "1.1.0",
+    "tailwindcss": "4.3.3"
+  }
+}

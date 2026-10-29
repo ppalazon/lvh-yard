@@ -1,0 +1,21 @@
+package dev.palazon.lvhyard.dashboard;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+/**
+ * The Workstation this dashboard runs on, from {@code YARD_WORKSTATION} and {@code YARD_BASE_DOMAIN}.
+ *
+ * @param name the Workstation's name, unique in the Yard and a single DNS label
+ * @param baseDomain the Yard's base domain, which every hostname ends with
+ */
+@ConfigurationProperties("lvh-yard.workstation")
+public record Workstation(String name, String baseDomain) {
+
+    /** The dashboard publishes itself under this name, so no Service can take it. */
+    public static final String RESERVED_NAME = "yard";
+
+    /** {@code name} as one of this Workstation's own hostnames: {@code <name>.<base-domain>}. */
+    public String hostname(String name) {
+        return name + "." + baseDomain;
+    }
+}

@@ -1,0 +1,53 @@
+[tools]
+node = "24"
+
+[tasks."css:install"]
+description = "Install Tailwind CSS and Basecoat into node_modules/, as package-lock.json pins them"
+sources = ["package-lock.json"]
+outputs = ["node_modules/.package-lock.json"]
+run = "npm ci --silent"
+
+[tasks.css]
+description = "Build the dashboard's app.css from the classes its web views use"
+depends = ["css:install"]
+run = "npx tailwindcss -i dashboard/src/main/css/app.css -o dashboard/src/main/resources/static/app.css --minify"
+
+[tasks."css:watch"]
+description = "Rebuild app.css whenever a web view or app.css's source changes"
+depends = ["css:install"]
+run = "npx tailwindcss -i dashboard/src/main/css/app.css -o dashboard/src/main/resources/static/app.css --minify --watch"
+
+[tasks.check]
+description = "Build app.css, build both modules from scratch and run every test"
+# clean: compiled classes of moved or deleted sources otherwise linger in target/ and fail as phantom tests.
+run = [{ task = "css" }, "./mvnw -q clean verify"]
+
+[tasks.up]
+description = "Start this Workstation's Consul and Traefik, as .env sets them up"
+run = "docker compose up -d"
+
+[tasks.down]
+description = "Stop this Workstation's Consul and Traefik"
+run = "docker compose down"
+
+[tasks.dashboard]
+description = "Run the dashboard on this Workstation, as .env sets it up"
+depends = ["css"]
+run = "./mvnw -q -pl dashboard spring-boot:run"
+
+[tasks."dev:up"]
+description = "Start a Yard of two test Workstations, ws-a and ws-b, on this computer (dev/*.env)"
+run = [
+  "docker compose -p ws-a --env-file dev/yard.env --env-file dev/ws-a.env up -d",
+  "docker compose -p ws-b --env-file dev/yard.env --env-file dev/ws-b.env up -d",
+]
+
+[tasks."dev:down"]
+description = "Stop the two test Workstations"
+run = ["docker compose -p ws-a down", "docker compose -p ws-b down"]
+
+[tasks."dev:dashboard"]
+description = "Run the dashboard of test Workstation ws-a or ws-b: mise run dev:dashboard ws-b"
+depends = ["css"]
+usage = 'arg "<workstation>" help="ws-a or ws-b"'
+run = "set -a; . dev/yard.env; . dev/${usage_workstation}.env; set +a; ./mvnw -q -pl dashboard spring-boot:run"

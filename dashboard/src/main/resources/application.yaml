@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: dashboard
+  config:
+    # The Workstation's settings live in the git-ignored .env at the repository root, which compose.yaml reads too.
+    # spring-boot:run starts in dashboard/, a packaged jar wherever it is launched; environment variables work too.
+    import: optional:file:../.env[.properties],optional:file:.env[.properties]
+
+server:
+  # Loopback only: Traefik on the same Workstation is the way in, at yard.<base-domain>.
+  address: 127.0.0.1
+  port: ${YARD_DASHBOARD_PORT:8780}
+
+lvh-yard:
+  workstation:
+    name: ${YARD_WORKSTATION:ws-a}
+    base-domain: ${YARD_BASE_DOMAIN:lvh.me}

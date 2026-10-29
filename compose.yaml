@@ -1,0 +1,46 @@
+# Consul and Traefik for one Workstation, set up from .env (copy .env.example). Both use host networking: Traefik
+# reaches Instances listening on the Workstation's loopback, and Consul's federation ports face the LAN directly.
+# Consul's HTTP API and Traefik listen on 127.0.0.1 only.
+services:
+  # This Workstation's own Consul datacenter, joined to the other Workstations by WAN federation (ADR-0001).
+  consul:
+    image: hashicorp/consul:2.1.0
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      YARD_WORKSTATION: ${YARD_WORKSTATION:?set YARD_WORKSTATION in .env}
+      YARD_GOSSIP_KEY: ${YARD_GOSSIP_KEY:?set YARD_GOSSIP_KEY in .env}
+      YARD_BIND_ADDRESS: ${YARD_BIND_ADDRESS:-}
+      YARD_PEERS: ${YARD_PEERS:-}
+    # A shell first: the peers are a list, and -retry-join-wan takes one address each.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        bind="$${YARD_BIND_ADDRESS}"
+        [ -n "$$bind" ] || bind='{{ GetDefaultInterfaces | include "type" "IPv4" | attr "address" }}'
+        set --
+        for peer in $${YARD_PEERS}; do set -- "$$@" "-retry-join-wan=$$peer"; done
+        exec consul agent -server -bootstrap-expect=1 -ui \
+          -datacenter="$${YARD_WORKSTATION}" -node="$${YARD_WORKSTATION}" \
+          -data-dir=/consul/data -encrypt="$${YARD_GOSSIP_KEY}" \
+          -bind="$$bind" -client=127.0.0.1 \
+          -http-port=${YARD_CONSUL_HTTP_PORT:-8500} -dns-port=${YARD_CONSUL_DNS_PORT:-8600} \
+          -grpc-tls-port=${YARD_CONSUL_GRPC_TLS_PORT:-8503} -server-port=${YARD_CONSUL_SERVER_PORT:-8300} \
+          -serf-lan-port=${YARD_CONSUL_SERF_LAN_PORT:-8301} -serf-wan-port=${YARD_CONSUL_SERF_WAN_PORT:-8302} \
+          "$$@"
+    volumes:
+      - consul-data:/consul/data
+
+  # Reads its Routes from the dashboard on this Workstation (ADR-0002), and keeps the last ones while it is down.
+  traefik:
+    image: traefik:v3.7.16
+    network_mode: host
+    restart: unless-stopped
+    command:
+      - --entryPoints.web.address=127.0.0.1:${YARD_HTTP_PORT:-80}
+      - --providers.http.endpoint=http://127.0.0.1:${YARD_DASHBOARD_PORT:-8780}/traefik/configuration
+      - --providers.http.pollInterval=5s
+      - --log.level=INFO
+
+volumes:
+  consul-data:
