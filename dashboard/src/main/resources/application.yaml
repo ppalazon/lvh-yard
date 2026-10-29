@@ -11,7 +11,18 @@ server:
   address: 127.0.0.1
   port: ${YARD_DASHBOARD_PORT:8780}
 
+# The OpenAPI document of the REST API, at /v3/api-docs, which the CLI is written against. Its committed copy is
+# dashboard/openapi.yaml: `mise run openapi` rewrites it.
+springdoc:
+  paths-to-match: /api/**
+  default-produces-media-type: application/json
+  # Sorted keys keep the committed copy free of reordering noise.
+  writer-with-order-by-keys: true
+
 lvh-yard:
   workstation:
     name: ${YARD_WORKSTATION:ws-a}
     base-domain: ${YARD_BASE_DOMAIN:lvh.me}
+  # This Workstation's Consul agent, whose HTTP API listens on loopback only (compose.yaml).
+  consul:
+    url: http://127.0.0.1:${YARD_CONSUL_HTTP_PORT:8500}

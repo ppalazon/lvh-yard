@@ -4,18 +4,18 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Dashboard tests start a real Consul through Testcontainers, and the dashboard reads and writes it.
-- [ ] A committed `openapi.yaml` describes the REST API, and a test fails when it differs from what the running dashboard serves.
-- [ ] Registering a Static Instance with a Service name, a host and a port creates a registration on this Workstation's Consul agent.
-- [ ] The host defaults to this Workstation's LAN address.
-- [ ] More than one Static Instance of the same Service can be registered.
-- [ ] A Service name that is not a single DNS label (lowercase letters, digits and `-`) is refused with a client error that explains why.
-- [ ] The name `yard` is refused with a client error that explains why.
-- [ ] An Instance registered without a health check gets a TCP check on its port.
-- [ ] The Catalog page and the API list each Service with its Instances and their Health.
-- [ ] The Service detail page shows the Service's Instances and each one's Health.
-- [ ] The Register form adds a Static Instance and shows validation errors in the form.
-- [ ] Removing a Static Instance removes its registration. A Service with nothing left disappears from the Catalog.
-- [ ] A Static Instance stays registered, with critical Health, when nothing listens on its port.
+- [x] Dashboard tests start a real Consul through Testcontainers, and the dashboard reads and writes it.
+- [x] A committed `openapi.yaml` describes the REST API, and a test fails when it differs from what the running dashboard serves.
+- [x] Registering a Static Instance with a Service name, a host and a port creates a registration on this Workstation's Consul agent.
+- [x] The host defaults to this Workstation's LAN address.
+- [x] More than one Static Instance of the same Service can be registered.
+- [x] A Service name that is not a single DNS label (lowercase letters, digits and `-`) is refused with a client error that explains why.
+- [x] The name `yard` is refused with a client error that explains why.
+- [x] An Instance registered without a health check gets a TCP check on its port.
+- [x] The Catalog page and the API list each Service with its Instances and their Health.
+- [x] The Service detail page shows the Service's Instances and each one's Health.
+- [x] The Register form adds a Static Instance and shows validation errors in the form.
+- [x] Removing a Static Instance removes its registration. A Service with nothing left disappears from the Catalog.
+- [x] A Static Instance stays registered, with critical Health, when nothing listens on its port.

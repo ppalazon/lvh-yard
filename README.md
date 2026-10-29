@@ -38,4 +38,6 @@ java -jar cli/target/cli-0.0.1-SNAPSHOT.jar --help
 
 ## Checks
 
-`mise run check` builds the stylesheet, builds both modules from scratch and runs every test.
+`mise run check` builds the stylesheet, builds both modules from scratch and runs every test. The dashboard's tests start a real Consul with Testcontainers, so they need Docker.
+
+`dashboard/openapi.yaml` describes the REST API that the CLI uses. A test fails when it differs from what the dashboard serves; after changing the API, `mise run openapi` rewrites it.

@@ -1,0 +1,203 @@
+openapi: 3.1.0
+info:
+  description: "The Services of the Yard, and the Static Instances of this Workstation's\
+    \ Services"
+  title: LVH Yard
+servers:
+- url: /
+paths:
+  /api/services:
+    get:
+      operationId: services
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Service"
+          description: OK
+      summary: "Every Service in the Yard, with its Instances and their Health"
+      tags:
+      - services-controller
+  /api/services/{workstation}/{service}:
+    get:
+      operationId: service
+      parameters:
+      - in: path
+        name: workstation
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: service
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Service"
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: The Workstation has no Service of this name
+      summary: "One Service, with its Instances and their Health"
+      tags:
+      - services-controller
+  /api/services/{workstation}/{service}/instances:
+    post:
+      description: "The Instance gets a TCP check on its port, and is critical until\
+        \ the check first passes. Registering the same host and port again replaces\
+        \ that Instance, which keeps its ID."
+      operationId: register
+      parameters:
+      - in: path
+        name: workstation
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: service
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaticInstanceRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Instance"
+          description: Registered
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "The name is not a single DNS label or is yard, the host is\
+            \ not an IP address or a hostname, or the port is missing or not a TCP\
+            \ port"
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: The Workstation is not this one
+      summary: "Registers a Static Instance; with no host, at this Workstation's LAN\
+        \ address"
+      tags:
+      - services-controller
+  /api/services/{workstation}/{service}/instances/{id}:
+    delete:
+      operationId: remove
+      parameters:
+      - in: path
+        name: workstation
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: service
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: Removed
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: The Workstation is not this one
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: The Service has no Static Instance with this ID
+      summary: Removes a Static Instance; a Service with nothing left leaves the Catalog
+      tags:
+      - services-controller
+components:
+  schemas:
+    Instance:
+      type: object
+      properties:
+        health:
+          type: string
+          enum:
+          - passing
+          - warning
+          - critical
+        host:
+          type: string
+        id:
+          type: string
+        port:
+          type: integer
+          format: int32
+      required:
+      - health
+      - host
+      - id
+      - port
+    ProblemDetail:
+      type: object
+      additionalProperties: true
+      properties:
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri
+        status:
+          type: integer
+          format: int32
+        title:
+          type: string
+        type:
+          type: string
+          format: uri
+    Service:
+      type: object
+      properties:
+        instances:
+          type: array
+          items:
+            $ref: "#/components/schemas/Instance"
+        name:
+          type: string
+        workstation:
+          type: string
+      required:
+      - instances
+      - name
+      - workstation
+    StaticInstanceRequest:
+      type: object
+      properties:
+        host:
+          type: string
+        port:
+          type: integer
+          format: int32
+      required:
+      - port

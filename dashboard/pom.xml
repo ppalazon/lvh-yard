@@ -15,6 +15,8 @@
         <!-- HtmlFlow 5.2.0 is compiled for Java 17 and has no Spring integration: views render to a String. -->
         <htmlflow.version>5.2.0</htmlflow.version>
         <htmx.version>4.0.0</htmx.version>
+        <!-- springdoc 3.x is the line for Spring Boot 4; 3.1.x is built against Boot 4.1. -->
+        <springdoc.version>3.1.1</springdoc.version>
     </properties>
 
     <dependencies>
@@ -25,6 +27,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <!-- The OpenAPI document of the REST API, at /v3/api-docs; openapi.yaml is its committed copy. -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
+            <version>${springdoc.version}</version>
         </dependency>
         <dependency>
             <groupId>com.github.xmlet</groupId>
@@ -44,6 +52,21 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

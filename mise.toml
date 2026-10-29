@@ -22,6 +22,10 @@ description = "Build app.css, build both modules from scratch and run every test
 # clean: compiled classes of moved or deleted sources otherwise linger in target/ and fail as phantom tests.
 run = [{ task = "css" }, "./mvnw -q clean verify"]
 
+[tasks.openapi]
+description = "Rewrite dashboard/openapi.yaml from the running dashboard's OpenAPI document"
+run = "./mvnw -q -pl dashboard test -Dtest=OpenApiTest#committedCopyIsCurrent -Dopenapi.update=true -Dsurefire.failIfNoSpecifiedTests=false"
+
 [tasks.up]
 description = "Start this Workstation's Consul and Traefik, as .env sets them up"
 run = "docker compose up -d"
