@@ -8,7 +8,14 @@ servers:
 paths:
   /api/services:
     get:
-      operationId: services
+      operationId: yardServices
+      parameters:
+      - description: Only the Services of this Workstation
+        in: query
+        name: workstation
+        required: false
+        schema:
+          type: string
       responses:
         "200":
           content:
@@ -23,7 +30,7 @@ paths:
       - services-controller
   /api/services/{workstation}/{service}:
     get:
-      operationId: service
+      operationId: yardService
       parameters:
       - in: path
         name: workstation
@@ -51,18 +58,53 @@ paths:
       summary: "One Service, with its Instances and their Health"
       tags:
       - services-controller
-  /api/services/{workstation}/{service}/instances:
+  /api/workstation/services:
+    get:
+      operationId: ownServices
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Service"
+          description: OK
+      summary: "This Workstation's Services, with their Instances and their Health"
+      tags:
+      - workstation-services-controller
+  /api/workstation/services/{service}:
+    get:
+      operationId: ownService
+      parameters:
+      - in: path
+        name: service
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Service"
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: This Workstation has no Service of this name
+      summary: "One of this Workstation's Services, with its Instances and their Health"
+      tags:
+      - workstation-services-controller
+  /api/workstation/services/{service}/instances:
     post:
       description: "The Instance gets a TCP check on its port, and is critical until\
         \ the check first passes. Registering the same host and port again replaces\
         \ that Instance, which keeps its ID."
       operationId: register
       parameters:
-      - in: path
-        name: workstation
-        required: true
-        schema:
-          type: string
       - in: path
         name: service
         required: true
@@ -89,25 +131,14 @@ paths:
           description: "The name is not a single DNS label or is yard, the host is\
             \ not an IP address or a hostname, or the port is missing or not a TCP\
             \ port"
-        "403":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-          description: The Workstation is not this one
       summary: "Registers a Static Instance; with no host, at this Workstation's LAN\
         \ address"
       tags:
-      - services-controller
-  /api/services/{workstation}/{service}/instances/{id}:
+      - workstation-services-controller
+  /api/workstation/services/{service}/instances/{id}:
     delete:
       operationId: remove
       parameters:
-      - in: path
-        name: workstation
-        required: true
-        schema:
-          type: string
       - in: path
         name: service
         required: true
@@ -121,12 +152,6 @@ paths:
       responses:
         "204":
           description: Removed
-        "403":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-          description: The Workstation is not this one
         "404":
           content:
             application/problem+json:
@@ -135,7 +160,7 @@ paths:
           description: The Service has no Static Instance with this ID
       summary: Removes a Static Instance; a Service with nothing left leaves the Catalog
       tags:
-      - services-controller
+      - workstation-services-controller
 components:
   schemas:
     Instance:

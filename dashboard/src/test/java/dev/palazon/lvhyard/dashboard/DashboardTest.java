@@ -107,8 +107,9 @@ abstract class DashboardTest {
         return response.getBody();
     }
 
+    /** One of this Workstation's own Services, which the REST API reads and changes without naming the Workstation. */
     static String servicePath(String service) {
-        return "/api/services/" + WORKSTATION + "/" + service;
+        return "/api/workstation/services/" + service;
     }
 
     static String instancesPath(String service) {

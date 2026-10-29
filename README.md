@@ -36,6 +36,19 @@ mise run dev:down
 java -jar cli/target/cli-0.0.1-SNAPSHOT.jar --help
 ```
 
+`yard` talks to the dashboard on this Workstation, at `--dashboard`, else `YARD_DASHBOARD_URL`, else `http://127.0.0.1:8780`. It changes only this Workstation's Services:
+
+```sh
+yard list                               # this Workstation's Services, Instances and Health
+yard list --workstation ws-b            # another Workstation's
+yard register web --port 8080           # at this Workstation's LAN address
+yard register web --host 127.0.0.1 --port 8080
+yard remove web --port 8080             # add --host when the port is used on more than one host
+yard remove web --id <id>               # the ID that yard list shows
+```
+
+Every failure prints its reason and exits with a non-zero code.
+
 ## Checks
 
 `mise run check` builds the stylesheet, builds both modules from scratch and runs every test. The dashboard's tests start a real Consul with Testcontainers, so they need Docker.

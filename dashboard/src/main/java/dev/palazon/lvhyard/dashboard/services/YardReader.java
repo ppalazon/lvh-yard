@@ -35,6 +35,11 @@ public class YardReader {
                 .toList();
     }
 
+    /** The Services of {@code workstation}, ordered by name. */
+    public List<Service> services(String workstation) {
+        return services().stream().filter(service -> service.workstation().equals(workstation)).toList();
+    }
+
     /** The Service called {@code name} on {@code workstation}, while it has any Instances. */
     public Optional<Service> service(String workstation, String name) {
         if (!workstation.equals(this.workstation.name())) {

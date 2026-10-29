@@ -86,15 +86,45 @@ class StaticInstancesTest extends DashboardTest {
     }
 
     @Test
-    void registeringOnAnotherWorkstationIsRefused() {
-        String api = newServiceName("api");
+    void ownServicesAreListedWithoutNamingTheWorkstation() {
+        String grafana = newServiceName("grafana");
 
-        ResponseEntity<JsonNode> response = post("/api/services/ws-other/" + api + "/instances",
-                Map.of("port", 8080));
+        register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-        assertThat(response.getBody().get("detail").asString()).contains("ws-other");
-        assertThat(findService(get("/api/services").getBody(), api)).isNull();
+        JsonNode service = findService(get("/api/workstation/services").getBody(), grafana);
+        assertThat(service.get("workstation").asString()).isEqualTo(WORKSTATION);
+        assertThat(service.get("instances").get(0).get("port").asInt()).isEqualTo(3000);
+    }
+
+    @Test
+    void yardListCanBeFilteredByWorkstation() {
+        String grafana = newServiceName("grafana");
+
+        register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
+
+        assertThat(findService(get("/api/services?workstation=" + WORKSTATION).getBody(), grafana)).isNotNull();
+        assertThat(get("/api/services?workstation=ws-other").getBody()).isEmpty();
+    }
+
+    @Test
+    void ownServiceIsReadInTheYardUnderItsWorkstation() {
+        String grafana = newServiceName("grafana");
+
+        register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
+
+        ResponseEntity<JsonNode> response = get("/api/services/" + WORKSTATION + "/" + grafana);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().get("instances").get(0).get("host").asString()).isEqualTo("10.1.2.3");
+    }
+
+    @Test
+    void unknownServiceInTheYardIsNotFound() {
+        String grafana = newServiceName("grafana");
+
+        ResponseEntity<JsonNode> response = get("/api/services/ws-other/" + grafana);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody().get("detail").asString()).contains("ws-other").contains(grafana);
     }
 
     @Test
