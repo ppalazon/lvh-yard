@@ -20,8 +20,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * @param tags words that say what it is for
  * @param meta notes about it, by key
  * @param checks the last result of each check its Health comes from: its own and its Workstation's
- * @param unreachable whether it is an Unreachable Instance: an Instance of a Remote Service on a loopback address,
- *        which only its Home Workstation can connect to, so this Workstation never routes to it
+ * @param outOfRange whether it is an Out-of-range Instance: an Instance of a Remote Service at an address only its
+ *        Home Workstation can connect to, such as loopback or a Docker network, so this Workstation never routes
+ *        to it
  */
 public record Instance(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String id,
@@ -32,7 +33,7 @@ public record Instance(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<String> tags,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Map<String, String> meta,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<CheckResult> checks,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean unreachable) {
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean outOfRange) {
 
     /** {@code host:port}, where the Instance is reached. */
     public String address() {
@@ -48,7 +49,7 @@ public record Instance(
      * Whether {@code host} is a loopback address, such as {@code 127.0.0.1}, {@code ::1} or {@code localhost}. A
      * hostname is not looked up, so one that only resolves to loopback is not seen.
      */
-    static boolean loopback(String host) {
+    private static boolean loopback(String host) {
         try {
             return InetAddress.ofLiteral(host).isLoopbackAddress();
         } catch (IllegalArgumentException notAnAddress) {

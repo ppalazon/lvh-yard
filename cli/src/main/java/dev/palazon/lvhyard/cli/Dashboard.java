@@ -81,10 +81,11 @@ final class Dashboard {
     }
 
     /**
-     * One Instance of a Service, with its Health: passing, warning or critical. An unreachable one is on its Home
-     * Workstation's loopback address, so this Workstation cannot connect to it and has no Route to it.
+     * One Instance of a Service, with its Health: passing, warning or critical. One out of range is at an address
+     * only its Home Workstation can connect to, such as loopback or a Docker network, so this Workstation has no
+     * Route to it.
      */
-    record Instance(String id, String host, int port, String health, boolean unreachable) {
+    record Instance(String id, String host, int port, String health, boolean outOfRange) {
 
         /** {@code host:port}, where the Instance is reached. */
         String address() {

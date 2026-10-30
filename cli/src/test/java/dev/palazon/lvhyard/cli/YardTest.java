@@ -50,18 +50,18 @@ class YardTest {
                    {"workstation": "ws-a", "name": "grafana", "state": "healthy", "publication": {"scope": "local"},
                     "hostname": "grafana.lvh.me", "warnings": [], "instances": [
                       {"id": "3f2a", "host": "10.1.2.3", "port": 3000, "health": "passing",
-                       "tags": [], "meta": {}, "checks": [], "unreachable": false}]},
+                       "tags": [], "meta": {}, "checks": [], "outOfRange": false}]},
                    {"workstation": "ws-a", "name": "web", "state": "unpublished", "warnings": [], "instances": [
                       {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical",
-                       "tags": [], "meta": {}, "checks": [], "unreachable": false},
+                       "tags": [], "meta": {}, "checks": [], "outOfRange": false},
                       {"id": "9d4e", "host": "10.1.2.3", "port": 8081, "health": "warning",
-                       "tags": [], "meta": {}, "checks": [], "unreachable": false}]}]},
+                       "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}]},
                  "remotes": [
                    {"name": "ws-b", "unreachable": false, "services": [
                      {"workstation": "ws-b", "name": "postgres", "state": "unhealthy",
                       "publication": {"scope": "local"}, "warnings": [], "instances": [
                         {"id": "5e6f", "host": "10.1.2.4", "port": 5432, "health": "critical",
-                         "tags": [], "meta": {}, "checks": [], "unreachable": false}]}]},
+                         "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}]},
                    {"name": "ws-c", "unreachable": true, "services": []},
                    {"name": "ws-d", "unreachable": false, "services": []}]}
                 """);
@@ -89,7 +89,7 @@ class YardTest {
         dashboard.answer("GET", "/api/services?workstation=ws-b", 200, """
                 [{"workstation": "ws-b", "name": "postgres", "state": "unpublished", "warnings": [], "instances": [
                     {"id": "5e6f", "host": "10.1.2.4", "port": 5432, "health": "passing",
-                     "tags": [], "meta": {}, "checks": [], "unreachable": false}]}]
+                     "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}]
                 """);
 
         Run run = yard("list", "--workstation", "ws-b");
@@ -102,14 +102,14 @@ class YardTest {
     }
 
     @Test
-    void listMarksAnInstanceThisWorkstationCannotReach() {
+    void listMarksAnInstanceOutOfRange() {
         dashboard.answer("GET", "/api/services?workstation=ws-b", 200, """
                 [{"workstation": "ws-b", "name": "api", "state": "healthy", "publication": {"scope": "yard"},
                   "hostname": "api.ws-b.lvh.me", "yardHostname": "api.ws-b.lvh.me", "warnings": [], "instances": [
                     {"id": "1a2b", "host": "10.1.2.4", "port": 9090, "health": "passing",
-                     "tags": [], "meta": {}, "checks": [], "unreachable": false},
+                     "tags": [], "meta": {}, "checks": [], "outOfRange": false},
                     {"id": "3c4d", "host": "127.0.0.1", "port": 9091, "health": "passing",
-                     "tags": [], "meta": {}, "checks": [], "unreachable": true}]}]
+                     "tags": [], "meta": {}, "checks": [], "outOfRange": true}]}]
                 """);
 
         Run run = yard("list", "--workstation", "ws-b");
@@ -118,7 +118,7 @@ class YardTest {
                 "ws-b",
                 "  api: healthy at api.ws-b.lvh.me",
                 "    10.1.2.4:9090  passing   1a2b",
-                "    127.0.0.1:9091  passing   3c4d  unreachable from here: on ws-b's loopback, no Route");
+                "    127.0.0.1:9091  passing   3c4d  out of range: only ws-b can reach it, no Route");
     }
 
     @Test
@@ -161,7 +161,7 @@ class YardTest {
     void registerAddsStaticInstanceAtHostAndPort() {
         dashboard.answer("POST", "/api/workstation/services/web/instances", 201, """
                 {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical",
-                 "tags": [], "meta": {}, "checks": [], "unreachable": false}
+                 "tags": [], "meta": {}, "checks": [], "outOfRange": false}
                 """);
 
         Run run = yard("register", "web", "--host", "10.1.2.3", "--port", "8080");
@@ -177,7 +177,7 @@ class YardTest {
     void registerWithoutHostLeavesItToTheDashboard() {
         dashboard.answer("POST", "/api/workstation/services/web/instances", 201, """
                 {"id": "7b1c", "host": "192.168.1.20", "port": 8080, "health": "critical",
-                 "tags": [], "meta": {}, "checks": [], "unreachable": false}
+                 "tags": [], "meta": {}, "checks": [], "outOfRange": false}
                 """);
 
         Run run = yard("register", "web", "--port", "8080");
@@ -196,7 +196,7 @@ class YardTest {
                  "check": {"type": "http", "path": "/health", "interval": "5s", "timeout": "1s"},
                  "tags": ["backend", "v2"], "meta": {"owner": "pablo", "team": "core"},
                  "checks": [{"name": "HTTP GET /health", "health": "critical", "output": ""}],
-                 "unreachable": false}
+                 "outOfRange": false}
                 """);
 
         Run run = yard("register", "web", "--port", "8080", "--check", "http", "--path", "/health",
@@ -216,7 +216,7 @@ class YardTest {
         dashboard.answer("POST", "/api/workstation/services/web/instances", 201, """
                 {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical",
                  "check": {"type": "http", "path": "/health", "interval": "10s", "timeout": "2s"},
-                 "tags": [], "meta": {}, "checks": [], "unreachable": false}
+                 "tags": [], "meta": {}, "checks": [], "outOfRange": false}
                 """);
 
         Run run = yard("register", "web", "--port", "8080", "--path", "/health");
@@ -254,9 +254,9 @@ class YardTest {
     void removeByPortRemovesTheInstanceAtThatPort() {
         answerWebWithInstances("""
                 {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "passing",
-                 "tags": [], "meta": {}, "checks": [], "unreachable": false},
+                 "tags": [], "meta": {}, "checks": [], "outOfRange": false},
                 {"id": "9d4e", "host": "10.1.2.3", "port": 8081, "health": "passing",
-                 "tags": [], "meta": {}, "checks": [], "unreachable": false}""");
+                 "tags": [], "meta": {}, "checks": [], "outOfRange": false}""");
         dashboard.answer("DELETE", "/api/workstation/services/web/instances/9d4e", 204, null);
 
         Run run = yard("remove", "web", "--port", "8081");
@@ -270,9 +270,9 @@ class YardTest {
     void removeByHostAndPortPicksTheInstanceAtThatHost() {
         answerWebWithInstances("""
                 {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "passing",
-                 "tags": [], "meta": {}, "checks": [], "unreachable": false},
+                 "tags": [], "meta": {}, "checks": [], "outOfRange": false},
                 {"id": "9d4e", "host": "10.1.2.4", "port": 8080, "health": "passing",
-                 "tags": [], "meta": {}, "checks": [], "unreachable": false}""");
+                 "tags": [], "meta": {}, "checks": [], "outOfRange": false}""");
         dashboard.answer("DELETE", "/api/workstation/services/web/instances/9d4e", 204, null);
 
         Run run = yard("remove", "web", "--host", "10.1.2.4", "--port", "8080");
@@ -285,9 +285,9 @@ class YardTest {
     void removeByPortOnMoreThanOneHostAsksForTheHost() {
         answerWebWithInstances("""
                 {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "passing",
-                 "tags": [], "meta": {}, "checks": [], "unreachable": false},
+                 "tags": [], "meta": {}, "checks": [], "outOfRange": false},
                 {"id": "9d4e", "host": "10.1.2.4", "port": 8080, "health": "passing",
-                 "tags": [], "meta": {}, "checks": [], "unreachable": false}""");
+                 "tags": [], "meta": {}, "checks": [], "outOfRange": false}""");
 
         Run run = yard("remove", "web", "--port", "8080");
 
@@ -299,7 +299,7 @@ class YardTest {
     void removeByPortWithNoInstanceThereSaysSo() {
         answerWebWithInstances("""
                 {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "passing",
-                 "tags": [], "meta": {}, "checks": [], "unreachable": false}""");
+                 "tags": [], "meta": {}, "checks": [], "outOfRange": false}""");
 
         Run run = yard("remove", "web", "--port", "9090");
 
@@ -321,7 +321,7 @@ class YardTest {
                 {"workstation": "ws-a", "name": "web", "state": "unhealthy", "publication": {"scope": "local"},
                  "hostname": "web.lvh.me", "warnings": [], "instances": [
                     {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical",
-                     "tags": [], "meta": {}, "checks": [], "unreachable": false}]}
+                     "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}
                 """);
 
         Run run = yard("publish", "web");
@@ -337,7 +337,7 @@ class YardTest {
                 {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "yard"},
                  "hostname": "web.lvh.me", "yardHostname": "web.ws-a.lvh.me", "warnings": [], "instances": [
                     {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "passing",
-                     "tags": [], "meta": {}, "checks": [], "unreachable": false}]}
+                     "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}
                 """);
 
         Run run = yard("publish", "web", "--scope", "yard");
@@ -359,7 +359,7 @@ class YardTest {
                      "message": "The Instance at 127.0.0.1:8080 is on a loopback address."}],
                  "instances": [
                     {"id": "7b1c", "host": "127.0.0.1", "port": 8080, "health": "passing",
-                     "tags": [], "meta": {}, "checks": [], "unreachable": false}]}
+                     "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}
                 """);
 
         Run run = yard("publish", "web", "--scope", "yard");

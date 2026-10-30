@@ -25,8 +25,8 @@ final class RouteBuilder {
 
     /**
      * A Route at its hostname to every Instance of each Service that has a hostname and any Instance this Workstation
-     * can reach (an Unreachable Instance is on another Workstation's loopback, so a Route to it would reach this
-     * Workstation's own instead), and the
+     * can reach (an Out-of-range Instance is on another Workstation's loopback or Docker network, so a Route to it
+     * would reach this Workstation's own instead), and the
      * dashboard's own at {@code yard.<base-domain>}, which no Service can replace. A Service has a hostname here
      * when it is published on this Workstation, or published with Yard Scope on another one; the Services of an
      * unreachable Workstation are not among {@code services}, so they get no Route.
@@ -40,7 +40,7 @@ final class RouteBuilder {
         services.stream()
                 .filter(service -> service.hostname() != null)
                 .forEach(service -> {
-                    List<Server> servers = service.instances().stream().filter(instance -> !instance.unreachable())
+                    List<Server> servers = service.instances().stream().filter(instance -> !instance.outOfRange())
                             .map(instance -> new Server("http://" + instance.address())).toList();
                     if (servers.isEmpty()) {
                         return;

@@ -381,6 +381,8 @@ components:
           type: object
           additionalProperties:
             type: string
+        outOfRange:
+          type: boolean
         port:
           type: integer
           format: int32
@@ -388,17 +390,15 @@ components:
           type: array
           items:
             type: string
-        unreachable:
-          type: boolean
       required:
       - checks
       - health
       - host
       - id
       - meta
+      - outOfRange
       - port
       - tags
-      - unreachable
     ProblemDetail:
       type: object
       additionalProperties: true

@@ -146,29 +146,33 @@ class RemoteServicesTest extends DashboardTest {
     }
 
     @Test
-    void remoteInstanceOnLoopbackIsUnreachableFromHere() {
+    void remoteInstanceOnLoopbackOrADockerNetworkIsOutOfRange() {
         String api = newServiceName("api");
-        remote.register(api, Map.of("host", "127.0.0.1", "port", 9090));
-        remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
+        for (String host : List.of("10.9.8.7", "127.0.0.1", "::1", "localhost", "172.17.0.2", "172.18.0.5",
+                "172.31.255.254", "172.16.0.9", "172.32.0.1", "192.168.1.20")) {
+            remote.register(api, Map.of("host", host, "port", 9090));
+        }
 
         JsonNode instances = get("/api/services/" + RemoteWorkstation.NAME + "/" + api).getBody().get("instances");
 
         assertThat(instances.valueStream().map(instance -> instance.get("host").asString() + " "
-                + instance.get("unreachable").asBoolean()))
-                .containsExactly("10.9.8.7 false", "127.0.0.1 true");
+                + instance.get("outOfRange").asBoolean()))
+                .containsExactlyInAnyOrder("10.9.8.7 false", "127.0.0.1 true", "::1 true", "localhost true",
+                        "172.17.0.2 true", "172.18.0.5 true", "172.31.255.254 true", "172.16.0.9 false",
+                        "172.32.0.1 false", "192.168.1.20 false");
         assertThat(remote.service(api).getBody().get("instances").valueStream()
-                .map(instance -> instance.get("unreachable").asBoolean()))
+                .map(instance -> instance.get("outOfRange").asBoolean()))
                 .as("its Home Workstation reaches it").containsOnly(false);
     }
 
     @Test
-    void remoteServicesPageMarksAnInstanceOnLoopbackAsUnreachable() {
+    void remoteServicesPageMarksAnInstanceOutOfRange() {
         String api = newServiceName("api");
         remote.register(api, Map.of("host", "127.0.0.1", "port", 9090));
 
         String body = getPage("/services/" + RemoteWorkstation.NAME + "/" + api).getBody();
 
-        assertThat(body).contains("127.0.0.1:9090").contains("Unreachable from here");
+        assertThat(body).contains("127.0.0.1:9090").contains("Out of range");
     }
 
     @Test

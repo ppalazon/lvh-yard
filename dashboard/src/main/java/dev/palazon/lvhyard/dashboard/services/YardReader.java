@@ -70,13 +70,16 @@ public class YardReader {
 
     private final Publications publications;
 
+    private final OutOfRange outOfRange;
+
     /** One circuit breaker per other Workstation, by name. */
     private final CircuitBreakerRegistry breakers = CircuitBreakerRegistry.of(UNREACHABLE);
 
-    YardReader(Workstation workstation, Consul consul, Publications publications) {
+    YardReader(Workstation workstation, Consul consul, Publications publications, OutOfRange outOfRange) {
         this.workstation = workstation;
         this.consul = consul;
         this.publications = publications;
+        this.outOfRange = outOfRange;
     }
 
     /**
@@ -219,10 +222,10 @@ public class YardReader {
     }
 
     /**
-     * The Instance that {@code entry} registers. One of a Remote Service is unreachable from here when it is on a
-     * loopback address.
+     * The Instance that {@code entry} registers. One of a Remote Service is out of range here when its address is in
+     * {@link OutOfRange}.
      */
-    private static Instance instance(HealthEntry entry, boolean remote) {
+    private Instance instance(HealthEntry entry, boolean remote) {
         AgentService registration = entry.service();
         List<CheckResult> checks = entry.checks().stream()
                 .map(check -> new CheckResult(check.name(), Health.ofConsulStatus(check.status()),
@@ -240,7 +243,7 @@ public class YardReader {
         meta.keySet().removeIf(key -> key.startsWith(Registrations.RESERVED_META));
         return new Instance(registration.id(), registration.address(), registration.port(),
                 Health.worst(checks.stream().map(CheckResult::health).toList()), check, registration.tags(), meta,
-                checks, remote && Instance.loopback(registration.address()));
+                checks, remote && outOfRange.contains(registration.address()));
     }
 
     /** A duration as Consul writes it, in Go's way, such as {@code 1m30s} or {@code 1.5s}. */

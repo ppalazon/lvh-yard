@@ -23,6 +23,10 @@ lvh-yard:
   workstation:
     name: ${YARD_WORKSTATION:ws-a}
     base-domain: ${YARD_BASE_DOMAIN:lvh.me}
+  # The addresses only an Instance's own Workstation can reach: loopback and Docker's default bridge networks. A Remote
+  # Service's Instance there is out of range here and gets no Route. YARD_OUT_OF_RANGE replaces the whole list.
+  out-of-range:
+    ranges: ${YARD_OUT_OF_RANGE:127.0.0.0/8,::1/128,172.17.0.0/16,172.18.0.0/15,172.20.0.0/14,172.24.0.0/13}
   # This Workstation's Consul agent, whose HTTP API listens on loopback only (compose.yaml).
   consul:
     url: http://127.0.0.1:${YARD_CONSUL_HTTP_PORT:8500}

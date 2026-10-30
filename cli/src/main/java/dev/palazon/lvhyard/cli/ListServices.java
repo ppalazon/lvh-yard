@@ -60,8 +60,8 @@ class ListServices implements Runnable {
                     + (service.hostname() == null ? "" : " at " + service.hostname()));
             for (Dashboard.Instance instance : service.instances()) {
                 out.printf("    %-13s  %-8s  %s%s%n", instance.address(), instance.health(), instance.id(),
-                        instance.unreachable()
-                                ? "  unreachable from here: on " + service.workstation() + "'s loopback, no Route"
+                        instance.outOfRange()
+                                ? "  out of range: only " + service.workstation() + " can reach it, no Route"
                                 : "");
             }
         }

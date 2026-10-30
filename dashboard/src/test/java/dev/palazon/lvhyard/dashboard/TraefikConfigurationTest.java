@@ -173,6 +173,18 @@ class TraefikConfigurationTest extends DashboardTest {
     }
 
     @Test
+    void remoteInstanceOnADockerNetworkGetsNoRoute() {
+        String api = newServiceName("api");
+        remote.register(api, Map.of("host", "172.18.0.5", "port", 9090));
+        remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
+
+        remote.publish(api, "yard");
+
+        assertThat(serverUrlsAt(get("/traefik/configuration").getBody().get("http"),
+                api + "." + RemoteWorkstation.NAME + ".lvh.test")).containsExactly("http://10.9.8.7:9090");
+    }
+
+    @Test
     void remoteServiceWithOnlyLoopbackInstancesHasNoRoute() {
         String api = newServiceName("api");
         remote.register(api, Map.of("host", "127.0.0.1", "port", 9090));
