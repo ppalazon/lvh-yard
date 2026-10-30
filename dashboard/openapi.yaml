@@ -11,7 +11,7 @@ paths:
   /api/services:
     get:
       description: "This Workstation's Services first, then the others' by Workstation\
-        \ and name. The Services of an unreachable Workstation are left out; /api/workstations\
+        \ and name. The Services of an unreachable Workstation are left out; /api/yard\
         \ shows which ones are."
       operationId: yardServices
       parameters:
@@ -30,6 +30,12 @@ paths:
                 items:
                   $ref: "#/components/schemas/Service"
           description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: The Yard has no Workstation of this name
         "503":
           content:
             application/problem+json:
@@ -66,7 +72,8 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: The Workstation has no Service of this name
+          description: "The Yard has no Workstation of this name, or it has no Service\
+            \ of this name"
         "503":
           content:
             application/problem+json:
@@ -282,24 +289,21 @@ paths:
       summary: "Publishes a Service at <service>.<base-domain>, with Local Scope"
       tags:
       - workstation-services-controller
-  /api/workstations:
+  /api/yard:
     get:
-      description: "The other Workstations follow by name. A Workstation whose Consul\
-        \ datacenter does not answer is unreachable, with no Services, and the others\
-        \ still load."
-      operationId: workstations
+      description: "The other Workstations come by name. One whose Consul datacenter\
+        \ does not answer is unreachable, with no Services, and the others still load."
+      operationId: yard
       responses:
         "200":
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/HomeWorkstation"
+                $ref: "#/components/schemas/Yard"
           description: OK
-      summary: "Every Workstation in the Yard with its Services, this one first"
+      summary: "This Workstation and every other one in the Yard, with their Services"
       tags:
-      - workstations-controller
+      - yard-controller
 components:
   schemas:
     CheckResult:
@@ -342,12 +346,9 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Service"
-        unreachable:
-          type: boolean
       required:
       - name
       - services
-      - unreachable
     Instance:
       type: object
       properties:
@@ -459,3 +460,30 @@ components:
             type: string
       required:
       - port
+    Yard:
+      type: object
+      properties:
+        home:
+          $ref: "#/components/schemas/HomeWorkstation"
+        remotes:
+          type: array
+          items:
+            $ref: "#/components/schemas/YardWorkstation"
+      required:
+      - home
+      - remotes
+    YardWorkstation:
+      type: object
+      properties:
+        name:
+          type: string
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/Service"
+        unreachable:
+          type: boolean
+      required:
+      - name
+      - services
+      - unreachable

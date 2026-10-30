@@ -55,11 +55,19 @@ final class Dashboard {
             List<Instance> instances) {
     }
 
+    /** The Yard: this Workstation, then every other one by name. */
+    record Yard(HomeWorkstation home, List<YardWorkstation> remotes) {
+    }
+
+    /** This Workstation, with its own Services. */
+    record HomeWorkstation(String name, List<Service> services) {
+    }
+
     /**
-     * A Workstation of the Yard with its Services. An unreachable one, whose datacenter does not answer, has none for
-     * now.
+     * Another Workstation of the Yard, with its Remote Services. An unreachable one, whose datacenter does not answer,
+     * has none for now.
      */
-    record Workstation(String name, boolean unreachable, List<Service> services) {
+    record YardWorkstation(String name, boolean unreachable, List<Service> services) {
     }
 
     /** A Service's Publication, with its Scope. */
@@ -98,9 +106,9 @@ final class Dashboard {
         return (host.contains(":") ? "[" + host + "]" : host) + ":" + port;
     }
 
-    /** Every Workstation of the Yard with its Services, this one first. */
-    List<Workstation> workstations() {
-        return read(send(get("api/workstations")), new TypeReference<>() { });
+    /** The Yard, with every Workstation's Services. */
+    Yard yard() {
+        return read(send(get("api/yard")), new TypeReference<>() { });
     }
 
     /** The Services of {@code workstation}, as the Yard sees them. */

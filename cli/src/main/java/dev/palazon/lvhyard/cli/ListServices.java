@@ -33,13 +33,13 @@ class ListServices implements Runnable {
         Dashboard dashboard = yard.dashboard();
         PrintWriter out = spec.commandLine().getOut();
         if (workstation == null) {
-            List<Dashboard.Workstation> workstations = dashboard.workstations();
-            for (Dashboard.Workstation home : workstations) {
-                String name = home == workstations.getFirst() ? home.name() + " (this Workstation)" : home.name();
-                if (home.unreachable()) {
-                    out.println(name + ": Workstation unreachable");
+            Dashboard.Yard yard = dashboard.yard();
+            print(out, yard.home().name() + " (this Workstation)", yard.home().services());
+            for (Dashboard.YardWorkstation remote : yard.remotes()) {
+                if (remote.unreachable()) {
+                    out.println(remote.name() + ": Workstation unreachable");
                 } else {
-                    print(out, name, home.services());
+                    print(out, remote.name(), remote.services());
                 }
             }
         } else {

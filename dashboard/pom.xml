@@ -17,6 +17,7 @@
         <htmx.version>4.0.0</htmx.version>
         <!-- springdoc 3.x is the line for Spring Boot 4; 3.1.x is built against Boot 4.1. -->
         <springdoc.version>3.1.1</springdoc.version>
+        <resilience4j.version>2.4.0</resilience4j.version>
     </properties>
 
     <dependencies>
@@ -48,6 +49,12 @@
         <dependency>
             <groupId>org.webjars</groupId>
             <artifactId>webjars-locator-lite</artifactId>
+        </dependency>
+        <!-- Only the core circuit breaker: the Yard reader builds its own, so no Spring Boot starter is needed. -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-circuitbreaker</artifactId>
+            <version>${resilience4j.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

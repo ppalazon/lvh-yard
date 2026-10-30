@@ -14,6 +14,11 @@ public record Workstation(String name, String baseDomain) {
     /** The dashboard publishes itself under this name, so no Service can take it. */
     public static final String RESERVED_NAME = "yard";
 
+    /** Whether {@code workstation} names this Workstation, not another one of the Yard. */
+    public boolean is(String workstation) {
+        return name.equals(workstation);
+    }
+
     /** {@code name} as one of this Workstation's own hostnames: {@code <name>.<base-domain>}. */
     public String hostname(String name) {
         return name + "." + baseDomain;

@@ -9,6 +9,8 @@ import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.services.HomeWorkstation;
 import dev.palazon.lvhyard.dashboard.services.Instance;
 import dev.palazon.lvhyard.dashboard.services.Service;
+import dev.palazon.lvhyard.dashboard.services.Yard;
+import dev.palazon.lvhyard.dashboard.services.YardWorkstation;
 
 /**
  * The Catalog: every Service in the Yard, grouped by Home Workstation, this one first. Each Service has its state and
@@ -19,7 +21,7 @@ final class CatalogPage {
     private CatalogPage() {
     }
 
-    static String render(Workstation workstation, List<HomeWorkstation> workstations) {
+    static String render(Workstation workstation, Yard yard) {
         return Layout.page("Catalog", workstation.name(), main -> main
                 .div().attrClass("flex flex-wrap items-center justify-between gap-4")
                     .h1().text("Catalog").__()
@@ -27,35 +29,45 @@ final class CatalogPage {
                 .__()
                 .p().text("Workstation " + workstation.name() + ", base domain " + workstation.baseDomain() + ".")
                 .__()
-                .of(content -> workstations.forEach(home -> workstation(content, workstation, home))));
+                .of(content -> home(content, yard.home()))
+                .of(content -> yard.remotes().forEach(remote -> remote(content, remote))));
     }
 
-    /** A heading for {@code home}, and its Services, or why there are none. */
-    private static void workstation(Main<?> main, Workstation workstation, HomeWorkstation home) {
+    /** This Workstation's heading, and its Services. */
+    private static void home(Main<?> main, HomeWorkstation home) {
+        heading(main, home.name(), "secondary", "This Workstation");
+        services(main, home.services());
+    }
+
+    /** Another Workstation's heading, and its Services, or why they are not known. */
+    private static void remote(Main<?> main, YardWorkstation remote) {
+        if (remote.unreachable()) {
+            heading(main, remote.name(), "destructive", "Workstation unreachable");
+            main.p().text("Its Consul datacenter does not answer. Its Services show again by themselves once it"
+                    + " does.").__();
+            return;
+        }
+        heading(main, remote.name(), null, null);
+        services(main, remote.services());
+    }
+
+    /** A Workstation's name as a heading, with a badge beside it when {@code badge} is not null. */
+    private static void heading(Main<?> main, String name, String variant, String badge) {
         main.div().attrClass("mt-4 flex flex-wrap items-center gap-3")
-                .h2().text(home.name()).__()
-                .of(heading -> {
-                    if (home.name().equals(workstation.name())) {
-                        heading.span().attrClass("badge").addAttr("data-variant", "secondary")
-                                .text("This Workstation").__();
-                    }
-                    if (home.unreachable()) {
-                        heading.span().attrClass("badge").addAttr("data-variant", "destructive")
-                                .text("Workstation unreachable").__();
+                .h2().text(name).__()
+                .of(div -> {
+                    if (badge != null) {
+                        div.span().attrClass("badge").addAttr("data-variant", variant).text(badge).__();
                     }
                 })
         .__();
-        if (home.unreachable()) {
-            main.p().text("Its Consul datacenter does not answer. Its Services show again by themselves once it"
-                    + " does.").__();
-        } else if (home.services().isEmpty()) {
-            main.p().text("No Services yet.").__();
-        } else {
-            services(main, home.services());
-        }
     }
 
     private static void services(Main<?> main, List<Service> services) {
+        if (services.isEmpty()) {
+            main.p().text("No Services yet.").__();
+            return;
+        }
         main.div().attrClass("table-container").table().attrClass("table")
                 .thead().tr()
                     .th().text("Service").__()

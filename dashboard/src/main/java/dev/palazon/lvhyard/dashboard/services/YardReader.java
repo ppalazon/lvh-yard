@@ -2,7 +2,6 @@ package dev.palazon.lvhyard.dashboard.services;
 
 import java.math.BigDecimal;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -24,6 +23,9 @@ import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.consul.Consul;
 import dev.palazon.lvhyard.dashboard.consul.Consul.AgentService;
 import dev.palazon.lvhyard.dashboard.consul.Consul.HealthEntry;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 
 /**
  * Reads the Services of the Yard, with their Instances, Health and Publications, from every Workstation's Consul
@@ -41,11 +43,30 @@ public class YardReader {
     /** One number and unit of a Go duration, such as the {@code 1m} and the {@code 30s} of {@code 1m30s}. */
     private static final Pattern GO_DURATION_PART = Pattern.compile("(\\d+(?:\\.\\d+)?)(h|ms|m|s|us|µs|ns)");
 
+    /**
+     * When another Workstation is not asked: after two reads in a row found it unreachable, for ten seconds. Then one
+     * read tries it again, and the Workstation shows again by itself once that read succeeds. So a Workstation that is
+     * switched off does not make every load wait for Consul's timeout.
+     */
+    private static final CircuitBreakerConfig UNREACHABLE = CircuitBreakerConfig.custom()
+            .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
+            .slidingWindowSize(2)
+            .minimumNumberOfCalls(2)
+            .failureRateThreshold(100)
+            .waitDurationInOpenState(Duration.ofSeconds(10))
+            .permittedNumberOfCallsInHalfOpenState(1)
+            // Any other error means the datacenter answered: a fault, not an unreachable Workstation.
+            .recordExceptions(ResourceAccessException.class, HttpServerErrorException.class)
+            .build();
+
     private final Workstation workstation;
 
     private final Consul consul;
 
     private final Publications publications;
+
+    /** One circuit breaker per other Workstation, by name. */
+    private final CircuitBreakerRegistry breakers = CircuitBreakerRegistry.of(UNREACHABLE);
 
     YardReader(Workstation workstation, Consul consul, Publications publications) {
         this.workstation = workstation;
@@ -54,60 +75,61 @@ public class YardReader {
     }
 
     /**
-     * Every Workstation of the Yard with its Services: this one first, then the others by name. The others are read
-     * side by side, so a Workstation that does not answer delays the rest only once.
+     * This Workstation and every other one of the Yard, with their Services. The others are read side by side, so a
+     * Workstation that does not answer delays the rest only once.
      */
-    public List<HomeWorkstation> workstations() {
+    public Yard yard() {
         try (ExecutorService readers = Executors.newVirtualThreadPerTaskExecutor()) {
-            List<CompletableFuture<HomeWorkstation>> others = consul.datacenters().stream()
-                    .filter(datacenter -> !datacenter.equals(workstation.name()))
+            List<CompletableFuture<YardWorkstation>> remotes = consul.datacenters().stream()
+                    .filter(datacenter -> !workstation.is(datacenter))
                     .sorted()
-                    .map(other -> CompletableFuture.supplyAsync(() -> remote(other), readers))
+                    .map(remote -> CompletableFuture.supplyAsync(() -> remote(remote), readers))
                     .toList();
-            List<HomeWorkstation> workstations = new ArrayList<>();
-            workstations.add(new HomeWorkstation(workstation.name(), false, read(workstation.name())));
-            others.forEach(other -> workstations.add(other.join()));
-            return workstations;
+            HomeWorkstation home = new HomeWorkstation(workstation.name(), read(workstation.name()));
+            return new Yard(home, remotes.stream().map(CompletableFuture::join).toList());
         }
     }
 
     /** Every Service of the Workstations that answer, this Workstation's first, then by Workstation and name. */
     public List<Service> services() {
-        return workstations().stream().flatMap(home -> home.services().stream()).toList();
+        return yard().services();
     }
 
     /**
-     * The Services of {@code workstation}, ordered by name; none when the Yard has no such Workstation.
+     * The Services of {@code workstation}, ordered by name.
      *
+     * @throws UnknownWorkstationException when the Yard has no such Workstation
      * @throws UnreachableWorkstationException when its datacenter does not answer
      */
     public List<Service> services(String workstation) {
-        return inYard(workstation) ? read(workstation) : List.of();
+        checkInYard(workstation);
+        return read(workstation);
     }
 
     /**
      * The Service called {@code name} on {@code workstation}, while it has an Instance or a Publication.
      *
+     * @throws UnknownWorkstationException when the Yard has no such Workstation
      * @throws UnreachableWorkstationException when the Workstation's datacenter does not answer
      */
     public Optional<Service> service(String workstation, String name) {
-        if (!inYard(workstation)) {
-            return Optional.empty();
-        }
+        checkInYard(workstation);
         return reading(workstation, datacenter -> service(workstation, datacenter, name,
                 publications.all(datacenter).get(name)));
     }
 
-    private HomeWorkstation remote(String workstation) {
+    private YardWorkstation remote(String workstation) {
         try {
-            return new HomeWorkstation(workstation, false, read(workstation));
+            return new YardWorkstation(workstation, false, read(workstation));
         } catch (UnreachableWorkstationException e) {
-            return new HomeWorkstation(workstation, true, List.of());
+            return new YardWorkstation(workstation, true, List.of());
         }
     }
 
-    private boolean inYard(String workstation) {
-        return workstation.equals(this.workstation.name()) || consul.datacenters().contains(workstation);
+    private void checkInYard(String workstation) {
+        if (!this.workstation.is(workstation) && !consul.datacenters().contains(workstation)) {
+            throw new UnknownWorkstationException(workstation);
+        }
     }
 
     /**
@@ -129,15 +151,15 @@ public class YardReader {
     /**
      * What {@code read} gives for {@code workstation}'s datacenter: {@code null}, the agent's own, for this
      * Workstation. Another Workstation's datacenter that does not answer in time, or that Consul has no path to (a
-     * 5xx), makes it unreachable; any other error is a fault, not an unreachable Workstation.
+     * 5xx), makes it unreachable, and so does a Workstation that is not asked for now ({@link #UNREACHABLE}).
      */
     private <T> T reading(String workstation, Function<String, T> read) {
-        if (workstation.equals(this.workstation.name())) {
+        if (this.workstation.is(workstation)) {
             return read.apply(null);
         }
         try {
-            return read.apply(workstation);
-        } catch (ResourceAccessException | HttpServerErrorException e) {
+            return breakers.circuitBreaker(workstation).executeSupplier(() -> read.apply(workstation));
+        } catch (CallNotPermittedException | ResourceAccessException | HttpServerErrorException e) {
             throw new UnreachableWorkstationException(workstation, e);
         }
     }
@@ -148,7 +170,7 @@ public class YardReader {
         if (instances.isEmpty() && publication == null) {
             return Optional.empty();
         }
-        String hostname = publication != null && datacenter == null ? workstation.hostname(name) : null;
+        String hostname = publication != null && workstation.is(home) ? workstation.hostname(name) : null;
         return Optional.of(new Service(home, name, publication, hostname, instances));
     }
 

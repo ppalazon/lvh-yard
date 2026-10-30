@@ -34,7 +34,7 @@ final class RouteBuilder {
         Map<String, Router> routers = new LinkedHashMap<>();
         Map<String, Service> backends = new LinkedHashMap<>();
         services.stream()
-                .filter(service -> service.workstation().equals(workstation.name()) && service.published()
+                .filter(service -> workstation.is(service.workstation()) && service.published()
                         && !service.instances().isEmpty())
                 .forEach(service -> {
                     routers.put(service.name(), router(service.hostname(), service.name()));

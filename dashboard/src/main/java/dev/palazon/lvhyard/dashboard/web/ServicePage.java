@@ -38,7 +38,7 @@ final class ServicePage {
     }
 
     static String render(Workstation workstation, Service service) {
-        boolean own = service.workstation().equals(workstation.name());
+        boolean own = workstation.is(service.workstation());
         return Layout.page(service.name(), workstation.name(), main -> main
                 .div().attrClass("flex flex-wrap items-center gap-3")
                     .h1().text(service.name()).__()

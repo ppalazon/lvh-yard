@@ -210,7 +210,7 @@ public class Registrations {
     }
 
     private void checkHome(String workstation) {
-        if (!workstation.equals(this.workstation.name())) {
+        if (!this.workstation.is(workstation)) {
             throw new RemoteServiceException(workstation);
         }
     }

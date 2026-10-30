@@ -104,7 +104,8 @@ class StaticInstancesTest extends DashboardTest {
         register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
 
         assertThat(findService(get("/api/services?workstation=" + WORKSTATION).getBody(), grafana)).isNotNull();
-        assertThat(get("/api/services?workstation=ws-other").getBody()).isEmpty();
+        assertThat(findService(get("/api/services?workstation=" + RemoteWorkstation.NAME).getBody(), grafana))
+                .isNull();
     }
 
     @Test
@@ -122,10 +123,10 @@ class StaticInstancesTest extends DashboardTest {
     void unknownServiceInTheYardIsNotFound() {
         String grafana = newServiceName("grafana");
 
-        ResponseEntity<JsonNode> response = get("/api/services/ws-other/" + grafana);
+        ResponseEntity<JsonNode> response = get("/api/services/" + RemoteWorkstation.NAME + "/" + grafana);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(response.getBody().get("detail").asString()).contains("ws-other").contains(grafana);
+        assertThat(response.getBody().get("detail").asString()).contains(RemoteWorkstation.NAME).contains(grafana);
     }
 
     @Test

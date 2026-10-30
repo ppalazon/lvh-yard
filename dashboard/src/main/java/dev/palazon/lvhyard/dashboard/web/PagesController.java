@@ -22,6 +22,7 @@ import dev.palazon.lvhyard.dashboard.services.RemoteServiceException;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import dev.palazon.lvhyard.dashboard.services.UnknownInstanceException;
 import dev.palazon.lvhyard.dashboard.services.UnknownServiceException;
+import dev.palazon.lvhyard.dashboard.services.UnknownWorkstationException;
 import dev.palazon.lvhyard.dashboard.services.UnreachableWorkstationException;
 import dev.palazon.lvhyard.dashboard.services.YardReader;
 
@@ -48,7 +49,7 @@ class PagesController {
     @GetMapping(path = "/", produces = MediaType.TEXT_HTML_VALUE)
     @ResponseBody
     String catalog() {
-        return CatalogPage.render(workstation, yard.workstations());
+        return CatalogPage.render(workstation, yard.yard());
     }
 
     @GetMapping(path = RegisterPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
@@ -75,6 +76,8 @@ class PagesController {
         try {
             return yard.service(home, service).map(found -> ServicePage.render(workstation, found))
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        } catch (UnknownWorkstationException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
         } catch (UnreachableWorkstationException e) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage(), e);
         }
@@ -110,7 +113,7 @@ class PagesController {
 
     /** This Workstation's {@code service}: a Remote Service's Instances cannot be edited, so it is forbidden. */
     private Service ownService(String home, String service) {
-        if (!home.equals(workstation.name())) {
+        if (!workstation.is(home)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "The Services of " + home + " can be edited only on " + home + ".");
         }

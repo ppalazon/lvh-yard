@@ -31,7 +31,7 @@ class OpenApiTest extends DashboardTest {
         assertThat(response.getBody().get("paths").propertyNames()).containsExactlyInAnyOrder(
                 "/api/services",
                 "/api/services/{workstation}/{service}",
-                "/api/workstations",
+                "/api/yard",
                 "/api/workstation/services",
                 "/api/workstation/services/{service}",
                 "/api/workstation/services/{service}/instances",

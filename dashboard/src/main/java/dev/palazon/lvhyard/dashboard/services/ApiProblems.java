@@ -11,7 +11,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
  * explains it, and Spring's own errors, such as a malformed body or an unknown Service, as its base class does.
  */
 @RestControllerAdvice(assignableTypes = { ServicesController.class, WorkstationServicesController.class,
-        WorkstationsController.class })
+        YardController.class })
 class ApiProblems extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler
@@ -27,6 +27,11 @@ class ApiProblems extends ResponseEntityExceptionHandler {
     @ExceptionHandler
     ProblemDetail unreachableWorkstation(UnreachableWorkstationException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage());
+    }
+
+    @ExceptionHandler
+    ProblemDetail unknownWorkstation(UnknownWorkstationException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
     }
 
     @ExceptionHandler

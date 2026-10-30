@@ -18,24 +18,25 @@ import static org.awaitility.Awaitility.await;
 class RemoteServicesTest extends DashboardTest {
 
     @Test
-    void workstationsListsThisWorkstationFirstThenTheOthersWithTheirServices() {
+    void yardShowsThisWorkstationAsHomeAndTheOthersAsRemotesWithTheirServices() {
         String web = newServiceName("web");
         register(web, Map.of("host", "10.1.2.3", "port", 8080));
         String api = newServiceName("api");
         remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
 
-        ResponseEntity<JsonNode> response = get("/api/workstations");
+        ResponseEntity<JsonNode> response = get("/api/yard");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        JsonNode workstations = response.getBody();
-        // ws-remote comes before ws-test by name, but this Workstation is always first.
-        assertThat(workstations.valueStream().map(workstation -> workstation.get("name").asString()))
-                .containsExactly(WORKSTATION, RemoteWorkstation.NAME);
-        assertThat(workstations.get(0).get("unreachable").asBoolean()).isFalse();
-        assertThat(serviceNames(workstations.get(0))).contains(web).doesNotContain(api);
-        assertThat(workstations.get(1).get("unreachable").asBoolean()).isFalse();
-        assertThat(serviceNames(workstations.get(1))).contains(api).doesNotContain(web);
-        JsonNode remoteApi = service(workstations.get(1), api);
+        JsonNode home = response.getBody().get("home");
+        assertThat(home.get("name").asString()).isEqualTo(WORKSTATION);
+        assertThat(home.has("unreachable")).as("this Workstation always answers").isFalse();
+        assertThat(serviceNames(home)).contains(web).doesNotContain(api);
+        JsonNode remotes = response.getBody().get("remotes");
+        assertThat(remotes.valueStream().map(workstation -> workstation.get("name").asString()))
+                .containsExactly(RemoteWorkstation.NAME);
+        assertThat(remotes.get(0).get("unreachable").asBoolean()).isFalse();
+        assertThat(serviceNames(remotes.get(0))).contains(api).doesNotContain(web);
+        JsonNode remoteApi = service(remotes.get(0), api);
         assertThat(remoteApi.get("workstation").asString()).isEqualTo(RemoteWorkstation.NAME);
         assertThat(remoteApi.get("instances").get(0).get("host").asString()).isEqualTo("10.9.8.7");
     }
@@ -49,12 +50,14 @@ class RemoteServicesTest extends DashboardTest {
 
         remote.stopAnswering();
         try {
-            JsonNode workstations = await().atMost(Duration.ofSeconds(60)).until(() -> get("/api/workstations")
-                    .getBody(), body -> body.get(1).get("unreachable").asBoolean());
+            JsonNode yard = await().atMost(Duration.ofSeconds(60)).until(() -> get("/api/yard").getBody(),
+                    body -> remoteOf(body).get("unreachable").asBoolean());
 
-            assertThat(workstations.get(1).get("name").asString()).isEqualTo(RemoteWorkstation.NAME);
-            assertThat(workstations.get(1).get("services")).isEmpty();
-            assertThat(serviceNames(workstations.get(0))).contains(web);
+            assertThat(remoteOf(yard).get("services")).isEmpty();
+            // A Workstation that keeps failing is not asked again for a while, so the Yard answers without waiting.
+            await().atMost(Duration.ofSeconds(30)).until(() -> answerTime("/api/yard"),
+                    time -> time.compareTo(Duration.ofSeconds(1)) < 0);
+            assertThat(serviceNames(yard.get("home"))).contains(web);
             ResponseEntity<JsonNode> one = get("/api/services/" + RemoteWorkstation.NAME + "/" + api);
             assertThat(one.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
             assertThat(one.getBody().get("detail").asString()).contains(RemoteWorkstation.NAME + " is unreachable");
@@ -72,9 +75,9 @@ class RemoteServicesTest extends DashboardTest {
             remote.answerAgain();
         }
 
-        JsonNode workstations = await().atMost(Duration.ofSeconds(60)).until(() -> get("/api/workstations")
-                .getBody(), body -> !body.get(1).get("unreachable").asBoolean());
-        assertThat(serviceNames(workstations.get(1))).contains(api);
+        JsonNode yard = await().atMost(Duration.ofSeconds(60)).until(() -> get("/api/yard").getBody(),
+                body -> !remoteOf(body).get("unreachable").asBoolean());
+        assertThat(serviceNames(remoteOf(yard))).contains(api);
     }
 
     @Test
@@ -118,6 +121,32 @@ class RemoteServicesTest extends DashboardTest {
                 .contains("It can be changed only on " + RemoteWorkstation.NAME);
         String content = response.getBody().substring(response.getBody().indexOf("<main"));
         assertThat(content).doesNotContain("<form").doesNotContain("<button").doesNotContain("/edit\"");
+    }
+
+    @Test
+    void workstationNotInTheYardIsNotFound() {
+        ResponseEntity<JsonNode> services = get("/api/services?workstation=ws-typo");
+        ResponseEntity<JsonNode> service = get("/api/services/ws-typo/" + newServiceName("api"));
+
+        assertThat(services.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(services.getBody().get("detail").asString()).contains("The Yard has no Workstation ws-typo");
+        assertThat(service.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(service.getBody().get("detail").asString()).contains("The Yard has no Workstation ws-typo");
+        assertThat(getPage("/services/ws-typo/web").getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    /** How long the dashboard takes to answer a GET of {@code path}. */
+    private Duration answerTime(String path) {
+        long start = System.nanoTime();
+        get(path);
+        return Duration.ofNanos(System.nanoTime() - start);
+    }
+
+    /** The {@link RemoteWorkstation} among the Yard's remotes. */
+    private static JsonNode remoteOf(JsonNode yard) {
+        return yard.get("remotes").valueStream()
+                .filter(workstation -> workstation.get("name").asString().equals(RemoteWorkstation.NAME))
+                .findFirst().orElseThrow();
     }
 
     private static List<String> serviceNames(JsonNode workstation) {

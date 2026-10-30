@@ -42,9 +42,9 @@ class YardTest {
     }
 
     @Test
-    void listShowsEveryWorkstationsServicesThisOneFirstWithTheirStateHostnameInstancesAndHealth() {
-        dashboard.answer("GET", "/api/workstations", 200, """
-                [{"name": "ws-a", "unreachable": false, "services": [
+    void listShowsThisWorkstationThenTheOthersWithTheirStateHostnameInstancesAndHealth() {
+        dashboard.answer("GET", "/api/yard", 200, """
+                {"home": {"name": "ws-a", "services": [
                    {"workstation": "ws-a", "name": "api", "state": "unavailable", "publication": {"scope": "local"},
                     "hostname": "api.lvh.me", "instances": []},
                    {"workstation": "ws-a", "name": "grafana", "state": "healthy", "publication": {"scope": "local"},
@@ -56,13 +56,14 @@ class YardTest {
                        "tags": [], "meta": {}, "checks": []},
                       {"id": "9d4e", "host": "10.1.2.3", "port": 8081, "health": "warning",
                        "tags": [], "meta": {}, "checks": []}]}]},
-                 {"name": "ws-b", "unreachable": false, "services": [
-                   {"workstation": "ws-b", "name": "postgres", "state": "unhealthy",
-                    "publication": {"scope": "local"}, "instances": [
-                      {"id": "5e6f", "host": "10.1.2.4", "port": 5432, "health": "critical",
-                       "tags": [], "meta": {}, "checks": []}]}]},
-                 {"name": "ws-c", "unreachable": true, "services": []},
-                 {"name": "ws-d", "unreachable": false, "services": []}]
+                 "remotes": [
+                   {"name": "ws-b", "unreachable": false, "services": [
+                     {"workstation": "ws-b", "name": "postgres", "state": "unhealthy",
+                      "publication": {"scope": "local"}, "instances": [
+                        {"id": "5e6f", "host": "10.1.2.4", "port": 5432, "health": "critical",
+                         "tags": [], "meta": {}, "checks": []}]}]},
+                   {"name": "ws-c", "unreachable": true, "services": []},
+                   {"name": "ws-d", "unreachable": false, "services": []}]}
                 """);
 
         Run run = yard("list");
@@ -102,13 +103,26 @@ class YardTest {
 
     @Test
     void listWithoutServicesSaysSo() {
-        dashboard.answer("GET", "/api/workstations", 200, """
-                [{"name": "ws-a", "unreachable": false, "services": []}]
+        dashboard.answer("GET", "/api/yard", 200, """
+                {"home": {"name": "ws-a", "services": []}, "remotes": []}
                 """);
         dashboard.answer("GET", "/api/services?workstation=ws-b", 200, "[]");
 
         assertThat(yard("list").out()).isEqualTo("ws-a (this Workstation): no Services\n");
         assertThat(yard("list", "--workstation", "ws-b").out()).isEqualTo("ws-b: no Services\n");
+    }
+
+    @Test
+    void listOfWorkstationNotInTheYardFailsWithTheReason() {
+        dashboard.answer("GET", "/api/services?workstation=ws-typo", 404, """
+                {"status": 404, "detail": "The Yard has no Workstation ws-typo."}
+                """);
+
+        Run run = yard("list", "--workstation", "ws-typo");
+
+        assertThat(run.exitCode()).isNotZero();
+        assertThat(run.out()).isEmpty();
+        assertThat(run.err()).contains("The Yard has no Workstation ws-typo.");
     }
 
     @Test
@@ -367,8 +381,8 @@ class YardTest {
 
     @Test
     void dashboardUrlComesFromTheEnvironment() throws Exception {
-        dashboard.answer("GET", "/api/workstations", 200, """
-                [{"name": "ws-a", "unreachable": false, "services": []}]
+        dashboard.answer("GET", "/api/yard", 200, """
+                {"home": {"name": "ws-a", "services": []}, "remotes": []}
                 """);
 
         Run run = yardProcess(Map.of("YARD_DASHBOARD_URL", dashboard.url().toString()), "list");
@@ -379,8 +393,8 @@ class YardTest {
 
     @Test
     void dashboardOptionWinsOverTheEnvironment() throws Exception {
-        dashboard.answer("GET", "/api/workstations", 200, """
-                [{"name": "ws-a", "unreachable": false, "services": []}]
+        dashboard.answer("GET", "/api/yard", 200, """
+                {"home": {"name": "ws-a", "services": []}, "remotes": []}
                 """);
 
         Run run = yardProcess(Map.of("YARD_DASHBOARD_URL", "http://127.0.0.1:" + freePort()),

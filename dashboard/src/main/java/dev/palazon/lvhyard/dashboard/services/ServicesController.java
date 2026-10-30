@@ -38,8 +38,9 @@ class ServicesController {
     @GetMapping
     @Operation(operationId = "yardServices", summary = "Every Service in the Yard, with its Instances and their Health",
             description = "This Workstation's Services first, then the others' by Workstation and name. The Services"
-                    + " of an unreachable Workstation are left out; /api/workstations shows which ones are.")
+                    + " of an unreachable Workstation are left out; /api/yard shows which ones are.")
     @ApiResponse(responseCode = "200", description = "OK", useReturnTypeSchema = true)
+    @ApiResponse(responseCode = "404", description = "The Yard has no Workstation of this name")
     @ApiResponse(responseCode = "503", description = "The Workstation asked for is unreachable: its Consul datacenter"
             + " does not answer")
     List<Service> services(@RequestParam(required = false)
@@ -50,7 +51,8 @@ class ServicesController {
     @GetMapping("/{workstation}/{service}")
     @Operation(operationId = "yardService", summary = "One Service, with its Instances and their Health")
     @ApiResponse(responseCode = "200", description = "OK", useReturnTypeSchema = true)
-    @ApiResponse(responseCode = "404", description = "The Workstation has no Service of this name")
+    @ApiResponse(responseCode = "404", description = "The Yard has no Workstation of this name, or it has no"
+            + " Service of this name")
     @ApiResponse(responseCode = "503", description = "The Workstation is unreachable: its Consul datacenter does not"
             + " answer")
     Service service(@PathVariable String workstation, @PathVariable String service) {
