@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import dev.palazon.lvhyard.dashboard.reachability.Reachability;
+import dev.palazon.lvhyard.dashboard.reachability.ReachabilityTester;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -31,8 +33,11 @@ class ServicesController {
 
     private final YardReader yard;
 
-    ServicesController(YardReader yard) {
+    private final ReachabilityTester reachability;
+
+    ServicesController(YardReader yard, ReachabilityTester reachability) {
         this.yard = yard;
+        this.reachability = reachability;
     }
 
     @GetMapping
@@ -58,6 +63,21 @@ class ServicesController {
     Service service(@PathVariable String workstation, @PathVariable String service) {
         return yard.service(workstation, service).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                 "Workstation " + workstation + " has no Service " + service + "."));
+    }
+
+    @GetMapping("/{workstation}/{service}/reachability")
+    @Operation(operationId = "testReachability", summary = "Tests whether this Workstation reaches a Service, now",
+            description = "Connects straight to each Instance, and requests each hostname this Workstation routes to"
+                    + " the Service through its own Traefik. A Service with no Route here is tested straight to"
+                    + " its Instances only. The results are not stored.")
+    @ApiResponse(responseCode = "200", description = "Tested, whether the checks passed or not",
+            useReturnTypeSchema = true)
+    @ApiResponse(responseCode = "404", description = "The Yard has no Workstation of this name, or it has no"
+            + " Service of this name")
+    @ApiResponse(responseCode = "503", description = "The Workstation is unreachable: its Consul datacenter does not"
+            + " answer")
+    Reachability reachability(@PathVariable String workstation, @PathVariable String service) {
+        return reachability.test(service(workstation, service));
     }
 
     /**

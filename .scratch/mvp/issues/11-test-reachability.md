@@ -4,11 +4,11 @@
 
 **Blocked by:** 03 (Publish a Service on its own Workstation)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The test connects to each Instance's address and port from this Workstation, and reports success or the error.
-- [ ] For a published Service, the test also requests each of its hostnames through the local Traefik, and reports the answer.
-- [ ] An unpublished Service is tested straight to its Instances only, and the result says it has no Route.
-- [ ] Results are shown on the Service detail page and in the API, and are never stored.
-- [ ] Remote Services can be tested too.
-- [ ] `yard test` prints the same results, with a non-zero exit code when any check fails.
+- [x] The test connects to each Instance's address and port from this Workstation, and reports success or the error.
+- [x] For a published Service, the test also requests each of its hostnames through the local Traefik, and reports the answer.
+- [x] An unpublished Service is tested straight to its Instances only, and the result says it has no Route.
+- [x] Results are shown on the Service detail page and in the API, and are never stored.
+- [x] Remote Services can be tested too.
+- [x] `yard test` prints the same results, with a non-zero exit code when any check fails.

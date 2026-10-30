@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.server.ResponseStatusException;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
+import dev.palazon.lvhyard.dashboard.reachability.ReachabilityTester;
 import dev.palazon.lvhyard.dashboard.services.Aliases;
 import dev.palazon.lvhyard.dashboard.services.ContainerBindings;
 import dev.palazon.lvhyard.dashboard.services.Instance;
@@ -48,14 +49,18 @@ class PagesController {
 
     private final ContainerBindings containerBindings;
 
+    private final ReachabilityTester reachability;
+
     PagesController(Workstation workstation, YardReader yard, Registrations registrations,
-            Publications publications, Aliases aliases, ContainerBindings containerBindings) {
+            Publications publications, Aliases aliases, ContainerBindings containerBindings,
+            ReachabilityTester reachability) {
         this.workstation = workstation;
         this.yard = yard;
         this.registrations = registrations;
         this.publications = publications;
         this.aliases = aliases;
         this.containerBindings = containerBindings;
+        this.reachability = reachability;
     }
 
     @GetMapping(path = "/", produces = MediaType.TEXT_HTML_VALUE)
@@ -94,9 +99,21 @@ class PagesController {
     @GetMapping(path = "/services/{workstation}/{service}", produces = MediaType.TEXT_HTML_VALUE)
     @ResponseBody
     String service(@PathVariable("workstation") String home, @PathVariable String service) {
+        return ServicePage.render(workstation, anyService(home, service));
+    }
+
+    /** The Service's page with the results of a Reachability test run now, which are not kept. */
+    @GetMapping(path = "/services/{workstation}/{service}/reachability", produces = MediaType.TEXT_HTML_VALUE)
+    @ResponseBody
+    String reachability(@PathVariable("workstation") String home, @PathVariable String service) {
+        Service found = anyService(home, service);
+        return ServicePage.render(workstation, found, reachability.test(found));
+    }
+
+    /** {@code service} of {@code home}, this Workstation or another one of the Yard. */
+    private Service anyService(String home, String service) {
         try {
-            return yard.service(home, service).map(found -> ServicePage.render(workstation, found))
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+            return yard.service(home, service).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         } catch (UnknownWorkstationException e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
         } catch (UnreachableWorkstationException e) {

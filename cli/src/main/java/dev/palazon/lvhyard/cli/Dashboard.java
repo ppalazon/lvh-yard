@@ -137,6 +137,22 @@ final class Dashboard {
         }
     }
 
+    /**
+     * What a Reachability test of a Service found, from this Workstation: each Instance reached straight, each
+     * hostname reached through Traefik, and why it has no Route here when it has none.
+     */
+    record Reachability(String workstation, String service, List<InstanceReachability> instances,
+            List<RouteReachability> routes, String noRoute, boolean passed) {
+    }
+
+    /** Whether a connection straight to an Instance was made, or why not. */
+    record InstanceReachability(String id, String address, boolean reached, String error) {
+    }
+
+    /** Whether a request for a hostname through Traefik reached the Service, the status it answered, or why not. */
+    record RouteReachability(String hostname, boolean reached, Integer status, String error) {
+    }
+
     /** {@code host:port}, with an IPv6 host in brackets so its colons are not read as the port's. */
     static String address(String host, int port) {
         return (host.contains(":") ? "[" + host + "]" : host) + ":" + port;
@@ -156,6 +172,18 @@ final class Dashboard {
     /** This Workstation's {@code service}. */
     Service ownService(String service) {
         return read(send(get("api/workstation/services/" + segment(service))), new TypeReference<>() { });
+    }
+
+    /** Tests now whether this Workstation reaches its own {@code service}. */
+    Reachability testOwn(String service) {
+        return read(send(get("api/workstation/services/" + segment(service) + "/reachability")),
+                new TypeReference<>() { });
+    }
+
+    /** Tests now whether this Workstation reaches {@code service} of {@code workstation}. */
+    Reachability test(String workstation, String service) {
+        return read(send(get("api/services/" + segment(workstation) + "/" + segment(service) + "/reachability")),
+                new TypeReference<>() { });
     }
 
     /**

@@ -1,5 +1,8 @@
 package dev.palazon.lvhyard.dashboard;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,6 +26,15 @@ class TestcontainersConfiguration {
     private static final DockerImageName CONSUL_IMAGE = DockerImageName.parse("hashicorp/consul:2.1.0");
 
     static final int CONSUL_HTTP_PORT = 8500;
+
+    /** The version compose.yaml runs. */
+    private static final DockerImageName TRAEFIK_IMAGE = DockerImageName.parse("traefik:v3.7.16");
+
+    /**
+     * The loopback port {@link #traefik} listens on, which the dashboard is told before it starts, as compose.yaml
+     * and {@code YARD_HTTP_PORT} tell it.
+     */
+    static final int TRAEFIK_PORT = freePort();
 
     /** Where the {@link RemoteWorkstation} finds the test Workstation's Consul on the network, at its serf WAN port. */
     private static final String CONSUL_HOSTNAME = "consul-" + DashboardTest.WORKSTATION;
@@ -54,6 +66,7 @@ class TestcontainersConfiguration {
             registry.add("lvh-yard.consul.url", () -> "http://" + consulContainer.getHost() + ":"
                     + consulContainer.getMappedPort(CONSUL_HTTP_PORT));
             registry.add("lvh-yard.docker.host", TestcontainersConfiguration::dockerHost);
+            registry.add("lvh-yard.traefik.url", () -> "http://127.0.0.1:" + TRAEFIK_PORT);
         };
     }
 
@@ -73,6 +86,27 @@ class TestcontainersConfiguration {
                         .withEntrypoint("sh", "-c", "while true; do nc -l -p " + port + " >/dev/null; done")
                         .withCmd())
                 .waitingFor(Wait.forListeningPort());
+    }
+
+    /**
+     * Traefik as compose.yaml runs it, on the host's network and on loopback at {@link #TRAEFIK_PORT}, reading its
+     * Routes from the dashboard at {@code dashboardPort}. It polls every second, so tests wait less for a new Route.
+     * It is started only once the dashboard's port is known, by the tests that need it.
+     */
+    static GenericContainer<?> traefik(int dashboardPort) {
+        return new GenericContainer<>(TRAEFIK_IMAGE).withNetworkMode("host")
+                .withCommand("--entryPoints.web.address=127.0.0.1:" + TRAEFIK_PORT,
+                        "--providers.http.endpoint=http://127.0.0.1:" + dashboardPort + "/traefik/configuration",
+                        "--providers.http.pollInterval=1s", "--log.level=INFO")
+                .waitingFor(Wait.forLogMessage(".*Starting provider \\*http\\.Provider.*", 1));
+    }
+
+    private static int freePort() {
+        try (ServerSocket free = new ServerSocket(0)) {
+            return free.getLocalPort();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     /** A Consul container, ready once its server has elected itself. */

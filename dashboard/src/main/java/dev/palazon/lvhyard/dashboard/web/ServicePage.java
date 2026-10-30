@@ -4,9 +4,13 @@ import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
 import org.xmlet.htmlapifaster.EnumTypeInputType;
 import org.xmlet.htmlapifaster.Main;
+import org.xmlet.htmlapifaster.Td;
 import org.xmlet.htmlapifaster.Tr;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
+import dev.palazon.lvhyard.dashboard.reachability.InstanceReachability;
+import dev.palazon.lvhyard.dashboard.reachability.Reachability;
+import dev.palazon.lvhyard.dashboard.reachability.RouteReachability;
 import dev.palazon.lvhyard.dashboard.services.ContainerBinding;
 import dev.palazon.lvhyard.dashboard.services.Instance;
 import dev.palazon.lvhyard.dashboard.services.Scope;
@@ -15,9 +19,9 @@ import dev.palazon.lvhyard.dashboard.services.ServiceWarning;
 
 /**
  * One Service: its state and Publication with buttons to change it and its Scope, its warnings, its Instances, each
- * with its tags, meta and each check's last output, and buttons to edit and remove a Static Instance, and its
- * Container Bindings, with a button to remove each. A Remote Service's page has no forms or buttons: only its Home
- * Workstation can change it.
+ * with its tags, meta and each check's last output, and buttons to edit and remove a Static Instance, its Container
+ * Bindings, with a button to remove each, and a button that tests its Reachability, with the results once tested. A
+ * Remote Service's page has no forms or buttons that change it: only its Home Workstation can change it.
  */
 final class ServicePage {
 
@@ -43,12 +47,22 @@ final class ServicePage {
         return path(service) + "/container-bindings/" + binding.id() + "/remove";
     }
 
+    /** Where the Test button goes: the Service's page again, with a Reachability test's results. */
+    static String reachabilityPath(Service service) {
+        return path(service) + "/reachability";
+    }
+
     /** Where the form that publishes the Service, or unpublishes it, posts to. */
     static String publicationPath(Service service) {
         return path(service) + (service.published() ? "/unpublish" : "/publish");
     }
 
     static String render(Workstation workstation, Service service) {
+        return render(workstation, service, null);
+    }
+
+    /** The page, with {@code reachability}, a test just run, or with no results when it is {@code null}. */
+    static String render(Workstation workstation, Service service, Reachability reachability) {
         boolean own = workstation.is(service.workstation());
         return Layout.page(service.name(), workstation.name(), main -> main
                 .div().attrClass("flex flex-wrap items-center gap-3")
@@ -109,7 +123,64 @@ final class ServicePage {
                     if (!service.containerBindings().isEmpty()) {
                         containerBindings(content, service, own);
                     }
-                }));
+                })
+                .of(content -> reachability(content, workstation, service, reachability)));
+    }
+
+    /**
+     * The button that tests the Service's Reachability from this Workstation, and the results of the test when one
+     * was just run: each Instance reached straight, then each hostname through Traefik, or why it has no Route.
+     */
+    private static void reachability(Main<?> content, Workstation workstation, Service service,
+            Reachability reachability) {
+        content.div().attrClass("flex flex-wrap items-center justify-between gap-4")
+                .h2().attrClass("text-lg font-semibold").text("Reachability from " + workstation.name()).__()
+                .form().addAttr("method", "get").addAttr("action", Layout.attr(reachabilityPath(service)))
+                    .button().attrType(EnumTypeButtonType.SUBMIT).attrClass("btn").addAttr("data-variant", "outline")
+                            .text(reachability == null ? "Test" : "Test again").__()
+                .__()
+        .__();
+        if (reachability == null) {
+            content.p().attrClass("text-muted-foreground").text("Test whether this Workstation connects to each"
+                    + " Instance, and reaches the Service through Traefik. The results are not kept.").__();
+            return;
+        }
+        if (reachability.noRoute() != null) {
+            content.p().text(reachability.noRoute()).__();
+        }
+        content.div().attrClass("table-container").table().attrClass("table")
+                .thead().tr()
+                    .th().text("Check").__()
+                    .th().text("Result").__()
+                    .th().text("Details").__()
+                .__().__()
+                .tbody()
+                    .of(body -> reachability.instances().forEach(instance -> body.tr()
+                            .td().text("Instance " + instance.address()).__()
+                            .td().of(cell -> result(cell, instance.reached())).__()
+                            .td().text(instanceDetails(instance)).__()
+                    .__()))
+                    .of(body -> reachability.routes().forEach(route -> body.tr()
+                            .td().text("Route " + route.hostname()).__()
+                            .td().of(cell -> result(cell, route.reached())).__()
+                            .td().text(routeDetails(route)).__()
+                    .__()))
+                .__()
+        .__().__();
+    }
+
+    private static void result(Td<?> cell, boolean reached) {
+        cell.span().attrClass("badge").addAttr("data-variant", reached ? "primary" : "destructive")
+                .text(reached ? "Reached" : "Not reached").__();
+    }
+
+    private static String instanceDetails(InstanceReachability instance) {
+        return instance.reached() ? "Connected straight to it." : instance.error();
+    }
+
+    private static String routeDetails(RouteReachability route) {
+        return route.reached() ? "Traefik passed the request on, and it answered " + route.status() + "."
+                : route.error();
     }
 
     /**

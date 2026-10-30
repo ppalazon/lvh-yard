@@ -84,6 +84,48 @@ paths:
       summary: "One Service, with its Instances and their Health"
       tags:
       - services-controller
+  /api/services/{workstation}/{service}/reachability:
+    get:
+      description: "Connects straight to each Instance, and requests each hostname\
+        \ this Workstation routes to the Service through its own Traefik. A Service\
+        \ with no Route here is tested straight to its Instances only. The results\
+        \ are not stored."
+      operationId: testReachability
+      parameters:
+      - in: path
+        name: workstation
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: service
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reachability"
+          description: "Tested, whether the checks passed or not"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "The Yard has no Workstation of this name, or it has no Service\
+            \ of this name"
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "The Workstation is unreachable: its Consul datacenter does\
+            \ not answer"
+      summary: "Tests whether this Workstation reaches a Service, now"
+      tags:
+      - services-controller
   /api/workstation/aliases:
     get:
       operationId: aliases
@@ -446,6 +488,33 @@ paths:
       summary: "Publishes a Service at <service>.<base-domain>, or changes its Scope"
       tags:
       - workstation-services-controller
+  /api/workstation/services/{service}/reachability:
+    get:
+      description: "As /api/services/{workstation}/{service}/reachability does, without\
+        \ naming this Workstation."
+      operationId: testOwnReachability
+      parameters:
+      - in: path
+        name: service
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reachability"
+          description: "Tested, whether the checks passed or not"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: This Workstation has no Service of this name
+      summary: "Tests whether this Workstation reaches one of its own Services, now"
+      tags:
+      - workstation-services-controller
   /api/yard:
     get:
       description: "The other Workstations come by name. One whose Consul datacenter\
@@ -625,6 +694,21 @@ components:
       - outOfRange
       - port
       - tags
+    InstanceReachability:
+      type: object
+      properties:
+        address:
+          type: string
+        error:
+          type: string
+        id:
+          type: string
+        reached:
+          type: boolean
+      required:
+      - address
+      - id
+      - reached
     ProblemDetail:
       type: object
       additionalProperties: true
@@ -660,6 +744,46 @@ components:
           enum:
           - local
           - yard
+    Reachability:
+      type: object
+      properties:
+        instances:
+          type: array
+          items:
+            $ref: "#/components/schemas/InstanceReachability"
+        noRoute:
+          type: string
+        passed:
+          type: boolean
+        routes:
+          type: array
+          items:
+            $ref: "#/components/schemas/RouteReachability"
+        service:
+          type: string
+        workstation:
+          type: string
+      required:
+      - instances
+      - passed
+      - routes
+      - service
+      - workstation
+    RouteReachability:
+      type: object
+      properties:
+        error:
+          type: string
+        hostname:
+          type: string
+        reached:
+          type: boolean
+        status:
+          type: integer
+          format: int32
+      required:
+      - hostname
+      - reached
     Service:
       type: object
       properties:

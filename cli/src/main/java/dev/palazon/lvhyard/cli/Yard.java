@@ -14,7 +14,7 @@ import picocli.CommandLine.Spec;
  */
 @Command(name = "yard", mixinStandardHelpOptions = true,
         subcommands = { ListServices.class, Register.class, Remove.class, Publish.class, Unpublish.class,
-                Alias.class },
+                Alias.class, TestReachability.class },
         description = "Registers, publishes and tests Services on this Workstation's LVH Yard.")
 public class Yard implements Runnable {
 

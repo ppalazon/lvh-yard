@@ -31,10 +31,8 @@ final class RouteBuilder {
     }
 
     /**
-     * A Route at its hostname to every Instance of each Service that has a hostname and any Instance this Workstation
-     * can reach (an Out-of-range Instance is on another Workstation's loopback or Docker network, so a Route to it
-     * would reach this Workstation's own instead), and the
-     * dashboard's own at {@code yard.<base-domain>}, which no Service can replace. A Service has a hostname here
+     * A Route at its hostname to every Instance in range of each Service that is
+     * {@linkplain dev.palazon.lvhyard.dashboard.services.Service#routed routed} here, and the dashboard's own at {@code yard.<base-domain>}, which no Service can replace. A Service has a hostname here
      * when it is published on this Workstation, or published with Yard Scope on another one; the Services of an
      * unreachable Workstation are not among {@code services}, so they get no Route. Each active Alias gets a Route at
      * its hostname to the backend of the Remote Service it names, when that Service has one.
@@ -46,13 +44,10 @@ final class RouteBuilder {
         Map<String, Router> routers = new LinkedHashMap<>();
         Map<String, Service> backends = new LinkedHashMap<>();
         services.stream()
-                .filter(service -> service.hostname() != null)
+                .filter(dev.palazon.lvhyard.dashboard.services.Service::routed)
                 .forEach(service -> {
                     List<Server> servers = service.instances().stream().filter(instance -> !instance.outOfRange())
                             .map(instance -> new Server("http://" + instance.address())).toList();
-                    if (servers.isEmpty()) {
-                        return;
-                    }
                     String name = name(workstation, service);
                     routers.put(name, router(service.hostname(), name));
                     backends.put(name, new Service(new LoadBalancer(servers)));

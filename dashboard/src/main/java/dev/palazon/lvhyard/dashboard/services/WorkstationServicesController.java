@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
+import dev.palazon.lvhyard.dashboard.reachability.Reachability;
+import dev.palazon.lvhyard.dashboard.reachability.ReachabilityTester;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 
@@ -42,13 +44,16 @@ class WorkstationServicesController {
 
     private final ContainerBindings containerBindings;
 
+    private final ReachabilityTester reachability;
+
     WorkstationServicesController(Workstation workstation, YardReader yard, Registrations registrations,
-            Publications publications, ContainerBindings containerBindings) {
+            Publications publications, ContainerBindings containerBindings, ReachabilityTester reachability) {
         this.workstation = workstation;
         this.yard = yard;
         this.registrations = registrations;
         this.publications = publications;
         this.containerBindings = containerBindings;
+        this.reachability = reachability;
     }
 
     @GetMapping
@@ -64,6 +69,18 @@ class WorkstationServicesController {
     Service service(@PathVariable String service) {
         return yard.service(workstation.name(), service).orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.NOT_FOUND, "This Workstation has no Service " + service + "."));
+    }
+
+    @GetMapping("/{service}/reachability")
+    @Operation(operationId = "testOwnReachability",
+            summary = "Tests whether this Workstation reaches one of its own Services, now",
+            description = "As /api/services/{workstation}/{service}/reachability does, without naming this"
+                    + " Workstation.")
+    @ApiResponse(responseCode = "200", description = "Tested, whether the checks passed or not",
+            useReturnTypeSchema = true)
+    @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
+    Reachability reachability(@PathVariable String service) {
+        return reachability.test(service(service));
     }
 
     @PostMapping(path = "/{service}/instances", consumes = MediaType.APPLICATION_JSON_VALUE)

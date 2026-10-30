@@ -581,6 +581,77 @@ class YardTest {
     }
 
     @Test
+    void testPrintsEachCheckOfAnOwnServiceAndSucceedsWhenAllPass() {
+        dashboard.answer("GET", "/api/workstation/services/web/reachability", 200, """
+                {"workstation": "ws-a", "service": "web", "passed": true,
+                 "instances": [{"id": "7b1c", "address": "10.1.2.3:8080", "reached": true}],
+                 "routes": [{"hostname": "web.lvh.me", "reached": true, "status": 200}]}
+                """);
+
+        Run run = yard("test", "web");
+
+        assertThat(run.exitCode()).isZero();
+        assertThat(run.lines()).containsExactly(
+                "Reachability of web on ws-a, from this Workstation:",
+                "  ok    Instance 10.1.2.3:8080",
+                "  ok    Route web.lvh.me: answered 200",
+                "Every check passed.");
+    }
+
+    @Test
+    void testFailsWhenAnyCheckFailsAndSaysWhy() {
+        dashboard.answer("GET", "/api/workstation/services/web/reachability", 200, """
+                {"workstation": "ws-a", "service": "web", "passed": false,
+                 "instances": [{"id": "7b1c", "address": "10.1.2.3:8080", "reached": true},
+                               {"id": "8c2d", "address": "10.1.2.3:8081", "reached": false,
+                                "error": "Connection refused"}],
+                 "routes": [{"hostname": "web.lvh.me", "reached": false, "status": 502,
+                             "error": "Traefik answered 502: it could not get an answer from an Instance."}]}
+                """);
+
+        Run run = yard("test", "web");
+
+        assertThat(run.exitCode()).isEqualTo(1);
+        assertThat(run.lines()).containsExactly(
+                "Reachability of web on ws-a, from this Workstation:",
+                "  ok    Instance 10.1.2.3:8080",
+                "  FAIL  Instance 10.1.2.3:8081: Connection refused",
+                "  FAIL  Route web.lvh.me: Traefik answered 502: it could not get an answer from an Instance.",
+                "2 of 3 checks failed.");
+    }
+
+    @Test
+    void testOfARemoteServiceWithoutARouteSaysSo() {
+        dashboard.answer("GET", "/api/services/ws-b/grafana/reachability", 200, """
+                {"workstation": "ws-b", "service": "grafana", "passed": true,
+                 "instances": [{"id": "1a2b", "address": "192.168.1.20:3000", "reached": true}], "routes": [],
+                 "noRoute": "Published with Local Scope: only ws-b routes it, so only its Instances are tested from here."}
+                """);
+
+        Run run = yard("test", "grafana", "--workstation", "ws-b");
+
+        assertThat(run.exitCode()).isZero();
+        assertThat(run.lines()).containsExactly(
+                "Reachability of grafana on ws-b, from this Workstation:",
+                "  ok    Instance 192.168.1.20:3000",
+                "Published with Local Scope: only ws-b routes it, so only its Instances are tested from here.",
+                "Every check passed.");
+    }
+
+    @Test
+    void testOfUnknownServiceIsRefused() {
+        dashboard.answer("GET", "/api/workstation/services/wbe/reachability", 404, """
+                {"type": "about:blank", "title": "Not Found", "status": 404,
+                 "detail": "This Workstation has no Service wbe."}
+                """);
+
+        Run run = yard("test", "wbe");
+
+        assertThat(run.exitCode()).isEqualTo(1);
+        assertThat(run.err()).isEqualTo("This Workstation has no Service wbe.\n");
+    }
+
+    @Test
     void aliasAddGivesTheRemoteServiceOfTheSameNameItsAlias() {
         dashboard.answer("PUT", "/api/workstation/aliases/grafana", 200, """
                 {"name": "grafana", "workstation": "ws-b", "service": "grafana", "hostname": "grafana.lvh.me",

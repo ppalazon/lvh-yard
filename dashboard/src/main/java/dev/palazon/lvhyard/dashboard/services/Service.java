@@ -44,6 +44,15 @@ public record Service(
         return published() && publication.scope() == Scope.YARD;
     }
 
+    /**
+     * Whether this Workstation has a Route to it: it has a hostname here, and an Instance this Workstation can reach
+     * (an Out-of-range Instance is on another Workstation's loopback or Docker network, so a Route to it would reach
+     * this Workstation's own instead).
+     */
+    public boolean routed() {
+        return hostname != null && instances.stream().anyMatch(instance -> !instance.outOfRange());
+    }
+
     /** Whether it has a Publication, whatever the Health of its Instances. */
     public boolean published() {
         return publication != null;
