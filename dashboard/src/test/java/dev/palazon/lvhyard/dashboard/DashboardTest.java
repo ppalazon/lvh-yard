@@ -86,6 +86,10 @@ abstract class DashboardTest {
                 .toEntity(JsonNode.class);
     }
 
+    ResponseEntity<JsonNode> put(String path) {
+        return http.put().uri(path).retrieve().toEntity(JsonNode.class);
+    }
+
     ResponseEntity<JsonNode> delete(String path) {
         return http.delete().uri(path).retrieve().toEntity(JsonNode.class);
     }
@@ -114,5 +118,17 @@ abstract class DashboardTest {
 
     static String instancesPath(String service) {
         return servicePath(service) + "/instances";
+    }
+
+    static String publicationPath(String service) {
+        return servicePath(service) + "/publication";
+    }
+
+    /** Publishes {@code service} through the REST API, and checks it took. */
+    void publish(String service) {
+        ResponseEntity<JsonNode> response = put(publicationPath(service));
+        if (!response.getStatusCode().is2xxSuccessful()) {
+            throw new AssertionError("Publishing " + service + " answered " + response);
+        }
     }
 }

@@ -22,4 +22,9 @@ class ApiProblems extends ResponseEntityExceptionHandler {
     ProblemDetail unknownInstance(UnknownInstanceException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
     }
+
+    @ExceptionHandler
+    ProblemDetail unknownService(UnknownServiceException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+    }
 }

@@ -3,11 +3,13 @@ package dev.palazon.lvhyard.dashboard.web;
 import java.util.List;
 
 import org.xmlet.htmlapifaster.Main;
+import org.xmlet.htmlapifaster.Tbody;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
+import dev.palazon.lvhyard.dashboard.services.Instance;
 import dev.palazon.lvhyard.dashboard.services.Service;
 
-/** The Catalog: every Service in the Yard, one row per Instance. */
+/** The Catalog: every Service in the Yard with its state, one row per Instance, or one empty row if it has none. */
 final class CatalogPage {
 
     private CatalogPage() {
@@ -33,15 +35,33 @@ final class CatalogPage {
                 .thead().tr()
                     .th().text("Service").__()
                     .th().text("Workstation").__()
+                    .th().text("State").__()
+                    .th().text("Hostname").__()
                     .th().text("Instance").__()
                     .th().text("Health").__()
                 .__().__()
-                .tbody().of(body -> services.forEach(service -> service.instances().forEach(instance -> body.tr()
-                        .td().a().attrHref(Layout.attr(ServicePage.path(service))).text(service.name()).__().__()
-                        .td().text(service.workstation()).__()
-                        .td().text(instance.address()).__()
-                        .td().of(cell -> InstanceViews.health(cell, instance.health())).__()
-                .__()))).__()
+                .tbody().of(body -> services.forEach(service -> {
+                    if (service.instances().isEmpty()) {
+                        row(body, service, null);
+                    }
+                    service.instances().forEach(instance -> row(body, service, instance));
+                })).__()
         .__().__();
+    }
+
+    /** A row for {@code instance} of {@code service}, or for the Service alone when {@code instance} is null. */
+    private static void row(Tbody<?> body, Service service, Instance instance) {
+        body.tr()
+                .td().a().attrHref(Layout.attr(ServicePage.path(service))).text(service.name()).__().__()
+                .td().text(service.workstation()).__()
+                .td().of(cell -> ServiceViews.state(cell, service.state())).__()
+                .td().of(cell -> ServiceViews.hostname(cell, service)).__()
+                .td().text(instance == null ? "No Instances" : instance.address()).__()
+                .td().of(cell -> {
+                    if (instance != null) {
+                        InstanceViews.health(cell, instance.health());
+                    }
+                }).__()
+        .__();
     }
 }

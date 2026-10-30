@@ -42,11 +42,17 @@ class YardTest {
     }
 
     @Test
-    void listShowsEachOwnServiceWithItsInstancesAndTheirHealth() {
+    void listShowsEachOwnServiceWithItsStateHostnameInstancesAndTheirHealth() {
         dashboard.answer("GET", "/api/workstation/services", 200, """
-                [{"workstation": "ws-a", "name": "grafana", "instances": [
+                [{"workstation": "ws-a", "name": "api", "state": "unavailable", "publication": {"scope": "local"},
+                  "hostname": "api.lvh.me", "instances": []},
+                 {"workstation": "ws-a", "name": "grafana", "state": "healthy", "publication": {"scope": "local"},
+                  "hostname": "grafana.lvh.me", "instances": [
                     {"id": "3f2a", "host": "10.1.2.3", "port": 3000, "health": "passing"}]},
-                 {"workstation": "ws-a", "name": "web", "instances": [
+                 {"workstation": "ws-a", "name": "postgres", "state": "unhealthy", "publication": {"scope": "local"},
+                  "hostname": "postgres.lvh.me", "instances": [
+                    {"id": "5e6f", "host": "10.1.2.3", "port": 5432, "health": "critical"}]},
+                 {"workstation": "ws-a", "name": "web", "state": "unpublished", "instances": [
                     {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical"},
                     {"id": "9d4e", "host": "10.1.2.3", "port": 8081, "health": "warning"}]}]
                 """);
@@ -55,9 +61,12 @@ class YardTest {
 
         assertThat(run.exitCode()).isZero();
         assertThat(run.lines()).containsExactly(
-                "grafana on ws-a",
+                "api on ws-a: unavailable at api.lvh.me",
+                "grafana on ws-a: healthy at grafana.lvh.me",
                 "  10.1.2.3:3000  passing   3f2a",
-                "web on ws-a",
+                "postgres on ws-a: unhealthy at postgres.lvh.me",
+                "  10.1.2.3:5432  critical  5e6f",
+                "web on ws-a: unpublished",
                 "  10.1.2.3:8080  critical  7b1c",
                 "  10.1.2.3:8081  warning   9d4e");
     }
@@ -65,7 +74,7 @@ class YardTest {
     @Test
     void listWithWorkstationShowsThatWorkstationsServices() {
         dashboard.answer("GET", "/api/services?workstation=ws-b", 200, """
-                [{"workstation": "ws-b", "name": "postgres", "instances": [
+                [{"workstation": "ws-b", "name": "postgres", "state": "unpublished", "instances": [
                     {"id": "5e6f", "host": "10.1.2.4", "port": 5432, "health": "passing"}]}]
                 """);
 
@@ -73,7 +82,7 @@ class YardTest {
 
         assertThat(run.exitCode()).isZero();
         assertThat(run.lines()).containsExactly(
-                "postgres on ws-b",
+                "postgres on ws-b: unpublished",
                 "  10.1.2.4:5432  passing   5e6f");
     }
 
@@ -186,6 +195,45 @@ class YardTest {
     }
 
     @Test
+    void publishPublishesWithLocalScopeAndShowsTheHostname() {
+        dashboard.answer("PUT", "/api/workstation/services/web/publication", 200, """
+                {"workstation": "ws-a", "name": "web", "state": "unhealthy", "publication": {"scope": "local"},
+                 "hostname": "web.lvh.me", "instances": [
+                    {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical"}]}
+                """);
+
+        Run run = yard("publish", "web");
+
+        assertThat(run.exitCode()).isZero();
+        assertThat(run.out()).isEqualTo("Published web at web.lvh.me, with Local Scope. It is unhealthy.\n");
+        dashboard.verifyCalled("PUT", "/api/workstation/services/web/publication");
+    }
+
+    @Test
+    void unpublishRemovesThePublication() {
+        dashboard.answer("DELETE", "/api/workstation/services/web/publication", 204, null);
+
+        Run run = yard("unpublish", "web");
+
+        assertThat(run.exitCode()).isZero();
+        assertThat(run.out()).isEqualTo("Unpublished web. Its Instances stay registered.\n");
+        dashboard.verifyCalled("DELETE", "/api/workstation/services/web/publication");
+    }
+
+    @Test
+    void publishingUnknownServiceIsRefused() {
+        dashboard.answer("PUT", "/api/workstation/services/wbe/publication", 404, """
+                {"type": "about:blank", "title": "Not Found", "status": 404,
+                 "detail": "This Workstation has no Service wbe."}
+                """);
+
+        Run run = yard("publish", "wbe");
+
+        assertThat(run.exitCode()).isNotZero();
+        assertThat(run.err()).isEqualTo("This Workstation has no Service wbe.\n");
+    }
+
+    @Test
     void refusalIsPrintedWithItsReason() {
         dashboard.answer("POST", "/api/workstation/services/Web/instances", 400, """
                 {"type": "about:blank", "title": "Bad Request", "status": 400,
@@ -259,7 +307,8 @@ class YardTest {
 
     private void answerWebWithInstances(String instances) {
         dashboard.answer("GET", "/api/workstation/services/web", 200,
-                "{\"workstation\": \"ws-a\", \"name\": \"web\", \"instances\": [" + instances + "]}");
+                "{\"workstation\": \"ws-a\", \"name\": \"web\", \"state\": \"unpublished\", \"instances\": ["
+                        + instances + "]}");
     }
 
     /** The output of one run of {@code yard}. */

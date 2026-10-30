@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
-  description: "The Services of the Yard, and the Static Instances of this Workstation's\
-    \ Services"
+  description: "The Services of the Yard, and the Static Instances and Publications\
+    \ of this Workstation's Services"
   title: LVH Yard
 servers:
 - url: /
@@ -161,6 +161,60 @@ paths:
       summary: Removes a Static Instance; a Service with nothing left leaves the Catalog
       tags:
       - workstation-services-controller
+  /api/workstation/services/{service}/publication:
+    delete:
+      description: A Service with no Instances left leaves the Catalog.
+      operationId: unpublish
+      parameters:
+      - in: path
+        name: service
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: "Unpublished, or it was not published"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: This Workstation has no Service of this name
+      summary: "Unpublishes a Service, which keeps every Instance registered"
+      tags:
+      - workstation-services-controller
+    put:
+      description: "The Route covers every Instance of the Service, including ones\
+        \ registered later. Publishing a published Service again changes nothing."
+      operationId: publish
+      parameters:
+      - in: path
+        name: service
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Service"
+          description: "The Service, published"
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: The name is not a single DNS label or is yard
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: This Workstation has no Service of this name
+      summary: "Publishes a Service at <service>.<base-domain>, with Local Scope"
+      tags:
+      - workstation-services-controller
 components:
   schemas:
     Instance:
@@ -201,20 +255,41 @@ components:
         type:
           type: string
           format: uri
+    Publication:
+      type: object
+      properties:
+        scope:
+          type: string
+          enum:
+          - local
+      required:
+      - scope
     Service:
       type: object
       properties:
+        hostname:
+          type: string
         instances:
           type: array
           items:
             $ref: "#/components/schemas/Instance"
         name:
           type: string
+        publication:
+          $ref: "#/components/schemas/Publication"
+        state:
+          type: string
+          enum:
+          - unpublished
+          - unavailable
+          - unhealthy
+          - healthy
         workstation:
           type: string
       required:
       - instances
       - name
+      - state
       - workstation
     StaticInstanceRequest:
       type: object

@@ -2,7 +2,9 @@ package dev.palazon.lvhyard.dashboard.services;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeSet;
 
 import org.springframework.stereotype.Component;
 
@@ -10,7 +12,11 @@ import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.consul.Consul;
 import dev.palazon.lvhyard.dashboard.consul.Consul.HealthEntry;
 
-/** Reads the Services of the Yard, with their Instances and Health. For now, only this Workstation's datacenter. */
+/**
+ * Reads the Services of the Yard, with their Instances, Health and Publications, and gives each published one its
+ * hostname: the one rule for hostnames, which the Routes and the pages both follow. For now, only this
+ * Workstation's datacenter, whose Services are at {@code <service>.<base-domain>} (ADR-0003).
+ */
 @Component
 public class YardReader {
 
@@ -21,17 +27,24 @@ public class YardReader {
 
     private final Consul consul;
 
-    YardReader(Workstation workstation, Consul consul) {
+    private final Publications publications;
+
+    YardReader(Workstation workstation, Consul consul, Publications publications) {
         this.workstation = workstation;
         this.consul = consul;
+        this.publications = publications;
     }
 
-    /** Every Service, ordered by Workstation and name. A Service with no Instances left is gone. */
+    /**
+     * Every Service, ordered by Workstation and name. A Service is there while it has an Instance or a Publication.
+     */
     public List<Service> services() {
-        return consul.serviceNames().stream()
-                .filter(name -> !name.equals(Consul.CONSUL_SERVICE))
-                .sorted()
-                .flatMap(name -> service(workstation.name(), name).stream())
+        Map<String, Publication> published = publications.all();
+        TreeSet<String> names = new TreeSet<>(consul.serviceNames());
+        names.remove(Consul.CONSUL_SERVICE);
+        names.addAll(published.keySet());
+        return names.stream()
+                .flatMap(name -> service(name, published.get(name)).stream())
                 .toList();
     }
 
@@ -40,14 +53,21 @@ public class YardReader {
         return services().stream().filter(service -> service.workstation().equals(workstation)).toList();
     }
 
-    /** The Service called {@code name} on {@code workstation}, while it has any Instances. */
+    /** The Service called {@code name} on {@code workstation}, while it has an Instance or a Publication. */
     public Optional<Service> service(String workstation, String name) {
         if (!workstation.equals(this.workstation.name())) {
             return Optional.empty();
         }
+        return service(name, publications.all().get(name));
+    }
+
+    private Optional<Service> service(String name, Publication publication) {
         List<Instance> instances = consul.health(name).stream().map(YardReader::instance).sorted(BY_ADDRESS)
                 .toList();
-        return instances.isEmpty() ? Optional.empty() : Optional.of(new Service(workstation, name, instances));
+        return instances.isEmpty() && publication == null
+                ? Optional.empty()
+                : Optional.of(new Service(workstation.name(), name, publication,
+                        publication == null ? null : workstation.hostname(name), instances));
     }
 
     private static Instance instance(HealthEntry entry) {

@@ -109,7 +109,8 @@ public class Registrations {
         }
     }
 
-    private static void checkName(String service) {
+    /** Refuses a Service name that is not a single DNS label, or is the dashboard's own. */
+    static void checkName(String service) {
         if (!DNS_LABEL.matcher(service).matches()) {
             throw new InvalidRegistrationException("name", "The Service name " + service
                     + " is not a single DNS label: use 1 to 63 lowercase letters, digits and -, not starting or"

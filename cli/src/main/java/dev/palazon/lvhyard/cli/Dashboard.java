@@ -46,8 +46,16 @@ final class Dashboard {
         this.url = url.toString().endsWith("/") ? url : URI.create(url + "/");
     }
 
-    /** A Service, with its Home Workstation and its Instances. */
-    record Service(String workstation, String name, List<Instance> instances) {
+    /**
+     * A Service, with its Home Workstation, its Instances and its state: unpublished, unavailable, unhealthy or
+     * healthy. A Service without a Publication has none, and one without a Route on this Workstation no hostname.
+     */
+    record Service(String workstation, String name, String state, Publication publication, String hostname,
+            List<Instance> instances) {
+    }
+
+    /** A Service's Publication, with its Scope. */
+    record Publication(String scope) {
     }
 
     /** One Instance of a Service, with its Health: passing, warning or critical. */
@@ -99,6 +107,21 @@ final class Dashboard {
     /** Removes the Static Instance {@code id} of this Workstation's {@code service}. */
     void remove(String service, String id) {
         send(HttpRequest.newBuilder(URI.create(instancesUrl(service) + "/" + segment(id))).DELETE());
+    }
+
+    /** Publishes this Workstation's {@code service} with Local Scope, and answers the published Service. */
+    Service publish(String service) {
+        return read(send(HttpRequest.newBuilder(publicationUrl(service)).PUT(HttpRequest.BodyPublishers.noBody())),
+                new TypeReference<>() { });
+    }
+
+    /** Unpublishes this Workstation's {@code service}, which keeps its Instances. */
+    void unpublish(String service) {
+        send(HttpRequest.newBuilder(publicationUrl(service)).DELETE());
+    }
+
+    private URI publicationUrl(String service) {
+        return url.resolve("api/workstation/services/" + segment(service) + "/publication");
     }
 
     private URI instancesUrl(String service) {

@@ -23,7 +23,8 @@ import io.swagger.v3.oas.models.media.StringSchema;
  */
 @Configuration(proxyBeanMethods = false)
 @OpenAPIDefinition(info = @Info(title = "LVH Yard",
-        description = "The Services of the Yard, and the Static Instances of this Workstation's Services"),
+        description = "The Services of the Yard, and the Static Instances and Publications of this Workstation's"
+                + " Services"),
         servers = @Server(url = "/"))
 class ApiDocumentation {
 

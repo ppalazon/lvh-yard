@@ -1,8 +1,11 @@
 package dev.palazon.lvhyard.dashboard.consul;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
@@ -70,6 +73,40 @@ public class Consul {
         List<HealthEntry> entries = http.get().uri("/v1/health/service/{service}", service).retrieve()
                 .body(new ParameterizedTypeReference<>() { });
         return entries == null ? List.of() : entries;
+    }
+
+    /** Stores {@code value} at {@code key} in the datacenter's KV store, replacing what was there. */
+    public void putValue(String key, String value) {
+        http.put().uri(builder -> builder.path("/v1/kv/" + key).build()).contentType(MediaType.TEXT_PLAIN)
+                .body(value).retrieve().toBodilessEntity();
+    }
+
+    /** Every value in the KV store whose key starts with {@code prefix}, by key. */
+    public Map<String, String> values(String prefix) {
+        List<KeyValue> entries = http.get().uri(builder -> builder.path("/v1/kv/" + prefix)
+                .queryParam("recurse", true).build()).exchange((request, response) ->
+                        response.getStatusCode() == HttpStatus.NOT_FOUND
+                                ? List.of()
+                                : response.bodyTo(new ParameterizedTypeReference<>() { }));
+        Map<String, String> values = new TreeMap<>();
+        if (entries != null) {
+            entries.forEach(entry -> values.put(entry.key(), entry.value()));
+        }
+        return values;
+    }
+
+    /** Removes {@code key} from the KV store; a key that is not there is no error. */
+    public void deleteValue(String key) {
+        http.delete().uri(builder -> builder.path("/v1/kv/" + key).build()).retrieve().toBodilessEntity();
+    }
+
+    /** A KV entry as Consul gives it back: the value in base64, or null when empty. */
+    record KeyValue(@JsonProperty("Key") String key, @JsonProperty("Value") String base64) {
+
+        /** The value as text. */
+        String value() {
+            return base64 == null ? "" : new String(Base64.getDecoder().decode(base64), StandardCharsets.UTF_8);
+        }
     }
 
     record AgentSelf(@JsonProperty("Member") Member member) {

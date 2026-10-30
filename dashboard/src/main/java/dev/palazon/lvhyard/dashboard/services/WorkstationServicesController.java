@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -19,8 +20,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 
 /**
- * This Workstation's own Services and their Static Instances, as JSON. The paths do not name the Workstation: only
- * a Service's Home Workstation can change it, so there is no other one to name.
+ * This Workstation's own Services, their Static Instances and their Publications, as JSON. The paths do not name
+ * the Workstation: only a Service's Home Workstation can change it, so there is no other one to name.
  */
 @RestController
 @RequestMapping(path = "/api/workstation/services", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -32,10 +33,14 @@ class WorkstationServicesController {
 
     private final Registrations registrations;
 
-    WorkstationServicesController(Workstation workstation, YardReader yard, Registrations registrations) {
+    private final Publications publications;
+
+    WorkstationServicesController(Workstation workstation, YardReader yard, Registrations registrations,
+            Publications publications) {
         this.workstation = workstation;
         this.yard = yard;
         this.registrations = registrations;
+        this.publications = publications;
     }
 
     @GetMapping
@@ -73,5 +78,27 @@ class WorkstationServicesController {
     @ApiResponse(responseCode = "404", description = "The Service has no Static Instance with this ID")
     void remove(@PathVariable String service, @PathVariable String id) {
         registrations.remove(workstation.name(), service, id);
+    }
+
+    @PutMapping("/{service}/publication")
+    @Operation(operationId = "publish", summary = "Publishes a Service at <service>.<base-domain>, with Local Scope",
+            description = "The Route covers every Instance of the Service, including ones registered later."
+                    + " Publishing a published Service again changes nothing.")
+    @ApiResponse(responseCode = "200", description = "The Service, published", useReturnTypeSchema = true)
+    @ApiResponse(responseCode = "400", description = "The name is not a single DNS label or is yard")
+    @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
+    Service publish(@PathVariable String service) {
+        publications.publish(workstation.name(), service);
+        return service(service);
+    }
+
+    @DeleteMapping("/{service}/publication")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "unpublish", summary = "Unpublishes a Service, which keeps every Instance registered",
+            description = "A Service with no Instances left leaves the Catalog.")
+    @ApiResponse(responseCode = "204", description = "Unpublished, or it was not published")
+    @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
+    void unpublish(@PathVariable String service) {
+        publications.unpublish(workstation.name(), service);
     }
 }

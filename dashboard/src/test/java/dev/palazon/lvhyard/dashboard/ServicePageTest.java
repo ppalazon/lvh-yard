@@ -58,4 +58,56 @@ class ServicePageTest extends DashboardTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
+
+    @Test
+    void publishingShowsTheHostnameAndTheState() {
+        String web = newServiceName("web");
+        register(web, Map.of("host", "10.1.2.3", "port", 8080));
+        String page = "/services/ws-test/" + web;
+        assertThat(getPage(page).getBody()).contains("Unpublished").contains("action=\"" + page + "/publish\"");
+
+        ResponseEntity<String> response = postForm(page + "/publish", Map.of());
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+        assertThat(response.getHeaders().getLocation()).hasPath(page);
+        assertThat(getPage(page).getBody()).contains("Unhealthy").contains("href=\"http://" + web + ".lvh.test\"")
+                .contains("Local").contains("action=\"" + page + "/unpublish\"");
+        assertThat(get(servicePath(web)).getBody().get("state").asString()).isEqualTo("unhealthy");
+    }
+
+    @Test
+    void unpublishingKeepsTheInstances() {
+        String web = newServiceName("web");
+        register(web, Map.of("host", "10.1.2.3", "port", 8080));
+        publish(web);
+        String page = "/services/ws-test/" + web;
+
+        ResponseEntity<String> response = postForm(page + "/unpublish", Map.of());
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+        assertThat(response.getHeaders().getLocation()).hasPath(page);
+        assertThat(getPage(page).getBody()).contains("Unpublished").contains("10.1.2.3:8080")
+                .doesNotContain(web + ".lvh.test");
+    }
+
+    @Test
+    void unpublishingServiceWithoutInstancesGoesBackToTheCatalog() {
+        String web = newServiceName("web");
+        String id = register(web, Map.of("host", "10.1.2.3", "port", 8080)).get("id").asString();
+        publish(web);
+        delete(instancesPath(web) + "/" + id);
+        assertThat(getPage("/services/ws-test/" + web).getBody()).contains("Unavailable");
+
+        ResponseEntity<String> response = postForm("/services/ws-test/" + web + "/unpublish", Map.of());
+
+        assertThat(response.getHeaders().getLocation()).hasPath("/");
+    }
+
+    @Test
+    void publishingAnUnknownServiceIsNotFound() {
+        ResponseEntity<String> response = postForm("/services/ws-test/" + newServiceName("nothing") + "/publish",
+                Map.of());
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
 }

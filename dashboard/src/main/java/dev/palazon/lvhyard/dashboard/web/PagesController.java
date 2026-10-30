@@ -15,9 +15,11 @@ import org.springframework.web.server.ResponseStatusException;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
+import dev.palazon.lvhyard.dashboard.services.Publications;
 import dev.palazon.lvhyard.dashboard.services.Registrations;
 import dev.palazon.lvhyard.dashboard.services.RemoteServiceException;
 import dev.palazon.lvhyard.dashboard.services.UnknownInstanceException;
+import dev.palazon.lvhyard.dashboard.services.UnknownServiceException;
 import dev.palazon.lvhyard.dashboard.services.YardReader;
 
 /** The HTML pages. They only translate to views. */
@@ -30,10 +32,14 @@ class PagesController {
 
     private final Registrations registrations;
 
-    PagesController(Workstation workstation, YardReader yard, Registrations registrations) {
+    private final Publications publications;
+
+    PagesController(Workstation workstation, YardReader yard, Registrations registrations,
+            Publications publications) {
         this.workstation = workstation;
         this.yard = yard;
         this.registrations = registrations;
+        this.publications = publications;
     }
 
     @GetMapping(path = "/", produces = MediaType.TEXT_HTML_VALUE)
@@ -75,6 +81,34 @@ class PagesController {
         try {
             registrations.remove(home, service, id);
         } catch (UnknownInstanceException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+        } catch (RemoteServiceException e) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage(), e);
+        }
+        return seeOther(yard.service(home, service).map(ServicePage::path).orElse("/"));
+    }
+
+    /** Publishes a Service with Local Scope, then shows it. */
+    @PostMapping("/services/{workstation}/{service}/publish")
+    ResponseEntity<String> publish(@PathVariable("workstation") String home, @PathVariable String service) {
+        try {
+            publications.publish(home, service);
+        } catch (UnknownServiceException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+        } catch (InvalidRegistrationException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        } catch (RemoteServiceException e) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage(), e);
+        }
+        return seeOther(ServicePage.path(home, service));
+    }
+
+    /** Unpublishes a Service, then shows it, or the Catalog when the Service had no Instances left. */
+    @PostMapping("/services/{workstation}/{service}/unpublish")
+    ResponseEntity<String> unpublish(@PathVariable("workstation") String home, @PathVariable String service) {
+        try {
+            publications.unpublish(home, service);
+        } catch (UnknownServiceException e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
         } catch (RemoteServiceException e) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage(), e);
