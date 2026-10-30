@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import tools.jackson.databind.JsonNode;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The Register form, which adds a Static Instance. */
@@ -67,5 +69,42 @@ class RegisterPageTest extends DashboardTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody()).contains("The port http is not a TCP port").contains("value=\"http\"");
+    }
+
+    @Test
+    void formAsksForTheCheckTagsAndMeta() {
+        assertThat(getPage("/register").getBody()).contains("name=\"check\"").contains("name=\"path\"")
+                .contains("name=\"interval\"").contains("name=\"timeout\"").contains("name=\"tags\"")
+                .contains("name=\"meta\"").contains("<option value=\"http\"").contains("<option value=\"tcp\"")
+                .doesNotContain("<option value=\"script\"");
+    }
+
+    @Test
+    void registeringWithAnHttpCheckTagsAndMeta() {
+        String api = newServiceName("api");
+
+        postForm("/register", Map.of("name", api, "host", "10.1.2.3", "port", "8080", "check", "http",
+                "path", "/health", "interval", "5s", "timeout", "1s", "tags", "backend, v2",
+                "meta", "owner=pablo\r\nteam = core\r\n"));
+
+        JsonNode instance = get(servicePath(api)).getBody().get("instances").get(0);
+        assertThat(instance.get("check").get("type").asString()).isEqualTo("http");
+        assertThat(instance.get("check").get("path").asString()).isEqualTo("/health");
+        assertThat(instance.get("check").get("interval").asString()).isEqualTo("5s");
+        assertThat(instance.get("check").get("timeout").asString()).isEqualTo("1s");
+        assertThat(instance.get("tags").valueStream().map(JsonNode::asString)).containsExactly("backend", "v2");
+        assertThat(instance.get("meta").get("owner").asString()).isEqualTo("pablo");
+        assertThat(instance.get("meta").get("team").asString()).isEqualTo("core");
+    }
+
+    @Test
+    void metaLineWithoutAnEqualsSignIsShownInTheForm() {
+        String api = newServiceName("api");
+
+        ResponseEntity<String> response = postForm("/register", Map.of("name", api, "host", "", "port", "8080",
+                "meta", "owner pablo"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).contains("key=value").contains("owner pablo");
     }
 }

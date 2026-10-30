@@ -73,6 +73,23 @@ abstract class DashboardTest {
         }
     }
 
+    /**
+     * Starts a process that answers every HTTP request on {@code port} at the {@link #lanAddress} with
+     * {@code status}, such as {@code 503 Service Unavailable}, and the text {@code body}. It runs until the Consul
+     * container stops.
+     */
+    void answerHttpOnLanAddress(int port, String status, String body) {
+        String response = "HTTP/1.1 " + status + "\\r\\nContent-Type: text/plain\\r\\nContent-Length: "
+                + body.length() + "\\r\\nConnection: close\\r\\n\\r\\n" + body;
+        try {
+            consulContainer.execInContainer("sh", "-c",
+                    "while true; do printf '" + response + "' | nc -l -p " + port + " >/dev/null; done"
+                            + " >/dev/null 2>&1 &");
+        } catch (IOException | InterruptedException e) {
+            throw new IllegalStateException("Could not answer HTTP on port " + port, e);
+        }
+    }
+
     ResponseEntity<JsonNode> get(String path) {
         return http.get().uri(path).retrieve().toEntity(JsonNode.class);
     }
@@ -88,6 +105,11 @@ abstract class DashboardTest {
 
     ResponseEntity<JsonNode> put(String path) {
         return http.put().uri(path).retrieve().toEntity(JsonNode.class);
+    }
+
+    ResponseEntity<JsonNode> put(String path, Object body) {
+        return http.put().uri(path).contentType(MediaType.APPLICATION_JSON).body(body).retrieve()
+                .toEntity(JsonNode.class);
     }
 
     ResponseEntity<JsonNode> delete(String path) {

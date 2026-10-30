@@ -27,6 +27,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 @RequestMapping(path = "/api/workstation/services", produces = MediaType.APPLICATION_JSON_VALUE)
 class WorkstationServicesController {
 
+    /** Why a Static Instance is refused, when it is registered or edited. */
+    private static final String INVALID_INSTANCE = "The host is not an IP address or a hostname, the port is"
+            + " missing or not a TCP port, the check is not http or tcp or has a bad path, interval or timeout, or a"
+            + " tag or a meta key breaks its rules";
+
     private final Workstation workstation;
 
     private final YardReader yard;
@@ -61,14 +66,27 @@ class WorkstationServicesController {
     @PostMapping(path = "/{service}/instances", consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Registers a Static Instance; with no host, at this Workstation's LAN address",
-            description = "The Instance gets a TCP check on its port, and is critical until the check first passes."
-                    + " Registering the same host and port again replaces that Instance, which keeps its ID.")
+            description = "With no check, the Instance gets a TCP check on its port. It is critical until its check"
+                    + " first passes. Registering the same host and port again replaces that Instance, which keeps"
+                    + " its ID.")
     @ApiResponse(responseCode = "201", description = "Registered", useReturnTypeSchema = true)
-    @ApiResponse(responseCode = "400",
-            description = "The name is not a single DNS label or is yard, the host is not an IP address or a"
-                    + " hostname, or the port is missing or not a TCP port")
+    @ApiResponse(responseCode = "400", description = "The name is not a single DNS label or is yard. "
+            + INVALID_INSTANCE)
     Instance register(@PathVariable String service, @RequestBody StaticInstanceRequest request) {
-        return registrations.register(workstation.name(), service, request.host(), request.port());
+        return registrations.register(workstation.name(), service, request);
+    }
+
+    @PutMapping(path = "/{service}/instances/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(operationId = "editInstance", summary = "Edits a Static Instance, which stays the same Instance",
+            description = "The Instance becomes what the body says, as when it is registered: a part left out"
+                    + " gets its default, not its old value. It is critical until its check first passes.")
+    @ApiResponse(responseCode = "200", description = "Edited", useReturnTypeSchema = true)
+    @ApiResponse(responseCode = "400", description = INVALID_INSTANCE
+            + ". Or another Instance of the Service is at the host and port")
+    @ApiResponse(responseCode = "404", description = "The Service has no Static Instance with this ID")
+    Instance edit(@PathVariable String service, @PathVariable String id,
+            @RequestBody StaticInstanceRequest request) {
+        return registrations.edit(workstation.name(), service, id, request);
     }
 
     @DeleteMapping("/{service}/instances/{id}")

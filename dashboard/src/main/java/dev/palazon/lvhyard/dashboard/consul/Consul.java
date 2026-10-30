@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
@@ -68,7 +69,7 @@ public class Consul {
         return services == null ? List.of() : List.copyOf(services.keySet());
     }
 
-    /** Every registration of a Service in the agent's datacenter, each with its checks and its node's. */
+    /** Every registration of a Service in the agent's datacenter, each with its own checks and its node's. */
     public List<HealthEntry> health(String service) {
         List<HealthEntry> entries = http.get().uri("/v1/health/service/{service}", service).retrieve()
                 .body(new ParameterizedTypeReference<>() { });
@@ -121,12 +122,19 @@ public class Consul {
             @JsonProperty("Name") String name,
             @JsonProperty("Address") String address,
             @JsonProperty("Port") int port,
+            @JsonProperty("Tags") List<String> tags,
             @JsonProperty("Meta") Map<String, String> meta,
             @JsonProperty("Check") Check check) {
     }
 
-    /** A TCP check. Consul starts every check as critical until it first passes. */
+    /**
+     * An HTTP check, which GETs {@code http} and passes on a 2xx answer, or a TCP check, which connects to
+     * {@code tcp}. Consul starts every check as critical until it first passes.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Check(
+            @JsonProperty("Name") String name,
+            @JsonProperty("HTTP") String http,
             @JsonProperty("TCP") String tcp,
             @JsonProperty("Interval") String interval,
             @JsonProperty("Timeout") String timeout) {
@@ -138,10 +146,12 @@ public class Consul {
             @JsonProperty("Service") String name,
             @JsonProperty("Address") String address,
             @JsonProperty("Port") Integer port,
+            @JsonProperty("Tags") List<String> tags,
             @JsonProperty("Meta") Map<String, String> meta) {
 
         public AgentService {
             port = port == null ? 0 : port;
+            tags = tags == null ? List.of() : tags;
             meta = meta == null ? Map.of() : meta;
         }
     }
@@ -151,9 +161,17 @@ public class Consul {
             @JsonProperty("Checks") List<CheckStatus> checks) {
     }
 
-    /** A check's last result: passing, warning or critical (maintenance is critical too). */
+    /**
+     * A check's last result: passing, warning or critical (maintenance is critical too). A node's check has no
+     * service ID, type, interval or timeout; Consul gives the last two as Go durations, such as {@code 1m30s}.
+     */
     public record CheckStatus(
+            @JsonProperty("Name") String name,
             @JsonProperty("Status") String status,
-            @JsonProperty("Output") String output) {
+            @JsonProperty("Output") String output,
+            @JsonProperty("ServiceID") String serviceId,
+            @JsonProperty("Type") String type,
+            @JsonProperty("Interval") String interval,
+            @JsonProperty("Timeout") String timeout) {
     }
 }

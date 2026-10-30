@@ -100,9 +100,9 @@ paths:
       - workstation-services-controller
   /api/workstation/services/{service}/instances:
     post:
-      description: "The Instance gets a TCP check on its port, and is critical until\
-        \ the check first passes. Registering the same host and port again replaces\
-        \ that Instance, which keeps its ID."
+      description: "With no check, the Instance gets a TCP check on its port. It is\
+        \ critical until its check first passes. Registering the same host and port\
+        \ again replaces that Instance, which keeps its ID."
       operationId: register
       parameters:
       - in: path
@@ -128,9 +128,10 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: "The name is not a single DNS label or is yard, the host is\
-            \ not an IP address or a hostname, or the port is missing or not a TCP\
-            \ port"
+          description: "The name is not a single DNS label or is yard. The host is\
+            \ not an IP address or a hostname, the port is missing or not a TCP port,\
+            \ the check is not http or tcp or has a bad path, interval or timeout,\
+            \ or a tag or a meta key breaks its rules"
       summary: "Registers a Static Instance; with no host, at this Workstation's LAN\
         \ address"
       tags:
@@ -159,6 +160,53 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
           description: The Service has no Static Instance with this ID
       summary: Removes a Static Instance; a Service with nothing left leaves the Catalog
+      tags:
+      - workstation-services-controller
+    put:
+      description: "The Instance becomes what the body says, as when it is registered:\
+        \ a part left out gets its default, not its old value. It is critical until\
+        \ its check first passes."
+      operationId: editInstance
+      parameters:
+      - in: path
+        name: service
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaticInstanceRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Instance"
+          description: Edited
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "The host is not an IP address or a hostname, the port is missing\
+            \ or not a TCP port, the check is not http or tcp or has a bad path, interval\
+            \ or timeout, or a tag or a meta key breaks its rules. Or another Instance\
+            \ of the Service is at the host and port"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: The Service has no Static Instance with this ID
+      summary: "Edits a Static Instance, which stays the same Instance"
       tags:
       - workstation-services-controller
   /api/workstation/services/{service}/publication:
@@ -217,9 +265,46 @@ paths:
       - workstation-services-controller
 components:
   schemas:
+    CheckResult:
+      type: object
+      properties:
+        health:
+          type: string
+          enum:
+          - passing
+          - warning
+          - critical
+        name:
+          type: string
+        output:
+          type: string
+      required:
+      - health
+      - name
+      - output
+    HealthCheck:
+      type: object
+      properties:
+        interval:
+          type: string
+        path:
+          type: string
+        timeout:
+          type: string
+        type:
+          type: string
+          enum:
+          - http
+          - tcp
     Instance:
       type: object
       properties:
+        check:
+          $ref: "#/components/schemas/HealthCheck"
+        checks:
+          type: array
+          items:
+            $ref: "#/components/schemas/CheckResult"
         health:
           type: string
           enum:
@@ -230,14 +315,25 @@ components:
           type: string
         id:
           type: string
+        meta:
+          type: object
+          additionalProperties:
+            type: string
         port:
           type: integer
           format: int32
+        tags:
+          type: array
+          items:
+            type: string
       required:
+      - checks
       - health
       - host
       - id
+      - meta
       - port
+      - tags
     ProblemDetail:
       type: object
       additionalProperties: true
@@ -294,10 +390,20 @@ components:
     StaticInstanceRequest:
       type: object
       properties:
+        check:
+          $ref: "#/components/schemas/HealthCheck"
         host:
           type: string
+        meta:
+          type: object
+          additionalProperties:
+            type: string
         port:
           type: integer
           format: int32
+        tags:
+          type: array
+          items:
+            type: string
       required:
       - port

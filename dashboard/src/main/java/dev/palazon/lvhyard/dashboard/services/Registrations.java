@@ -1,8 +1,14 @@
 package dev.palazon.lvhyard.dashboard.services;
 
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Component;
@@ -14,7 +20,7 @@ import dev.palazon.lvhyard.dashboard.consul.Consul.Check;
 import dev.palazon.lvhyard.dashboard.consul.Consul.Registration;
 
 /**
- * Adds and removes this Workstation's Static Instances, after checking the Yard's rules. The only writer of
+ * Adds, edits and removes this Workstation's Static Instances, after checking the Yard's rules. The only writer of
  * registrations on the local agent.
  */
 @Component
@@ -29,11 +35,38 @@ public class Registrations {
     /** Marks the registrations that are Static Instances, so nothing else is removed as one. */
     private static final Map<String, String> STATIC_INSTANCE = Map.of("lvh-yard-instance", "static");
 
+    /** The start of the meta keys LVH Yard keeps for itself, which an Instance's own meta cannot use. */
+    static final String RESERVED_META = "lvh-yard-";
+
+    /** Where an HTTP check's path is kept: Consul does not give back a check's URL. */
+    static final String HTTP_PATH = RESERVED_META + "http-path";
+
     /** How often a check runs, unless the Instance says otherwise. */
-    private static final String CHECK_INTERVAL = "10s";
+    private static final Duration CHECK_INTERVAL = Duration.ofSeconds(10);
 
     /** How long a check waits for an answer, unless the Instance says otherwise. */
-    private static final String CHECK_TIMEOUT = "2s";
+    private static final Duration CHECK_TIMEOUT = Duration.ofSeconds(2);
+
+    /** The shortest interval Consul runs a check at. */
+    private static final Duration SHORTEST_INTERVAL = Duration.ofSeconds(1);
+
+    /** A duration as the API takes it: a whole number and a unit, such as {@code 10s}. */
+    private static final Pattern DURATION = Pattern.compile("(\\d{1,9})(ms|s|m|h)");
+
+    /** A tag: anything without a space or a comma, so tags can be typed as a comma-separated list. */
+    private static final Pattern TAG = Pattern.compile("[^\\s,]{1,255}");
+
+    /** A meta key, as Consul allows them. */
+    private static final Pattern META_KEY = Pattern.compile("[A-Za-z0-9_-]{1,128}");
+
+    /** The longest meta value Consul allows. */
+    private static final int META_VALUE_LENGTH = 512;
+
+    /** The most meta keys an Instance can have: Consul allows 64, and LVH Yard keeps a few for itself. */
+    private static final int META_KEYS = 60;
+
+    /** An absolute path, with nothing that would break the check's URL, such as a space or a #. */
+    private static final Pattern PATH = Pattern.compile("/[A-Za-z0-9._~!$&'()*+,;=:@%/?-]*");
 
     private final Workstation workstation;
 
@@ -46,22 +79,64 @@ public class Registrations {
 
     /**
      * Registers a Static Instance of {@code service} on {@code workstation}, which must be this one. With no host,
-     * it is at this Workstation's LAN address, so other Workstations can reach it. Registering the same host and
-     * port again replaces that Instance, which keeps its ID.
+     * it is at this Workstation's LAN address, so other Workstations can reach it. With no check, it gets a TCP
+     * check on its port. Registering the same host and port again replaces that Instance, which keeps its ID.
      *
      * @return the new Instance, critical until its check first passes
      */
-    public Instance register(String workstation, String service, String host, Integer port) {
+    public Instance register(String workstation, String service, StaticInstanceRequest request) {
         checkHome(workstation);
         checkName(service);
-        checkPort(port);
-        if (host == null || host.isBlank()) {
-            host = defaultHost();
+        StaticInstanceRequest checked = checked(request);
+        String id = staticInstanceAt(service, checked.host(), checked.port())
+                .orElseGet(() -> UUID.randomUUID().toString());
+        return put(id, service, checked);
+    }
+
+    /**
+     * Changes the Static Instance {@code id} of {@code service} on {@code workstation}, which must be this one, to
+     * what {@code request} says, as {@link #register} would. It stays the same Instance, with the same ID.
+     *
+     * @return the edited Instance, critical until its check first passes
+     */
+    public Instance edit(String workstation, String service, String id, StaticInstanceRequest request) {
+        checkHome(workstation);
+        staticInstance(service, id);
+        StaticInstanceRequest checked = checked(request);
+        Optional<String> other = staticInstanceAt(service, checked.host(), checked.port())
+                .filter(found -> !found.equals(id));
+        if (other.isPresent()) {
+            throw new InvalidRegistrationException("port", "Another Instance of " + service + " is already at "
+                    + Instance.address(checked.host(), checked.port()) + ": edit or remove that one instead.");
         }
+        return put(id, service, checked);
+    }
+
+    /** {@code request} with its host and check filled in, if it follows the rules. */
+    private StaticInstanceRequest checked(StaticInstanceRequest request) {
+        checkPort(request.port());
+        String host = request.host() == null || request.host().isBlank() ? defaultHost() : request.host().strip();
         checkHost(host);
-        String id = staticInstanceAt(service, host, port).orElseGet(() -> UUID.randomUUID().toString());
-        consul.register(new Registration(id, service, host, port, STATIC_INSTANCE, tcpCheck(host, port)));
-        return new Instance(id, host, port, Health.CRITICAL);
+        HealthCheck check = checked(request.check());
+        checkTags(request.tags());
+        checkMeta(request.meta());
+        return new StaticInstanceRequest(host, request.port(), check, request.tags(), request.meta());
+    }
+
+    /** Adds or replaces the registration {@code id}, and answers the Instance it is before its check first runs. */
+    private Instance put(String id, String service, StaticInstanceRequest instance) {
+        String host = instance.host();
+        int port = instance.port();
+        HealthCheck check = instance.check();
+        Map<String, String> registered = new HashMap<>(instance.meta());
+        registered.putAll(STATIC_INSTANCE);
+        if (check.http()) {
+            registered.put(HTTP_PATH, check.path());
+        }
+        Check consulCheck = consulCheck(host, port, check);
+        consul.register(new Registration(id, service, host, port, instance.tags(), registered, consulCheck));
+        return new Instance(id, host, port, Health.CRITICAL, check, instance.tags(), instance.meta(),
+                List.of(new CheckResult(consulCheck.name(), Health.CRITICAL, "")));
     }
 
     /** Where a Static Instance registered without a host is: this Workstation's LAN address. */
@@ -81,13 +156,44 @@ public class Registrations {
         }
     }
 
+    /** Tags as typed into a form: separated by commas, with the spaces around them dropped. */
+    public static List<String> parseTags(String tags) {
+        return tags == null ? List.of() : Arrays.stream(tags.split(",")).map(String::strip)
+                .filter(tag -> !tag.isEmpty()).toList();
+    }
+
+    /** Meta as typed into a form: one {@code key=value} on each line, with the spaces around both dropped. */
+    public static Map<String, String> parseMeta(String meta) {
+        Map<String, String> values = new LinkedHashMap<>();
+        if (meta == null) {
+            return values;
+        }
+        for (String line : meta.split("\\R")) {
+            if (line.isBlank()) {
+                continue;
+            }
+            int equals = line.indexOf('=');
+            if (equals < 0) {
+                throw new InvalidRegistrationException("meta", "The meta line \"" + line.strip()
+                        + "\" is not key=value: write one key=value on each line.");
+            }
+            values.put(line.substring(0, equals).strip(), line.substring(equals + 1).strip());
+        }
+        return values;
+    }
+
     /** Removes the Static Instance {@code id} of {@code service} on {@code workstation}, which must be this one. */
     public void remove(String workstation, String service, String id) {
         checkHome(workstation);
-        consul.agentService(id)
+        staticInstance(service, id);
+        consul.deregister(id);
+    }
+
+    /** The registration of the Static Instance {@code id} of {@code service}, which must be there. */
+    private AgentService staticInstance(String service, String id) {
+        return consul.agentService(id)
                 .filter(registration -> registration.name().equals(service) && isStaticInstance(registration))
                 .orElseThrow(() -> new UnknownInstanceException(service, id));
-        consul.deregister(id);
     }
 
     /** The ID of the Static Instance of {@code service} at {@code host} and {@code port}, if there is one. */
@@ -129,6 +235,36 @@ public class Registrations {
         }
     }
 
+    private static void checkTags(List<String> tags) {
+        for (String tag : tags) {
+            if (tag == null || !TAG.matcher(tag).matches()) {
+                throw new InvalidRegistrationException("tags", "The tag \"" + tag + "\" is not one word: use 1 to"
+                        + " 255 characters without spaces or commas.");
+            }
+        }
+    }
+
+    private static void checkMeta(Map<String, String> meta) {
+        if (meta.size() > META_KEYS) {
+            throw new InvalidRegistrationException("meta", "An Instance can have at most " + META_KEYS
+                    + " meta keys.");
+        }
+        meta.forEach((key, value) -> {
+            if (!META_KEY.matcher(key).matches()) {
+                throw new InvalidRegistrationException("meta", "The meta key " + key + " is not one Consul"
+                        + " allows: use 1 to 128 letters, digits, - and _.");
+            }
+            if (key.startsWith(RESERVED_META) || key.startsWith("consul-")) {
+                throw new InvalidRegistrationException("meta", "The meta key " + key + " is kept for "
+                        + (key.startsWith("consul-") ? "Consul" : "LVH Yard") + ": use another key.");
+            }
+            if (value != null && value.length() > META_VALUE_LENGTH) {
+                throw new InvalidRegistrationException("meta", "The meta value of " + key + " is too long: use at"
+                        + " most " + META_VALUE_LENGTH + " characters.");
+            }
+        });
+    }
+
     private static void checkPort(Integer port) {
         if (port == null) {
             throw new InvalidRegistrationException("port", "A Static Instance needs a port.");
@@ -142,8 +278,68 @@ public class Registrations {
         return new InvalidRegistrationException("port", "The port " + port + " is not a TCP port: use 1 to 65535.");
     }
 
-    /** The check every Instance without one of its own gets: a TCP connection to its port. */
-    private static Check tcpCheck(String host, int port) {
-        return new Check(Instance.address(host, port), CHECK_INTERVAL, CHECK_TIMEOUT);
+    /**
+     * {@code check} with every part it leaves out filled in, if it follows the rules. With no check at all, the
+     * Instance gets a TCP check on its port.
+     */
+    private static HealthCheck checked(HealthCheck check) {
+        if (check == null) {
+            check = new HealthCheck(null, null, null, null);
+        }
+        String type = check.type() != null ? check.type() : check.path() != null ? HealthCheck.HTTP : HealthCheck.TCP;
+        if (type.equals("script")) {
+            throw new InvalidRegistrationException("check", "Script checks are not offered: use an http or a tcp"
+                    + " check.");
+        }
+        if (!type.equals(HealthCheck.HTTP) && !type.equals(HealthCheck.TCP)) {
+            throw new InvalidRegistrationException("check", "The check " + type + " is not one LVH Yard offers:"
+                    + " use http or tcp.");
+        }
+        String path = null;
+        if (type.equals(HealthCheck.HTTP)) {
+            path = check.path() == null || check.path().isBlank() ? "/" : check.path();
+            if (!PATH.matcher(path).matches()) {
+                throw new InvalidRegistrationException("path", "The path " + path + " is not one an HTTP check"
+                        + " can GET: start it with / and leave out spaces and #.");
+            }
+        } else if (check.path() != null && !check.path().isBlank()) {
+            throw new InvalidRegistrationException("path", "A TCP check has no path: use an http check to GET "
+                    + check.path() + ".");
+        }
+        Duration interval = duration("interval", check.interval(), CHECK_INTERVAL);
+        if (interval.compareTo(SHORTEST_INTERVAL) < 0) {
+            throw new InvalidRegistrationException("interval", "The interval " + check.interval()
+                    + " is too short: a check runs at most once a second.");
+        }
+        Duration timeout = duration("timeout", check.timeout(), CHECK_TIMEOUT);
+        return new HealthCheck(type, path, HealthCheck.format(interval), HealthCheck.format(timeout));
+    }
+
+    /** The duration {@code text} is, or {@code otherwise} when it is left out. Zero is refused. */
+    private static Duration duration(String field, String text, Duration otherwise) {
+        if (text == null || text.isBlank()) {
+            return otherwise;
+        }
+        Matcher matcher = DURATION.matcher(text.strip());
+        if (!matcher.matches() || Long.parseLong(matcher.group(1)) == 0) {
+            throw new InvalidRegistrationException(field, "The " + field + " " + text + " is not a duration: use"
+                    + " a whole number above 0 and ms, s, m or h, such as 10s.");
+        }
+        long amount = Long.parseLong(matcher.group(1));
+        return switch (matcher.group(2)) {
+            case "ms" -> Duration.ofMillis(amount);
+            case "s" -> Duration.ofSeconds(amount);
+            case "m" -> Duration.ofMinutes(amount);
+            default -> Duration.ofHours(amount);
+        };
+    }
+
+    /** What Consul runs for {@code check}, named for what it does. */
+    private static Check consulCheck(String host, int port, HealthCheck check) {
+        String address = Instance.address(host, port);
+        return check.http()
+                ? new Check("HTTP GET " + check.path(), "http://" + address + check.path(), null, check.interval(),
+                        check.timeout())
+                : new Check("TCP " + address, null, address, check.interval(), check.timeout());
     }
 }

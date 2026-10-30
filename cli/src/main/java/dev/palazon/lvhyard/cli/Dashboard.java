@@ -14,6 +14,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.core.type.TypeReference;
@@ -67,6 +68,24 @@ final class Dashboard {
         }
     }
 
+    /**
+     * How an Instance's Health is checked: its type, http or tcp, the path an HTTP check GETs, its interval and
+     * timeout. A part that is {@code null} is left to the dashboard.
+     */
+    record Check(String type, String path, String interval, String timeout) {
+
+        /** The parts that are given, by their names in the API. */
+        Map<String, String> given() {
+            Map<String, String> parts = new LinkedHashMap<>();
+            parts.put("type", type);
+            parts.put("path", path);
+            parts.put("interval", interval);
+            parts.put("timeout", timeout);
+            parts.values().removeIf(Objects::isNull);
+            return parts;
+        }
+    }
+
     /** {@code host:port}, with an IPv6 host in brackets so its colons are not read as the port's. */
     static String address(String host, int port) {
         return (host.contains(":") ? "[" + host + "]" : host) + ":" + port;
@@ -89,15 +108,26 @@ final class Dashboard {
     }
 
     /**
-     * Registers a Static Instance of this Workstation's {@code service} at {@code host} and {@code port}. With no
-     * host, the dashboard puts it at this Workstation's LAN address.
+     * Registers a Static Instance of this Workstation's {@code service} at {@code host} and {@code port}, with
+     * {@code check}, {@code tags} and {@code meta}. With no host, the dashboard puts it at this Workstation's LAN
+     * address, and the parts of the check left out get the dashboard's defaults.
      */
-    Instance register(String service, String host, int port) {
+    Instance register(String service, String host, int port, Check check, List<String> tags,
+            Map<String, String> meta) {
         Map<String, Object> instance = new LinkedHashMap<>();
         if (host != null) {
             instance.put("host", host);
         }
         instance.put("port", port);
+        if (!check.given().isEmpty()) {
+            instance.put("check", check.given());
+        }
+        if (!tags.isEmpty()) {
+            instance.put("tags", tags);
+        }
+        if (!meta.isEmpty()) {
+            instance.put("meta", meta);
+        }
         HttpRequest.Builder request = HttpRequest.newBuilder(instancesUrl(service))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(instance)));

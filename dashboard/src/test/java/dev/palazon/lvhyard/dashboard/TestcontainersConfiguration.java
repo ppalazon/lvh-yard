@@ -18,13 +18,15 @@ class TestcontainersConfiguration {
 
     /**
      * The test Workstation's Consul, as one dev-mode server. It binds to the container's own address, which then
-     * stands for the Workstation's LAN address, as {@code -bind} does in compose.yaml.
+     * stands for the Workstation's LAN address, as {@code -bind} does in compose.yaml. Check output reaches the
+     * catalog at once, as compose.yaml sets it.
      */
     @Bean(initMethod = "start", destroyMethod = "stop")
     GenericContainer<?> consulContainer() {
         return new GenericContainer<>(CONSUL_IMAGE)
                 .withCommand("agent", "-dev", "-client=0.0.0.0", "-bind={{ GetPrivateIP }}",
-                        "-datacenter=" + DashboardTest.WORKSTATION, "-node=" + DashboardTest.WORKSTATION)
+                        "-datacenter=" + DashboardTest.WORKSTATION, "-node=" + DashboardTest.WORKSTATION,
+                        "-hcl=check_update_interval = \"0s\"")
                 .withExposedPorts(CONSUL_HTTP_PORT)
                 // The leader is "" until the server has elected itself, and registrations fail until then.
                 .waitingFor(Wait.forHttp("/v1/status/leader").forPort(CONSUL_HTTP_PORT)

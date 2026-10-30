@@ -14,10 +14,12 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.server.ResponseStatusException;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
+import dev.palazon.lvhyard.dashboard.services.Instance;
 import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
 import dev.palazon.lvhyard.dashboard.services.Publications;
 import dev.palazon.lvhyard.dashboard.services.Registrations;
 import dev.palazon.lvhyard.dashboard.services.RemoteServiceException;
+import dev.palazon.lvhyard.dashboard.services.Service;
 import dev.palazon.lvhyard.dashboard.services.UnknownInstanceException;
 import dev.palazon.lvhyard.dashboard.services.UnknownServiceException;
 import dev.palazon.lvhyard.dashboard.services.YardReader;
@@ -51,18 +53,17 @@ class PagesController {
     @GetMapping(path = RegisterPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
     @ResponseBody
     String registerForm() {
-        return RegisterPage.render(workstation, RegisterPage.Fields.EMPTY, registrations.defaultHost(), null);
+        return RegisterPage.render(workstation, "", InstanceForm.Fields.EMPTY, registrations.defaultHost(), null);
     }
 
     /** Registers what the form holds and goes to its Service's page, or shows the form again with the error. */
     @PostMapping(path = RegisterPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
-    ResponseEntity<String> register(@RequestParam String name, @RequestParam(defaultValue = "") String host,
-            @RequestParam(defaultValue = "") String port) {
+    ResponseEntity<String> register(@RequestParam String name, InstanceForm.Fields fields) {
         try {
-            registrations.register(workstation.name(), name.strip(), host.strip(), Registrations.parsePort(port));
+            registrations.register(workstation.name(), name.strip(), fields.request());
         } catch (InvalidRegistrationException error) {
             return ResponseEntity.badRequest().contentType(Layout.HTML).body(RegisterPage.render(workstation,
-                    new RegisterPage.Fields(name, host, port), registrations.defaultHost(), error));
+                    name, fields, registrations.defaultHost(), error));
         }
         return seeOther(ServicePage.path(workstation.name(), name.strip()));
     }
@@ -71,6 +72,48 @@ class PagesController {
     @ResponseBody
     String service(@PathVariable("workstation") String home, @PathVariable String service) {
         return yard.service(home, service).map(found -> ServicePage.render(workstation, found))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    }
+
+    @GetMapping(path = "/services/{workstation}/{service}/instances/{id}/edit", produces = MediaType.TEXT_HTML_VALUE)
+    @ResponseBody
+    String editForm(@PathVariable("workstation") String home, @PathVariable String service,
+            @PathVariable String id) {
+        Service found = ownService(home, service);
+        Instance instance = instance(found, id);
+        return EditInstancePage.render(workstation, found, instance, InstanceForm.Fields.of(instance),
+                registrations.defaultHost(), null);
+    }
+
+    /** Edits a Static Instance and shows its Service, or shows the form again with the error. */
+    @PostMapping(path = "/services/{workstation}/{service}/instances/{id}/edit",
+            produces = MediaType.TEXT_HTML_VALUE)
+    ResponseEntity<String> edit(@PathVariable("workstation") String home, @PathVariable String service,
+            @PathVariable String id, InstanceForm.Fields fields) {
+        Service found = ownService(home, service);
+        Instance instance = instance(found, id);
+        try {
+            registrations.edit(home, service, id, fields.request());
+        } catch (InvalidRegistrationException error) {
+            return ResponseEntity.badRequest().contentType(Layout.HTML).body(EditInstancePage.render(workstation,
+                    found, instance, fields, registrations.defaultHost(), error));
+        } catch (UnknownInstanceException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+        }
+        return seeOther(ServicePage.path(found));
+    }
+
+    /** This Workstation's {@code service}: a Remote Service's Instances cannot be edited, so it is forbidden. */
+    private Service ownService(String home, String service) {
+        if (!home.equals(workstation.name())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "The Services of " + home + " can be edited only on " + home + ".");
+        }
+        return yard.service(home, service).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    }
+
+    private static Instance instance(Service service, String id) {
+        return service.instances().stream().filter(instance -> instance.id().equals(id)).findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 

@@ -48,13 +48,17 @@ class YardTest {
                   "hostname": "api.lvh.me", "instances": []},
                  {"workstation": "ws-a", "name": "grafana", "state": "healthy", "publication": {"scope": "local"},
                   "hostname": "grafana.lvh.me", "instances": [
-                    {"id": "3f2a", "host": "10.1.2.3", "port": 3000, "health": "passing"}]},
+                    {"id": "3f2a", "host": "10.1.2.3", "port": 3000, "health": "passing",
+                     "tags": [], "meta": {}, "checks": []}]},
                  {"workstation": "ws-a", "name": "postgres", "state": "unhealthy", "publication": {"scope": "local"},
                   "hostname": "postgres.lvh.me", "instances": [
-                    {"id": "5e6f", "host": "10.1.2.3", "port": 5432, "health": "critical"}]},
+                    {"id": "5e6f", "host": "10.1.2.3", "port": 5432, "health": "critical",
+                     "tags": [], "meta": {}, "checks": []}]},
                  {"workstation": "ws-a", "name": "web", "state": "unpublished", "instances": [
-                    {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical"},
-                    {"id": "9d4e", "host": "10.1.2.3", "port": 8081, "health": "warning"}]}]
+                    {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical",
+                     "tags": [], "meta": {}, "checks": []},
+                    {"id": "9d4e", "host": "10.1.2.3", "port": 8081, "health": "warning",
+                     "tags": [], "meta": {}, "checks": []}]}]
                 """);
 
         Run run = yard("list");
@@ -75,7 +79,8 @@ class YardTest {
     void listWithWorkstationShowsThatWorkstationsServices() {
         dashboard.answer("GET", "/api/services?workstation=ws-b", 200, """
                 [{"workstation": "ws-b", "name": "postgres", "state": "unpublished", "instances": [
-                    {"id": "5e6f", "host": "10.1.2.4", "port": 5432, "health": "passing"}]}]
+                    {"id": "5e6f", "host": "10.1.2.4", "port": 5432, "health": "passing",
+                     "tags": [], "meta": {}, "checks": []}]}]
                 """);
 
         Run run = yard("list", "--workstation", "ws-b");
@@ -98,7 +103,8 @@ class YardTest {
     @Test
     void registerAddsStaticInstanceAtHostAndPort() {
         dashboard.answer("POST", "/api/workstation/services/web/instances", 201, """
-                {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical"}
+                {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical",
+                 "tags": [], "meta": {}, "checks": []}
                 """);
 
         Run run = yard("register", "web", "--host", "10.1.2.3", "--port", "8080");
@@ -113,7 +119,8 @@ class YardTest {
     @Test
     void registerWithoutHostLeavesItToTheDashboard() {
         dashboard.answer("POST", "/api/workstation/services/web/instances", 201, """
-                {"id": "7b1c", "host": "192.168.1.20", "port": 8080, "health": "critical"}
+                {"id": "7b1c", "host": "192.168.1.20", "port": 8080, "health": "critical",
+                 "tags": [], "meta": {}, "checks": []}
                 """);
 
         Run run = yard("register", "web", "--port", "8080");
@@ -123,6 +130,55 @@ class YardTest {
         dashboard.verifyCalled("POST", "/api/workstation/services/web/instances", """
                 {"port": 8080}
                 """);
+    }
+
+    @Test
+    void registerTakesTheCheckItsIntervalAndTimeoutTagsAndMeta() {
+        dashboard.answer("POST", "/api/workstation/services/web/instances", 201, """
+                {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical",
+                 "check": {"type": "http", "path": "/health", "interval": "5s", "timeout": "1s"},
+                 "tags": ["backend", "v2"], "meta": {"owner": "pablo", "team": "core"},
+                 "checks": [{"name": "HTTP GET /health", "health": "critical", "output": ""}]}
+                """);
+
+        Run run = yard("register", "web", "--port", "8080", "--check", "http", "--path", "/health",
+                "--interval", "5s", "--timeout", "1s", "--tag", "backend", "--tag", "v2", "--meta", "owner=pablo",
+                "--meta", "team=core");
+
+        assertThat(run.exitCode()).isZero();
+        assertThat(run.out()).isEqualTo("Registered web at 10.1.2.3:8080, Instance 7b1c.\n");
+        dashboard.verifyCalled("POST", "/api/workstation/services/web/instances", """
+                {"port": 8080, "check": {"type": "http", "path": "/health", "interval": "5s", "timeout": "1s"},
+                 "tags": ["backend", "v2"], "meta": {"owner": "pablo", "team": "core"}}
+                """);
+    }
+
+    @Test
+    void registerWithOnlyAPathLeavesTheRestOfTheCheckToTheDashboard() {
+        dashboard.answer("POST", "/api/workstation/services/web/instances", 201, """
+                {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical",
+                 "check": {"type": "http", "path": "/health", "interval": "10s", "timeout": "2s"},
+                 "tags": [], "meta": {}, "checks": []}
+                """);
+
+        Run run = yard("register", "web", "--port", "8080", "--path", "/health");
+
+        assertThat(run.exitCode()).isZero();
+        dashboard.verifyCalled("POST", "/api/workstation/services/web/instances", """
+                {"port": 8080, "check": {"path": "/health"}}
+                """);
+    }
+
+    @Test
+    void registerWithAScriptCheckShowsWhyTheDashboardRefused() {
+        dashboard.answer("POST", "/api/workstation/services/web/instances", 400, """
+                {"status": 400, "detail": "Script checks are not offered: use an http or a tcp check."}
+                """);
+
+        Run run = yard("register", "web", "--port", "8080", "--check", "script");
+
+        assertThat(run.exitCode()).isNotZero();
+        assertThat(run.err()).contains("Script checks are not offered");
     }
 
     @Test
@@ -139,8 +195,10 @@ class YardTest {
     @Test
     void removeByPortRemovesTheInstanceAtThatPort() {
         answerWebWithInstances("""
-                {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "passing"},
-                {"id": "9d4e", "host": "10.1.2.3", "port": 8081, "health": "passing"}""");
+                {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "passing",
+                 "tags": [], "meta": {}, "checks": []},
+                {"id": "9d4e", "host": "10.1.2.3", "port": 8081, "health": "passing",
+                 "tags": [], "meta": {}, "checks": []}""");
         dashboard.answer("DELETE", "/api/workstation/services/web/instances/9d4e", 204, null);
 
         Run run = yard("remove", "web", "--port", "8081");
@@ -153,8 +211,10 @@ class YardTest {
     @Test
     void removeByHostAndPortPicksTheInstanceAtThatHost() {
         answerWebWithInstances("""
-                {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "passing"},
-                {"id": "9d4e", "host": "10.1.2.4", "port": 8080, "health": "passing"}""");
+                {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "passing",
+                 "tags": [], "meta": {}, "checks": []},
+                {"id": "9d4e", "host": "10.1.2.4", "port": 8080, "health": "passing",
+                 "tags": [], "meta": {}, "checks": []}""");
         dashboard.answer("DELETE", "/api/workstation/services/web/instances/9d4e", 204, null);
 
         Run run = yard("remove", "web", "--host", "10.1.2.4", "--port", "8080");
@@ -166,8 +226,10 @@ class YardTest {
     @Test
     void removeByPortOnMoreThanOneHostAsksForTheHost() {
         answerWebWithInstances("""
-                {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "passing"},
-                {"id": "9d4e", "host": "10.1.2.4", "port": 8080, "health": "passing"}""");
+                {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "passing",
+                 "tags": [], "meta": {}, "checks": []},
+                {"id": "9d4e", "host": "10.1.2.4", "port": 8080, "health": "passing",
+                 "tags": [], "meta": {}, "checks": []}""");
 
         Run run = yard("remove", "web", "--port", "8080");
 
@@ -178,7 +240,8 @@ class YardTest {
     @Test
     void removeByPortWithNoInstanceThereSaysSo() {
         answerWebWithInstances("""
-                {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "passing"}""");
+                {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "passing",
+                 "tags": [], "meta": {}, "checks": []}""");
 
         Run run = yard("remove", "web", "--port", "9090");
 
@@ -199,7 +262,8 @@ class YardTest {
         dashboard.answer("PUT", "/api/workstation/services/web/publication", 200, """
                 {"workstation": "ws-a", "name": "web", "state": "unhealthy", "publication": {"scope": "local"},
                  "hostname": "web.lvh.me", "instances": [
-                    {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical"}]}
+                    {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical",
+                     "tags": [], "meta": {}, "checks": []}]}
                 """);
 
         Run run = yard("publish", "web");

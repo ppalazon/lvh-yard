@@ -7,7 +7,10 @@ import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.services.Instance;
 import dev.palazon.lvhyard.dashboard.services.Service;
 
-/** One Service: its state and Publication with a button to change it, its Instances, and a button to remove each. */
+/**
+ * One Service: its state and Publication with a button to change it, and its Instances, each with its tags, meta and
+ * each check's last output, and buttons to edit and remove it.
+ */
 final class ServicePage {
 
     private ServicePage() {
@@ -60,17 +63,31 @@ final class ServicePage {
                     .thead().tr()
                         .th().text("Instance").__()
                         .th().text("Health").__()
+                        .th().text("Checks").__()
                         .th().of(cell -> cell.span().attrClass("sr-only").text("Actions").__()).__()
                     .__().__()
                     .tbody().of(body -> service.instances().forEach(instance -> body.tr()
-                            .td().text(instance.address()).__()
-                            .td().of(cell -> InstanceViews.health(cell, instance.health())).__()
-                            .td().attrClass("text-right")
-                                .form().addAttr("method", "post")
-                                        .addAttr("action", Layout.attr(removePath(service, instance)))
-                                    .button().attrType(EnumTypeButtonType.SUBMIT).attrClass("btn")
-                                            .addAttr("data-variant", "outline").addAttr("data-size", "sm")
-                                            .text("Remove").__()
+                            .td().attrClass("align-top")
+                                .of(cell -> InstanceViews.description(cell, instance))
+                            .__()
+                            .td().attrClass("align-top")
+                                .of(cell -> InstanceViews.health(cell, instance.health()))
+                            .__()
+                            .td().attrClass("align-top")
+                                .of(cell -> InstanceViews.checks(cell, instance))
+                            .__()
+                            .td().attrClass("align-top")
+                                .div().attrClass("flex justify-end gap-2")
+                                    .a().attrClass("btn").addAttr("data-variant", "outline")
+                                            .addAttr("data-size", "sm")
+                                            .attrHref(Layout.attr(EditInstancePage.path(service, instance)))
+                                            .text("Edit").__()
+                                    .form().addAttr("method", "post")
+                                            .addAttr("action", Layout.attr(removePath(service, instance)))
+                                        .button().attrType(EnumTypeButtonType.SUBMIT).attrClass("btn")
+                                                .addAttr("data-variant", "outline").addAttr("data-size", "sm")
+                                                .text("Remove").__()
+                                    .__()
                                 .__()
                             .__()
                     .__())).__()

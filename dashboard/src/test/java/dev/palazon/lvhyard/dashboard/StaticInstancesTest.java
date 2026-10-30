@@ -1,6 +1,7 @@
 package dev.palazon.lvhyard.dashboard;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -247,6 +248,101 @@ class StaticInstancesTest extends DashboardTest {
         JsonNode instance = findService(get("/api/services").getBody(), postgres).get("instances").get(0);
         assertThat(instance.get("port").asInt()).isEqualTo(5432);
         assertThat(instance.get("health").asString()).isEqualTo("critical");
+    }
+
+    @Test
+    void instanceKeepsItsTagsAndMeta() {
+        String api = newServiceName("api");
+
+        register(api, Map.of("port", 8080, "tags", List.of("backend", "v2"), "meta", Map.of("owner", "pablo")));
+
+        JsonNode instance = get(servicePath(api)).getBody().get("instances").get(0);
+        assertThat(instance.get("tags").valueStream().map(JsonNode::asString)).containsExactly("backend", "v2");
+        assertThat(instance.get("meta").properties()).singleElement()
+                .satisfies(entry -> assertThat(entry.getKey() + "=" + entry.getValue().asString())
+                        .isEqualTo("owner=pablo"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { "lvh-yard-instance", "consul-version", "my key", "a.b" })
+    void metaKeyThatIsReservedOrHasOtherCharactersIsRefused(String key) {
+        String api = newServiceName("api");
+
+        ResponseEntity<JsonNode> response = post(instancesPath(api), Map.of("port", 8080, "meta", Map.of(key, "x")));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().get("detail").asString()).contains(key);
+        assertThat(get(servicePath(api)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { "two words", "a,b", "" })
+    void tagWithASpaceOrACommaIsRefused(String tag) {
+        ResponseEntity<JsonNode> response = post(instancesPath(newServiceName("api")),
+                Map.of("port", 8080, "tags", List.of(tag)));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().get("detail").asString()).contains("tag");
+    }
+
+    @Test
+    void editingAnInstanceKeepsItTheSameInstance() {
+        String api = newServiceName("api");
+        String id = register(api, Map.of("host", "10.1.2.3", "port", 8080, "tags", List.of("old"))).get("id")
+                .asString();
+
+        ResponseEntity<JsonNode> response = put(instancesPath(api) + "/" + id, Map.of("host", "10.1.2.4",
+                "port", 9090, "check", Map.of("path", "/health", "interval", "5s"), "tags", List.of("new"),
+                "meta", Map.of("owner", "pablo")));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().get("id").asString()).isEqualTo(id);
+        JsonNode instances = get(servicePath(api)).getBody().get("instances");
+        assertThat(instances).hasSize(1);
+        JsonNode instance = instances.get(0);
+        assertThat(instance.get("id").asString()).isEqualTo(id);
+        assertThat(instance.get("host").asString()).isEqualTo("10.1.2.4");
+        assertThat(instance.get("port").asInt()).isEqualTo(9090);
+        assertThat(instance.get("check").get("path").asString()).isEqualTo("/health");
+        assertThat(instance.get("check").get("interval").asString()).isEqualTo("5s");
+        assertThat(instance.get("tags").valueStream().map(JsonNode::asString)).containsExactly("new");
+        assertThat(instance.get("meta").get("owner").asString()).isEqualTo("pablo");
+    }
+
+    @Test
+    void editingAnInstanceWithBrokenRulesLeavesItAsItWas() {
+        String api = newServiceName("api");
+        String id = register(api, Map.of("host", "10.1.2.3", "port", 8080)).get("id").asString();
+
+        ResponseEntity<JsonNode> response = put(instancesPath(api) + "/" + id, Map.of("port", 70000));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(get(servicePath(api)).getBody().get("instances").get(0).get("port").asInt()).isEqualTo(8080);
+    }
+
+    @Test
+    void editingAnInstanceOntoAnotherInstancesAddressIsRefused() {
+        String web = newServiceName("web");
+        String first = register(web, Map.of("host", "10.1.2.3", "port", 8080)).get("id").asString();
+        register(web, Map.of("host", "10.1.2.3", "port", 8081));
+
+        ResponseEntity<JsonNode> response = put(instancesPath(web) + "/" + first,
+                Map.of("host", "10.1.2.3", "port", 8081));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().get("detail").asString()).contains("10.1.2.3:8081");
+        assertThat(get(servicePath(web)).getBody().get("instances")).hasSize(2);
+    }
+
+    @Test
+    void editingAnUnknownInstanceIsNotFound() {
+        String web = newServiceName("web");
+        register(web, Map.of("port", 8080));
+
+        ResponseEntity<JsonNode> response = put(instancesPath(web) + "/nothing-here", Map.of("port", 8081));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(get(servicePath(web)).getBody().get("instances")).hasSize(1);
     }
 
     /** The Service called {@code name} in a list of Services, or {@code null}. */

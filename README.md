@@ -43,6 +43,8 @@ yard list                               # this Workstation's Services: state, ho
 yard list --workstation ws-b            # another Workstation's
 yard register web --port 8080           # at this Workstation's LAN address
 yard register web --host 127.0.0.1 --port 8080
+yard register web --port 8080 --path /health --interval 5s --timeout 1s   # an HTTP check (default: TCP, 10s, 2s)
+yard register web --port 8080 --tag backend --meta owner=pablo           # repeat --tag and --meta for more
 yard remove web --port 8080             # add --host when the port is used on more than one host
 yard remove web --id <id>               # the ID that yard list shows
 yard publish web                        # http://web.<base-domain> on this Workstation (Local Scope)
@@ -50,6 +52,8 @@ yard unpublish web                      # removes the hostname; every Instance s
 ```
 
 Each Service is `unpublished`, `unavailable` (published, no Instances), `unhealthy` (published, no passing Instance) or `healthy` (published, with a passing Instance). A Publication is kept in this Workstation's Consul KV, under `lvh-yard/publications/`. Traefik routes it to every Instance of the Service, including ones registered later.
+
+Each Instance has one health check: TCP, which connects to its port, or HTTP, which GETs a path and passes on a 2xx answer. Script checks are not offered. The Service's page shows each check's last output, and edits an Instance's host, port, check, tags and meta; it stays the same Instance.
 
 Every failure prints its reason and exits with a non-zero code.
 
