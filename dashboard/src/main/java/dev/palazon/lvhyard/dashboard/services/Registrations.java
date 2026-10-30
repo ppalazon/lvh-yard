@@ -44,6 +44,12 @@ public class Registrations {
     /** Where a Bound Instance keeps the ID of the Container Binding that made it. */
     static final String CONTAINER_BINDING = RESERVED_META + "container-binding";
 
+    /**
+     * Marks a Bound Instance at its container's own address, on a container port not published on the host, so only
+     * its own Workstation can reach it.
+     */
+    static final String UNPUBLISHED_CONTAINER_PORT = RESERVED_META + "unpublished-container-port";
+
     /** Where an HTTP check's path is kept: Consul does not give back a check's URL. */
     static final String HTTP_PATH = RESERVED_META + "http-path";
 
@@ -142,7 +148,7 @@ public class Registrations {
         Check consulCheck = consulCheck(host, port, check);
         consul.register(new Registration(id, service, host, port, instance.tags(), registered, consulCheck));
         return new Instance(id, host, port, Health.CRITICAL, check, instance.tags(), instance.meta(),
-                List.of(new CheckResult(consulCheck.name(), Health.CRITICAL, "")), false, null);
+                List.of(new CheckResult(consulCheck.name(), Health.CRITICAL, "")), false, null, false);
     }
 
     /**
@@ -157,9 +163,13 @@ public class Registrations {
         for (BoundInstance instance : wanted) {
             AgentService found = existing.remove(instance.id());
             if (found == null || !found.address().equals(instance.host()) || found.port() != instance.port()
-                    || !instance.binding().equals(found.meta().get(CONTAINER_BINDING))) {
+                    || !instance.binding().equals(found.meta().get(CONTAINER_BINDING))
+                    || instance.onHostPort() != onHostPort(found)) {
                 Map<String, String> meta = new HashMap<>(BOUND_INSTANCE);
                 meta.put(CONTAINER_BINDING, instance.binding());
+                if (!instance.onHostPort()) {
+                    meta.put(UNPUBLISHED_CONTAINER_PORT, "true");
+                }
                 Check check = consulCheck(instance.host(), instance.port(), checked((HealthCheck) null));
                 consul.register(new Registration(instance.id(), instance.service(), instance.host(),
                         instance.port(), List.of(), meta, check));
@@ -185,9 +195,11 @@ public class Registrations {
      * @param containerPort the container port it is for
      * @param host where it is reached
      * @param port where it is reached
+     * @param onHostPort whether it is on a port of the host, so other Workstations can reach it: the container port
+     *        is published on the host, or the container is on the host's network
      */
     public record BoundInstance(String service, String binding, String container, int containerPort, String host,
-            int port) {
+            int port, boolean onHostPort) {
 
         /**
          * Its registration ID, the same for as long as the Binding follows a container of that name. One a Binding
@@ -277,6 +289,11 @@ public class Registrations {
 
     private static boolean isBoundInstance(AgentService registration) {
         return registration.meta().entrySet().containsAll(BOUND_INSTANCE.entrySet());
+    }
+
+    /** Whether the Bound Instance {@code registration} is on a port of the host, as {@link BoundInstance} says. */
+    private static boolean onHostPort(AgentService registration) {
+        return !registration.meta().containsKey(UNPUBLISHED_CONTAINER_PORT);
     }
 
     private void checkHome(String workstation) {

@@ -127,6 +127,22 @@ class ServicePageTest extends DashboardTest {
     }
 
     @Test
+    void yardScopedServiceWarnsAboutABoundInstanceOnAnUnpublishedContainerPort() {
+        String web = newServiceName("web");
+        String name = newContainerName();
+        String address = containerAddress(startContainer(name, 80, false)) + ":80";
+        bind(web, name, 80);
+        String page = "/services/ws-test/" + web;
+        await().atMost(Duration.ofSeconds(15)).until(() -> getPage(page).getBody().contains(address));
+        assertThat(getPage(page).getBody()).doesNotContain("not published");
+
+        put(publicationPath(web), Map.of("scope", "yard"));
+
+        assertThat(getPage(page).getBody()).contains("role=\"alert\"")
+                .contains(address + " is on a container port that is not published on the host");
+    }
+
+    @Test
     void remoteServiceWithYardScopeShowsItsHostnameHere() {
         String api = newServiceName("api");
         remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));

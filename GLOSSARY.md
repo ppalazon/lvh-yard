@@ -84,6 +84,7 @@ _Avoid_: Unreachable Instance, loopback Service, unreachable Service
 
 **Unpublished**:
 A Service with no Publication, by your choice. Its Instances may be registered and healthy.
+Not the same as an unpublished container port, which is Docker's word for a container port not mapped to a host port (`docker run -p`). A Bound Instance on one is at its container's own address, so a Yard-scoped Service warns about it.
 
 **Unavailable**:
 A published Service with no registered Instances.

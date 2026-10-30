@@ -614,6 +614,8 @@ components:
           type: array
           items:
             type: string
+        unpublishedContainerPort:
+          type: boolean
       required:
       - checks
       - health
@@ -704,6 +706,7 @@ components:
           type: string
           enum:
           - loopback-instance
+          - unpublished-container-port
         message:
           type: string
       required:

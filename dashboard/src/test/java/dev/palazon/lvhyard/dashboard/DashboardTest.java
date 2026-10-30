@@ -1,6 +1,7 @@
 package dev.palazon.lvhyard.dashboard;
 
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -86,6 +87,21 @@ abstract class DashboardTest {
         containers.add(container);
         container.start();
         return container;
+    }
+
+    /**
+     * Starts a container called {@code name} on the host's network that accepts TCP connections on a free port, and
+     * answers that port. It is removed after the test.
+     */
+    int startHostNetworkContainer(String name) throws IOException {
+        int port;
+        try (ServerSocket free = new ServerSocket(0)) {
+            port = free.getLocalPort();
+        }
+        GenericContainer<?> container = TestcontainersConfiguration.listener(name, port).withNetworkMode("host");
+        containers.add(container);
+        container.start();
+        return port;
     }
 
     /** A Compose project name no other test, nor an earlier run, uses. */

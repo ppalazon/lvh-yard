@@ -4,8 +4,8 @@
 
 **Blocked by:** 06 (Share a Service with Yard Scope), 08 (Bind a Service to a container by name)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A Yard-scoped Service with a Bound Instance on an unpublished container port shows a warning on its detail page and in the API.
-- [ ] The warning goes away when the container is restarted with the port published, or the Scope is set back to Local.
-- [ ] A Local-scoped Service shows no such warning.
+- [x] A Yard-scoped Service with a Bound Instance on an unpublished container port shows a warning on its detail page and in the API.
+- [x] The warning goes away when the container is restarted with the port published, or the Scope is set back to Local.
+- [x] A Local-scoped Service shows no such warning.

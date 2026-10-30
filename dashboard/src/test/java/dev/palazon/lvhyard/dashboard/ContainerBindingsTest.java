@@ -1,5 +1,6 @@
 package dev.palazon.lvhyard.dashboard;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -110,6 +111,69 @@ class ContainerBindingsTest extends DashboardTest {
             assertThat(instance.get("checks").valueStream().map(check -> check.get("name").asString()))
                     .contains("TCP " + containerAddress(container) + ":80");
         });
+    }
+
+    @Test
+    void yardScopedServiceWarnsAboutABoundInstanceOnAnUnpublishedContainerPortUntilItIsLocal() {
+        String web = newServiceName("web");
+        String name = newContainerName();
+        GenericContainer<?> container = startContainer(name, 80, false);
+        bind(web, name, 80);
+        await().atMost(FOLLOW_TIMEOUT).until(() -> instanceAddresses(web).size() == 1);
+
+        JsonNode warnings = put(publicationPath(web), Map.of("scope", "yard")).getBody().get("warnings");
+
+        assertThat(warnings.valueStream().map(warning -> warning.get("kind").asString()))
+                .containsExactly("unpublished-container-port");
+        assertThat(warnings.get(0).get("message").asString()).contains(containerAddress(container) + ":80")
+                .contains("not published");
+        assertThat(put(publicationPath(web), Map.of("scope", "local")).getBody().get("warnings")).isEmpty();
+    }
+
+    @Test
+    void warningAboutAnUnpublishedContainerPortGoesAwayWhenTheContainerIsRestartedWithItPublished() {
+        String web = newServiceName("web");
+        String name = newContainerName();
+        GenericContainer<?> unpublished = startContainer(name, 80, false);
+        bind(web, name, 80);
+        await().atMost(FOLLOW_TIMEOUT).until(() -> instanceAddresses(web).size() == 1);
+        assertThat(put(publicationPath(web), Map.of("scope", "yard")).getBody().get("warnings")).hasSize(1);
+
+        unpublished.stop();
+        GenericContainer<?> published = startContainer(name, 80, true);
+
+        await().atMost(FOLLOW_TIMEOUT).untilAsserted(() -> {
+            JsonNode service = get(servicePath(web)).getBody();
+            assertThat(addresses(service)).containsExactly(lanAddress() + ":" + published.getMappedPort(80));
+            assertThat(service.get("warnings")).isEmpty();
+        });
+    }
+
+    @Test
+    void containerOnTheHostsNetworkGivesABoundInstanceAtTheLanAddressWithNoWarning() throws IOException {
+        String web = newServiceName("web");
+        String name = newContainerName();
+        int port = startHostNetworkContainer(name);
+        bind(web, name, port);
+        await().atMost(FOLLOW_TIMEOUT).until(() -> instanceAddresses(web).size() == 1);
+
+        JsonNode service = put(publicationPath(web), Map.of("scope", "yard")).getBody();
+
+        assertThat(addresses(service)).containsExactly(lanAddress() + ":" + port);
+        assertThat(service.get("warnings")).isEmpty();
+    }
+
+    @Test
+    void localScopedServiceDoesNotWarnAboutAnUnpublishedContainerPort() {
+        String web = newServiceName("web");
+        String name = newContainerName();
+        startContainer(name, 80, false);
+        bind(web, name, 80);
+        await().atMost(FOLLOW_TIMEOUT).until(() -> instanceAddresses(web).size() == 1);
+
+        JsonNode service = put(publicationPath(web), Map.of("scope", "local")).getBody();
+
+        assertThat(service.get("warnings")).isEmpty();
     }
 
     @Test

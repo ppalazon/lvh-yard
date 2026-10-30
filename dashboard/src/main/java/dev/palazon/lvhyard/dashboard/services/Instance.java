@@ -25,6 +25,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
  *        to it
  * @param containerBinding the ID of the Container Binding that made it a Bound Instance; {@code null}, and left out
  *        of the JSON, for a Static Instance
+ * @param unpublishedContainerPort whether it is a Bound Instance at its container's own address, on a container
+ *        port that is not published on the host, so no other Workstation can reach it; left out of the JSON when
+ *        false
  */
 public record Instance(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String id,
@@ -36,7 +39,8 @@ public record Instance(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Map<String, String> meta,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<CheckResult> checks,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean outOfRange,
-        @JsonInclude(JsonInclude.Include.NON_NULL) String containerBinding) {
+        @JsonInclude(JsonInclude.Include.NON_NULL) String containerBinding,
+        @JsonInclude(JsonInclude.Include.NON_DEFAULT) boolean unpublishedContainerPort) {
 
     /** Whether a Container Binding made it, so it comes and goes with its container and cannot be edited. */
     public boolean bound() {

@@ -218,7 +218,7 @@ public class ContainerBindings {
             port = containerPort;
         }
         return new BoundInstance(service, id, binding.followsCompose() ? container.name() : binding.container(),
-                containerPort, host, port);
+                containerPort, host, port, published.isPresent() || container.address().isEmpty());
     }
 
     private void checkHome(String workstation) {

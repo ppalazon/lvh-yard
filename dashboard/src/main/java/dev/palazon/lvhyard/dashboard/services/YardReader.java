@@ -258,7 +258,8 @@ public class YardReader {
         return new Instance(registration.id(), registration.address(), registration.port(),
                 Health.worst(checks.stream().map(CheckResult::health).toList()), check, registration.tags(), meta,
                 checks, remote && outOfRange.contains(registration.address()),
-                registration.meta().get(Registrations.CONTAINER_BINDING));
+                registration.meta().get(Registrations.CONTAINER_BINDING),
+                registration.meta().containsKey(Registrations.UNPUBLISHED_CONTAINER_PORT));
     }
 
     /** A duration as Consul writes it, in Go's way, such as {@code 1m30s} or {@code 1.5s}. */
