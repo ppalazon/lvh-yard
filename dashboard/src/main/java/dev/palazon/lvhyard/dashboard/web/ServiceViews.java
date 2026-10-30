@@ -19,13 +19,17 @@ final class ServiceViews {
             case UNAVAILABLE -> "outline";
             case UNPUBLISHED -> "secondary";
         };
-        String label = switch (state) {
+        parent.span().attrClass("badge").addAttr("data-variant", variant).text(label(state)).__();
+    }
+
+    /** The state as the pages name it, such as {@code Unhealthy}. */
+    static String label(ServiceState state) {
+        return switch (state) {
             case HEALTHY -> "Healthy";
             case UNHEALTHY -> "Unhealthy";
             case UNAVAILABLE -> "Unavailable";
             case UNPUBLISHED -> "Unpublished";
         };
-        parent.span().attrClass("badge").addAttr("data-variant", variant).text(label).__();
     }
 
     /** A link to the Service's hostname, when this Workstation has a Route for it; nothing otherwise. */

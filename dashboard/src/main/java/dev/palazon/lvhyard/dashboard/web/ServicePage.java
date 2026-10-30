@@ -21,7 +21,8 @@ import dev.palazon.lvhyard.dashboard.services.ServiceWarning;
  * One Service: its state and Publication with buttons to change it and its Scope, its warnings, its Instances, each
  * with its tags, meta and each check's last output, and buttons to edit and remove a Static Instance, its Container
  * Bindings, with a button to remove each, and a button that tests its Reachability, with the results once tested. A
- * Remote Service's page has no forms or buttons that change it: only its Home Workstation can change it.
+ * Remote Service's page has no forms or buttons that change it: only its Home Workstation can change it. All but
+ * the Reachability test refreshes itself, so a refresh neither runs the test again nor drops its results.
  */
 final class ServicePage {
 
@@ -65,65 +66,66 @@ final class ServicePage {
     static String render(Workstation workstation, Service service, Reachability reachability) {
         boolean own = workstation.is(service.workstation());
         return Layout.page(service.name(), workstation.name(), main -> main
-                .div().attrClass("flex flex-wrap items-center gap-3")
-                    .h1().text(service.name()).__()
-                    .of(heading -> ServiceViews.state(heading, service.state()))
-                .__()
-                .p().text("On Workstation " + service.workstation() + "."
-                        + (own ? "" : " It can be changed only on " + service.workstation() + ".")).__()
-                .div().attrClass("flex flex-wrap items-center justify-between gap-4")
-                    .of(div -> publication(div, workstation, service, own))
-                    .of(div -> {
-                        if (own) {
-                            publicationForms(div, service);
-                        }
-                    })
-                .__()
-                .of(content -> {
-                    if (!service.warnings().isEmpty()) {
-                        warnings(content, service);
-                    }
-                })
-                .of(content -> {
-                    if (service.instances().isEmpty()) {
-                        content.p().text("No Instances are registered.").__();
-                    }
-                })
-                .div().attrClass("table-container").table().attrClass("table")
-                    .thead().tr()
-                        .th().text("Instance").__()
-                        .th().text("Health").__()
-                        .th().text("Checks").__()
-                        .of(row -> {
+                .of(page -> Layout.refreshed(page, "service", path(service), region -> region
+                    .div().attrClass("flex flex-wrap items-center gap-3")
+                        .h1().text(service.name()).__()
+                        .of(heading -> ServiceViews.state(heading, service.state()))
+                    .__()
+                    .p().text("On Workstation " + service.workstation() + "."
+                            + (own ? "" : " It can be changed only on " + service.workstation() + ".")).__()
+                    .div().attrClass("flex flex-wrap items-center justify-between gap-4")
+                        .of(div -> publication(div, workstation, service, own))
+                        .of(div -> {
                             if (own) {
-                                row.th().of(cell -> cell.span().attrClass("sr-only").text("Actions").__()).__();
+                                publicationForms(div, service);
                             }
                         })
-                    .__().__()
-                    .tbody().of(body -> service.instances().forEach(instance -> body.tr()
-                            .td().attrClass("align-top")
-                                .of(cell -> InstanceViews.description(cell, service, instance))
-                            .__()
-                            .td().attrClass("align-top")
-                                .of(cell -> InstanceViews.health(cell, instance.health()))
-                            .__()
-                            .td().attrClass("align-top")
-                                .of(cell -> InstanceViews.checks(cell, instance))
-                            .__()
+                    .__()
+                    .of(content -> {
+                        if (!service.warnings().isEmpty()) {
+                            warnings(content, service);
+                        }
+                    })
+                    .of(content -> {
+                        if (service.instances().isEmpty()) {
+                            content.p().text("No Instances are registered.").__();
+                        }
+                    })
+                    .div().attrClass("table-container").table().attrClass("table")
+                        .thead().tr()
+                            .th().text("Instance").__()
+                            .th().text("Health").__()
+                            .th().text("Checks").__()
                             .of(row -> {
-                                if (own && instance.bound()) {
-                                    row.td().__();
-                                } else if (own) {
-                                    actions(row, service, instance);
+                                if (own) {
+                                    row.th().of(cell -> cell.span().attrClass("sr-only").text("Actions").__()).__();
                                 }
                             })
-                    .__())).__()
-                .__().__()
-                .of(content -> {
-                    if (!service.containerBindings().isEmpty()) {
-                        containerBindings(content, service, own);
-                    }
-                })
+                        .__().__()
+                        .tbody().of(body -> service.instances().forEach(instance -> body.tr()
+                                .td().attrClass("align-top")
+                                    .of(cell -> InstanceViews.description(cell, service, instance))
+                                .__()
+                                .td().attrClass("align-top")
+                                    .of(cell -> InstanceViews.health(cell, instance.health()))
+                                .__()
+                                .td().attrClass("align-top")
+                                    .of(cell -> InstanceViews.checks(cell, instance))
+                                .__()
+                                .of(row -> {
+                                    if (own && instance.bound()) {
+                                        row.td().__();
+                                    } else if (own) {
+                                        actions(row, service, instance);
+                                    }
+                                })
+                        .__())).__()
+                    .__().__()
+                    .of(content -> {
+                        if (!service.containerBindings().isEmpty()) {
+                            containerBindings(content, service, own);
+                        }
+                    })))
                 .of(content -> reachability(content, workstation, service, reachability)));
     }
 
@@ -197,7 +199,7 @@ final class ServicePage {
      * Each Container Binding, with the Bound Instances it gives now or that no container of it runs, and a button
      * to remove it.
      */
-    private static void containerBindings(Main<?> content, Service service, boolean own) {
+    private static void containerBindings(Div<?> content, Service service, boolean own) {
         content.h2().attrClass("text-lg font-semibold").text("Container Bindings").__()
                 .div().attrClass("table-container").table().attrClass("table")
                     .thead().tr()
@@ -271,7 +273,7 @@ final class ServicePage {
     }
 
     /** Why other Workstations may not reach the Service, though its Scope gives them a Route. */
-    private static void warnings(Main<?> content, Service service) {
+    private static void warnings(Div<?> content, Service service) {
         content.div().attrClass("alert").addAttr("data-variant", "destructive").addAttr("role", "alert")
                 .h3().text("Other Workstations may not reach this Service").__()
                 .section().ul()

@@ -7,6 +7,7 @@ import java.util.function.Consumer;
 import org.springframework.http.MediaType;
 import org.springframework.web.util.HtmlUtils;
 import org.xmlet.htmlapifaster.Button;
+import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
 import org.xmlet.htmlapifaster.Main;
 import org.xmlet.htmlapifaster.Nav;
@@ -17,6 +18,7 @@ import htmlflow.HtmlFlow;
  * The shell every page shares: the stylesheet built from Tailwind CSS and Basecoat ({@code mise run css}), and HTMX
  * from its WebJar. Tailwind only builds the classes it finds written out whole in the views, so a view never builds
  * a class name from parts.
+ * Pages that change by themselves, as containers start and stop, put that part in a {@link #refreshed} region.
  * HtmlFlow escapes text but not attribute values, so views pass any value from data through {@link #attr}.
  */
 final class Layout {
@@ -74,6 +76,21 @@ final class Layout {
                 .addAttr("stroke", "currentColor").addAttr("stroke-width", "2").addAttr("stroke-linecap", "round")
                 .addAttr("stroke-linejoin", "round").addAttr("aria-hidden", "true")
                 .of(svg -> Arrays.stream(paths).forEach(path -> svg.custom("path").addAttr("d", path).__()))
+        .__();
+    }
+
+    /**
+     * A region of the page, with id {@code id}, that HTMX loads again from {@code path} every 5 seconds and swaps for
+     * the same region of the answer. What is outside it, such as a form being filled in, stays as it is. An error
+     * answer, such as while a Workstation is unreachable, swaps nothing: HTMX 4 would otherwise swap the region for
+     * the error page, which has no such region, and the refresh would stop for good.
+     */
+    static void refreshed(Main<?> main, String id, String path, Consumer<Div<?>> content) {
+        main.div().attrId(id).attrClass("flex flex-col gap-8")
+                .addAttr("hx-get", attr(path)).addAttr("hx-trigger", "every 5s")
+                .addAttr("hx-select", "#" + id).addAttr("hx-swap", "outerHTML")
+                .addAttr("hx-status:4xx", "swap:none").addAttr("hx-status:5xx", "swap:none")
+                .of(div -> content.accept(div))
         .__();
     }
 

@@ -79,6 +79,70 @@ class CatalogPageTest extends DashboardTest {
         assertThat(page).contains("10.9.8.7:9090");
     }
 
+    @Test
+    void filtersByState() {
+        String web = newServiceName("web");
+        String api = newServiceName("api");
+        register(web, Map.of("host", "10.1.2.3", "port", 8080));
+        register(api, Map.of("host", "10.1.2.3", "port", 9090));
+        publish(api);
+
+        String page = getPage("/?state=unhealthy").getBody();
+
+        assertThat(page).contains("href=\"/services/ws-test/" + api + "\"")
+                .doesNotContain("href=\"/services/ws-test/" + web + "\"");
+    }
+
+    @Test
+    void filtersByWorkstation() {
+        String web = newServiceName("web");
+        register(web, Map.of("host", "10.1.2.3", "port", 8080));
+        String api = newServiceName("api");
+        remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
+
+        String page = getPage("/?workstation=" + RemoteWorkstation.NAME).getBody();
+
+        assertThat(page).contains("<h2>" + RemoteWorkstation.NAME + "</h2>")
+                .contains("href=\"/services/" + RemoteWorkstation.NAME + "/" + api + "\"")
+                .doesNotContain("<h2>ws-test</h2>")
+                .doesNotContain("href=\"/services/ws-test/" + web + "\"");
+    }
+
+    @Test
+    void saysWhenTheYardHasNoSuchWorkstation() {
+        assertThat(getPage("/?workstation=ws-typo").getBody()).contains("The Yard has no Workstation ws-typo.");
+    }
+
+    @Test
+    void filterFormKeepsTheFiltersInThePageAddress() {
+        String page = getPage("/?workstation=" + RemoteWorkstation.NAME + "&state=healthy").getBody();
+
+        String form = page.substring(page.indexOf("<form"), page.indexOf("</form>"));
+        assertThat(form).contains("method=\"get\"").contains("action=\"/\"")
+                .contains("name=\"workstation\"").contains("name=\"state\"")
+                .contains("<option value=\"ws-test\">ws-test</option>")
+                .contains("<option value=\"" + RemoteWorkstation.NAME + "\" selected=\"selected\">")
+                .contains("<option value=\"healthy\" selected=\"selected\">Healthy</option>")
+                .contains("<option value=\"unpublished\">Unpublished</option>");
+    }
+
+    @Test
+    void refreshesItsServicesEveryFiveSecondsWithTheFilters() {
+        String page = getPage("/?workstation=" + RemoteWorkstation.NAME + "&state=healthy").getBody();
+
+        String region = openingTag(page, "id=\"catalog\"");
+        assertThat(region).contains("hx-get=\"/?workstation=" + RemoteWorkstation.NAME + "&amp;state=healthy\"")
+                .contains("hx-trigger=\"every 5s\"").contains("hx-select=\"#catalog\"")
+                .contains("hx-swap=\"outerHTML\"");
+        assertThat(div(page, "id=\"catalog\"")).as("the region a refresh swaps, which leaves the filter form")
+                .doesNotContain("<form");
+    }
+
+    @Test
+    void refreshesFromThePlainCatalogWithoutFilters() {
+        assertThat(openingTag(getPage("/").getBody(), "id=\"catalog\"")).contains("hx-get=\"/\"");
+    }
+
     /** The table row that links to {@code service}'s page. */
     private static String rowOf(String page, String service) {
         int link = page.indexOf("href=\"/services/ws-test/" + service + "\"");

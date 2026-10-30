@@ -348,4 +348,31 @@ class ServicePageTest extends DashboardTest {
         assertThat(getPage("/services/ws-test/" + web).getBody())
                 .contains("No container of this Compose service runs.");
     }
+
+    @Test
+    void refreshesTheServiceEveryFiveSeconds() {
+        String web = newServiceName("web");
+        register(web, Map.of("host", "10.1.2.3", "port", 8080));
+
+        String region = openingTag(getPage("/services/ws-test/" + web).getBody(), "id=\"service\"");
+
+        assertThat(region).contains("hx-get=\"/services/ws-test/" + web + "\"").contains("hx-trigger=\"every 5s\"")
+                .contains("hx-select=\"#service\"").contains("hx-swap=\"outerHTML\"")
+                .as("an error answer, such as while its Workstation is unreachable, leaves the page as it is")
+                .contains("hx-status:4xx=\"swap:none\"").contains("hx-status:5xx=\"swap:none\"");
+    }
+
+    @Test
+    void refreshKeepsTheReachabilityResultsAndDoesNotTestAgain() {
+        String web = newServiceName("web");
+        register(web, Map.of("host", "10.1.2.3", "port", 8080));
+
+        String page = getPage("/services/ws-test/" + web + "/reachability").getBody();
+
+        assertThat(openingTag(page, "id=\"service\""))
+                .contains("hx-get=\"/services/ws-test/" + web + "\"");
+        assertThat(div(page, "id=\"service\"")).contains("10.1.2.3:8080")
+                .doesNotContain("Reachability from");
+        assertThat(page).contains("Reachability from").contains("Test again");
+    }
 }

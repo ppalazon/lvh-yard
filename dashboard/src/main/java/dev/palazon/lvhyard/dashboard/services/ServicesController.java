@@ -20,6 +20,7 @@ import dev.palazon.lvhyard.dashboard.reachability.ReachabilityTester;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 
 /**
@@ -45,12 +46,19 @@ class ServicesController {
             description = "This Workstation's Services first, then the others' by Workstation and name. The Services"
                     + " of an unreachable Workstation are left out; /api/yard shows which ones are.")
     @ApiResponse(responseCode = "200", description = "OK", useReturnTypeSchema = true)
+    @ApiResponse(responseCode = "400", description = "No Service state has this name")
     @ApiResponse(responseCode = "404", description = "The Yard has no Workstation of this name")
     @ApiResponse(responseCode = "503", description = "The Workstation asked for is unreachable: its Consul datacenter"
             + " does not answer")
-    List<Service> services(@RequestParam(required = false)
-            @Parameter(description = "Only the Services of this Workstation") String workstation) {
-        return workstation == null ? yard.services() : yard.services(workstation);
+    List<Service> services(
+            @RequestParam(required = false)
+            @Parameter(description = "Only the Services of this Workstation") String workstation,
+            @RequestParam(required = false)
+            @Parameter(description = "Only the Services in this state",
+                    schema = @Schema(implementation = ServiceState.class)) String state) {
+        ServiceState only = state == null ? null : ServiceState.parse(state);
+        List<Service> services = workstation == null ? yard.services() : yard.services(workstation);
+        return only == null ? services : services.stream().filter(service -> service.state() == only).toList();
     }
 
     @GetMapping("/{workstation}/{service}")

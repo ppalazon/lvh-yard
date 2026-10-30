@@ -20,6 +20,11 @@ class ApiProblems extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler
+    ProblemDetail unknownState(UnknownStateException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
+
+    @ExceptionHandler
     ProblemDetail unknownInstance(UnknownInstanceException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
     }

@@ -1,5 +1,6 @@
 package dev.palazon.lvhyard.dashboard.services;
 
+import java.util.Arrays;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonValue;
@@ -28,6 +29,12 @@ public enum ServiceState {
             return UNAVAILABLE;
         }
         return instances.stream().anyMatch(instance -> instance.health() == Health.PASSING) ? HEALTHY : UNHEALTHY;
+    }
+
+    /** The state whose {@link #value} is {@code value}, such as {@code healthy}. */
+    public static ServiceState parse(String value) {
+        return Arrays.stream(values()).filter(state -> state.value().equals(value)).findFirst()
+                .orElseThrow(() -> new UnknownStateException(value));
     }
 
     /** The state's name in the API, such as {@code unhealthy}. */

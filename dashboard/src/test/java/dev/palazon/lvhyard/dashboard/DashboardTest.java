@@ -173,6 +173,29 @@ abstract class DashboardTest {
         }
     }
 
+    /** The opening tag of the element with {@code attribute}. */
+    static String openingTag(String page, String attribute) {
+        int at = page.indexOf(attribute);
+        if (at < 0) {
+            throw new AssertionError("No element with " + attribute);
+        }
+        return page.substring(page.lastIndexOf("<", at), page.indexOf(">", at) + 1);
+    }
+
+    /** The whole {@code div} element with {@code attribute}, up to its own closing tag. */
+    static String div(String page, String attribute) {
+        int start = page.lastIndexOf("<div", page.indexOf(attribute));
+        int depth = 0;
+        int at = start;
+        do {
+            int open = page.indexOf("<div", at + 1);
+            int close = page.indexOf("</div>", at + 1);
+            depth += open >= 0 && open < close ? 1 : -1;
+            at = open >= 0 && open < close ? open : close;
+        } while (depth >= 0);
+        return page.substring(start, at + "</div>".length());
+    }
+
     ResponseEntity<JsonNode> get(String path) {
         return http.get().uri(path).retrieve().toEntity(JsonNode.class);
     }

@@ -24,10 +24,12 @@ import dev.palazon.lvhyard.dashboard.services.Registrations;
 import dev.palazon.lvhyard.dashboard.services.RemoteServiceException;
 import dev.palazon.lvhyard.dashboard.services.Scope;
 import dev.palazon.lvhyard.dashboard.services.Service;
+import dev.palazon.lvhyard.dashboard.services.ServiceState;
 import dev.palazon.lvhyard.dashboard.services.UnknownAliasException;
 import dev.palazon.lvhyard.dashboard.services.UnknownContainerBindingException;
 import dev.palazon.lvhyard.dashboard.services.UnknownInstanceException;
 import dev.palazon.lvhyard.dashboard.services.UnknownServiceException;
+import dev.palazon.lvhyard.dashboard.services.UnknownStateException;
 import dev.palazon.lvhyard.dashboard.services.UnknownWorkstationException;
 import dev.palazon.lvhyard.dashboard.services.UnreachableWorkstationException;
 import dev.palazon.lvhyard.dashboard.services.Yard;
@@ -63,10 +65,23 @@ class PagesController {
         this.reachability = reachability;
     }
 
+    /** The Catalog, with only the Services of {@code workstation} and in {@code state} when they are not blank. */
     @GetMapping(path = "/", produces = MediaType.TEXT_HTML_VALUE)
     @ResponseBody
-    String catalog() {
-        return CatalogPage.render(workstation, yard.yard());
+    String catalog(@RequestParam(required = false) String workstation,
+            @RequestParam(required = false) String state) {
+        ServiceState only;
+        try {
+            only = blank(state) ? null : ServiceState.parse(state);
+        } catch (UnknownStateException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
+        return CatalogPage.render(this.workstation, yard.yard(),
+                new CatalogPage.Filters(blank(workstation) ? null : workstation, only));
+    }
+
+    private static boolean blank(String value) {
+        return value == null || value.isBlank();
     }
 
     @GetMapping(path = RegisterPage.PATH, produces = MediaType.TEXT_HTML_VALUE)

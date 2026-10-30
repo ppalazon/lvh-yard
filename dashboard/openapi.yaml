@@ -21,6 +21,17 @@ paths:
         required: false
         schema:
           type: string
+      - description: Only the Services in this state
+        in: query
+        name: state
+        required: false
+        schema:
+          type: string
+          enum:
+          - unpublished
+          - unavailable
+          - unhealthy
+          - healthy
       responses:
         "200":
           content:
@@ -30,6 +41,12 @@ paths:
                 items:
                   $ref: "#/components/schemas/Service"
           description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: No Service state has this name
         "404":
           content:
             application/problem+json:
