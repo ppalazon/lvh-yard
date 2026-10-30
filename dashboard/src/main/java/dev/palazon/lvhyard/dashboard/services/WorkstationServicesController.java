@@ -20,8 +20,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 
 /**
- * This Workstation's own Services, their Static Instances and their Publications, as JSON. The paths do not name
- * the Workstation: only a Service's Home Workstation can change it, so there is no other one to name.
+ * This Workstation's own Services, their Static Instances, Container Bindings and Publications, as JSON. The paths
+ * do not name the Workstation: only a Service's Home Workstation can change it, so there is no other one to name.
  */
 @RestController
 @RequestMapping(path = "/api/workstation/services", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -40,12 +40,15 @@ class WorkstationServicesController {
 
     private final Publications publications;
 
+    private final ContainerBindings containerBindings;
+
     WorkstationServicesController(Workstation workstation, YardReader yard, Registrations registrations,
-            Publications publications) {
+            Publications publications, ContainerBindings containerBindings) {
         this.workstation = workstation;
         this.yard = yard;
         this.registrations = registrations;
         this.publications = publications;
+        this.containerBindings = containerBindings;
     }
 
     @GetMapping
@@ -96,6 +99,33 @@ class WorkstationServicesController {
     @ApiResponse(responseCode = "404", description = "The Service has no Static Instance with this ID")
     void remove(@PathVariable String service, @PathVariable String id) {
         registrations.remove(workstation.name(), service, id);
+    }
+
+    @PostMapping(path = "/{service}/container-bindings", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(operationId = "bindContainer", summary = "Binds a Service to a Docker container by its name and a"
+            + " container port",
+            description = "While a container of that name runs, the Service has a Bound Instance: at this"
+                    + " Workstation's LAN address and the host port when the container port is published, else at"
+                    + " the container's own address and the container port. It gets a TCP check on its port. Binding"
+                    + " the same container and port again changes nothing.")
+    @ApiResponse(responseCode = "201", description = "Bound", useReturnTypeSchema = true)
+    @ApiResponse(responseCode = "400", description = "The name is not a single DNS label or is yard, the container"
+            + " name is not one Docker allows, or the port is missing or not a TCP port")
+    ContainerBinding bind(@PathVariable String service, @RequestBody ContainerBindingRequest request) {
+        String id = containerBindings.add(workstation.name(), service, request);
+        return service(service).containerBindings().stream().filter(binding -> binding.id().equals(id))
+                .findFirst().orElseThrow();
+    }
+
+    @DeleteMapping("/{service}/container-bindings/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "unbindContainer", summary = "Removes a Container Binding, and its Bound Instances",
+            description = "A Service with nothing left leaves the Catalog.")
+    @ApiResponse(responseCode = "204", description = "Removed")
+    @ApiResponse(responseCode = "404", description = "The Service has no Container Binding with this ID")
+    void unbind(@PathVariable String service, @PathVariable String id) {
+        containerBindings.remove(workstation.name(), service, id);
     }
 
     @PutMapping("/{service}/publication")

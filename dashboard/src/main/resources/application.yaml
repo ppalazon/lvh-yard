@@ -30,3 +30,6 @@ lvh-yard:
   # This Workstation's Consul agent, whose HTTP API listens on loopback only (compose.yaml).
   consul:
     url: http://127.0.0.1:${YARD_CONSUL_HTTP_PORT:8500}
+  # This Workstation's Docker, whose containers the Container Bindings follow: DOCKER_HOST, as the docker command uses it.
+  docker:
+    host: ${DOCKER_HOST:unix:///var/run/docker.sock}

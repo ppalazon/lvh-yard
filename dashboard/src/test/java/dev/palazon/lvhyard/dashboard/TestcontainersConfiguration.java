@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.DynamicPropertyRegistrar;
+import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -49,8 +50,29 @@ class TestcontainersConfiguration {
 
     @Bean
     DynamicPropertyRegistrar consulProperties(GenericContainer<?> consulContainer) {
-        return registry -> registry.add("lvh-yard.consul.url",
-                () -> "http://" + consulContainer.getHost() + ":" + consulContainer.getMappedPort(CONSUL_HTTP_PORT));
+        return registry -> {
+            registry.add("lvh-yard.consul.url", () -> "http://" + consulContainer.getHost() + ":"
+                    + consulContainer.getMappedPort(CONSUL_HTTP_PORT));
+            registry.add("lvh-yard.docker.host", TestcontainersConfiguration::dockerHost);
+        };
+    }
+
+    /** The Docker the tests start their containers on, which the dashboards follow too. */
+    static String dockerHost() {
+        return DockerClientFactory.instance().getTransportConfig().getDockerHost().toString();
+    }
+
+    /**
+     * A container called {@code name} that accepts TCP connections on {@code port}, as a Service in a container
+     * would. It uses the Consul image only because its shell has {@code nc}, and the tests pull it anyway. Its
+     * {@code nc} ends after each connection, even with {@code -k}, so a loop starts it again.
+     */
+    static GenericContainer<?> listener(String name, int port) {
+        return new GenericContainer<>(CONSUL_IMAGE)
+                .withCreateContainerCmdModifier(command -> command.withName(name)
+                        .withEntrypoint("sh", "-c", "while true; do nc -l -p " + port + " >/dev/null; done")
+                        .withCmd())
+                .waitingFor(Wait.forListeningPort());
     }
 
     /** A Consul container, ready once its server has elected itself. */

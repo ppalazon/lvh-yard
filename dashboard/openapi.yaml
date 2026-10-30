@@ -205,6 +205,70 @@ paths:
       summary: "One of this Workstation's Services, with its Instances and their Health"
       tags:
       - workstation-services-controller
+  /api/workstation/services/{service}/container-bindings:
+    post:
+      description: "While a container of that name runs, the Service has a Bound Instance:\
+        \ at this Workstation's LAN address and the host port when the container port\
+        \ is published, else at the container's own address and the container port.\
+        \ It gets a TCP check on its port. Binding the same container and port again\
+        \ changes nothing."
+      operationId: bindContainer
+      parameters:
+      - in: path
+        name: service
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContainerBindingRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContainerBinding"
+          description: Bound
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "The name is not a single DNS label or is yard, the container\
+            \ name is not one Docker allows, or the port is missing or not a TCP port"
+      summary: Binds a Service to a Docker container by its name and a container port
+      tags:
+      - workstation-services-controller
+  /api/workstation/services/{service}/container-bindings/{id}:
+    delete:
+      description: A Service with nothing left leaves the Catalog.
+      operationId: unbindContainer
+      parameters:
+      - in: path
+        name: service
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: Removed
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: The Service has no Container Binding with this ID
+      summary: "Removes a Container Binding, and its Bound Instances"
+      tags:
+      - workstation-services-controller
   /api/workstation/services/{service}/instances:
     post:
       description: "With no check, the Instance gets a TCP check on its port. It is\
@@ -451,6 +515,36 @@ components:
       - health
       - name
       - output
+    ContainerBinding:
+      type: object
+      properties:
+        container:
+          type: string
+        id:
+          type: string
+        instances:
+          type: array
+          items:
+            type: string
+        port:
+          type: integer
+          format: int32
+      required:
+      - container
+      - id
+      - instances
+      - port
+    ContainerBindingRequest:
+      type: object
+      properties:
+        container:
+          type: string
+        port:
+          type: integer
+          format: int32
+      required:
+      - container
+      - port
     HealthCheck:
       type: object
       properties:
@@ -486,6 +580,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CheckResult"
+        containerBinding:
+          type: string
         health:
           type: string
           enum:
@@ -556,6 +652,10 @@ components:
     Service:
       type: object
       properties:
+        containerBindings:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContainerBinding"
         hostname:
           type: string
         instances:
@@ -582,6 +682,7 @@ components:
         yardHostname:
           type: string
       required:
+      - containerBindings
       - instances
       - name
       - state

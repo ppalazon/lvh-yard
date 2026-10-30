@@ -27,15 +27,29 @@ final class RemoteWorkstation implements AutoCloseable {
 
     private final GenericContainer<?> consul;
 
-    private final ConfigurableApplicationContext dashboard;
+    private ConfigurableApplicationContext dashboard;
 
-    private final RestClient http;
+    private RestClient http;
 
     /** Starts the Workstation's Consul, joined to the Consul at {@code peer} on {@code network}, and its dashboard. */
     RemoteWorkstation(Network network, String peer) {
         consul = TestcontainersConfiguration.consul().withNetwork(network)
                 .withCommand(TestcontainersConfiguration.consulCommand(NAME, "-retry-join-wan=" + peer));
         consul.start();
+        startDashboard();
+    }
+
+    /** Stops this Workstation's dashboard, does {@code meanwhile}, and starts the dashboard again. */
+    void whileDashboardIsStopped(Runnable meanwhile) {
+        dashboard.close();
+        try {
+            meanwhile.run();
+        } finally {
+            startDashboard();
+        }
+    }
+
+    private void startDashboard() {
         dashboard = new SpringApplicationBuilder(DashboardApplication.class)
                 .initializers(context -> context.getBeanFactory()
                         .registerSingleton(SkipTestConfigurations.class.getName(), new SkipTestConfigurations()))
@@ -43,6 +57,7 @@ final class RemoteWorkstation implements AutoCloseable {
                 .run("--server.port=0", "--spring.main.banner-mode=off",
                         "--lvh-yard.workstation.name=" + NAME,
                         "--lvh-yard.workstation.base-domain=" + DashboardTest.BASE_DOMAIN,
+                        "--lvh-yard.docker.host=" + TestcontainersConfiguration.dockerHost(),
                         "--lvh-yard.consul.url=http://" + consul.getHost() + ":"
                                 + consul.getMappedPort(TestcontainersConfiguration.CONSUL_HTTP_PORT));
         http = RestClient.builder()
@@ -54,6 +69,12 @@ final class RemoteWorkstation implements AutoCloseable {
     JsonNode register(String service, Map<String, Object> instance) {
         return http.post().uri(DashboardTest.instancesPath(service)).contentType(MediaType.APPLICATION_JSON)
                 .body(instance).retrieve().body(JsonNode.class);
+    }
+
+    /** Binds {@code service} on this Workstation to {@code container}'s {@code port}, through its dashboard. */
+    void bind(String service, String container, int port) {
+        http.post().uri(DashboardTest.containerBindingsPath(service)).contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("container", container, "port", port)).retrieve().toBodilessEntity();
     }
 
     /** Publishes {@code service} on this Workstation, through its dashboard. */

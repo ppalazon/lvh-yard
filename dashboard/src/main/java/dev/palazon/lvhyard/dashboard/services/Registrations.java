@@ -20,8 +20,8 @@ import dev.palazon.lvhyard.dashboard.consul.Consul.Check;
 import dev.palazon.lvhyard.dashboard.consul.Consul.Registration;
 
 /**
- * Adds, edits and removes this Workstation's Static Instances, after checking the Yard's rules. The only writer of
- * registrations on the local agent.
+ * Adds, edits and removes this Workstation's Static Instances, after checking the Yard's rules, and keeps its Bound
+ * Instances as the Container Bindings want them. The only writer of registrations on the local agent.
  */
 @Component
 public class Registrations {
@@ -32,11 +32,17 @@ public class Registrations {
     /** An IP address or a hostname. Nothing that would break a URL, such as /, ?, % or a space. */
     private static final Pattern HOST = Pattern.compile("[A-Za-z0-9.:-]+");
 
-    /** Marks the registrations that are Static Instances, so nothing else is removed as one. */
-    private static final Map<String, String> STATIC_INSTANCE = Map.of("lvh-yard-instance", "static");
-
     /** The start of the meta keys LVH Yard keeps for itself, which an Instance's own meta cannot use. */
     static final String RESERVED_META = "lvh-yard-";
+
+    /** Marks the registrations that are Static Instances, so nothing else is removed as one. */
+    private static final Map<String, String> STATIC_INSTANCE = Map.of(RESERVED_META + "instance", "static");
+
+    /** Marks the registrations that are Bound Instances, which only the Container Bindings add and remove. */
+    private static final Map<String, String> BOUND_INSTANCE = Map.of(RESERVED_META + "instance", "bound");
+
+    /** Where a Bound Instance keeps the ID of the Container Binding that made it. */
+    static final String CONTAINER_BINDING = RESERVED_META + "container-binding";
 
     /** Where an HTTP check's path is kept: Consul does not give back a check's URL. */
     static final String HTTP_PATH = RESERVED_META + "http-path";
@@ -136,7 +142,57 @@ public class Registrations {
         Check consulCheck = consulCheck(host, port, check);
         consul.register(new Registration(id, service, host, port, instance.tags(), registered, consulCheck));
         return new Instance(id, host, port, Health.CRITICAL, check, instance.tags(), instance.meta(),
-                List.of(new CheckResult(consulCheck.name(), Health.CRITICAL, "")), false);
+                List.of(new CheckResult(consulCheck.name(), Health.CRITICAL, "")), false, null);
+    }
+
+    /**
+     * Makes this Workstation's Bound Instances exactly {@code wanted}: registers each one that is missing or has
+     * moved, and removes every other one. One that is already there as wanted is left alone, so its Health stays.
+     * Each gets a TCP check on its port, as a Static Instance registered without a check does.
+     */
+    public void keepBoundInstances(List<BoundInstance> wanted) {
+        Map<String, AgentService> existing = new HashMap<>();
+        consul.agentServices().values().stream().filter(Registrations::isBoundInstance)
+                .forEach(registration -> existing.put(registration.id(), registration));
+        for (BoundInstance instance : wanted) {
+            AgentService found = existing.remove(instance.id());
+            if (found == null || !found.address().equals(instance.host()) || found.port() != instance.port()
+                    || !instance.binding().equals(found.meta().get(CONTAINER_BINDING))) {
+                Map<String, String> meta = new HashMap<>(BOUND_INSTANCE);
+                meta.put(CONTAINER_BINDING, instance.binding());
+                Check check = consulCheck(instance.host(), instance.port(), checked((HealthCheck) null));
+                consul.register(new Registration(instance.id(), instance.service(), instance.host(),
+                        instance.port(), List.of(), meta, check));
+            }
+        }
+        existing.keySet().forEach(consul::deregister);
+    }
+
+    /** Removes every Bound Instance of {@code service} that the Container Binding {@code binding} made. */
+    public void removeBoundInstances(String service, String binding) {
+        consul.agentServices().values().stream()
+                .filter(registration -> isBoundInstance(registration) && registration.name().equals(service)
+                        && binding.equals(registration.meta().get(CONTAINER_BINDING)))
+                .forEach(registration -> consul.deregister(registration.id()));
+    }
+
+    /**
+     * A Bound Instance as a Container Binding wants it.
+     *
+     * @param service the Service it is an Instance of
+     * @param binding the ID of the Container Binding that wants it
+     * @param container the name of the running container it is for
+     * @param containerPort the container port it is for
+     * @param host where it is reached
+     * @param port where it is reached
+     */
+    public record BoundInstance(String service, String binding, String container, int containerPort, String host,
+            int port) {
+
+        /** Its registration ID, the same for as long as the Binding follows a container of that name. */
+        String id() {
+            return service + ":" + container + ":" + containerPort;
+        }
     }
 
     /** Where a Static Instance registered without a host is: this Workstation's LAN address. */
@@ -146,13 +202,18 @@ public class Registrations {
 
     /** A port as typed into a form; {@code null} when nothing was typed. */
     public static Integer parsePort(String port) {
+        return parsePort("port", port);
+    }
+
+    /** A port as typed into the form's {@code field}; {@code null} when nothing was typed. */
+    public static Integer parsePort(String field, String port) {
         if (port == null || port.isBlank()) {
             return null;
         }
         try {
             return Integer.valueOf(port.strip());
         } catch (NumberFormatException e) {
-            throw notATcpPort(port);
+            throw notATcpPort(field, port);
         }
     }
 
@@ -207,6 +268,10 @@ public class Registrations {
 
     private static boolean isStaticInstance(AgentService registration) {
         return registration.meta().entrySet().containsAll(STATIC_INSTANCE.entrySet());
+    }
+
+    private static boolean isBoundInstance(AgentService registration) {
+        return registration.meta().entrySet().containsAll(BOUND_INSTANCE.entrySet());
     }
 
     private void checkHome(String workstation) {
@@ -274,16 +339,25 @@ public class Registrations {
     }
 
     private static void checkPort(Integer port) {
+        checkPort("port", "A Static Instance", port);
+    }
+
+    /** Refuses a {@code port} that is missing or not a TCP port; {@code what} is what needs it, for the message. */
+    static void checkPort(String field, String what, Integer port) {
         if (port == null) {
-            throw new InvalidRegistrationException("port", "A Static Instance needs a port.");
+            throw new InvalidRegistrationException(field, what + " needs a port.");
         }
         if (port < 1 || port > 65535) {
-            throw notATcpPort(String.valueOf(port));
+            throw notATcpPort(field, String.valueOf(port));
         }
     }
 
     private static InvalidRegistrationException notATcpPort(String port) {
-        return new InvalidRegistrationException("port", "The port " + port + " is not a TCP port: use 1 to 65535.");
+        return notATcpPort("port", port);
+    }
+
+    private static InvalidRegistrationException notATcpPort(String field, String port) {
+        return new InvalidRegistrationException(field, "The port " + port + " is not a TCP port: use 1 to 65535.");
     }
 
     /**

@@ -36,6 +36,8 @@ class OpenApiTest extends DashboardTest {
                 "/api/workstation/aliases/{alias}",
                 "/api/workstation/services",
                 "/api/workstation/services/{service}",
+                "/api/workstation/services/{service}/container-bindings",
+                "/api/workstation/services/{service}/container-bindings/{id}",
                 "/api/workstation/services/{service}/instances",
                 "/api/workstation/services/{service}/instances/{id}",
                 "/api/workstation/services/{service}/publication");

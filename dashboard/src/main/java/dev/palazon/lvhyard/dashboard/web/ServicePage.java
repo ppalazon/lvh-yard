@@ -7,15 +7,17 @@ import org.xmlet.htmlapifaster.Main;
 import org.xmlet.htmlapifaster.Tr;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
+import dev.palazon.lvhyard.dashboard.services.ContainerBinding;
 import dev.palazon.lvhyard.dashboard.services.Instance;
 import dev.palazon.lvhyard.dashboard.services.Scope;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import dev.palazon.lvhyard.dashboard.services.ServiceWarning;
 
 /**
- * One Service: its state and Publication with buttons to change it and its Scope, its warnings, and its Instances,
- * each with its tags, meta and each check's last output, and buttons to edit and remove it. A Remote Service's page
- * has no forms or buttons: only its Home Workstation can change it.
+ * One Service: its state and Publication with buttons to change it and its Scope, its warnings, its Instances, each
+ * with its tags, meta and each check's last output, and buttons to edit and remove a Static Instance, and its
+ * Container Bindings, with a button to remove each. A Remote Service's page has no forms or buttons: only its Home
+ * Workstation can change it.
  */
 final class ServicePage {
 
@@ -34,6 +36,11 @@ final class ServicePage {
     /** Where the form that removes {@code instance} posts to. */
     static String removePath(Service service, Instance instance) {
         return path(service) + "/instances/" + instance.id() + "/remove";
+    }
+
+    /** Where the form that removes {@code binding} posts to. */
+    static String removePath(Service service, ContainerBinding binding) {
+        return path(service) + "/container-bindings/" + binding.id() + "/remove";
     }
 
     /** Where the form that publishes the Service, or unpublishes it, posts to. */
@@ -81,7 +88,7 @@ final class ServicePage {
                     .__().__()
                     .tbody().of(body -> service.instances().forEach(instance -> body.tr()
                             .td().attrClass("align-top")
-                                .of(cell -> InstanceViews.description(cell, instance))
+                                .of(cell -> InstanceViews.description(cell, service, instance))
                             .__()
                             .td().attrClass("align-top")
                                 .of(cell -> InstanceViews.health(cell, instance.health()))
@@ -90,12 +97,64 @@ final class ServicePage {
                                 .of(cell -> InstanceViews.checks(cell, instance))
                             .__()
                             .of(row -> {
-                                if (own) {
+                                if (own && instance.bound()) {
+                                    row.td().__();
+                                } else if (own) {
                                     actions(row, service, instance);
                                 }
                             })
                     .__())).__()
-                .__().__());
+                .__().__()
+                .of(content -> {
+                    if (!service.containerBindings().isEmpty()) {
+                        containerBindings(content, service, own);
+                    }
+                }));
+    }
+
+    /**
+     * Each Container Binding, with the Bound Instances it gives now or that its container does not run, and a button
+     * to remove it.
+     */
+    private static void containerBindings(Main<?> content, Service service, boolean own) {
+        content.h2().attrClass("text-lg font-semibold").text("Container Bindings").__()
+                .div().attrClass("table-container").table().attrClass("table")
+                    .thead().tr()
+                        .th().text("Container").__()
+                        .th().text("Container port").__()
+                        .th().text("Bound Instances").__()
+                        .of(row -> {
+                            if (own) {
+                                row.th().of(cell -> cell.span().attrClass("sr-only").text("Actions").__()).__();
+                            }
+                        })
+                    .__().__()
+                    .tbody().of(body -> service.containerBindings().forEach(binding -> body.tr()
+                            .td().text(binding.container()).__()
+                            .td().text(String.valueOf(binding.port())).__()
+                            .td().of(cell -> {
+                                if (binding.instances().isEmpty()) {
+                                    cell.span().attrClass("text-muted-foreground")
+                                            .text("No container of this name runs.").__();
+                                }
+                                service.instances().stream()
+                                        .filter(instance -> binding.instances().contains(instance.id()))
+                                        .forEach(instance -> cell.div().text(instance.address()).__());
+                            }).__()
+                            .of(row -> {
+                                if (own) {
+                                    row.td().div().attrClass("flex justify-end")
+                                            .form().addAttr("method", "post")
+                                                    .addAttr("action", Layout.attr(removePath(service, binding)))
+                                                .button().attrType(EnumTypeButtonType.SUBMIT).attrClass("btn")
+                                                        .addAttr("data-variant", "outline")
+                                                        .addAttr("data-size", "sm").text("Remove").__()
+                                            .__()
+                                    .__().__();
+                                }
+                            })
+                    .__())).__()
+                .__().__();
     }
 
     /**

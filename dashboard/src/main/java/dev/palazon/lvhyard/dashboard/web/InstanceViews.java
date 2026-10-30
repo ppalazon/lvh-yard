@@ -5,6 +5,7 @@ import org.xmlet.htmlapifaster.Td;
 
 import dev.palazon.lvhyard.dashboard.services.Health;
 import dev.palazon.lvhyard.dashboard.services.Instance;
+import dev.palazon.lvhyard.dashboard.services.Service;
 
 /** How the pages show an Instance: where it is, its tags, meta and Health, and each check's last output. */
 final class InstanceViews {
@@ -12,9 +13,17 @@ final class InstanceViews {
     private InstanceViews() {
     }
 
-    /** Where the Instance is, marked when it is out of range here, with its tags and meta below. */
-    static void description(Td<?> cell, Instance instance) {
+    /**
+     * Where the Instance is, marked when it is out of range here, with the container that gives a Bound Instance, and
+     * its tags and meta below.
+     */
+    static void description(Td<?> cell, Service service, Instance instance) {
         cell.div().text(instance.address()).__();
+        service.containerBindings().stream()
+                .filter(binding -> binding.id().equals(instance.containerBinding()))
+                .findFirst()
+                .ifPresent(binding -> cell.div().attrClass("text-muted-foreground text-sm")
+                        .text("Bound to container " + binding.container() + ", port " + binding.port() + ".").__());
         if (instance.outOfRange()) {
             cell.div().attrClass("mt-1 flex flex-wrap items-center gap-2")
                     .span().attrClass("badge").addAttr("data-variant", "destructive").text("Out of range").__()

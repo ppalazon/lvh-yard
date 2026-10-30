@@ -107,4 +107,48 @@ class RegisterPageTest extends DashboardTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody()).contains("key=value").contains("owner pablo");
     }
+
+    @Test
+    void formOffersAContainerBindingToo() {
+        assertThat(getPage("/register").getBody()).contains("name=\"kind\"").contains("value=\"container\"")
+                .contains("name=\"container\"").contains("name=\"containerPort\"");
+    }
+
+    @Test
+    void bindingAContainerLeadsToTheServicesPage() {
+        String web = newServiceName("web");
+        String name = newContainerName();
+
+        ResponseEntity<String> response = postForm("/register",
+                Map.of("name", web, "kind", "container", "container", name, "containerPort", "8080"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+        assertThat(response.getHeaders().getLocation()).hasPath("/services/ws-test/" + web);
+        JsonNode binding = get(servicePath(web)).getBody().get("containerBindings").get(0);
+        assertThat(binding.get("container").asString()).isEqualTo(name);
+        assertThat(binding.get("port").asInt()).isEqualTo(8080);
+    }
+
+    @Test
+    void invalidContainerNameIsShownInTheFormWithWhatWasTyped() {
+        String web = newServiceName("web");
+
+        ResponseEntity<String> response = postForm("/register",
+                Map.of("name", web, "kind", "container", "container", "my web", "containerPort", "80"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).contains("not one Docker allows").contains("value=\"my web\"")
+                .contains("value=\"80\"").containsPattern("value=\"container\"[^>]*checked");
+    }
+
+    @Test
+    void containerPortThatIsNotANumberIsShownAtItsField() {
+        String web = newServiceName("web");
+
+        ResponseEntity<String> response = postForm("/register",
+                Map.of("name", web, "kind", "container", "container", "web", "containerPort", "http"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).contains("id=\"containerPort-error\"").contains("The port http");
+    }
 }

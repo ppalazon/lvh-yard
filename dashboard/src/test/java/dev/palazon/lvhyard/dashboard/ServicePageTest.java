@@ -254,4 +254,57 @@ class ServicePageTest extends DashboardTest {
         assertThat(getPage("/services/ws-test/" + api + "/instances/nothing/edit").getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND);
     }
+
+    @Test
+    void showsEachContainerBindingIncludingOneThatMatchesNoContainer() {
+        String web = newServiceName("web");
+        String name = newContainerName();
+        bind(web, name, 8080);
+
+        String page = getPage("/services/ws-test/" + web).getBody();
+
+        assertThat(page).contains("Container Bindings").contains(name).contains("8080")
+                .contains("No container of this name runs");
+    }
+
+    @Test
+    void boundInstanceSaysWhichContainerGivesItAndCannotBeEditedOrRemoved() {
+        String web = newServiceName("web");
+        String name = newContainerName();
+        startContainer(name, 80, false);
+        bind(web, name, 80);
+        await().atMost(Duration.ofSeconds(15))
+                .until(() -> !get(servicePath(web)).getBody().get("instances").isEmpty());
+        String id = get(servicePath(web)).getBody().get("instances").get(0).get("id").asString();
+
+        String page = getPage("/services/ws-test/" + web).getBody();
+
+        assertThat(page).contains("Bound to container " + name).doesNotContain("/instances/" + id + "/edit")
+                .doesNotContain("/instances/" + id + "/remove");
+    }
+
+    @Test
+    void removingTheLastContainerBindingGoesBackToTheCatalog() {
+        String web = newServiceName("web");
+        String id = bind(web, newContainerName(), 80).get("id").asString();
+        String removePath = "/services/ws-test/" + web + "/container-bindings/" + id + "/remove";
+        assertThat(getPage("/services/ws-test/" + web).getBody()).contains("action=\"" + removePath + "\"");
+
+        ResponseEntity<String> response = postForm(removePath, Map.of());
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+        assertThat(response.getHeaders().getLocation()).hasPath("/");
+        assertThat(get(servicePath(web)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void remoteServicesContainerBindingsAreShownWithoutAForm() {
+        String web = newServiceName("web");
+        String name = newContainerName();
+        remote.bind(web, name, 80);
+
+        String page = getPage("/services/" + RemoteWorkstation.NAME + "/" + web).getBody();
+
+        assertThat(page).contains(name).doesNotContain("/container-bindings/");
+    }
 }

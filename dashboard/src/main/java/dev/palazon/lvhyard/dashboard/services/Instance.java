@@ -23,6 +23,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * @param outOfRange whether it is an Out-of-range Instance: an Instance of a Remote Service at an address only its
  *        Home Workstation can connect to, such as loopback or a Docker network, so this Workstation never routes
  *        to it
+ * @param containerBinding the ID of the Container Binding that made it a Bound Instance; {@code null}, and left out
+ *        of the JSON, for a Static Instance
  */
 public record Instance(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String id,
@@ -33,7 +35,13 @@ public record Instance(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<String> tags,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Map<String, String> meta,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<CheckResult> checks,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean outOfRange) {
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean outOfRange,
+        @JsonInclude(JsonInclude.Include.NON_NULL) String containerBinding) {
+
+    /** Whether a Container Binding made it, so it comes and goes with its container and cannot be edited. */
+    public boolean bound() {
+        return containerBinding != null;
+    }
 
     /** {@code host:port}, where the Instance is reached. */
     public String address() {

@@ -25,6 +25,11 @@ class ApiProblems extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler
+    ProblemDetail unknownContainerBinding(UnknownContainerBindingException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+    }
+
+    @ExceptionHandler
     ProblemDetail unreachableWorkstation(UnreachableWorkstationException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage());
     }

@@ -1,9 +1,13 @@
 package dev.palazon.lvhyard.dashboard;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -14,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
+import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
 
 import tools.jackson.databind.JsonNode;
@@ -47,12 +52,51 @@ abstract class DashboardTest {
 
     private RestClient http;
 
+    /** The containers this test started, removed after it. */
+    private final List<GenericContainer<?>> containers = new ArrayList<>();
+
     @BeforeEach
     void connect() {
         http = RestClient.builder()
                 .baseUrl("http://127.0.0.1:" + port)
                 .defaultStatusHandler(status -> true, (request, response) -> { })
                 .build();
+    }
+
+    @AfterEach
+    void removeContainers() {
+        containers.forEach(GenericContainer::stop);
+    }
+
+    /** A container name no other test, nor an earlier run, uses. */
+    static String newContainerName() {
+        return "yard-test-" + UUID.randomUUID().toString().substring(0, 8);
+    }
+
+    /**
+     * Starts a container called {@code name} on Docker's default bridge network that accepts TCP connections on
+     * {@code containerPort}, published on a free host port when {@code publish} is true. It is removed after the
+     * test.
+     */
+    GenericContainer<?> startContainer(String name, int containerPort, boolean publish) {
+        GenericContainer<?> container = TestcontainersConfiguration.listener(name, containerPort);
+        if (publish) {
+            container.withExposedPorts(containerPort);
+        }
+        containers.add(container);
+        container.start();
+        return container;
+    }
+
+    /** The address {@code container} has on its network. */
+    static String containerAddress(GenericContainer<?> container) {
+        return container.getContainerInfo().getNetworkSettings().getNetworks().values().iterator().next()
+                .getIpAddress();
+    }
+
+    /** Stops {@code container} as {@code docker stop} does: it stays, stopped, until it is removed. */
+    static void stopContainer(GenericContainer<?> container) {
+        DockerClientFactory.instance().client().stopContainerCmd(container.getContainerId()).withTimeout(1).exec();
     }
 
     /** A Service name no other test uses, such as {@code grafana-3}. */
@@ -144,6 +188,20 @@ abstract class DashboardTest {
 
     static String instancesPath(String service) {
         return servicePath(service) + "/instances";
+    }
+
+    static String containerBindingsPath(String service) {
+        return servicePath(service) + "/container-bindings";
+    }
+
+    /** Binds {@code service} on this Workstation to {@code container}'s {@code port} through the REST API. */
+    JsonNode bind(String service, String container, int port) {
+        ResponseEntity<JsonNode> response = post(containerBindingsPath(service),
+                Map.of("container", container, "port", port));
+        if (!response.getStatusCode().is2xxSuccessful()) {
+            throw new AssertionError("Binding " + service + " answered " + response);
+        }
+        return response.getBody();
     }
 
     static String publicationPath(String service) {

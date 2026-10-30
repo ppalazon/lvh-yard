@@ -12,9 +12,13 @@ import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
-/** {@code yard register}: a Static Instance of one of this Workstation's Services. */
+/**
+ * {@code yard register}: a Static Instance of one of this Workstation's Services, or, with {@code --container}, a
+ * Container Binding.
+ */
 @Command(name = "register", mixinStandardHelpOptions = true,
-        description = "Registers a Static Instance of a Service on this Workstation.")
+        description = "Registers a Static Instance of a Service on this Workstation, or binds the Service to a"
+                + " Docker container by its name.")
 class Register implements Runnable {
 
     @ParentCommand
@@ -28,8 +32,13 @@ class Register implements Runnable {
     String host;
 
     @Option(names = "--port", paramLabel = "<port>", required = true,
-            description = "The port the Instance listens on.")
+            description = "The port the Instance listens on; with --container, the port inside the container.")
     int port;
+
+    @Option(names = "--container", paramLabel = "<name>",
+            description = "Binds the Service to the container of this name instead: while it runs, the Service has"
+                    + " a Bound Instance at its current address, with a TCP check.")
+    String container;
 
     @Option(names = "--check", paramLabel = "<type>",
             description = "How its Health is checked: tcp connects to the port, http GETs the path (default: http"
@@ -61,10 +70,46 @@ class Register implements Runnable {
 
     @Override
     public void run() {
+        if (container != null) {
+            bind();
+            return;
+        }
         Dashboard.Instance instance = yard.dashboard().register(service, host, port,
                 new Dashboard.Check(check, path, interval, timeout), tags, meta);
         spec.commandLine().getOut().println("Registered " + service + " at " + instance.address() + ", Instance "
                 + instance.id() + ".");
+        spec.commandLine().getOut().flush();
+    }
+
+    private void bind() {
+        List<String> staticOnly = new ArrayList<>();
+        if (host != null) {
+            staticOnly.add("--host");
+        }
+        for (String[] option : new String[][] { { "--check", check }, { "--path", path },
+                { "--interval", interval }, { "--timeout", timeout } }) {
+            if (option[1] != null) {
+                staticOnly.add(option[0]);
+            }
+        }
+        if (!tags.isEmpty()) {
+            staticOnly.add("--tag");
+        }
+        if (!meta.isEmpty()) {
+            staticOnly.add("--meta");
+        }
+        if (!staticOnly.isEmpty()) {
+            String last = staticOnly.removeLast();
+            throw new YardException("A Container Binding takes only --container and --port, not "
+                    + (staticOnly.isEmpty() ? "" : String.join(", ", staticOnly) + " or ") + last
+                    + ": those are for a Static Instance.");
+        }
+        Dashboard.ContainerBinding binding = yard.dashboard().bind(service, container, port);
+        spec.commandLine().getOut().println("Bound " + service + " to container " + binding.container() + ", port "
+                + binding.port() + ". " + (binding.instances().isEmpty()
+                        ? "No container of that name runs now: " + service + " gets its Bound Instance once one"
+                                + " starts."
+                        : "It runs now, so " + service + " has its Bound Instance."));
         spec.commandLine().getOut().flush();
     }
 }

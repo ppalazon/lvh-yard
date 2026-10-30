@@ -54,7 +54,15 @@ final class Dashboard {
      * Workstations may not reach it.
      */
     record Service(String workstation, String name, String state, Publication publication, String hostname,
-            String yardHostname, List<Instance> instances, List<Warning> warnings) {
+            String yardHostname, List<Instance> instances, List<ContainerBinding> containerBindings,
+            List<Warning> warnings) {
+    }
+
+    /**
+     * A link from a Service to a Docker container by its name and a container port, with the IDs of the Bound
+     * Instances it gives now: none while no container of that name runs.
+     */
+    record ContainerBinding(String id, String container, int port, List<String> instances) {
     }
 
     /** Why other Workstations may not reach a Service, such as a {@code loopback-instance}. */
@@ -170,6 +178,20 @@ final class Dashboard {
         return read(send(request), new TypeReference<>() { });
     }
 
+    /** Binds this Workstation's {@code service} to the container called {@code container}, at its {@code port}. */
+    ContainerBinding bind(String service, String container, int port) {
+        HttpRequest.Builder request = HttpRequest.newBuilder(containerBindingsUrl(service))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                        Map.of("container", container, "port", port))));
+        return read(send(request), new TypeReference<>() { });
+    }
+
+    /** Removes the Container Binding {@code id} of this Workstation's {@code service}, and its Bound Instances. */
+    void unbind(String service, String id) {
+        send(HttpRequest.newBuilder(URI.create(containerBindingsUrl(service) + "/" + segment(id))).DELETE());
+    }
+
     /** Removes the Static Instance {@code id} of this Workstation's {@code service}. */
     void remove(String service, String id) {
         send(HttpRequest.newBuilder(URI.create(instancesUrl(service) + "/" + segment(id))).DELETE());
@@ -220,6 +242,10 @@ final class Dashboard {
 
     private URI publicationUrl(String service) {
         return url.resolve("api/workstation/services/" + segment(service) + "/publication");
+    }
+
+    private URI containerBindingsUrl(String service) {
+        return url.resolve("api/workstation/services/" + segment(service) + "/container-bindings");
     }
 
     private URI instancesUrl(String service) {

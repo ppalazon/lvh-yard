@@ -18,6 +18,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * @param yardHostname where every other Workstation routes it, {@code <service>.<workstation>.<base-domain>};
  *        {@code null}, and left out of the JSON, unless it has Yard Scope
  * @param instances its registered Instances, ordered by host and port
+ * @param containerBindings its Container Bindings, by ID, including those that match no running container
  * @param warnings why other Workstations may not reach it, though its Scope gives them a Route
  */
 public record Service(
@@ -28,13 +29,14 @@ public record Service(
         @JsonInclude(JsonInclude.Include.NON_NULL) String hostname,
         @JsonInclude(JsonInclude.Include.NON_NULL) String yardHostname,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<Instance> instances,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ContainerBinding> containerBindings,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ServiceWarning> warnings) {
 
     /** A Service in the state, and with the warnings, its {@code publication} and {@code instances} add up to. */
     Service(String workstation, String name, Publication publication, String hostname, String yardHostname,
-            List<Instance> instances) {
+            List<Instance> instances, List<ContainerBinding> containerBindings) {
         this(workstation, name, ServiceState.of(publication, instances), publication, hostname, yardHostname,
-                instances, ServiceWarning.of(publication, instances));
+                instances, containerBindings, ServiceWarning.of(publication, instances));
     }
 
     /** Whether it is published with Yard Scope, so every Workstation of the Yard routes it. */

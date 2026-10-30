@@ -22,9 +22,12 @@ public class Publications {
 
     private final Consul consul;
 
-    Publications(Workstation workstation, Consul consul) {
+    private final ContainerBindings containerBindings;
+
+    Publications(Workstation workstation, Consul consul, ContainerBindings containerBindings) {
         this.workstation = workstation;
         this.consul = consul;
+        this.containerBindings = containerBindings;
     }
 
     /**
@@ -67,7 +70,8 @@ public class Publications {
     }
 
     private void checkExists(String service) {
-        if (consul.health(service).isEmpty() && !all().containsKey(service)) {
+        if (consul.health(service).isEmpty() && !all().containsKey(service)
+                && !containerBindings.all(null).containsKey(service)) {
             throw new UnknownServiceException(service);
         }
     }

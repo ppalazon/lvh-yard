@@ -18,6 +18,8 @@
         <!-- springdoc 3.x is the line for Spring Boot 4; 3.1.x is built against Boot 4.1. -->
         <springdoc.version>3.1.1</springdoc.version>
         <resilience4j.version>2.4.0</resilience4j.version>
+        <!-- The version Testcontainers uses, so the tests and the dashboard share one Docker transport. -->
+        <docker-java.version>3.7.1</docker-java.version>
     </properties>
 
     <dependencies>
@@ -55,6 +57,12 @@
             <groupId>io.github.resilience4j</groupId>
             <artifactId>resilience4j-circuitbreaker</artifactId>
             <version>${resilience4j.version}</version>
+        </dependency>
+        <!-- Only the HTTP transport to the Docker socket: the container watcher reads the Engine API's JSON itself. -->
+        <dependency>
+            <groupId>com.github.docker-java</groupId>
+            <artifactId>docker-java-transport-zerodep</artifactId>
+            <version>${docker-java.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

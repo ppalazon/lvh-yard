@@ -30,12 +30,12 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 
 /**
- * Reads the Services of the Yard, with their Instances, Health and Publications, from every Workstation's Consul
- * datacenter, and gives each published one its hostname: the one rule for hostnames, which the Routes and the pages
- * both follow. A datacenter that does not answer makes its Workstation unreachable; the others still load. This
- * Workstation's own Services are at {@code <service>.<base-domain>}, whatever their Scope. Remote Services with Yard
- * Scope are at {@code <service>.<workstation>.<base-domain>} (ADR-0003), and those with Local Scope get no hostname
- * here.
+ * Reads the Services of the Yard, with their Instances, Health, Publications and Container Bindings, from every
+ * Workstation's Consul datacenter, and gives each published one its hostname: the one rule for hostnames, which the
+ * Routes and the pages both follow. A datacenter that does not answer makes its Workstation unreachable; the others
+ * still load. This Workstation's own Services are at {@code <service>.<base-domain>}, whatever their Scope. Remote
+ * Services with Yard Scope are at {@code <service>.<workstation>.<base-domain>} (ADR-0003), and those with Local
+ * Scope get no hostname here.
  */
 @Component
 public class YardReader {
@@ -70,15 +70,19 @@ public class YardReader {
 
     private final Publications publications;
 
+    private final ContainerBindings containerBindings;
+
     private final OutOfRange outOfRange;
 
     /** One circuit breaker per other Workstation, by name. */
     private final CircuitBreakerRegistry breakers = CircuitBreakerRegistry.of(UNREACHABLE);
 
-    YardReader(Workstation workstation, Consul consul, Publications publications, OutOfRange outOfRange) {
+    YardReader(Workstation workstation, Consul consul, Publications publications,
+            ContainerBindings containerBindings, OutOfRange outOfRange) {
         this.workstation = workstation;
         this.consul = consul;
         this.publications = publications;
+        this.containerBindings = containerBindings;
         this.outOfRange = outOfRange;
     }
 
@@ -136,7 +140,8 @@ public class YardReader {
     }
 
     /**
-     * The Service called {@code name} on {@code workstation}, while it has an Instance or a Publication.
+     * The Service called {@code name} on {@code workstation}, while it has an Instance, a Container Binding or a
+     * Publication.
      *
      * @throws UnknownWorkstationException when the Yard has no such Workstation
      * @throws UnreachableWorkstationException when the Workstation's datacenter does not answer
@@ -144,7 +149,8 @@ public class YardReader {
     public Optional<Service> service(String workstation, String name) {
         checkInYard(workstation);
         return reading(workstation, datacenter -> service(workstation, datacenter, name,
-                publications.all(datacenter).get(name)));
+                publications.all(datacenter).get(name),
+                containerBindings.all(datacenter).getOrDefault(name, Map.of())));
     }
 
     private YardWorkstation remote(String workstation) {
@@ -162,17 +168,20 @@ public class YardReader {
     }
 
     /**
-     * Every Service of {@code workstation}, ordered by name. A Service is there while it has an Instance or a
-     * Publication.
+     * Every Service of {@code workstation}, ordered by name. A Service is there while it has an Instance, a Container
+     * Binding or a Publication.
      */
     private List<Service> read(String workstation) {
         return reading(workstation, datacenter -> {
             Map<String, Publication> published = publications.all(datacenter);
+            Map<String, Map<String, ContainerBindingRequest>> bindings = containerBindings.all(datacenter);
             TreeSet<String> names = new TreeSet<>(consul.serviceNames(datacenter));
             names.remove(Consul.CONSUL_SERVICE);
             names.addAll(published.keySet());
+            names.addAll(bindings.keySet());
             return names.stream()
-                    .flatMap(name -> service(workstation, datacenter, name, published.get(name)).stream())
+                    .flatMap(name -> service(workstation, datacenter, name, published.get(name),
+                            bindings.getOrDefault(name, Map.of())).stream())
                     .toList();
         });
     }
@@ -193,15 +202,22 @@ public class YardReader {
         }
     }
 
-    private Optional<Service> service(String home, String datacenter, String name, Publication publication) {
+    private Optional<Service> service(String home, String datacenter, String name, Publication publication,
+            Map<String, ContainerBindingRequest> bindings) {
         List<Instance> instances = consul.health(datacenter, name).stream()
                 .map(entry -> instance(entry, !workstation.is(home)))
                 .sorted(BY_ADDRESS).toList();
-        if (instances.isEmpty() && publication == null) {
+        if (instances.isEmpty() && publication == null && bindings.isEmpty()) {
             return Optional.empty();
         }
+        List<ContainerBinding> containerBindings = bindings.entrySet().stream()
+                .map(binding -> new ContainerBinding(binding.getKey(), binding.getValue().container(),
+                        binding.getValue().port(), instances.stream()
+                                .filter(instance -> binding.getKey().equals(instance.containerBinding()))
+                                .map(Instance::id).toList()))
+                .toList();
         return Optional.of(new Service(home, name, publication, hostname(home, name, publication),
-                yardHostname(home, name, publication), instances));
+                yardHostname(home, name, publication), instances, containerBindings));
     }
 
     /** Where this Workstation routes {@code name} of {@code home}, published with {@code publication}, if it does. */
@@ -242,7 +258,8 @@ public class YardReader {
         meta.keySet().removeIf(key -> key.startsWith(Registrations.RESERVED_META));
         return new Instance(registration.id(), registration.address(), registration.port(),
                 Health.worst(checks.stream().map(CheckResult::health).toList()), check, registration.tags(), meta,
-                checks, remote && outOfRange.contains(registration.address()));
+                checks, remote && outOfRange.contains(registration.address()),
+                registration.meta().get(Registrations.CONTAINER_BINDING));
     }
 
     /** A duration as Consul writes it, in Go's way, such as {@code 1m30s} or {@code 1.5s}. */

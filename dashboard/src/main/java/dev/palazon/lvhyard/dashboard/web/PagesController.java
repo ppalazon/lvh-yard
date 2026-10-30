@@ -15,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.services.Aliases;
+import dev.palazon.lvhyard.dashboard.services.ContainerBindings;
 import dev.palazon.lvhyard.dashboard.services.Instance;
 import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
 import dev.palazon.lvhyard.dashboard.services.Publications;
@@ -23,6 +24,7 @@ import dev.palazon.lvhyard.dashboard.services.RemoteServiceException;
 import dev.palazon.lvhyard.dashboard.services.Scope;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import dev.palazon.lvhyard.dashboard.services.UnknownAliasException;
+import dev.palazon.lvhyard.dashboard.services.UnknownContainerBindingException;
 import dev.palazon.lvhyard.dashboard.services.UnknownInstanceException;
 import dev.palazon.lvhyard.dashboard.services.UnknownServiceException;
 import dev.palazon.lvhyard.dashboard.services.UnknownWorkstationException;
@@ -44,13 +46,16 @@ class PagesController {
 
     private final Aliases aliases;
 
+    private final ContainerBindings containerBindings;
+
     PagesController(Workstation workstation, YardReader yard, Registrations registrations,
-            Publications publications, Aliases aliases) {
+            Publications publications, Aliases aliases, ContainerBindings containerBindings) {
         this.workstation = workstation;
         this.yard = yard;
         this.registrations = registrations;
         this.publications = publications;
         this.aliases = aliases;
+        this.containerBindings = containerBindings;
     }
 
     @GetMapping(path = "/", produces = MediaType.TEXT_HTML_VALUE)
@@ -62,17 +67,26 @@ class PagesController {
     @GetMapping(path = RegisterPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
     @ResponseBody
     String registerForm() {
-        return RegisterPage.render(workstation, "", InstanceForm.Fields.EMPTY, registrations.defaultHost(), null);
+        return RegisterPage.render(workstation, "", RegisterPage.Choice.EMPTY, InstanceForm.Fields.EMPTY,
+                registrations.defaultHost(), null);
     }
 
-    /** Registers what the form holds and goes to its Service's page, or shows the form again with the error. */
+    /**
+     * Registers the Static Instance or binds the container the form holds, as its kind says, and goes to its
+     * Service's page, or shows the form again with the error.
+     */
     @PostMapping(path = RegisterPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
-    ResponseEntity<String> register(@RequestParam String name, InstanceForm.Fields fields) {
+    ResponseEntity<String> register(@RequestParam String name, RegisterPage.Choice choice,
+            InstanceForm.Fields fields) {
         try {
-            registrations.register(workstation.name(), name.strip(), fields.request());
+            if (choice.containerBinding()) {
+                containerBindings.add(workstation.name(), name.strip(), choice.request());
+            } else {
+                registrations.register(workstation.name(), name.strip(), fields.request());
+            }
         } catch (InvalidRegistrationException error) {
             return ResponseEntity.badRequest().contentType(Layout.HTML).body(RegisterPage.render(workstation,
-                    name, fields, registrations.defaultHost(), error));
+                    name, choice, fields, registrations.defaultHost(), error));
         }
         return seeOther(ServicePage.path(workstation.name(), name.strip()));
     }
@@ -139,6 +153,20 @@ class PagesController {
         try {
             registrations.remove(home, service, id);
         } catch (UnknownInstanceException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+        } catch (RemoteServiceException e) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage(), e);
+        }
+        return seeOther(yard.service(home, service).map(ServicePage::path).orElse("/"));
+    }
+
+    /** Removes a Container Binding, then shows its Service, or the Catalog when the Service is gone with it. */
+    @PostMapping("/services/{workstation}/{service}/container-bindings/{id}/remove")
+    ResponseEntity<String> removeContainerBinding(@PathVariable("workstation") String home,
+            @PathVariable String service, @PathVariable String id) {
+        try {
+            containerBindings.remove(home, service, id);
+        } catch (UnknownContainerBindingException e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
         } catch (RemoteServiceException e) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage(), e);

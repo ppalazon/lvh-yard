@@ -46,12 +46,13 @@ class YardTest {
         dashboard.answer("GET", "/api/yard", 200, """
                 {"home": {"name": "ws-a", "services": [
                    {"workstation": "ws-a", "name": "api", "state": "unavailable", "publication": {"scope": "local"},
-                    "hostname": "api.lvh.me", "warnings": [], "instances": []},
+                    "hostname": "api.lvh.me", "containerBindings": [], "warnings": [], "instances": []},
                    {"workstation": "ws-a", "name": "grafana", "state": "healthy", "publication": {"scope": "local"},
-                    "hostname": "grafana.lvh.me", "warnings": [], "instances": [
+                    "hostname": "grafana.lvh.me", "containerBindings": [], "warnings": [], "instances": [
                       {"id": "3f2a", "host": "10.1.2.3", "port": 3000, "health": "passing",
                        "tags": [], "meta": {}, "checks": [], "outOfRange": false}]},
-                   {"workstation": "ws-a", "name": "web", "state": "unpublished", "warnings": [], "instances": [
+                   {"workstation": "ws-a", "name": "web", "state": "unpublished", "containerBindings": [],
+                    "warnings": [], "instances": [
                       {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical",
                        "tags": [], "meta": {}, "checks": [], "outOfRange": false},
                       {"id": "9d4e", "host": "10.1.2.3", "port": 8081, "health": "warning",
@@ -59,7 +60,7 @@ class YardTest {
                  "remotes": [
                    {"name": "ws-b", "unreachable": false, "services": [
                      {"workstation": "ws-b", "name": "postgres", "state": "unhealthy",
-                      "publication": {"scope": "local"}, "warnings": [], "instances": [
+                      "publication": {"scope": "local"}, "containerBindings": [], "warnings": [], "instances": [
                         {"id": "5e6f", "host": "10.1.2.4", "port": 5432, "health": "critical",
                          "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}]},
                    {"name": "ws-c", "unreachable": true, "services": []},
@@ -87,7 +88,8 @@ class YardTest {
     @Test
     void listWithWorkstationShowsThatWorkstationsServices() {
         dashboard.answer("GET", "/api/services?workstation=ws-b", 200, """
-                [{"workstation": "ws-b", "name": "postgres", "state": "unpublished", "warnings": [], "instances": [
+                [{"workstation": "ws-b", "name": "postgres", "state": "unpublished", "containerBindings": [],
+                 "warnings": [], "instances": [
                     {"id": "5e6f", "host": "10.1.2.4", "port": 5432, "health": "passing",
                      "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}]
                 """);
@@ -105,7 +107,8 @@ class YardTest {
     void listMarksAnInstanceOutOfRange() {
         dashboard.answer("GET", "/api/services?workstation=ws-b", 200, """
                 [{"workstation": "ws-b", "name": "api", "state": "healthy", "publication": {"scope": "yard"},
-                  "hostname": "api.ws-b.lvh.me", "yardHostname": "api.ws-b.lvh.me", "warnings": [], "instances": [
+                  "hostname": "api.ws-b.lvh.me", "yardHostname": "api.ws-b.lvh.me", "containerBindings": [],
+                   "warnings": [], "instances": [
                     {"id": "1a2b", "host": "10.1.2.4", "port": 9090, "health": "passing",
                      "tags": [], "meta": {}, "checks": [], "outOfRange": false},
                     {"id": "3c4d", "host": "127.0.0.1", "port": 9091, "health": "passing",
@@ -240,6 +243,94 @@ class YardTest {
     }
 
     @Test
+    void registerWithContainerBindsTheServiceToThatContainersPort() {
+        dashboard.answer("POST", "/api/workstation/services/web/container-bindings", 201, """
+                {"id": "web-1:80", "container": "web-1", "port": 80, "instances": ["web:web-1:80"]}
+                """);
+
+        Run run = yard("register", "web", "--container", "web-1", "--port", "80");
+
+        assertThat(run.exitCode()).isZero();
+        assertThat(run.out()).isEqualTo("Bound web to container web-1, port 80. It runs now, so web has its"
+                + " Bound Instance.\n");
+        dashboard.verifyCalled("POST", "/api/workstation/services/web/container-bindings", """
+                {"container": "web-1", "port": 80}
+                """);
+    }
+
+    @Test
+    void registerWithContainerThatDoesNotRunSaysWhenTheInstanceComes() {
+        dashboard.answer("POST", "/api/workstation/services/web/container-bindings", 201, """
+                {"id": "web-1:80", "container": "web-1", "port": 80, "instances": []}
+                """);
+
+        Run run = yard("register", "web", "--container", "web-1", "--port", "80");
+
+        assertThat(run.exitCode()).isZero();
+        assertThat(run.out()).isEqualTo("Bound web to container web-1, port 80. No container of that name runs"
+                + " now: web gets its Bound Instance once one starts.\n");
+    }
+
+    @Test
+    void registerWithContainerRefusesWhatOnlyAStaticInstanceHas() {
+        Run run = yard("register", "web", "--container", "web-1", "--port", "80", "--host", "10.1.2.3",
+                "--tag", "backend");
+
+        assertThat(run.exitCode()).isNotZero();
+        assertThat(run.err()).isEqualTo("A Container Binding takes only --container and --port, not --host or"
+                + " --tag: those are for a Static Instance.\n");
+    }
+
+    @Test
+    void removeWithContainerRemovesThatContainerBinding() {
+        answerWebWithBindings("""
+                {"id": "web-1:80", "container": "web-1", "port": 80, "instances": []}""");
+        dashboard.answer("DELETE", "/api/workstation/services/web/container-bindings/web-1%3A80", 204, null);
+
+        Run run = yard("remove", "web", "--container", "web-1");
+
+        assertThat(run.exitCode()).isZero();
+        assertThat(run.out()).isEqualTo("Removed the Container Binding of web to container web-1, port 80.\n");
+        dashboard.verifyCalled("DELETE", "/api/workstation/services/web/container-bindings/web-1%3A80");
+    }
+
+    @Test
+    void removeWithContainerAndPortPicksThatPort() {
+        answerWebWithBindings("""
+                {"id": "web-1:80", "container": "web-1", "port": 80, "instances": []},
+                {"id": "web-1:443", "container": "web-1", "port": 443, "instances": []}""");
+        dashboard.answer("DELETE", "/api/workstation/services/web/container-bindings/web-1%3A443", 204, null);
+
+        Run run = yard("remove", "web", "--container", "web-1", "--port", "443");
+
+        assertThat(run.exitCode()).isZero();
+        dashboard.verifyCalled("DELETE", "/api/workstation/services/web/container-bindings/web-1%3A443");
+    }
+
+    @Test
+    void removeWithContainerBoundOnMoreThanOnePortAsksForThePort() {
+        answerWebWithBindings("""
+                {"id": "web-1:80", "container": "web-1", "port": 80, "instances": []},
+                {"id": "web-1:443", "container": "web-1", "port": 443, "instances": []}""");
+
+        Run run = yard("remove", "web", "--container", "web-1");
+
+        assertThat(run.exitCode()).isNotZero();
+        assertThat(run.err()).isEqualTo("web is bound to container web-1 on more than one port (80, 443): give"
+                + " --port.\n");
+    }
+
+    @Test
+    void removeWithContainerThatIsNotBoundSaysSo() {
+        answerWebWithBindings("");
+
+        Run run = yard("remove", "web", "--container", "web-1");
+
+        assertThat(run.exitCode()).isNotZero();
+        assertThat(run.err()).isEqualTo("web has no Container Binding to container web-1.\n");
+    }
+
+    @Test
     void removeByIdRemovesThatInstance() {
         dashboard.answer("DELETE", "/api/workstation/services/web/instances/7b1c", 204, null);
 
@@ -308,18 +399,18 @@ class YardTest {
     }
 
     @Test
-    void removeNeedsAnIdOrAPort() {
+    void removeNeedsAnIdAPortOrAContainer() {
         Run run = yard("remove", "web");
 
         assertThat(run.exitCode()).isEqualTo(CommandLine.ExitCode.USAGE);
-        assertThat(run.err()).contains("--id").contains("--port");
+        assertThat(run.err()).contains("--id").contains("--port").contains("--container");
     }
 
     @Test
     void publishPublishesWithLocalScopeAndShowsTheHostname() {
         dashboard.answer("PUT", "/api/workstation/services/web/publication", 200, """
                 {"workstation": "ws-a", "name": "web", "state": "unhealthy", "publication": {"scope": "local"},
-                 "hostname": "web.lvh.me", "warnings": [], "instances": [
+                 "hostname": "web.lvh.me", "containerBindings": [], "warnings": [], "instances": [
                     {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical",
                      "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}
                 """);
@@ -335,7 +426,8 @@ class YardTest {
     void publishWithYardScopeSendsTheScope() {
         dashboard.answer("PUT", "/api/workstation/services/web/publication", 200, """
                 {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "yard"},
-                 "hostname": "web.lvh.me", "yardHostname": "web.ws-a.lvh.me", "warnings": [], "instances": [
+                 "hostname": "web.lvh.me", "yardHostname": "web.ws-a.lvh.me", "containerBindings": [],
+                  "warnings": [], "instances": [
                     {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "passing",
                      "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}
                 """);
@@ -354,7 +446,7 @@ class YardTest {
     void publishPrintsTheServicesWarnings() {
         dashboard.answer("PUT", "/api/workstation/services/web/publication", 200, """
                 {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "yard"},
-                 "hostname": "web.lvh.me", "warnings": [
+                 "hostname": "web.lvh.me", "containerBindings": [], "warnings": [
                     {"kind": "loopback-instance",
                      "message": "The Instance at 127.0.0.1:8080 is on a loopback address."}],
                  "instances": [
@@ -571,10 +663,16 @@ class YardTest {
         assertThat(run.out()).contains("else http://127.0.0.1:8780.");
     }
 
+    private void answerWebWithBindings(String bindings) {
+        dashboard.answer("GET", "/api/workstation/services/web", 200,
+                "{\"workstation\": \"ws-a\", \"name\": \"web\", \"state\": \"unpublished\", \"warnings\": [],"
+                        + " \"instances\": [], \"containerBindings\": [" + bindings + "]}");
+    }
+
     private void answerWebWithInstances(String instances) {
         dashboard.answer("GET", "/api/workstation/services/web", 200,
                 "{\"workstation\": \"ws-a\", \"name\": \"web\", \"state\": \"unpublished\", \"warnings\": [],"
-                        + " \"instances\": [" + instances + "]}");
+                        + " \"containerBindings\": [], \"instances\": [" + instances + "]}");
     }
 
     /** The output of one run of {@code yard}. */
