@@ -259,7 +259,10 @@ paths:
       - workstation-services-controller
     put:
       description: "The Route covers every Instance of the Service, including ones\
-        \ registered later. Publishing a published Service again changes nothing."
+        \ registered later. With Yard Scope, every other Workstation also routes it,\
+        \ at <service>.<workstation>.<base-domain>. With no Scope, a new Publication\
+        \ gets Local Scope and one that exists keeps its own, so publishing again\
+        \ changes nothing."
       operationId: publish
       parameters:
       - in: path
@@ -267,6 +270,11 @@ paths:
         required: true
         schema:
           type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicationRequest"
       responses:
         "200":
           content:
@@ -279,14 +287,15 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: The name is not a single DNS label or is yard
+          description: "The name is not a single DNS label or is yard, or the Scope\
+            \ is not local or yard"
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: This Workstation has no Service of this name
-      summary: "Publishes a Service at <service>.<base-domain>, with Local Scope"
+      summary: "Publishes a Service at <service>.<base-domain>, or changes its Scope"
       tags:
       - workstation-services-controller
   /api/yard:
@@ -411,8 +420,17 @@ components:
           type: string
           enum:
           - local
+          - yard
       required:
       - scope
+    PublicationRequest:
+      type: object
+      properties:
+        scope:
+          type: string
+          enum:
+          - local
+          - yard
     Service:
       type: object
       properties:
@@ -433,13 +451,32 @@ components:
           - unavailable
           - unhealthy
           - healthy
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServiceWarning"
         workstation:
+          type: string
+        yardHostname:
           type: string
       required:
       - instances
       - name
       - state
+      - warnings
       - workstation
+    ServiceWarning:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+          - loopback-instance
+        message:
+          type: string
+      required:
+      - kind
+      - message
     StaticInstanceRequest:
       type: object
       properties:

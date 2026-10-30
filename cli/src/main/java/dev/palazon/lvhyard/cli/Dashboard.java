@@ -50,9 +50,15 @@ final class Dashboard {
     /**
      * A Service, with its Home Workstation, its Instances and its state: unpublished, unavailable, unhealthy or
      * healthy. A Service without a Publication has none, and one without a Route on this Workstation no hostname.
+     * A Service with Yard Scope also has the hostname every other Workstation routes it at. Its warnings say why other
+     * Workstations may not reach it.
      */
     record Service(String workstation, String name, String state, Publication publication, String hostname,
-            List<Instance> instances) {
+            String yardHostname, List<Instance> instances, List<Warning> warnings) {
+    }
+
+    /** Why other Workstations may not reach a Service, such as a {@code loopback-instance}. */
+    record Warning(String kind, String message) {
     }
 
     /** The Yard: this Workstation, then every other one by name. */
@@ -154,10 +160,19 @@ final class Dashboard {
         send(HttpRequest.newBuilder(URI.create(instancesUrl(service) + "/" + segment(id))).DELETE());
     }
 
-    /** Publishes this Workstation's {@code service} with Local Scope, and answers the published Service. */
-    Service publish(String service) {
-        return read(send(HttpRequest.newBuilder(publicationUrl(service)).PUT(HttpRequest.BodyPublishers.noBody())),
-                new TypeReference<>() { });
+    /**
+     * Publishes this Workstation's {@code service} with {@code scope}, local or yard, and answers the published
+     * Service. With no Scope, the dashboard gives a new Publication Local Scope and keeps an existing one's.
+     */
+    Service publish(String service, String scope) {
+        HttpRequest.Builder request = HttpRequest.newBuilder(publicationUrl(service));
+        if (scope == null) {
+            request.PUT(HttpRequest.BodyPublishers.noBody());
+        } else {
+            request.header("Content-Type", "application/json")
+                    .PUT(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(Map.of("scope", scope))));
+        }
+        return read(send(request), new TypeReference<>() { });
     }
 
     /** Unpublishes this Workstation's {@code service}, which keeps its Instances. */

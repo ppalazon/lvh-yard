@@ -81,6 +81,63 @@ class ServicePageTest extends DashboardTest {
     }
 
     @Test
+    void scopeCanBeChangedToYardAndBack() {
+        String web = newServiceName("web");
+        register(web, Map.of("host", "10.1.2.3", "port", 8080));
+        publish(web);
+        String page = "/services/ws-test/" + web;
+        assertThat(getPage(page).getBody()).contains("Local Scope").contains("name=\"scope\" value=\"yard\"");
+
+        ResponseEntity<String> response = postForm(page + "/publish", Map.of("scope", "yard"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+        assertThat(response.getHeaders().getLocation()).hasPath(page);
+        assertThat(getPage(page).getBody()).contains("Yard Scope")
+                .contains("href=\"http://" + web + ".lvh.test\"")
+                .contains(web + ".ws-test.lvh.test").contains("name=\"scope\" value=\"local\"");
+        assertThat(get(servicePath(web)).getBody().get("publication").get("scope").asString()).isEqualTo("yard");
+
+        postForm(page + "/publish", Map.of("scope", "local"));
+
+        assertThat(get(servicePath(web)).getBody().get("publication").get("scope").asString()).isEqualTo("local");
+    }
+
+    @Test
+    void unknownScopeIsRefused() {
+        String web = newServiceName("web");
+        register(web, Map.of("host", "10.1.2.3", "port", 8080));
+
+        ResponseEntity<String> response = postForm("/services/ws-test/" + web + "/publish", Map.of("scope", "world"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void yardScopedServiceWarnsAboutAnInstanceOnLoopback() {
+        String web = newServiceName("web");
+        register(web, Map.of("host", "127.0.0.1", "port", 8080));
+        String page = "/services/ws-test/" + web;
+        assertThat(getPage(page).getBody()).doesNotContain("loopback");
+
+        put(publicationPath(web), Map.of("scope", "yard"));
+
+        assertThat(getPage(page).getBody()).contains("role=\"alert\"")
+                .contains("127.0.0.1:8080 is on a loopback address");
+    }
+
+    @Test
+    void remoteServiceWithYardScopeShowsItsHostnameHere() {
+        String api = newServiceName("api");
+        remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
+        remote.publish(api, "yard");
+
+        String body = getPage("/services/" + RemoteWorkstation.NAME + "/" + api).getBody();
+
+        assertThat(body).contains("Yard Scope")
+                .contains("href=\"http://" + api + "." + RemoteWorkstation.NAME + ".lvh.test\"");
+    }
+
+    @Test
     void unpublishingKeepsTheInstances() {
         String web = newServiceName("web");
         register(web, Map.of("host", "10.1.2.3", "port", 8080));

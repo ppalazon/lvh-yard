@@ -46,12 +46,12 @@ class YardTest {
         dashboard.answer("GET", "/api/yard", 200, """
                 {"home": {"name": "ws-a", "services": [
                    {"workstation": "ws-a", "name": "api", "state": "unavailable", "publication": {"scope": "local"},
-                    "hostname": "api.lvh.me", "instances": []},
+                    "hostname": "api.lvh.me", "warnings": [], "instances": []},
                    {"workstation": "ws-a", "name": "grafana", "state": "healthy", "publication": {"scope": "local"},
-                    "hostname": "grafana.lvh.me", "instances": [
+                    "hostname": "grafana.lvh.me", "warnings": [], "instances": [
                       {"id": "3f2a", "host": "10.1.2.3", "port": 3000, "health": "passing",
                        "tags": [], "meta": {}, "checks": []}]},
-                   {"workstation": "ws-a", "name": "web", "state": "unpublished", "instances": [
+                   {"workstation": "ws-a", "name": "web", "state": "unpublished", "warnings": [], "instances": [
                       {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical",
                        "tags": [], "meta": {}, "checks": []},
                       {"id": "9d4e", "host": "10.1.2.3", "port": 8081, "health": "warning",
@@ -59,7 +59,7 @@ class YardTest {
                  "remotes": [
                    {"name": "ws-b", "unreachable": false, "services": [
                      {"workstation": "ws-b", "name": "postgres", "state": "unhealthy",
-                      "publication": {"scope": "local"}, "instances": [
+                      "publication": {"scope": "local"}, "warnings": [], "instances": [
                         {"id": "5e6f", "host": "10.1.2.4", "port": 5432, "health": "critical",
                          "tags": [], "meta": {}, "checks": []}]}]},
                    {"name": "ws-c", "unreachable": true, "services": []},
@@ -87,7 +87,7 @@ class YardTest {
     @Test
     void listWithWorkstationShowsThatWorkstationsServices() {
         dashboard.answer("GET", "/api/services?workstation=ws-b", 200, """
-                [{"workstation": "ws-b", "name": "postgres", "state": "unpublished", "instances": [
+                [{"workstation": "ws-b", "name": "postgres", "state": "unpublished", "warnings": [], "instances": [
                     {"id": "5e6f", "host": "10.1.2.4", "port": 5432, "health": "passing",
                      "tags": [], "meta": {}, "checks": []}]}]
                 """);
@@ -298,7 +298,7 @@ class YardTest {
     void publishPublishesWithLocalScopeAndShowsTheHostname() {
         dashboard.answer("PUT", "/api/workstation/services/web/publication", 200, """
                 {"workstation": "ws-a", "name": "web", "state": "unhealthy", "publication": {"scope": "local"},
-                 "hostname": "web.lvh.me", "instances": [
+                 "hostname": "web.lvh.me", "warnings": [], "instances": [
                     {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical",
                      "tags": [], "meta": {}, "checks": []}]}
                 """);
@@ -308,6 +308,51 @@ class YardTest {
         assertThat(run.exitCode()).isZero();
         assertThat(run.out()).isEqualTo("Published web at web.lvh.me, with Local Scope. It is unhealthy.\n");
         dashboard.verifyCalled("PUT", "/api/workstation/services/web/publication");
+    }
+
+    @Test
+    void publishWithYardScopeSendsTheScope() {
+        dashboard.answer("PUT", "/api/workstation/services/web/publication", 200, """
+                {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "yard"},
+                 "hostname": "web.lvh.me", "yardHostname": "web.ws-a.lvh.me", "warnings": [], "instances": [
+                    {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "passing",
+                     "tags": [], "meta": {}, "checks": []}]}
+                """);
+
+        Run run = yard("publish", "web", "--scope", "yard");
+
+        assertThat(run.exitCode()).isZero();
+        assertThat(run.out()).isEqualTo("Published web at web.lvh.me, with Yard Scope; other Workstations reach it at"
+                + " web.ws-a.lvh.me. It is healthy.\n");
+        dashboard.verifyCalled("PUT", "/api/workstation/services/web/publication", """
+                {"scope": "yard"}
+                """);
+    }
+
+    @Test
+    void publishPrintsTheServicesWarnings() {
+        dashboard.answer("PUT", "/api/workstation/services/web/publication", 200, """
+                {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "yard"},
+                 "hostname": "web.lvh.me", "warnings": [
+                    {"kind": "loopback-instance",
+                     "message": "The Instance at 127.0.0.1:8080 is on a loopback address."}],
+                 "instances": [
+                    {"id": "7b1c", "host": "127.0.0.1", "port": 8080, "health": "passing",
+                     "tags": [], "meta": {}, "checks": []}]}
+                """);
+
+        Run run = yard("publish", "web", "--scope", "yard");
+
+        assertThat(run.exitCode()).isZero();
+        assertThat(run.err()).isEqualTo("Warning: The Instance at 127.0.0.1:8080 is on a loopback address.\n");
+    }
+
+    @Test
+    void publishRefusesAnUnknownScope() {
+        Run run = yard("publish", "web", "--scope", "world");
+
+        assertThat(run.exitCode()).isEqualTo(CommandLine.ExitCode.USAGE);
+        assertThat(run.err()).contains("local").contains("yard");
     }
 
     @Test
@@ -412,8 +457,8 @@ class YardTest {
 
     private void answerWebWithInstances(String instances) {
         dashboard.answer("GET", "/api/workstation/services/web", 200,
-                "{\"workstation\": \"ws-a\", \"name\": \"web\", \"state\": \"unpublished\", \"instances\": ["
-                        + instances + "]}");
+                "{\"workstation\": \"ws-a\", \"name\": \"web\", \"state\": \"unpublished\", \"warnings\": [],"
+                        + " \"instances\": [" + instances + "]}");
     }
 
     /** The output of one run of {@code yard}. */

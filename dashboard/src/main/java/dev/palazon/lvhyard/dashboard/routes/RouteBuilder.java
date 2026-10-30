@@ -24,8 +24,10 @@ final class RouteBuilder {
     }
 
     /**
-     * A Route at its hostname to every Instance of each published Service of this Workstation that has any, and the
-     * dashboard's own at {@code yard.<base-domain>}, which no Service can replace.
+     * A Route at its hostname to every Instance of each Service that has a hostname and any Instance, and the
+     * dashboard's own at {@code yard.<base-domain>}, which no Service can replace. A Service has a hostname here
+     * when it is published on this Workstation, or published with Yard Scope on another one; the Services of an
+     * unreachable Workstation are not among {@code services}, so they get no Route.
      *
      * @param dashboard the URL the dashboard listens on
      */
@@ -34,11 +36,11 @@ final class RouteBuilder {
         Map<String, Router> routers = new LinkedHashMap<>();
         Map<String, Service> backends = new LinkedHashMap<>();
         services.stream()
-                .filter(service -> workstation.is(service.workstation()) && service.published()
-                        && !service.instances().isEmpty())
+                .filter(service -> service.hostname() != null && !service.instances().isEmpty())
                 .forEach(service -> {
-                    routers.put(service.name(), router(service.hostname(), service.name()));
-                    backends.put(service.name(), new Service(new LoadBalancer(service.instances().stream()
+                    String name = name(workstation, service);
+                    routers.put(name, router(service.hostname(), name));
+                    backends.put(name, new Service(new LoadBalancer(service.instances().stream()
                             .map(instance -> new Server("http://" + instance.address())).toList())));
                 });
         // Last, so it wins over anything above with its name.
@@ -46,6 +48,15 @@ final class RouteBuilder {
                 router(workstation.hostname(Workstation.RESERVED_NAME), Workstation.RESERVED_NAME));
         backends.put(Workstation.RESERVED_NAME, new Service(new LoadBalancer(List.of(new Server(dashboard)))));
         return new TraefikConfiguration(new Http(routers, backends));
+    }
+
+    /**
+     * The Traefik name of {@code service}'s Route and backend: its own name on its Home Workstation, and
+     * {@code <service>.<workstation>} for a Remote Service. A Service name is one DNS label, with no dot, so a Remote
+     * Service never takes the name of an own one, or of the dashboard's.
+     */
+    private static String name(Workstation workstation, dev.palazon.lvhyard.dashboard.services.Service service) {
+        return workstation.is(service.workstation()) ? service.name() : service.name() + "." + service.workstation();
     }
 
     /** A Route from {@code hostname} to the Traefik service called {@code name}. */

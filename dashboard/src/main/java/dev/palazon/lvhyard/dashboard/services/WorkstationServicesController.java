@@ -99,14 +99,18 @@ class WorkstationServicesController {
     }
 
     @PutMapping("/{service}/publication")
-    @Operation(operationId = "publish", summary = "Publishes a Service at <service>.<base-domain>, with Local Scope",
-            description = "The Route covers every Instance of the Service, including ones registered later."
-                    + " Publishing a published Service again changes nothing.")
+    @Operation(operationId = "publish",
+            summary = "Publishes a Service at <service>.<base-domain>, or changes its Scope",
+            description = "The Route covers every Instance of the Service, including ones registered later. With Yard"
+                    + " Scope, every other Workstation also routes it, at <service>.<workstation>.<base-domain>. With"
+                    + " no Scope, a new Publication gets Local Scope and one that exists keeps its own, so publishing"
+                    + " again changes nothing.")
     @ApiResponse(responseCode = "200", description = "The Service, published", useReturnTypeSchema = true)
-    @ApiResponse(responseCode = "400", description = "The name is not a single DNS label or is yard")
+    @ApiResponse(responseCode = "400", description = "The name is not a single DNS label or is yard, or the Scope is"
+            + " not local or yard")
     @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
-    Service publish(@PathVariable String service) {
-        publications.publish(workstation.name(), service);
+    Service publish(@PathVariable String service, @RequestBody(required = false) PublicationRequest request) {
+        publications.publish(workstation.name(), service, request == null ? null : request.scope());
         return service(service);
     }
 

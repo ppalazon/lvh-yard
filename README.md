@@ -48,10 +48,13 @@ yard register web --port 8080 --tag backend --meta owner=pablo           # repea
 yard remove web --port 8080             # add --host when the port is used on more than one host
 yard remove web --id <id>               # the ID that yard list shows
 yard publish web                        # http://web.<base-domain> on this Workstation (Local Scope)
+yard publish web --scope yard           # also http://web.<this-workstation>.<base-domain> on every other one
 yard unpublish web                      # removes the hostname; every Instance stays registered
 ```
 
 Each Service is `unpublished`, `unavailable` (published, no Instances), `unhealthy` (published, no passing Instance) or `healthy` (published, with a passing Instance). A Publication is kept in this Workstation's Consul KV, under `lvh-yard/publications/`. Traefik routes it to every Instance of the Service, including ones registered later.
+
+A new Publication has Local Scope: only this Workstation routes it. With Yard Scope, every other Workstation routes it too, at `<service>.<workstation>.<base-domain>`; this Workstation keeps `<service>.<base-domain>`. Publishing again without `--scope` keeps the Scope. A Yard-scoped Service warns, on its page, in the API and in `yard publish`, about each Instance on a loopback address, which other Workstations cannot reach. The Routes of a Workstation that stops answering are dropped, and come back once it answers.
 
 Each Instance has one health check: TCP, which connects to its port, or HTTP, which GETs a path and passes on a 2xx answer. Script checks are not offered. The Service's page shows each check's last output, and edits an Instance's host, port, check, tags and meta; it stays the same Instance.
 

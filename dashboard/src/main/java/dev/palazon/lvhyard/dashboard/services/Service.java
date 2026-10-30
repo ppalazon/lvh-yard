@@ -15,7 +15,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * @param publication its Publication; {@code null}, and left out of the JSON, when it is unpublished
  * @param hostname where this Workstation routes it while it has Instances; {@code null}, and left out of the
  *        JSON, when it is unpublished
+ * @param yardHostname where every other Workstation routes it, {@code <service>.<workstation>.<base-domain>};
+ *        {@code null}, and left out of the JSON, unless it has Yard Scope
  * @param instances its registered Instances, ordered by host and port
+ * @param warnings why other Workstations may not reach it, though its Scope gives them a Route
  */
 public record Service(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String workstation,
@@ -23,11 +26,15 @@ public record Service(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) ServiceState state,
         @JsonInclude(JsonInclude.Include.NON_NULL) Publication publication,
         @JsonInclude(JsonInclude.Include.NON_NULL) String hostname,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<Instance> instances) {
+        @JsonInclude(JsonInclude.Include.NON_NULL) String yardHostname,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<Instance> instances,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ServiceWarning> warnings) {
 
-    /** A Service in the state its {@code publication} and {@code instances} add up to. */
-    Service(String workstation, String name, Publication publication, String hostname, List<Instance> instances) {
-        this(workstation, name, ServiceState.of(publication, instances), publication, hostname, instances);
+    /** A Service in the state, and with the warnings, its {@code publication} and {@code instances} add up to. */
+    Service(String workstation, String name, Publication publication, String hostname, String yardHostname,
+            List<Instance> instances) {
+        this(workstation, name, ServiceState.of(publication, instances), publication, hostname, yardHostname,
+                instances, ServiceWarning.of(publication, instances));
     }
 
     /** Whether it has a Publication, whatever the Health of its Instances. */

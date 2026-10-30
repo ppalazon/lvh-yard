@@ -61,6 +61,12 @@ final class RemoteWorkstation implements AutoCloseable {
         http.put().uri(DashboardTest.publicationPath(service)).retrieve().toBodilessEntity();
     }
 
+    /** Publishes {@code service} on this Workstation with {@code scope}, such as {@code yard}. */
+    void publish(String service, String scope) {
+        http.put().uri(DashboardTest.publicationPath(service)).contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("scope", scope)).retrieve().toBodilessEntity();
+    }
+
     /** One of this Workstation's Services, as its own dashboard sees it. */
     ResponseEntity<JsonNode> service(String service) {
         return http.get().uri(DashboardTest.servicePath(service)).retrieve().toEntity(JsonNode.class);

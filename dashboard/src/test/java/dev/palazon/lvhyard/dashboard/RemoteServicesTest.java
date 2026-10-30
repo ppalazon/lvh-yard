@@ -124,6 +124,28 @@ class RemoteServicesTest extends DashboardTest {
     }
 
     @Test
+    void remoteServiceWithYardScopeHasItsWorkstationsHostname() {
+        String api = newServiceName("api");
+        remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
+
+        remote.publish(api, "yard");
+
+        JsonNode service = get("/api/services/" + RemoteWorkstation.NAME + "/" + api).getBody();
+        assertThat(service.get("publication").get("scope").asString()).isEqualTo("yard");
+        assertThat(service.get("hostname").asString()).isEqualTo(api + "." + RemoteWorkstation.NAME + ".lvh.test");
+    }
+
+    @Test
+    void remoteServiceWithLocalScopeHasNoHostnameHere() {
+        String api = newServiceName("api");
+        remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
+
+        remote.publish(api, "local");
+
+        assertThat(get("/api/services/" + RemoteWorkstation.NAME + "/" + api).getBody().has("hostname")).isFalse();
+    }
+
+    @Test
     void workstationNotInTheYardIsNotFound() {
         ResponseEntity<JsonNode> services = get("/api/services?workstation=ws-typo");
         ResponseEntity<JsonNode> service = get("/api/services/ws-typo/" + newServiceName("api"));

@@ -19,6 +19,7 @@ import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
 import dev.palazon.lvhyard.dashboard.services.Publications;
 import dev.palazon.lvhyard.dashboard.services.Registrations;
 import dev.palazon.lvhyard.dashboard.services.RemoteServiceException;
+import dev.palazon.lvhyard.dashboard.services.Scope;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import dev.palazon.lvhyard.dashboard.services.UnknownInstanceException;
 import dev.palazon.lvhyard.dashboard.services.UnknownServiceException;
@@ -139,11 +140,17 @@ class PagesController {
         return seeOther(yard.service(home, service).map(ServicePage::path).orElse("/"));
     }
 
-    /** Publishes a Service with Local Scope, then shows it. */
+    /**
+     * Publishes a Service with {@code scope}, local or yard, then shows it. With no Scope, a new Publication gets
+     * Local Scope and one that exists keeps its own.
+     */
     @PostMapping("/services/{workstation}/{service}/publish")
-    ResponseEntity<String> publish(@PathVariable("workstation") String home, @PathVariable String service) {
+    ResponseEntity<String> publish(@PathVariable("workstation") String home, @PathVariable String service,
+            @RequestParam(required = false) String scope) {
+        Scope chosen = scope == null ? null : Scope.named(scope).orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.BAD_REQUEST, "The Scope is local or yard, not " + scope + "."));
         try {
-            publications.publish(home, service);
+            publications.publish(home, service, chosen);
         } catch (UnknownServiceException e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
         } catch (InvalidRegistrationException e) {

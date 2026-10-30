@@ -28,14 +28,19 @@ public class Publications {
     }
 
     /**
-     * Publishes {@code service} of {@code workstation}, which must be this one, with Local Scope. Publishing a
-     * published Service again changes nothing.
+     * Publishes {@code service} of {@code workstation}, which must be this one, with {@code scope}. With no Scope, a
+     * new Publication gets Local Scope and one that exists keeps its own, so publishing again changes nothing.
      */
-    public void publish(String workstation, String service) {
+    public void publish(String workstation, String service, Scope scope) {
         checkHome(workstation);
         Registrations.checkName(service);
         checkExists(service);
-        consul.putValue(PREFIX + service, Scope.LOCAL.value());
+        Scope chosen = scope;
+        if (chosen == null) {
+            Publication existing = all().get(service);
+            chosen = existing == null ? Scope.LOCAL : existing.scope();
+        }
+        consul.putValue(PREFIX + service, chosen.value());
     }
 
     /** Removes the Publication of {@code service} of {@code workstation}, which must be this one, if it has one. */

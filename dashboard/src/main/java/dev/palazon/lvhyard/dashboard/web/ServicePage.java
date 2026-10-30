@@ -2,16 +2,20 @@ package dev.palazon.lvhyard.dashboard.web;
 
 import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
+import org.xmlet.htmlapifaster.EnumTypeInputType;
+import org.xmlet.htmlapifaster.Main;
 import org.xmlet.htmlapifaster.Tr;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.services.Instance;
+import dev.palazon.lvhyard.dashboard.services.Scope;
 import dev.palazon.lvhyard.dashboard.services.Service;
+import dev.palazon.lvhyard.dashboard.services.ServiceWarning;
 
 /**
- * One Service: its state and Publication with a button to change it, and its Instances, each with its tags, meta and
- * each check's last output, and buttons to edit and remove it. A Remote Service's page has no forms or buttons: only
- * its Home Workstation can change it.
+ * One Service: its state and Publication with buttons to change it and its Scope, its warnings, and its Instances,
+ * each with its tags, meta and each check's last output, and buttons to edit and remove it. A Remote Service's page
+ * has no forms or buttons: only its Home Workstation can change it.
  */
 final class ServicePage {
 
@@ -47,13 +51,18 @@ final class ServicePage {
                 .p().text("On Workstation " + service.workstation() + "."
                         + (own ? "" : " It can be changed only on " + service.workstation() + ".")).__()
                 .div().attrClass("flex flex-wrap items-center justify-between gap-4")
-                    .of(div -> publication(div, service, own))
+                    .of(div -> publication(div, workstation, service, own))
                     .of(div -> {
                         if (own) {
-                            publicationForm(div, service);
+                            publicationForms(div, service);
                         }
                     })
                 .__()
+                .of(content -> {
+                    if (!service.warnings().isEmpty()) {
+                        warnings(content, service);
+                    }
+                })
                 .of(content -> {
                     if (service.instances().isEmpty()) {
                         content.p().text("No Instances are registered.").__();
@@ -89,16 +98,45 @@ final class ServicePage {
                 .__().__());
     }
 
-    /** The button that publishes the Service, or unpublishes it. */
-    private static void publicationForm(Div<?> div, Service service) {
-        div.form().addAttr("method", "post").addAttr("action", Layout.attr(publicationPath(service)))
-                .button().attrType(EnumTypeButtonType.SUBMIT).attrClass("btn")
-                        .of(button -> {
-                            if (service.published()) {
-                                button.addAttr("data-variant", "outline");
-                            }
-                        })
-                        .text(service.published() ? "Unpublish" : "Publish").__()
+    /**
+     * The button that publishes the Service with Local Scope, or, once it is published, the buttons that change its
+     * Scope and unpublish it.
+     */
+    private static void publicationForms(Div<?> div, Service service) {
+        div.div().attrClass("flex flex-wrap gap-2")
+                .of(buttons -> {
+                    if (service.published()) {
+                        boolean yard = service.publication().scope() == Scope.YARD;
+                        buttons.form().addAttr("method", "post")
+                                .addAttr("action", Layout.attr(path(service) + "/publish"))
+                                .input().attrType(EnumTypeInputType.HIDDEN).attrName("scope")
+                                        .attrValue(yard ? Scope.LOCAL.value() : Scope.YARD.value()).__()
+                                .button().attrType(EnumTypeButtonType.SUBMIT).attrClass("btn")
+                                        .addAttr("data-variant", "outline")
+                                        .text(yard ? "Keep on this Workstation" : "Share with the Yard").__()
+                        .__();
+                    }
+                })
+                .form().addAttr("method", "post").addAttr("action", Layout.attr(publicationPath(service)))
+                    .button().attrType(EnumTypeButtonType.SUBMIT).attrClass("btn")
+                            .of(button -> {
+                                if (service.published()) {
+                                    button.addAttr("data-variant", "outline");
+                                }
+                            })
+                            .text(service.published() ? "Unpublish" : "Publish").__()
+                .__()
+        .__();
+    }
+
+    /** Why other Workstations may not reach the Service, though its Scope gives them a Route. */
+    private static void warnings(Main<?> content, Service service) {
+        content.div().attrClass("alert").addAttr("data-variant", "destructive").addAttr("role", "alert")
+                .h3().text("Other Workstations may not reach this Service").__()
+                .section().ul()
+                    .of(list -> service.warnings().stream().map(ServiceWarning::message)
+                            .forEach(message -> list.li().text(message).__()))
+                .__().__()
         .__();
     }
 
@@ -120,28 +158,39 @@ final class ServicePage {
 
     /**
      * Where the Service is published, with its Scope, or that it is not. A Remote Service with Local Scope has no
-     * hostname here.
+     * hostname here; an own one with Yard Scope also says where the other Workstations reach it.
      */
-    private static void publication(Div<?> div, Service service, boolean own) {
+    private static void publication(Div<?> div, Workstation workstation, Service service, boolean own) {
         if (!service.published()) {
             div.p().text("Not published: it has no hostname. Its Instances stay registered either way.").__();
             return;
         }
-        if (!own) {
+        boolean yard = service.publication().scope() == Scope.YARD;
+        if (!own && !yard) {
             div.p().text("Published with " + scopeLabel(service) + " Scope: only " + service.workstation()
                     + " routes it.").__();
             return;
         }
+        String routedBy;
+        if (!yard) {
+            routedBy = ": only this Workstation routes it.";
+        } else if (own) {
+            routedBy = ": every other Workstation routes it at "
+                    + service.yardHostname() + ".";
+        } else {
+            routedBy = ": every Workstation of the Yard routes it.";
+        }
         div.p()
                 .text("Published at ")
                 .of(p -> ServiceViews.hostname(p, service))
-                .text(", with " + scopeLabel(service) + " Scope: only this Workstation routes it.")
+                .text(", with " + scopeLabel(service) + " Scope" + routedBy)
         .__();
     }
 
     private static String scopeLabel(Service service) {
         return switch (service.publication().scope()) {
             case LOCAL -> "Local";
+            case YARD -> "Yard";
         };
     }
 }

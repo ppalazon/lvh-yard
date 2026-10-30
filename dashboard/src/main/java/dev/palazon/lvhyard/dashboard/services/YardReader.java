@@ -31,8 +31,9 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
  * Reads the Services of the Yard, with their Instances, Health and Publications, from every Workstation's Consul
  * datacenter, and gives each published one its hostname: the one rule for hostnames, which the Routes and the pages
  * both follow. A datacenter that does not answer makes its Workstation unreachable; the others still load. This
- * Workstation's own Services are at {@code <service>.<base-domain>} (ADR-0003); Remote Services get no hostname
- * here until a Publication can have Yard Scope.
+ * Workstation's own Services are at {@code <service>.<base-domain>}, whatever their Scope. Remote Services with Yard
+ * Scope are at {@code <service>.<workstation>.<base-domain>} (ADR-0003), and those with Local Scope get no hostname
+ * here.
  */
 @Component
 public class YardReader {
@@ -170,8 +171,24 @@ public class YardReader {
         if (instances.isEmpty() && publication == null) {
             return Optional.empty();
         }
-        String hostname = publication != null && workstation.is(home) ? workstation.hostname(name) : null;
-        return Optional.of(new Service(home, name, publication, hostname, instances));
+        return Optional.of(new Service(home, name, publication, hostname(home, name, publication),
+                yardHostname(home, name, publication), instances));
+    }
+
+    /** Where this Workstation routes {@code name} of {@code home}, published with {@code publication}, if it does. */
+    private String hostname(String home, String name, Publication publication) {
+        if (publication == null) {
+            return null;
+        }
+        if (workstation.is(home)) {
+            return workstation.hostname(name);
+        }
+        return yardHostname(home, name, publication);
+    }
+
+    /** Where every other Workstation routes {@code name} of {@code home}, if its {@code publication} has Yard Scope. */
+    private String yardHostname(String home, String name, Publication publication) {
+        return publication != null && publication.scope() == Scope.YARD ? workstation.hostname(home, name) : null;
     }
 
     private static Instance instance(HealthEntry entry) {

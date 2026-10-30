@@ -23,4 +23,12 @@ public record Workstation(String name, String baseDomain) {
     public String hostname(String name) {
         return name + "." + baseDomain;
     }
+
+    /**
+     * Where this Workstation reaches {@code service} of another Workstation, {@code home}:
+     * {@code <service>.<home>.<base-domain>} (ADR-0003).
+     */
+    public String hostname(String home, String service) {
+        return service + "." + home + "." + baseDomain;
+    }
 }
