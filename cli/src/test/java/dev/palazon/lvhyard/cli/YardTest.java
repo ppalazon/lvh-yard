@@ -401,6 +401,101 @@ class YardTest {
     }
 
     @Test
+    void aliasAddGivesTheRemoteServiceOfTheSameNameItsAlias() {
+        dashboard.answer("PUT", "/api/workstation/aliases/grafana", 200, """
+                {"name": "grafana", "workstation": "ws-b", "service": "grafana", "hostname": "grafana.lvh.me",
+                 "state": "active"}
+                """);
+
+        Run run = yard("alias", "add", "grafana", "--workstation", "ws-b");
+
+        assertThat(run.exitCode()).isZero();
+        assertThat(run.out()).isEqualTo("grafana.lvh.me now reaches grafana on ws-b.\n");
+        dashboard.verifyCalled("PUT", "/api/workstation/aliases/grafana", """
+                {"workstation": "ws-b", "service": "grafana"}
+                """);
+    }
+
+    @Test
+    void aliasAddWithoutARouteSaysWhy() {
+        dashboard.answer("PUT", "/api/workstation/aliases/db", 200, """
+                {"name": "db", "workstation": "ws-b", "service": "postgres", "hostname": "db.lvh.me",
+                 "state": "not-shared", "reason": "ws-b publishes postgres with Local Scope, so only ws-b routes it."}
+                """);
+
+        Run run = yard("alias", "add", "db", "--workstation", "ws-b", "--service", "postgres");
+
+        assertThat(run.exitCode()).isZero();
+        assertThat(run.out()).isEqualTo("db.lvh.me names postgres on ws-b, but has no Route for now.\n");
+        assertThat(run.err())
+                .isEqualTo("Warning: ws-b publishes postgres with Local Scope, so only ws-b routes it.\n");
+        dashboard.verifyCalled("PUT", "/api/workstation/aliases/db", """
+                {"workstation": "ws-b", "service": "postgres"}
+                """);
+    }
+
+    @Test
+    void aliasAddNeedsTheWorkstation() {
+        Run run = yard("alias", "add", "grafana");
+
+        assertThat(run.exitCode()).isEqualTo(CommandLine.ExitCode.USAGE);
+        assertThat(run.err()).contains("--workstation");
+    }
+
+    @Test
+    void aliasAddOfAnUnknownServiceIsRefused() {
+        dashboard.answer("PUT", "/api/workstation/aliases/grafana", 404, """
+                {"type": "about:blank", "title": "Not Found", "status": 404,
+                 "detail": "Workstation ws-b has no Service grafana."}
+                """);
+
+        Run run = yard("alias", "add", "grafana", "--workstation", "ws-b");
+
+        assertThat(run.exitCode()).isNotZero();
+        assertThat(run.err()).isEqualTo("Workstation ws-b has no Service grafana.\n");
+    }
+
+    @Test
+    void aliasListShowsEachAliasWithItsServiceAndState() {
+        dashboard.answer("GET", "/api/workstation/aliases", 200, """
+                [{"name": "db", "workstation": "ws-b", "service": "postgres", "hostname": "db.lvh.me",
+                  "state": "hidden",
+                  "reason": "Hidden: this Workstation's Service db is published at the same hostname, and wins."},
+                 {"name": "grafana", "workstation": "ws-b", "service": "grafana", "hostname": "grafana.lvh.me",
+                  "state": "active"}]
+                """);
+
+        Run run = yard("alias", "list");
+
+        assertThat(run.exitCode()).isZero();
+        assertThat(run.lines()).containsExactly(
+                "db.lvh.me: postgres on ws-b, hidden",
+                "  Hidden: this Workstation's Service db is published at the same hostname, and wins.",
+                "grafana.lvh.me: grafana on ws-b, active");
+    }
+
+    @Test
+    void aliasListWithoutAliasesSaysSo() {
+        dashboard.answer("GET", "/api/workstation/aliases", 200, "[]");
+
+        Run run = yard("alias", "list");
+
+        assertThat(run.exitCode()).isZero();
+        assertThat(run.out()).isEqualTo("No Aliases.\n");
+    }
+
+    @Test
+    void aliasRemoveRemovesTheAlias() {
+        dashboard.answer("DELETE", "/api/workstation/aliases/grafana", 204, null);
+
+        Run run = yard("alias", "remove", "grafana");
+
+        assertThat(run.exitCode()).isZero();
+        assertThat(run.out()).isEqualTo("Removed the Alias grafana.\n");
+        dashboard.verifyCalled("DELETE", "/api/workstation/aliases/grafana");
+    }
+
+    @Test
     void refusalIsPrintedWithItsReason() {
         dashboard.answer("POST", "/api/workstation/services/Web/instances", 400, """
                 {"type": "about:blank", "title": "Bad Request", "status": 400,

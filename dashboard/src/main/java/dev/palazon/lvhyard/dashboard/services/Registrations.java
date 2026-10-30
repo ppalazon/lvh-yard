@@ -217,13 +217,21 @@ public class Registrations {
 
     /** Refuses a Service name that is not a single DNS label, or is the dashboard's own. */
     static void checkName(String service) {
-        if (!DNS_LABEL.matcher(service).matches()) {
-            throw new InvalidRegistrationException("name", "The Service name " + service
+        checkName("Service", service);
+    }
+
+    /**
+     * Refuses the name of a {@code kind}, such as an Alias, that is not a single DNS label, or is the dashboard's
+     * own: a Service and an Alias both take a hostname's first part.
+     */
+    static void checkName(String kind, String name) {
+        if (!DNS_LABEL.matcher(name).matches()) {
+            throw new InvalidRegistrationException("name", "The " + kind + " name " + name
                     + " is not a single DNS label: use 1 to 63 lowercase letters, digits and -, not starting or"
                     + " ending with -.");
         }
-        if (service.equals(Workstation.RESERVED_NAME)) {
-            throw new InvalidRegistrationException("name", "The Service name " + Workstation.RESERVED_NAME
+        if (name.equals(Workstation.RESERVED_NAME)) {
+            throw new InvalidRegistrationException("name", "The " + kind + " name " + Workstation.RESERVED_NAME
                     + " is taken by the dashboard, at " + Workstation.RESERVED_NAME + ".<base-domain>.");
         }
     }

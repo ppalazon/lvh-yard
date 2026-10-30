@@ -37,6 +37,11 @@ public record Service(
                 instances, ServiceWarning.of(publication, instances));
     }
 
+    /** Whether it is published with Yard Scope, so every Workstation of the Yard routes it. */
+    public boolean sharedWithYard() {
+        return published() && publication.scope() == Scope.YARD;
+    }
+
     /** Whether it has a Publication, whatever the Health of its Instances. */
     public boolean published() {
         return publication != null;

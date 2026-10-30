@@ -13,7 +13,8 @@ import picocli.CommandLine.Spec;
  * {@code openapi.yaml} describes; it never talks to Consul.
  */
 @Command(name = "yard", mixinStandardHelpOptions = true,
-        subcommands = { ListServices.class, Register.class, Remove.class, Publish.class, Unpublish.class },
+        subcommands = { ListServices.class, Register.class, Remove.class, Publish.class, Unpublish.class,
+                Alias.class },
         description = "Registers, publishes and tests Services on this Workstation's LVH Yard.")
 public class Yard implements Runnable {
 

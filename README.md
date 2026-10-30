@@ -50,11 +50,17 @@ yard remove web --id <id>               # the ID that yard list shows
 yard publish web                        # http://web.<base-domain> on this Workstation (Local Scope)
 yard publish web --scope yard           # also http://web.<this-workstation>.<base-domain> on every other one
 yard unpublish web                      # removes the hostname; every Instance stays registered
+yard alias add grafana --workstation ws-b                 # http://grafana.<base-domain> for grafana of ws-b, here only
+yard alias add db --workstation ws-b --service postgres   # another name than the Service's
+yard alias list                         # each Alias, its Remote Service and its state
+yard alias remove grafana
 ```
 
 Each Service is `unpublished`, `unavailable` (published, no Instances), `unhealthy` (published, no passing Instance) or `healthy` (published, with a passing Instance). A Publication is kept in this Workstation's Consul KV, under `lvh-yard/publications/`. Traefik routes it to every Instance of the Service, including ones registered later.
 
 A new Publication has Local Scope: only this Workstation routes it. With Yard Scope, every other Workstation routes it too, at `<service>.<workstation>.<base-domain>`; this Workstation keeps `<service>.<base-domain>`. Publishing again without `--scope` keeps the Scope. A Yard-scoped Service warns, on its page, in the API and in `yard publish`, about each Instance on a loopback address, which other Workstations cannot reach. An Instance of a Remote Service on a loopback address or a Docker bridge network (172.17.0.0/16 to 172.31.0.0/16) is out of range here: the API (`outOfRange`), the page and `yard list` mark it, and no Route points to it, because it would reach this computer's own loopback or containers. `YARD_OUT_OF_RANGE` replaces that list when your LAN uses those addresses; the test Yard leaves loopback out, as its two Workstations share it. The Routes of a Workstation that stops answering, or whose Services fail to read for any other reason, are dropped, and come back once it is read again; the other Workstations keep theirs.
+
+An Alias gives a Remote Service a short hostname on this Workstation only, such as `grafana.<base-domain>` for `grafana.ws-b.<base-domain>`. Add, list and remove them on the Aliases page or with `yard alias`. An Alias is kept in this Workstation's Consul KV, under `lvh-yard/aliases/`, and no other Workstation routes it. Its name follows the Service name rules, and `yard` is refused. It must name a Service of another Workstation of the Yard. An Alias is `active`, routed to the Remote Service's Instances, while that Service has Yard Scope. Otherwise it has no Route and says why: `unavailable` (the Service has no Instance in range here), `hidden` (a published Service of this Workstation has the same name, and wins), `not-shared` (the Service is unpublished or has Local Scope), `unreachable` (its Workstation does not answer) or `missing` (the Service or its Workstation is gone).
 
 Each Instance has one health check: TCP, which connects to its port, or HTTP, which GETs a path and passes on a 2xx answer. Script checks are not offered. The Service's page shows each check's last output, and edits an Instance's host, port, check, tags and meta; it stays the same Instance.
 

@@ -234,12 +234,12 @@ class TraefikConfigurationTest extends DashboardTest {
     }
 
     /** The hostname of every Route, from its {@code Host(`...`)} rule. */
-    private static List<String> routedHostnames(JsonNode http) {
+    static List<String> routedHostnames(JsonNode http) {
         return http.get("routers").valueStream().map(router -> hostnameOf(router.get("rule").asString())).toList();
     }
 
     /** Where the Route for {@code hostname} sends requests. */
-    private static List<String> serverUrlsAt(JsonNode http, String hostname) {
+    static List<String> serverUrlsAt(JsonNode http, String hostname) {
         JsonNode router = http.get("routers").valueStream()
                 .filter(candidate -> hostnameOf(candidate.get("rule").asString()).equals(hostname))
                 .findFirst().orElseThrow(() -> new AssertionError("No Route for " + hostname + " in " + http));

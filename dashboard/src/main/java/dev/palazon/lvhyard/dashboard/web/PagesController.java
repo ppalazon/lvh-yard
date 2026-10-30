@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.server.ResponseStatusException;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
+import dev.palazon.lvhyard.dashboard.services.Aliases;
 import dev.palazon.lvhyard.dashboard.services.Instance;
 import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
 import dev.palazon.lvhyard.dashboard.services.Publications;
@@ -21,10 +22,12 @@ import dev.palazon.lvhyard.dashboard.services.Registrations;
 import dev.palazon.lvhyard.dashboard.services.RemoteServiceException;
 import dev.palazon.lvhyard.dashboard.services.Scope;
 import dev.palazon.lvhyard.dashboard.services.Service;
+import dev.palazon.lvhyard.dashboard.services.UnknownAliasException;
 import dev.palazon.lvhyard.dashboard.services.UnknownInstanceException;
 import dev.palazon.lvhyard.dashboard.services.UnknownServiceException;
 import dev.palazon.lvhyard.dashboard.services.UnknownWorkstationException;
 import dev.palazon.lvhyard.dashboard.services.UnreachableWorkstationException;
+import dev.palazon.lvhyard.dashboard.services.Yard;
 import dev.palazon.lvhyard.dashboard.services.YardReader;
 
 /** The HTML pages. They only translate to views. */
@@ -39,12 +42,15 @@ class PagesController {
 
     private final Publications publications;
 
+    private final Aliases aliases;
+
     PagesController(Workstation workstation, YardReader yard, Registrations registrations,
-            Publications publications) {
+            Publications publications, Aliases aliases) {
         this.workstation = workstation;
         this.yard = yard;
         this.registrations = registrations;
         this.publications = publications;
+        this.aliases = aliases;
     }
 
     @GetMapping(path = "/", produces = MediaType.TEXT_HTML_VALUE)
@@ -172,6 +178,50 @@ class PagesController {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage(), e);
         }
         return seeOther(yard.service(home, service).map(ServicePage::path).orElse("/"));
+    }
+
+    @GetMapping(path = AliasesPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
+    @ResponseBody
+    String aliases() {
+        return aliasesPage("", "", null);
+    }
+
+    /**
+     * Gives the Remote Service {@code target}, {@code <workstation>/<service>}, the Alias {@code name}, then shows
+     * the Aliases, or the form again with the error.
+     */
+    @PostMapping(path = AliasesPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
+    ResponseEntity<String> addAlias(@RequestParam String name, @RequestParam String target) {
+        int slash = target.indexOf('/');
+        if (slash < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "The Remote Service is <workstation>/<service>, not " + target + ".");
+        }
+        try {
+            aliases.add(name.strip(), target.substring(0, slash), target.substring(slash + 1));
+        } catch (InvalidRegistrationException error) {
+            return ResponseEntity.badRequest().contentType(Layout.HTML).body(aliasesPage(name, target, error));
+        } catch (UnknownWorkstationException | UnknownServiceException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+        } catch (UnreachableWorkstationException e) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage(), e);
+        }
+        return seeOther(AliasesPage.PATH);
+    }
+
+    @PostMapping(AliasesPage.PATH + "/{alias}/remove")
+    ResponseEntity<String> removeAlias(@PathVariable String alias) {
+        try {
+            aliases.remove(alias);
+        } catch (UnknownAliasException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+        }
+        return seeOther(AliasesPage.PATH);
+    }
+
+    private String aliasesPage(String name, String target, InvalidRegistrationException error) {
+        Yard read = yard.routableYard();
+        return AliasesPage.render(workstation, read, aliases.of(read), name, target, error);
     }
 
     /** After a form is posted, the browser loads {@code path} with a GET, so a reload does not post again. */

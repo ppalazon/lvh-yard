@@ -67,6 +67,21 @@ final class RemoteWorkstation implements AutoCloseable {
                 .body(Map.of("scope", scope)).retrieve().toBodilessEntity();
     }
 
+    /** Unpublishes {@code service} on this Workstation, through its dashboard. */
+    void unpublish(String service) {
+        http.delete().uri(DashboardTest.publicationPath(service)).retrieve().toBodilessEntity();
+    }
+
+    /** Removes the Static Instance {@code id} of {@code service} on this Workstation, through its dashboard. */
+    void remove(String service, String id) {
+        http.delete().uri(DashboardTest.instancesPath(service) + "/" + id).retrieve().toBodilessEntity();
+    }
+
+    /** What this Workstation's Traefik reads from its dashboard. */
+    JsonNode traefikConfiguration() {
+        return http.get().uri("/traefik/configuration").retrieve().body(JsonNode.class);
+    }
+
     /** One of this Workstation's Services, as its own dashboard sees it. */
     ResponseEntity<JsonNode> service(String service) {
         return http.get().uri(DashboardTest.servicePath(service)).retrieve().toEntity(JsonNode.class);

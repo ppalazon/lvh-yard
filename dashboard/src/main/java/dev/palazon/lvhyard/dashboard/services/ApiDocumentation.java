@@ -23,9 +23,10 @@ import io.swagger.v3.oas.models.media.StringSchema;
  */
 @Configuration(proxyBeanMethods = false)
 @OpenAPIDefinition(info = @Info(title = "LVH Yard",
-        description = "The Workstations and Services of the Yard, read only, and the Static Instances and"
-                + " Publications of this Workstation's Services. A Remote Service can be changed only on its Home"
-                + " Workstation, so a change asked under /api/services is refused with 405."),
+        description = "The Workstations and Services of the Yard, read only, the Static Instances and"
+                + " Publications of this Workstation's Services, and this Workstation's Aliases. A Remote Service"
+                + " can be changed only on its Home Workstation, so a change asked under /api/services is refused"
+                + " with 405."),
         servers = @Server(url = "/"))
 class ApiDocumentation {
 

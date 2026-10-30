@@ -32,6 +32,8 @@ class OpenApiTest extends DashboardTest {
                 "/api/services",
                 "/api/services/{workstation}/{service}",
                 "/api/yard",
+                "/api/workstation/aliases",
+                "/api/workstation/aliases/{alias}",
                 "/api/workstation/services",
                 "/api/workstation/services/{service}",
                 "/api/workstation/services/{service}/instances",
@@ -55,6 +57,8 @@ class OpenApiTest extends DashboardTest {
                 .isTrue();
         assertThat(answersWithProblem(paths, "/api/workstation/services/{service}/publication", "delete", "404"))
                 .isTrue();
+        assertThat(answersWithProblem(paths, "/api/workstation/aliases/{alias}", "put", "400")).isTrue();
+        assertThat(answersWithProblem(paths, "/api/workstation/aliases/{alias}", "delete", "404")).isTrue();
     }
 
     @Test

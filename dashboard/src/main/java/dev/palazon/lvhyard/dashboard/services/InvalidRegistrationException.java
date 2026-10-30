@@ -15,7 +15,7 @@ public class InvalidRegistrationException extends RuntimeException {
 
     /**
      * The field the rule is about: {@code name}, {@code host}, {@code port}, {@code check}, {@code path},
-     * {@code interval}, {@code timeout}, {@code tags} or {@code meta}.
+     * {@code interval}, {@code timeout}, {@code tags}, {@code meta}, or {@code workstation} for an Alias.
      */
     public String field() {
         return field;

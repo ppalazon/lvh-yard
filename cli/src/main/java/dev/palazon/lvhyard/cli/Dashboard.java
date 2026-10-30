@@ -76,6 +76,17 @@ final class Dashboard {
     record YardWorkstation(String name, boolean unreachable, List<Service> services) {
     }
 
+    /**
+     * A short hostname this Workstation gives to a Remote Service. Its state is active, unavailable, hidden,
+     * not-shared, unreachable or missing; one that is not active has no Route, and a reason that says why.
+     */
+    record Alias(String name, String workstation, String service, String hostname, String state, String reason) {
+
+        boolean active() {
+            return "active".equals(state);
+        }
+    }
+
     /** A Service's Publication, with its Scope. */
     record Publication(String scope) {
     }
@@ -182,6 +193,29 @@ final class Dashboard {
     /** Unpublishes this Workstation's {@code service}, which keeps its Instances. */
     void unpublish(String service) {
         send(HttpRequest.newBuilder(publicationUrl(service)).DELETE());
+    }
+
+    /** This Workstation's Aliases, by name. */
+    List<Alias> aliases() {
+        return read(send(get("api/workstation/aliases")), new TypeReference<>() { });
+    }
+
+    /** Gives {@code service} of {@code workstation} the Alias {@code name}, and answers the Alias with its state. */
+    Alias addAlias(String name, String workstation, String service) {
+        HttpRequest.Builder request = HttpRequest.newBuilder(aliasUrl(name))
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                        Map.of("workstation", workstation, "service", service))));
+        return read(send(request), new TypeReference<>() { });
+    }
+
+    /** Removes the Alias {@code name}. */
+    void removeAlias(String name) {
+        send(HttpRequest.newBuilder(aliasUrl(name)).DELETE());
+    }
+
+    private URI aliasUrl(String name) {
+        return url.resolve("api/workstation/aliases/" + segment(name));
     }
 
     private URI publicationUrl(String service) {

@@ -96,12 +96,11 @@ public class YardReader {
     }
 
     /**
-     * Every Service that may get a Route on this Workstation: this Workstation's, then those of every other one whose
-     * Services can be read. Another Workstation that does not answer, or whose Services fail to read for any other
-     * reason, such as a Publication this dashboard cannot read, has none here, so it never takes the Routes of the
-     * others with it. The fault is logged, as the API still reports it.
+     * The Yard as the Routes see it: every other Workstation that does not answer, or whose Services fail to read for
+     * any other reason, such as a Publication this dashboard cannot read, is unreachable here, with no Services, so it
+     * never takes the Routes of the others with it. The fault is logged, as the API still reports it.
      */
-    public List<Service> routableServices() {
+    public Yard routableYard() {
         return yard(remote -> {
             try {
                 return remote(remote);
@@ -109,7 +108,7 @@ public class YardReader {
                 LOG.warn("The Services of {} cannot be read, so it gets no Routes for now", remote, fault);
                 return new YardWorkstation(remote, true, List.of());
             }
-        }).services();
+        });
     }
 
     /** This Workstation, and every other one as {@code remote} reads it, side by side. */

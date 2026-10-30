@@ -6,13 +6,16 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
+import dev.palazon.lvhyard.dashboard.services.Aliases;
+import dev.palazon.lvhyard.dashboard.services.Yard;
 import dev.palazon.lvhyard.dashboard.services.YardReader;
 
 /**
  * The Routes Traefik polls for: the dashboard's own, at {@code yard.<base-domain>}, one per published Service of
- * this Workstation, and one per Yard-scoped Service of every other Workstation whose Services can be read. A
- * Workstation that stops answering, or whose Services fail to read, loses its Routes at the next poll, and gets them
- * back once it is read again; the others keep theirs.
+ * this Workstation, one per Yard-scoped Service of every other Workstation whose Services can be read, and one per
+ * active Alias of this Workstation. A Workstation that stops answering, or whose Services fail to read, loses its
+ * Routes, and the Routes of the Aliases to its Services, at the next poll, and gets them back once it is read again;
+ * the others keep theirs.
  */
 @RestController
 class TraefikController {
@@ -24,11 +27,14 @@ class TraefikController {
 
     private final YardReader yard;
 
+    private final Aliases aliases;
+
     private final Environment environment;
 
-    TraefikController(Workstation workstation, YardReader yard, Environment environment) {
+    TraefikController(Workstation workstation, YardReader yard, Aliases aliases, Environment environment) {
         this.workstation = workstation;
         this.yard = yard;
+        this.aliases = aliases;
         this.environment = environment;
     }
 
@@ -36,6 +42,7 @@ class TraefikController {
     TraefikConfiguration configuration() {
         // The port the server actually listens on, which is only known once it has started.
         String dashboard = "http://127.0.0.1:" + environment.getRequiredProperty("local.server.port");
-        return RouteBuilder.build(workstation, dashboard, yard.routableServices());
+        Yard routable = yard.routableYard();
+        return RouteBuilder.build(workstation, dashboard, routable.services(), aliases.of(routable));
     }
 }

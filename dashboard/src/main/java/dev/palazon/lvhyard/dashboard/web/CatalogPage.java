@@ -25,7 +25,11 @@ final class CatalogPage {
         return Layout.page("Catalog", workstation.name(), main -> main
                 .div().attrClass("flex flex-wrap items-center justify-between gap-4")
                     .h1().text("Catalog").__()
-                    .a().attrHref(RegisterPage.PATH).attrClass("btn").text("Register").__()
+                    .div().attrClass("flex flex-wrap gap-2")
+                        .a().attrHref(AliasesPage.PATH).attrClass("btn").addAttr("data-variant", "outline")
+                                .text("Aliases").__()
+                        .a().attrHref(RegisterPage.PATH).attrClass("btn").text("Register").__()
+                    .__()
                 .__()
                 .p().text("Workstation " + workstation.name() + ", base domain " + workstation.baseDomain() + ".")
                 .__()

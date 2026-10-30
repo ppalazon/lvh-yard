@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
+import dev.palazon.lvhyard.dashboard.services.Alias;
 import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.Http;
 import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.LoadBalancer;
 import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.Router;
@@ -12,13 +13,19 @@ import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.Server;
 import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.Service;
 
 /**
- * Turns the Yard's Services into Traefik's configuration: which Services get a Route, at the hostname each Service
- * carries. It reads nothing itself.
+ * Turns the Yard's Services and this Workstation's Aliases into Traefik's configuration: which Services and Aliases
+ * get a Route, at the hostname each one carries. It reads nothing itself.
  */
 final class RouteBuilder {
 
     /** The entry point compose.yaml gives Traefik for plain HTTP. */
     private static final String HTTP_ENTRY_POINT = "web";
+
+    /**
+     * What an Alias's Route is named after: {@code alias_<alias>}. A Service name or a Workstation name never has an
+     * _, so it never takes the name of a Service's Route.
+     */
+    private static final String ALIAS_PREFIX = "alias_";
 
     private RouteBuilder() {
     }
@@ -29,12 +36,13 @@ final class RouteBuilder {
      * would reach this Workstation's own instead), and the
      * dashboard's own at {@code yard.<base-domain>}, which no Service can replace. A Service has a hostname here
      * when it is published on this Workstation, or published with Yard Scope on another one; the Services of an
-     * unreachable Workstation are not among {@code services}, so they get no Route.
+     * unreachable Workstation are not among {@code services}, so they get no Route. Each active Alias gets a Route at
+     * its hostname to the backend of the Remote Service it names, when that Service has one.
      *
      * @param dashboard the URL the dashboard listens on
      */
     static TraefikConfiguration build(Workstation workstation, String dashboard,
-            List<dev.palazon.lvhyard.dashboard.services.Service> services) {
+            List<dev.palazon.lvhyard.dashboard.services.Service> services, List<Alias> aliases) {
         Map<String, Router> routers = new LinkedHashMap<>();
         Map<String, Service> backends = new LinkedHashMap<>();
         services.stream()
@@ -49,6 +57,12 @@ final class RouteBuilder {
                     routers.put(name, router(service.hostname(), name));
                     backends.put(name, new Service(new LoadBalancer(servers)));
                 });
+        aliases.stream().filter(Alias::active).forEach(alias -> {
+            String target = name(workstation, alias.workstation(), alias.service());
+            if (backends.containsKey(target)) {
+                routers.put(ALIAS_PREFIX + alias.name(), router(alias.hostname(), target));
+            }
+        });
         // Last, so it wins over anything above with its name.
         routers.put(Workstation.RESERVED_NAME,
                 router(workstation.hostname(Workstation.RESERVED_NAME), Workstation.RESERVED_NAME));
@@ -62,7 +76,11 @@ final class RouteBuilder {
      * Service never takes the name of an own one, or of the dashboard's.
      */
     private static String name(Workstation workstation, dev.palazon.lvhyard.dashboard.services.Service service) {
-        return workstation.is(service.workstation()) ? service.name() : service.name() + "." + service.workstation();
+        return name(workstation, service.workstation(), service.name());
+    }
+
+    private static String name(Workstation workstation, String home, String service) {
+        return workstation.is(home) ? service : service + "." + home;
     }
 
     /** A Route from {@code hostname} to the Traefik service called {@code name}. */

@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
-  description: "The Workstations and Services of the Yard, read only, and the Static\
-    \ Instances and Publications of this Workstation's Services. A Remote Service\
-    \ can be changed only on its Home Workstation, so a change asked under /api/services\
-    \ is refused with 405."
+  description: "The Workstations and Services of the Yard, read only, the Static Instances\
+    \ and Publications of this Workstation's Services, and this Workstation's Aliases.\
+    \ A Remote Service can be changed only on its Home Workstation, so a change asked\
+    \ under /api/services is refused with 405."
   title: LVH Yard
 servers:
 - url: /
@@ -84,6 +84,87 @@ paths:
       summary: "One Service, with its Instances and their Health"
       tags:
       - services-controller
+  /api/workstation/aliases:
+    get:
+      operationId: aliases
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Alias"
+          description: OK
+      summary: "This Workstation's Aliases, by name, each with its state"
+      tags:
+      - aliases-controller
+  /api/workstation/aliases/{alias}:
+    delete:
+      operationId: removeAlias
+      parameters:
+      - in: path
+        name: alias
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: Removed
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: This Workstation has no Alias of this name
+      summary: "Removes an Alias, and its Route"
+      tags:
+      - aliases-controller
+    put:
+      operationId: addAlias
+      parameters:
+      - in: path
+        name: alias
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AliasRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alias"
+          description: "The Alias, with its state"
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "The name is not a single DNS label or is yard, or the Workstation\
+            \ is this one"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "The Yard has no Workstation of this name, or it has no Service\
+            \ of this name"
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "The Workstation is unreachable, so its Services are not known"
+      summary: "Gives a Remote Service the Alias <alias>.<base-domain>, on this Workstation\
+        \ only"
+      tags:
+      - aliases-controller
   /api/workstation/services:
     get:
       operationId: ownServices
@@ -315,6 +396,44 @@ paths:
       - yard-controller
 components:
   schemas:
+    Alias:
+      type: object
+      properties:
+        hostname:
+          type: string
+        name:
+          type: string
+        reason:
+          type: string
+        service:
+          type: string
+        state:
+          type: string
+          enum:
+          - active
+          - unavailable
+          - hidden
+          - not-shared
+          - unreachable
+          - missing
+        workstation:
+          type: string
+      required:
+      - hostname
+      - name
+      - service
+      - state
+      - workstation
+    AliasRequest:
+      type: object
+      properties:
+        service:
+          type: string
+        workstation:
+          type: string
+      required:
+      - service
+      - workstation
     CheckResult:
       type: object
       properties:
