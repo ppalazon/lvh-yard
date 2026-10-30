@@ -1,6 +1,8 @@
 package dev.palazon.lvhyard.dashboard.services;
 
+import java.net.InetAddress;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -18,6 +20,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * @param tags words that say what it is for
  * @param meta notes about it, by key
  * @param checks the last result of each check its Health comes from: its own and its Workstation's
+ * @param unreachable whether it is an Unreachable Instance: an Instance of a Remote Service on a loopback address,
+ *        which only its Home Workstation can connect to, so this Workstation never routes to it
  */
 public record Instance(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String id,
@@ -27,11 +31,31 @@ public record Instance(
         @JsonInclude(JsonInclude.Include.NON_NULL) HealthCheck check,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<String> tags,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Map<String, String> meta,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<CheckResult> checks) {
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<CheckResult> checks,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean unreachable) {
 
     /** {@code host:port}, where the Instance is reached. */
     public String address() {
         return address(host, port);
+    }
+
+    /** Whether it is on a loopback address, which only its own Workstation can connect to. */
+    public boolean onLoopback() {
+        return loopback(host);
+    }
+
+    /**
+     * Whether {@code host} is a loopback address, such as {@code 127.0.0.1}, {@code ::1} or {@code localhost}. A
+     * hostname is not looked up, so one that only resolves to loopback is not seen.
+     */
+    static boolean loopback(String host) {
+        try {
+            return InetAddress.ofLiteral(host).isLoopbackAddress();
+        } catch (IllegalArgumentException notAnAddress) {
+            String name = host.toLowerCase(Locale.ROOT);
+            name = name.endsWith(".") ? name.substring(0, name.length() - 1) : name;
+            return name.equals("localhost") || name.endsWith(".localhost");
+        }
     }
 
     /** {@code host:port}, with an IPv6 host in brackets so its colons are not read as the port's. */

@@ -72,6 +72,25 @@ final class RemoteWorkstation implements AutoCloseable {
         return http.get().uri(DashboardTest.servicePath(service)).retrieve().toEntity(JsonNode.class);
     }
 
+    /**
+     * Writes {@code value} at {@code key} in this Workstation's Consul KV, straight to Consul, so the test can store
+     * what its dashboard would refuse.
+     */
+    void putConsulValue(String key, String value) {
+        consulHttp().put().uri("/v1/kv/" + key).contentType(MediaType.TEXT_PLAIN).body(value).retrieve()
+                .toBodilessEntity();
+    }
+
+    /** Removes {@code key} from this Workstation's Consul KV, straight from Consul. */
+    void deleteConsulValue(String key) {
+        consulHttp().delete().uri("/v1/kv/" + key).retrieve().toBodilessEntity();
+    }
+
+    private RestClient consulHttp() {
+        return RestClient.builder().baseUrl("http://" + consul.getHost() + ":"
+                + consul.getMappedPort(TestcontainersConfiguration.CONSUL_HTTP_PORT)).build();
+    }
+
     /** Freezes this Workstation's Consul, as a computer that is switched off: nothing it is asked is answered. */
     void stopAnswering() {
         DockerClientFactory.instance().client().pauseContainerCmd(consul.getContainerId()).exec();

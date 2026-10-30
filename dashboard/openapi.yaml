@@ -388,6 +388,8 @@ components:
           type: array
           items:
             type: string
+        unreachable:
+          type: boolean
       required:
       - checks
       - health
@@ -396,6 +398,7 @@ components:
       - meta
       - port
       - tags
+      - unreachable
     ProblemDetail:
       type: object
       additionalProperties: true

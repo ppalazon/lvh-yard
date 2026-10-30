@@ -15,6 +15,8 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
@@ -37,6 +39,8 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
  */
 @Component
 public class YardReader {
+
+    private static final Logger LOG = LoggerFactory.getLogger(YardReader.class);
 
     private static final Comparator<Instance> BY_ADDRESS =
             Comparator.comparing(Instance::host).thenComparingInt(Instance::port);
@@ -80,20 +84,42 @@ public class YardReader {
      * Workstation that does not answer delays the rest only once.
      */
     public Yard yard() {
-        try (ExecutorService readers = Executors.newVirtualThreadPerTaskExecutor()) {
-            List<CompletableFuture<YardWorkstation>> remotes = consul.datacenters().stream()
-                    .filter(datacenter -> !workstation.is(datacenter))
-                    .sorted()
-                    .map(remote -> CompletableFuture.supplyAsync(() -> remote(remote), readers))
-                    .toList();
-            HomeWorkstation home = new HomeWorkstation(workstation.name(), read(workstation.name()));
-            return new Yard(home, remotes.stream().map(CompletableFuture::join).toList());
-        }
+        return yard(this::remote);
     }
 
     /** Every Service of the Workstations that answer, this Workstation's first, then by Workstation and name. */
     public List<Service> services() {
         return yard().services();
+    }
+
+    /**
+     * Every Service that may get a Route on this Workstation: this Workstation's, then those of every other one whose
+     * Services can be read. Another Workstation that does not answer, or whose Services fail to read for any other
+     * reason, such as a Publication this dashboard cannot read, has none here, so it never takes the Routes of the
+     * others with it. The fault is logged, as the API still reports it.
+     */
+    public List<Service> routableServices() {
+        return yard(remote -> {
+            try {
+                return remote(remote);
+            } catch (RuntimeException fault) {
+                LOG.warn("The Services of {} cannot be read, so it gets no Routes for now", remote, fault);
+                return new YardWorkstation(remote, true, List.of());
+            }
+        }).services();
+    }
+
+    /** This Workstation, and every other one as {@code remote} reads it, side by side. */
+    private Yard yard(Function<String, YardWorkstation> remote) {
+        try (ExecutorService readers = Executors.newVirtualThreadPerTaskExecutor()) {
+            List<CompletableFuture<YardWorkstation>> remotes = consul.datacenters().stream()
+                    .filter(datacenter -> !workstation.is(datacenter))
+                    .sorted()
+                    .map(name -> CompletableFuture.supplyAsync(() -> remote.apply(name), readers))
+                    .toList();
+            HomeWorkstation home = new HomeWorkstation(workstation.name(), read(workstation.name()));
+            return new Yard(home, remotes.stream().map(CompletableFuture::join).toList());
+        }
     }
 
     /**
@@ -166,7 +192,8 @@ public class YardReader {
     }
 
     private Optional<Service> service(String home, String datacenter, String name, Publication publication) {
-        List<Instance> instances = consul.health(datacenter, name).stream().map(YardReader::instance)
+        List<Instance> instances = consul.health(datacenter, name).stream()
+                .map(entry -> instance(entry, !workstation.is(home)))
                 .sorted(BY_ADDRESS).toList();
         if (instances.isEmpty() && publication == null) {
             return Optional.empty();
@@ -191,7 +218,11 @@ public class YardReader {
         return publication != null && publication.scope() == Scope.YARD ? workstation.hostname(home, name) : null;
     }
 
-    private static Instance instance(HealthEntry entry) {
+    /**
+     * The Instance that {@code entry} registers. One of a Remote Service is unreachable from here when it is on a
+     * loopback address.
+     */
+    private static Instance instance(HealthEntry entry, boolean remote) {
         AgentService registration = entry.service();
         List<CheckResult> checks = entry.checks().stream()
                 .map(check -> new CheckResult(check.name(), Health.ofConsulStatus(check.status()),
@@ -209,7 +240,7 @@ public class YardReader {
         meta.keySet().removeIf(key -> key.startsWith(Registrations.RESERVED_META));
         return new Instance(registration.id(), registration.address(), registration.port(),
                 Health.worst(checks.stream().map(CheckResult::health).toList()), check, registration.tags(), meta,
-                checks);
+                checks, remote && Instance.loopback(registration.address()));
     }
 
     /** A duration as Consul writes it, in Go's way, such as {@code 1m30s} or {@code 1.5s}. */

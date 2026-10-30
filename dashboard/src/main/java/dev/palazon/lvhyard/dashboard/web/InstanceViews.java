@@ -12,9 +12,16 @@ final class InstanceViews {
     private InstanceViews() {
     }
 
-    /** Where the Instance is, with its tags and meta below. */
+    /** Where the Instance is, marked when this Workstation cannot reach it, with its tags and meta below. */
     static void description(Td<?> cell, Instance instance) {
         cell.div().text(instance.address()).__();
+        if (instance.unreachable()) {
+            cell.div().attrClass("mt-1 flex flex-wrap items-center gap-2")
+                    .span().attrClass("badge").addAttr("data-variant", "destructive").text("Unreachable from here").__()
+                    .span().attrClass("text-muted-foreground text-sm")
+                            .text("On its Workstation's loopback address: no Route here.").__()
+            .__();
+        }
         if (!instance.tags().isEmpty()) {
             cell.div().attrClass("mt-1 flex flex-wrap gap-1").of(tags -> instance.tags().forEach(tag -> tags
                     .span().attrClass("badge").addAttr("data-variant", "outline").text(tag).__())).__();

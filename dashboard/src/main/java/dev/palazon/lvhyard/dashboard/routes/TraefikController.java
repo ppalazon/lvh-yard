@@ -10,8 +10,9 @@ import dev.palazon.lvhyard.dashboard.services.YardReader;
 
 /**
  * The Routes Traefik polls for: the dashboard's own, at {@code yard.<base-domain>}, one per published Service of
- * this Workstation, and one per Yard-scoped Service of every other Workstation that answers. A Workstation that
- * stops answering loses its Routes at the next poll, and gets them back once it answers again.
+ * this Workstation, and one per Yard-scoped Service of every other Workstation whose Services can be read. A
+ * Workstation that stops answering, or whose Services fail to read, loses its Routes at the next poll, and gets them
+ * back once it is read again; the others keep theirs.
  */
 @RestController
 class TraefikController {
@@ -35,6 +36,6 @@ class TraefikController {
     TraefikConfiguration configuration() {
         // The port the server actually listens on, which is only known once it has started.
         String dashboard = "http://127.0.0.1:" + environment.getRequiredProperty("local.server.port");
-        return RouteBuilder.build(workstation, dashboard, yard.services());
+        return RouteBuilder.build(workstation, dashboard, yard.routableServices());
     }
 }

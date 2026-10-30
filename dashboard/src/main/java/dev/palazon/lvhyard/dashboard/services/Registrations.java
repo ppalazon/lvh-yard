@@ -136,7 +136,7 @@ public class Registrations {
         Check consulCheck = consulCheck(host, port, check);
         consul.register(new Registration(id, service, host, port, instance.tags(), registered, consulCheck));
         return new Instance(id, host, port, Health.CRITICAL, check, instance.tags(), instance.meta(),
-                List.of(new CheckResult(consulCheck.name(), Health.CRITICAL, "")));
+                List.of(new CheckResult(consulCheck.name(), Health.CRITICAL, "")), false);
     }
 
     /** Where a Static Instance registered without a host is: this Workstation's LAN address. */

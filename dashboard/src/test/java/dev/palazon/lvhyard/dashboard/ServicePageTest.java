@@ -122,7 +122,8 @@ class ServicePageTest extends DashboardTest {
         put(publicationPath(web), Map.of("scope", "yard"));
 
         assertThat(getPage(page).getBody()).contains("role=\"alert\"")
-                .contains("127.0.0.1:8080 is on a loopback address");
+                .contains("127.0.0.1:8080 is on a loopback address")
+                .as("its Home Workstation reaches it").doesNotContain("Unreachable from here");
     }
 
     @Test

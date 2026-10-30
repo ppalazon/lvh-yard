@@ -146,6 +146,32 @@ class RemoteServicesTest extends DashboardTest {
     }
 
     @Test
+    void remoteInstanceOnLoopbackIsUnreachableFromHere() {
+        String api = newServiceName("api");
+        remote.register(api, Map.of("host", "127.0.0.1", "port", 9090));
+        remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
+
+        JsonNode instances = get("/api/services/" + RemoteWorkstation.NAME + "/" + api).getBody().get("instances");
+
+        assertThat(instances.valueStream().map(instance -> instance.get("host").asString() + " "
+                + instance.get("unreachable").asBoolean()))
+                .containsExactly("10.9.8.7 false", "127.0.0.1 true");
+        assertThat(remote.service(api).getBody().get("instances").valueStream()
+                .map(instance -> instance.get("unreachable").asBoolean()))
+                .as("its Home Workstation reaches it").containsOnly(false);
+    }
+
+    @Test
+    void remoteServicesPageMarksAnInstanceOnLoopbackAsUnreachable() {
+        String api = newServiceName("api");
+        remote.register(api, Map.of("host", "127.0.0.1", "port", 9090));
+
+        String body = getPage("/services/" + RemoteWorkstation.NAME + "/" + api).getBody();
+
+        assertThat(body).contains("127.0.0.1:9090").contains("Unreachable from here");
+    }
+
+    @Test
     void workstationNotInTheYardIsNotFound() {
         ResponseEntity<JsonNode> services = get("/api/services?workstation=ws-typo");
         ResponseEntity<JsonNode> service = get("/api/services/ws-typo/" + newServiceName("api"));

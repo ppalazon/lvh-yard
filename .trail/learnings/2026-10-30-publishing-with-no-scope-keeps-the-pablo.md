@@ -16,8 +16,10 @@ src: agent
 - RouteBuilder routes every Service that has a `hostname` and an Instance. A Remote Service's Traefik router and backend are named `<service>.<workstation>`. A Service name is one DNS label with no dot, so it never clashes with an own Service or with `yard`.
 - Loopback warnings (`warnings[]` with kind `loopback-instance`) are worked out from the host text only, never by a DNS lookup: IP literals via InetAddress.ofLiteral, plus `localhost` and `*.localhost`. A hostname that only resolves to 127.0.0.1 (such as one under lvh.me) is not caught.
 
+- The user decided that for Routes, any error reading another Workstation drops only that Workstation's Routes; the others keep theirs (YardReader.routableServices, logged as a warning). The API keeps the older rule: only a timeout or 5xx makes a Workstation unreachable, any other error stays a fault, so a bug does not look like a switched-off computer.
+- The user decided that a Remote Service's Instance on a loopback address is an Unreachable Instance (glossary): `unreachable: true` in the API, marked on the page and in `yard list`, and never routed, since a Route to it would hit this computer's own loopback. Own Instances on loopback are never unreachable.
+
 ## Watch out
-- TraefikController now reads the whole Yard on every Traefik poll. A remote Workstation that times out or answers 5xx just loses its Routes. But any other error from one remote (a 4xx, bad JSON) fails the whole /traefik/configuration answer, and then Traefik keeps its last Routes for everyone. That follows the earlier rule "any other error stays a fault". Revisit it if it bites.
-- Routes to a Remote Service's loopback Instance point at this computer's loopback, not the teammate's. They are only warned about, not dropped.
+- The test for a fault writes a Publication with an unknown Scope straight into ws-remote's Consul KV. It must delete it in finally: while it is there, every read of ws-remote fails, in every test class.
 
 In the code: dashboard/.../services/Publications.java (publish), YardReader.java (hostname, yardHostname), ServiceWarning.java; dashboard/.../routes/RouteBuilder.java (name), TraefikController.java; cli/.../Publish.java.

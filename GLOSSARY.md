@@ -76,6 +76,10 @@ _Avoid_: Router, mapping
 A Workstation whose Consul datacenter does not answer. Its Services are not shown until it answers again.
 _Avoid_: Offline, down, unreachable Service
 
+**Unreachable Instance**:
+An Instance of a Remote Service on a loopback address, such as `127.0.0.1`. Only its Home Workstation can connect to it, so other Workstations mark it and never route to it. It is known from the address alone, not from a Reachability test.
+_Avoid_: Loopback Service, unreachable Service
+
 ### Service states
 
 **Unpublished**:

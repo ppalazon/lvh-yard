@@ -1,8 +1,6 @@
 package dev.palazon.lvhyard.dashboard.services;
 
-import java.net.InetAddress;
 import java.util.List;
-import java.util.Locale;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
@@ -41,24 +39,10 @@ public record ServiceWarning(
             return List.of();
         }
         return instances.stream()
-                .filter(instance -> loopback(instance.host()))
+                .filter(Instance::onLoopback)
                 .map(instance -> new ServiceWarning(Kind.LOOPBACK_INSTANCE, "The Instance at " + instance.address()
-                        + " is on a loopback address, so other Workstations cannot reach it. Register it at this"
+                        + " is on a loopback address, so other Workstations cannot reach it. Register it at its"
                         + " Workstation's LAN address instead."))
                 .toList();
-    }
-
-    /**
-     * Whether {@code host} is a loopback address, such as {@code 127.0.0.1}, {@code ::1} or {@code localhost}. A
-     * hostname is not looked up, so one that only resolves to loopback is not seen.
-     */
-    static boolean loopback(String host) {
-        try {
-            return InetAddress.ofLiteral(host).isLoopbackAddress();
-        } catch (IllegalArgumentException notAnAddress) {
-            String name = host.toLowerCase(Locale.ROOT);
-            name = name.endsWith(".") ? name.substring(0, name.length() - 1) : name;
-            return name.equals("localhost") || name.endsWith(".localhost");
-        }
     }
 }

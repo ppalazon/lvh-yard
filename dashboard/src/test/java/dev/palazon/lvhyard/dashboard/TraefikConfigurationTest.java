@@ -160,6 +160,67 @@ class TraefikConfigurationTest extends DashboardTest {
                 hostnames -> hostnames.contains(remoteHostname));
     }
 
+    @Test
+    void remoteInstanceOnLoopbackGetsNoRoute() {
+        String api = newServiceName("api");
+        remote.register(api, Map.of("host", "127.0.0.1", "port", 9090));
+        remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
+
+        remote.publish(api, "yard");
+
+        assertThat(serverUrlsAt(get("/traefik/configuration").getBody().get("http"),
+                api + "." + RemoteWorkstation.NAME + ".lvh.test")).containsExactly("http://10.9.8.7:9090");
+    }
+
+    @Test
+    void remoteServiceWithOnlyLoopbackInstancesHasNoRoute() {
+        String api = newServiceName("api");
+        remote.register(api, Map.of("host", "127.0.0.1", "port", 9090));
+        remote.register(api, Map.of("host", "localhost", "port", 9091));
+
+        remote.publish(api, "yard");
+
+        assertThat(routedHostnames(get("/traefik/configuration").getBody().get("http")))
+                .noneMatch(hostname -> hostname.startsWith(api + "."));
+    }
+
+    @Test
+    void ownInstanceOnLoopbackIsRouted() {
+        String web = newServiceName("web");
+        register(web, Map.of("host", "127.0.0.1", "port", 8080));
+
+        publish(web);
+
+        assertThat(serverUrlsAt(get("/traefik/configuration").getBody().get("http"), web + ".lvh.test"))
+                .containsExactly("http://127.0.0.1:8080");
+    }
+
+    @Test
+    void workstationWithAFaultLosesItsRoutesAndTheOthersKeepTheirs() {
+        String web = newServiceName("web");
+        register(web, Map.of("host", "10.1.2.3", "port", 8080));
+        publish(web);
+        String api = newServiceName("api");
+        remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
+        remote.publish(api, "yard");
+        String remoteHostname = api + "." + RemoteWorkstation.NAME + ".lvh.test";
+        // A Scope this dashboard does not know, as a newer LVH Yard might write: reading ws-remote fails.
+        String broken = "lvh-yard/publications/" + newServiceName("broken");
+
+        remote.putConsulValue(broken, "world");
+        try {
+            ResponseEntity<JsonNode> response = get("/traefik/configuration");
+
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(routedHostnames(response.getBody().get("http")))
+                    .contains(web + ".lvh.test", "yard.lvh.test").doesNotContain(remoteHostname);
+        } finally {
+            remote.deleteConsulValue(broken);
+        }
+
+        assertThat(routedHostnames(get("/traefik/configuration").getBody().get("http"))).contains(remoteHostname);
+    }
+
     /** The hostname of every Route, from its {@code Host(`...`)} rule. */
     private static List<String> routedHostnames(JsonNode http) {
         return http.get("routers").valueStream().map(router -> hostnameOf(router.get("rule").asString())).toList();
