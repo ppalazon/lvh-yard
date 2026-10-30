@@ -59,10 +59,17 @@ final class Dashboard {
     }
 
     /**
-     * A link from a Service to a Docker container by its name and a container port, with the IDs of the Bound
-     * Instances it gives now: none while no container of that name runs.
+     * A link from a Service to a Docker container by its name, or to a Compose project and service, and a container
+     * port, with the IDs of the Bound Instances it gives now: one per matching container that runs.
      */
-    record ContainerBinding(String id, String container, int port, List<String> instances) {
+    record ContainerBinding(String id, String container, String composeProject, String composeService, int port,
+            List<String> instances) {
+
+        /** What it follows: {@code container web-1}, or {@code Compose service web of project shop}. */
+        String follows() {
+            return container != null ? "container " + container
+                    : "Compose service " + composeService + " of project " + composeProject;
+        }
     }
 
     /** Why other Workstations may not reach a Service, such as a {@code loopback-instance}. */
@@ -180,10 +187,18 @@ final class Dashboard {
 
     /** Binds this Workstation's {@code service} to the container called {@code container}, at its {@code port}. */
     ContainerBinding bind(String service, String container, int port) {
+        return bind(service, Map.of("container", container, "port", port));
+    }
+
+    /** Binds this Workstation's {@code service} to every container of {@code composeService} in {@code project}. */
+    ContainerBinding bindCompose(String service, String project, String composeService, int port) {
+        return bind(service, Map.of("composeProject", project, "composeService", composeService, "port", port));
+    }
+
+    private ContainerBinding bind(String service, Map<String, Object> binding) {
         HttpRequest.Builder request = HttpRequest.newBuilder(containerBindingsUrl(service))
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
-                        Map.of("container", container, "port", port))));
+                .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(binding)));
         return read(send(request), new TypeReference<>() { });
     }
 

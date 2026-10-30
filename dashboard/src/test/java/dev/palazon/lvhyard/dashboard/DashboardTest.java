@@ -88,6 +88,25 @@ abstract class DashboardTest {
         return container;
     }
 
+    /** A Compose project name no other test, nor an earlier run, uses. */
+    static String newComposeProject() {
+        return "yard-test-" + UUID.randomUUID().toString().substring(0, 8);
+    }
+
+    /**
+     * Starts a container called {@code name} with the labels Compose gives a container of {@code composeService} in
+     * {@code project}. Otherwise it is as {@link #startContainer} starts one, with {@code containerPort} unpublished.
+     */
+    GenericContainer<?> startComposeContainer(String name, String project, String composeService,
+            int containerPort) {
+        GenericContainer<?> container = TestcontainersConfiguration.listener(name, containerPort)
+                .withLabel("com.docker.compose.project", project)
+                .withLabel("com.docker.compose.service", composeService);
+        containers.add(container);
+        container.start();
+        return container;
+    }
+
     /** The address {@code container} has on its network. */
     static String containerAddress(GenericContainer<?> container) {
         return container.getContainerInfo().getNetworkSettings().getNetworks().values().iterator().next()
@@ -198,6 +217,16 @@ abstract class DashboardTest {
     JsonNode bind(String service, String container, int port) {
         ResponseEntity<JsonNode> response = post(containerBindingsPath(service),
                 Map.of("container", container, "port", port));
+        if (!response.getStatusCode().is2xxSuccessful()) {
+            throw new AssertionError("Binding " + service + " answered " + response);
+        }
+        return response.getBody();
+    }
+
+    /** Binds {@code service} on this Workstation to {@code composeService} of {@code project}'s {@code port}. */
+    JsonNode bindCompose(String service, String project, String composeService, int port) {
+        ResponseEntity<JsonNode> response = post(containerBindingsPath(service),
+                Map.of("composeProject", project, "composeService", composeService, "port", port));
         if (!response.getStatusCode().is2xxSuccessful()) {
             throw new AssertionError("Binding " + service + " answered " + response);
         }

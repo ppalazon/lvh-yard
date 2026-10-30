@@ -113,14 +113,14 @@ final class ServicePage {
     }
 
     /**
-     * Each Container Binding, with the Bound Instances it gives now or that its container does not run, and a button
+     * Each Container Binding, with the Bound Instances it gives now or that no container of it runs, and a button
      * to remove it.
      */
     private static void containerBindings(Main<?> content, Service service, boolean own) {
         content.h2().attrClass("text-lg font-semibold").text("Container Bindings").__()
                 .div().attrClass("table-container").table().attrClass("table")
                     .thead().tr()
-                        .th().text("Container").__()
+                        .th().text("Follows").__()
                         .th().text("Container port").__()
                         .th().text("Bound Instances").__()
                         .of(row -> {
@@ -130,12 +130,13 @@ final class ServicePage {
                         })
                     .__().__()
                     .tbody().of(body -> service.containerBindings().forEach(binding -> body.tr()
-                            .td().text(binding.container()).__()
+                            .td().text(binding.follows()).__()
                             .td().text(String.valueOf(binding.port())).__()
                             .td().of(cell -> {
                                 if (binding.instances().isEmpty()) {
                                     cell.span().attrClass("text-muted-foreground")
-                                            .text("No container of this name runs.").__();
+                                            .text(binding.container() != null ? "No container of this name runs."
+                                                    : "No container of this Compose service runs.").__();
                                 }
                                 service.instances().stream()
                                         .filter(instance -> binding.instances().contains(instance.id()))

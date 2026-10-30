@@ -189,9 +189,14 @@ public class Registrations {
     public record BoundInstance(String service, String binding, String container, int containerPort, String host,
             int port) {
 
-        /** Its registration ID, the same for as long as the Binding follows a container of that name. */
+        /**
+         * Its registration ID, the same for as long as the Binding follows a container of that name. One a Binding
+         * gives that follows more than this container, such as a Compose service's, names the Binding too, so a
+         * container bound both ways gives two Bound Instances, and removing one Binding keeps the other's.
+         */
         String id() {
-            return service + ":" + container + ":" + containerPort;
+            String byName = container + ":" + containerPort;
+            return service + ":" + (binding.equals(byName) ? byName : binding + ":" + container);
         }
     }
 

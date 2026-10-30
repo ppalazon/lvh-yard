@@ -211,8 +211,7 @@ public class YardReader {
             return Optional.empty();
         }
         List<ContainerBinding> containerBindings = bindings.entrySet().stream()
-                .map(binding -> new ContainerBinding(binding.getKey(), binding.getValue().container(),
-                        binding.getValue().port(), instances.stream()
+                .map(binding -> new ContainerBinding(binding.getKey(), binding.getValue(), instances.stream()
                                 .filter(instance -> binding.getKey().equals(instance.containerBinding()))
                                 .map(Instance::id).toList()))
                 .toList();

@@ -247,6 +247,112 @@ class ContainerBindingsTest extends DashboardTest {
         });
     }
 
+    @Test
+    void composeBindingGivesABoundInstanceForEachContainerOfThatProjectAndService() {
+        String web = newServiceName("web");
+        String project = newComposeProject();
+        GenericContainer<?> first = startComposeContainer(newContainerName(), project, "web", 80);
+        GenericContainer<?> second = startComposeContainer(newContainerName(), project, "web", 80);
+        startComposeContainer(newContainerName(), project, "db", 80);
+        startComposeContainer(newContainerName(), newComposeProject(), "web", 80);
+
+        JsonNode added = bindCompose(web, project, "web", 80);
+
+        assertThat(added.get("composeProject").asString()).isEqualTo(project);
+        assertThat(added.get("composeService").asString()).isEqualTo("web");
+        assertThat(added.has("container")).isFalse();
+        await().atMost(FOLLOW_TIMEOUT).untilAsserted(() -> assertThat(instanceAddresses(web))
+                .containsExactlyInAnyOrder(containerAddress(first) + ":80", containerAddress(second) + ":80"));
+        JsonNode binding = get(servicePath(web)).getBody().get("containerBindings").get(0);
+        assertThat(binding.get("instances")).hasSize(2);
+    }
+
+    @Test
+    void scalingTheComposeServiceUpAndDownAddsAndRemovesBoundInstances() {
+        String web = newServiceName("web");
+        String project = newComposeProject();
+        GenericContainer<?> first = startComposeContainer(newContainerName(), project, "web", 80);
+        bindCompose(web, project, "web", 80);
+        await().atMost(FOLLOW_TIMEOUT).until(() -> instanceAddresses(web).size() == 1);
+
+        GenericContainer<?> second = startComposeContainer(newContainerName(), project, "web", 80);
+        await().atMost(FOLLOW_TIMEOUT).untilAsserted(() -> assertThat(instanceAddresses(web))
+                .containsExactlyInAnyOrder(containerAddress(first) + ":80", containerAddress(second) + ":80"));
+
+        stopContainer(first);
+        await().atMost(FOLLOW_TIMEOUT).untilAsserted(() -> assertThat(instanceAddresses(web))
+                .containsExactly(containerAddress(second) + ":80"));
+    }
+
+    @Test
+    void removingAComposeBindingRemovesEveryBoundInstanceItGives() {
+        String web = newServiceName("web");
+        String project = newComposeProject();
+        startComposeContainer(newContainerName(), project, "web", 80);
+        startComposeContainer(newContainerName(), project, "web", 80);
+        String id = bindCompose(web, project, "web", 80).get("id").asString();
+        await().atMost(FOLLOW_TIMEOUT).until(() -> instanceAddresses(web).size() == 2);
+
+        ResponseEntity<JsonNode> response = delete(containerBindingsPath(web) + "/" + id);
+
+        assertThat(id).isEqualTo("compose:" + project + ":web:80");
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(get(servicePath(web)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void containerBoundByNameAndByItsComposeServiceKeepsTheOtherBoundInstanceWhenOneBindingIsRemoved() {
+        String web = newServiceName("web");
+        String project = newComposeProject();
+        String name = newContainerName();
+        GenericContainer<?> container = startComposeContainer(name, project, "web", 80);
+        String byName = bind(web, name, 80).get("id").asString();
+        bindCompose(web, project, "web", 80);
+        await().atMost(FOLLOW_TIMEOUT).untilAsserted(() -> assertThat(get(servicePath(web)).getBody()
+                .get("containerBindings").valueStream().map(binding -> binding.get("instances").size()))
+                .containsExactly(1, 1));
+
+        delete(containerBindingsPath(web) + "/" + byName);
+
+        assertThat(instanceAddresses(web)).containsExactly(containerAddress(container) + ":80");
+    }
+
+    @Test
+    void bindingNeedsAContainerOrAComposeService() {
+        ResponseEntity<JsonNode> response = post(containerBindingsPath(newServiceName("web")), Map.of("port", 80));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().get("detail").asString()).contains("container name")
+                .contains("Compose project and service");
+    }
+
+    @Test
+    void bindingToAContainerAndAComposeServiceAtOnceIsRefused() {
+        ResponseEntity<JsonNode> response = post(containerBindingsPath(newServiceName("web")),
+                Map.of("container", "web", "composeProject", "shop", "composeService", "web", "port", 80));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().get("detail").asString()).contains("not both");
+    }
+
+    @Test
+    void composeServiceNeedsItsProject() {
+        ResponseEntity<JsonNode> response = post(containerBindingsPath(newServiceName("web")),
+                Map.of("composeService", "web", "port", 80));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().get("detail").asString()).contains("project");
+    }
+
+    @Test
+    void composeProjectNameComposeWouldRefuseIsRefused() {
+        ResponseEntity<JsonNode> response = post(containerBindingsPath(newServiceName("web")),
+                Map.of("composeProject", "My Shop", "composeService", "web", "port", 80));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().get("detail").asString()).contains("My Shop").contains("Compose");
+    }
+
     /** Where each Instance of this Workstation's {@code service} is, as {@code host:port}. */
     private List<String> instanceAddresses(String service) {
         return addresses(get(servicePath(service)).getBody());

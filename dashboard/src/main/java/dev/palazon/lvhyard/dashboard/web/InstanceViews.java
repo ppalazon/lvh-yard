@@ -14,7 +14,7 @@ final class InstanceViews {
     }
 
     /**
-     * Where the Instance is, marked when it is out of range here, with the container that gives a Bound Instance, and
+     * Where the Instance is, marked when it is out of range here, with what gives a Bound Instance, and
      * its tags and meta below.
      */
     static void description(Td<?> cell, Service service, Instance instance) {
@@ -23,7 +23,7 @@ final class InstanceViews {
                 .filter(binding -> binding.id().equals(instance.containerBinding()))
                 .findFirst()
                 .ifPresent(binding -> cell.div().attrClass("text-muted-foreground text-sm")
-                        .text("Bound to container " + binding.container() + ", port " + binding.port() + ".").__());
+                        .text("Bound to " + binding.follows() + ", port " + binding.port() + ".").__());
         if (instance.outOfRange()) {
             cell.div().attrClass("mt-1 flex flex-wrap items-center gap-2")
                     .span().attrClass("badge").addAttr("data-variant", "destructive").text("Out of range").__()

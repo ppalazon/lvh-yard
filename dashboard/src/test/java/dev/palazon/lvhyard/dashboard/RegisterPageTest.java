@@ -151,4 +151,38 @@ class RegisterPageTest extends DashboardTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody()).contains("id=\"containerPort-error\"").contains("The port http");
     }
+
+    @Test
+    void formOffersAComposeServiceToo() {
+        assertThat(getPage("/register").getBody()).contains("value=\"compose\"").contains("name=\"composeProject\"")
+                .contains("name=\"composeService\"");
+    }
+
+    @Test
+    void bindingAComposeServiceLeadsToTheServicesPage() {
+        String web = newServiceName("web");
+        String project = newComposeProject();
+
+        ResponseEntity<String> response = postForm("/register", Map.of("name", web, "kind", "compose",
+                "composeProject", project, "composeService", "web", "containerPort", "8080", "container", "ignored"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+        assertThat(response.getHeaders().getLocation()).hasPath("/services/ws-test/" + web);
+        JsonNode binding = get(servicePath(web)).getBody().get("containerBindings").get(0);
+        assertThat(binding.get("composeProject").asString()).isEqualTo(project);
+        assertThat(binding.get("composeService").asString()).isEqualTo("web");
+        assertThat(binding.get("port").asInt()).isEqualTo(8080);
+    }
+
+    @Test
+    void missingComposeServiceIsShownAtItsFieldWithWhatWasTyped() {
+        String web = newServiceName("web");
+
+        ResponseEntity<String> response = postForm("/register",
+                Map.of("name", web, "kind", "compose", "composeProject", "shop", "containerPort", "80"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).contains("id=\"composeService-error\"").contains("value=\"shop\"")
+                .containsPattern("value=\"compose\"[^>]*checked");
+    }
 }

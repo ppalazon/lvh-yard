@@ -4,9 +4,9 @@
 
 **Blocked by:** 08 (Bind a Service to a container by name)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A Container Binding can name a Compose project and service, plus a container port, instead of a container name.
-- [ ] Every running container of that project and service gives a Bound Instance.
-- [ ] Scaling the Compose service up or down adds or removes Bound Instances to match.
-- [ ] The Register form and `yard register` offer both ways to bind.
+- [x] A Container Binding can name a Compose project and service, plus a container port, instead of a container name.
+- [x] Every running container of that project and service gives a Bound Instance.
+- [x] Scaling the Compose service up or down adds or removes Bound Instances to match.
+- [x] The Register form and `yard register` offer both ways to bind.

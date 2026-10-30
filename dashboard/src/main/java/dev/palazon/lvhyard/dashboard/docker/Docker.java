@@ -149,22 +149,41 @@ public class Docker {
      * @param names its names, each with a leading {@code /}
      * @param ports its ports, each once for every host address it is published on
      * @param networkSettings the networks it is on
+     * @param labels its labels, such as those Compose gives the containers it starts
      */
     public record Container(
             @JsonProperty("Id") String id,
             @JsonProperty("Names") List<String> names,
             @JsonProperty("Ports") List<Port> ports,
-            @JsonProperty("NetworkSettings") NetworkSettings networkSettings) {
+            @JsonProperty("NetworkSettings") NetworkSettings networkSettings,
+            @JsonProperty("Labels") Map<String, String> labels) {
+
+        /** The label Compose gives each container it starts, with the project's name. */
+        private static final String COMPOSE_PROJECT = "com.docker.compose.project";
+
+        /** The label Compose gives each container it starts, with the service's name. */
+        private static final String COMPOSE_SERVICE = "com.docker.compose.service";
 
         public Container {
             names = names == null ? List.of() : names;
             ports = ports == null ? List.of() : ports;
             networkSettings = networkSettings == null ? new NetworkSettings(Map.of()) : networkSettings;
+            labels = labels == null ? Map.of() : labels;
         }
 
         /** Whether {@code name}, as {@code docker run --name} takes it, is one of the container's names. */
         public boolean isNamed(String name) {
             return names.contains("/" + name);
+        }
+
+        /** Whether Compose started it for {@code service} of {@code project}, whatever it named it. */
+        public boolean isOfComposeService(String project, String service) {
+            return project.equals(labels.get(COMPOSE_PROJECT)) && service.equals(labels.get(COMPOSE_SERVICE));
+        }
+
+        /** Its name, as {@code docker run --name} takes it: the first of its names, or its ID when it has none. */
+        public String name() {
+            return names.isEmpty() ? id : names.getFirst().substring(1);
         }
 
         /** The TCP ports Docker publishes {@code containerPort} on, each with the host address it listens on. */

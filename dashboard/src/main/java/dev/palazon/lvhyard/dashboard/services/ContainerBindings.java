@@ -24,8 +24,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * This Workstation's Container Bindings, in its Consul KV: one key per Binding, under its Service, holding the
- * container's name and port as JSON. It keeps the Bound Instances in step with the containers running now; the
- * {@link ContainerWatcher} tells it when they may have changed.
+ * container's name, or the Compose project and service, and the port as JSON. It keeps the Bound Instances in step
+ * with the containers running now; the {@link ContainerWatcher} tells it when they may have changed.
  */
 @Component
 public class ContainerBindings {
@@ -37,6 +37,12 @@ public class ContainerBindings {
 
     /** A container name, as Docker allows them. */
     private static final Pattern CONTAINER_NAME = Pattern.compile("[a-zA-Z0-9][a-zA-Z0-9_.-]{1,254}");
+
+    /** A Compose project name, as Compose allows them. */
+    private static final Pattern COMPOSE_PROJECT = Pattern.compile("[a-z0-9][a-z0-9_-]*");
+
+    /** A Compose service name, as Compose allows them. */
+    private static final Pattern COMPOSE_SERVICE = Pattern.compile("[a-zA-Z0-9._-]+");
 
     /** Host addresses that stand for every address of the host, so the LAN address reaches a port published there. */
     private static final List<String> EVERY_ADDRESS = List.of("", "0.0.0.0", "::");
@@ -59,26 +65,66 @@ public class ContainerBindings {
     }
 
     /**
-     * Binds {@code service} of {@code workstation}, which must be this one, to the container {@code request} names
-     * and its port. Binding the same container and port again changes nothing. A container of that name that runs
-     * now gives the Service its Bound Instance at once.
+     * Binds {@code service} of {@code workstation}, which must be this one, to the container {@code request} names,
+     * or to its Compose project and service, and its port. Binding the same again changes nothing. The containers
+     * that match and run now give the Service their Bound Instances at once.
      *
      * @return the Binding's ID
      */
     public String add(String workstation, String service, ContainerBindingRequest request) {
         checkHome(workstation);
         Registrations.checkName(service);
-        String container = request.container() == null ? "" : request.container().strip();
-        if (!CONTAINER_NAME.matcher(container).matches()) {
-            throw new InvalidRegistrationException("container", "The container name \"" + container + "\" is not"
-                    + " one Docker allows: start with a letter or digit, then use at least one more letter, digit, _, . or -.");
-        }
-        Registrations.checkPort("containerPort", "A Container Binding", request.port());
-        String id = ContainerBinding.id(container, request.port());
-        consul.putValue(PREFIX + service + "/" + id,
-                JSON.writeValueAsString(new ContainerBindingRequest(container, request.port())));
+        ContainerBindingRequest binding = checked(request);
+        String id = ContainerBinding.id(binding);
+        consul.putValue(PREFIX + service + "/" + id, JSON.writeValueAsString(binding));
         syncIfDockerAnswers();
         return id;
+    }
+
+    /** {@code request} with its names stripped, once it names a container, or a Compose project and service. */
+    private static ContainerBindingRequest checked(ContainerBindingRequest request) {
+        String container = stripped(request.container());
+        String project = stripped(request.composeProject());
+        String composeService = stripped(request.composeService());
+        if (project == null && composeService == null) {
+            if (container == null) {
+                throw new InvalidRegistrationException("container", "A Container Binding needs a container name, or"
+                        + " a Compose project and service.");
+            }
+            if (!CONTAINER_NAME.matcher(container).matches()) {
+                throw new InvalidRegistrationException("container", "The container name \"" + container + "\" is"
+                        + " not one Docker allows: start with a letter or digit, then use at least one more letter,"
+                        + " digit, _, . or -.");
+            }
+            Registrations.checkPort("containerPort", "A Container Binding", request.port());
+            return ContainerBindingRequest.container(container, request.port());
+        }
+        if (container != null) {
+            throw new InvalidRegistrationException("container", "A Container Binding names a container or a Compose"
+                    + " project and service, not both.");
+        }
+        if (project == null) {
+            throw new InvalidRegistrationException("composeProject", "A Compose service needs its project too.");
+        }
+        if (!COMPOSE_PROJECT.matcher(project).matches()) {
+            throw new InvalidRegistrationException("composeProject", "The Compose project name \"" + project
+                    + "\" is not one Compose allows: start with a lowercase letter or digit, then use lowercase"
+                    + " letters, digits, _ or -.");
+        }
+        if (composeService == null) {
+            throw new InvalidRegistrationException("composeService", "A Compose project needs the service too.");
+        }
+        if (!COMPOSE_SERVICE.matcher(composeService).matches()) {
+            throw new InvalidRegistrationException("composeService", "The Compose service name \"" + composeService
+                    + "\" is not one Compose allows: use letters, digits, _, . or -.");
+        }
+        Registrations.checkPort("containerPort", "A Container Binding", request.port());
+        return ContainerBindingRequest.compose(project, composeService, request.port());
+    }
+
+    /** {@code name} without the spaces around it; {@code null} when nothing is left. */
+    private static String stripped(String name) {
+        return name == null || name.isBlank() ? null : name.strip();
     }
 
     /**
@@ -119,8 +165,8 @@ public class ContainerBindings {
     }
 
     /**
-     * Brings every Bound Instance in step with the containers running now: each Binding whose container runs gets
-     * its Bound Instance, at its current address, and every other Bound Instance is removed.
+     * Brings every Bound Instance in step with the containers running now: each running container a Binding matches
+     * gives it a Bound Instance, at its current address, and every other Bound Instance is removed.
      *
      * @throws RuntimeException when Docker or Consul does not answer, which leaves the Bound Instances as they were
      */
@@ -129,10 +175,16 @@ public class ContainerBindings {
         String lanAddress = registrations.defaultHost();
         List<BoundInstance> wanted = new ArrayList<>();
         all(null).forEach((service, bindings) -> bindings.forEach((id, binding) -> running.stream()
-                .filter(container -> container.isNamed(binding.container()))
-                .findFirst()
-                .ifPresent(container -> wanted.add(boundInstance(service, id, binding, container, lanAddress)))));
+                .filter(container -> matches(binding, container))
+                .forEach(container -> wanted.add(boundInstance(service, id, binding, container, lanAddress)))));
         registrations.keepBoundInstances(wanted);
+    }
+
+    /** Whether {@code container} is the one {@code binding} names, or one of its Compose service's. */
+    private static boolean matches(ContainerBindingRequest binding, Container container) {
+        return binding.followsCompose()
+                ? container.isOfComposeService(binding.composeProject(), binding.composeService())
+                : container.isNamed(binding.container());
     }
 
     /** Syncs after a change to the Bindings; a Docker that does not answer leaves it to the watcher, later. */
@@ -165,7 +217,8 @@ public class ContainerBindings {
             host = container.address().orElse(lanAddress);
             port = containerPort;
         }
-        return new BoundInstance(service, id, binding.container(), containerPort, host, port);
+        return new BoundInstance(service, id, binding.followsCompose() ? container.name() : binding.container(),
+                containerPort, host, port);
     }
 
     private void checkHome(String workstation) {

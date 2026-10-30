@@ -307,4 +307,29 @@ class ServicePageTest extends DashboardTest {
 
         assertThat(page).contains(name).doesNotContain("/container-bindings/");
     }
+
+    @Test
+    void showsAComposeBindingAndEachBoundInstanceItGives() {
+        String web = newServiceName("web");
+        String project = newComposeProject();
+        startComposeContainer(newContainerName(), project, "web", 80);
+        startComposeContainer(newContainerName(), project, "web", 80);
+        bindCompose(web, project, "web", 80);
+        await().atMost(Duration.ofSeconds(15))
+                .until(() -> get(servicePath(web)).getBody().get("instances").size() == 2);
+
+        String page = getPage("/services/ws-test/" + web).getBody();
+
+        assertThat(page).contains("Compose service web of project " + project)
+                .contains("Bound to Compose service web of project " + project + ", port 80.");
+    }
+
+    @Test
+    void composeBindingThatMatchesNoContainerSaysSo() {
+        String web = newServiceName("web");
+        bindCompose(web, newComposeProject(), "web", 80);
+
+        assertThat(getPage("/services/ws-test/" + web).getBody())
+                .contains("No container of this Compose service runs.");
+    }
 }

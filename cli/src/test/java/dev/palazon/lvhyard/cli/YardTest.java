@@ -331,6 +331,94 @@ class YardTest {
     }
 
     @Test
+    void registerWithComposeServiceBindsTheServiceToEachOfItsContainers() {
+        dashboard.answer("POST", "/api/workstation/services/web/container-bindings", 201, """
+                {"id": "compose:shop:web:80", "composeProject": "shop", "composeService": "web", "port": 80,
+                 "instances": ["web:shop-web-1:80", "web:shop-web-2:80"]}
+                """);
+
+        Run run = yard("register", "web", "--compose-project", "shop", "--compose-service", "web", "--port", "80");
+
+        assertThat(run.exitCode()).isZero();
+        assertThat(run.out()).isEqualTo("Bound web to Compose service web of project shop, port 80. 2 of its"
+                + " containers run now, so web has 2 Bound Instances.\n");
+        dashboard.verifyCalled("POST", "/api/workstation/services/web/container-bindings", """
+                {"composeProject": "shop", "composeService": "web", "port": 80}
+                """);
+    }
+
+    @Test
+    void registerWithComposeServiceThatDoesNotRunSaysWhenTheInstancesCome() {
+        dashboard.answer("POST", "/api/workstation/services/web/container-bindings", 201, """
+                {"id": "compose:shop:web:80", "composeProject": "shop", "composeService": "web", "port": 80,
+                 "instances": []}
+                """);
+
+        Run run = yard("register", "web", "--compose-project", "shop", "--compose-service", "web", "--port", "80");
+
+        assertThat(run.exitCode()).isZero();
+        assertThat(run.out()).isEqualTo("Bound web to Compose service web of project shop, port 80. None of its"
+                + " containers runs now: web gets a Bound Instance for each one that starts.\n");
+    }
+
+    @Test
+    void registerWithComposeServiceNeedsBothItsProjectAndItsService() {
+        Run run = yard("register", "web", "--compose-service", "web", "--port", "80");
+
+        assertThat(run.exitCode()).isNotZero();
+        assertThat(run.err()).isEqualTo("A Compose service needs both --compose-project and --compose-service.\n");
+    }
+
+    @Test
+    void registerWithAContainerAndAComposeServiceIsRefused() {
+        Run run = yard("register", "web", "--container", "web-1", "--compose-project", "shop",
+                "--compose-service", "web", "--port", "80");
+
+        assertThat(run.exitCode()).isNotZero();
+        assertThat(run.err()).isEqualTo("Give --container, or --compose-project and --compose-service, not"
+                + " both.\n");
+    }
+
+    @Test
+    void registerWithComposeServiceRefusesWhatOnlyAStaticInstanceHas() {
+        Run run = yard("register", "web", "--compose-project", "shop", "--compose-service", "web", "--port", "80",
+                "--check", "http");
+
+        assertThat(run.exitCode()).isNotZero();
+        assertThat(run.err()).isEqualTo("A Container Binding takes only --compose-project, --compose-service and"
+                + " --port, not --check: those are for a Static Instance.\n");
+    }
+
+    @Test
+    void removeWithComposeServiceRemovesThatContainerBinding() {
+        answerWebWithBindings("""
+                {"id": "web-1:80", "container": "web-1", "port": 80, "instances": []},
+                {"id": "compose:shop:web:80", "composeProject": "shop", "composeService": "web", "port": 80,
+                 "instances": []}""");
+        dashboard.answer("DELETE", "/api/workstation/services/web/container-bindings/compose%3Ashop%3Aweb%3A80",
+                204, null);
+
+        Run run = yard("remove", "web", "--compose-project", "shop", "--compose-service", "web");
+
+        assertThat(run.exitCode()).isZero();
+        assertThat(run.out()).isEqualTo("Removed the Container Binding of web to Compose service web of project"
+                + " shop, port 80.\n");
+        dashboard.verifyCalled("DELETE",
+                "/api/workstation/services/web/container-bindings/compose%3Ashop%3Aweb%3A80");
+    }
+
+    @Test
+    void removeWithComposeServiceThatIsNotBoundSaysSo() {
+        answerWebWithBindings("""
+                {"id": "web-1:80", "container": "web-1", "port": 80, "instances": []}""");
+
+        Run run = yard("remove", "web", "--compose-project", "shop", "--compose-service", "web");
+
+        assertThat(run.exitCode()).isNotZero();
+        assertThat(run.err()).isEqualTo("web has no Container Binding to Compose service web of project shop.\n");
+    }
+
+    @Test
     void removeByIdRemovesThatInstance() {
         dashboard.answer("DELETE", "/api/workstation/services/web/instances/7b1c", 204, null);
 

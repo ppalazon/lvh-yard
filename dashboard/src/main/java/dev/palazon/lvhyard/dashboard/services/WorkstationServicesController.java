@@ -103,15 +103,17 @@ class WorkstationServicesController {
 
     @PostMapping(path = "/{service}/container-bindings", consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(operationId = "bindContainer", summary = "Binds a Service to a Docker container by its name and a"
-            + " container port",
-            description = "While a container of that name runs, the Service has a Bound Instance: at this"
-                    + " Workstation's LAN address and the host port when the container port is published, else at"
-                    + " the container's own address and the container port. It gets a TCP check on its port. Binding"
-                    + " the same container and port again changes nothing.")
+    @Operation(operationId = "bindContainer", summary = "Binds a Service to a Docker container by its name, or to a"
+            + " Compose project and service, and a container port",
+            description = "Give either container, or composeProject and composeService. Each running container"
+                    + " that matches gives the Service a Bound Instance, so a scaled Compose service gives one per"
+                    + " container: at this Workstation's LAN address and the host port when the container port is"
+                    + " published, else at the container's own address and the container port. It gets a TCP check"
+                    + " on its port. Binding the same again changes nothing.")
     @ApiResponse(responseCode = "201", description = "Bound", useReturnTypeSchema = true)
-    @ApiResponse(responseCode = "400", description = "The name is not a single DNS label or is yard, the container"
-            + " name is not one Docker allows, or the port is missing or not a TCP port")
+    @ApiResponse(responseCode = "400", description = "The name is not a single DNS label or is yard, neither or both"
+            + " of a container and a Compose service are given, a name is not one Docker or Compose allows, or the"
+            + " port is missing or not a TCP port")
     ContainerBinding bind(@PathVariable String service, @RequestBody ContainerBindingRequest request) {
         String id = containerBindings.add(workstation.name(), service, request);
         return service(service).containerBindings().stream().filter(binding -> binding.id().equals(id))

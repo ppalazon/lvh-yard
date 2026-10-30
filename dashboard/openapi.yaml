@@ -207,11 +207,12 @@ paths:
       - workstation-services-controller
   /api/workstation/services/{service}/container-bindings:
     post:
-      description: "While a container of that name runs, the Service has a Bound Instance:\
-        \ at this Workstation's LAN address and the host port when the container port\
-        \ is published, else at the container's own address and the container port.\
-        \ It gets a TCP check on its port. Binding the same container and port again\
-        \ changes nothing."
+      description: "Give either container, or composeProject and composeService. Each\
+        \ running container that matches gives the Service a Bound Instance, so a\
+        \ scaled Compose service gives one per container: at this Workstation's LAN\
+        \ address and the host port when the container port is published, else at\
+        \ the container's own address and the container port. It gets a TCP check\
+        \ on its port. Binding the same again changes nothing."
       operationId: bindContainer
       parameters:
       - in: path
@@ -237,9 +238,11 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: "The name is not a single DNS label or is yard, the container\
-            \ name is not one Docker allows, or the port is missing or not a TCP port"
-      summary: Binds a Service to a Docker container by its name and a container port
+          description: "The name is not a single DNS label or is yard, neither or\
+            \ both of a container and a Compose service are given, a name is not one\
+            \ Docker or Compose allows, or the port is missing or not a TCP port"
+      summary: "Binds a Service to a Docker container by its name, or to a Compose\
+        \ project and service, and a container port"
       tags:
       - workstation-services-controller
   /api/workstation/services/{service}/container-bindings/{id}:
@@ -518,6 +521,10 @@ components:
     ContainerBinding:
       type: object
       properties:
+        composeProject:
+          type: string
+        composeService:
+          type: string
         container:
           type: string
         id:
@@ -530,20 +537,22 @@ components:
           type: integer
           format: int32
       required:
-      - container
       - id
       - instances
       - port
     ContainerBindingRequest:
       type: object
       properties:
+        composeProject:
+          type: string
+        composeService:
+          type: string
         container:
           type: string
         port:
           type: integer
           format: int32
       required:
-      - container
       - port
     HealthCheck:
       type: object
