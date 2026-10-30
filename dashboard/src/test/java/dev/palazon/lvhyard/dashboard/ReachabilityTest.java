@@ -160,11 +160,12 @@ class ReachabilityTest extends DashboardTest {
 
         assertThat(result.get("workstation").asString()).isEqualTo(RemoteWorkstation.NAME);
         JsonNode instance = result.get("instances").get(0);
+        assertThat(instance.get("outOfRange").asBoolean()).isTrue();
         assertThat(instance.get("reached").asBoolean()).isFalse();
-        assertThat(instance.get("error").asString()).contains("Out of range").contains(RemoteWorkstation.NAME);
+        assertThat(instance.has("error")).isFalse();
         assertThat(result.get("routes")).isEmpty();
         assertThat(result.get("noRoute").asString()).contains("only " + RemoteWorkstation.NAME + " routes it");
-        assertThat(result.get("passed").asBoolean()).isFalse();
+        assertThat(result.get("passed").asBoolean()).as("a skipped Instance is no failure").isTrue();
     }
 
     @Test
@@ -224,7 +225,9 @@ class ReachabilityTest extends DashboardTest {
         String page = "/services/" + RemoteWorkstation.NAME + "/" + api;
 
         assertThat(getPage(page).getBody()).contains("action=\"" + page + "/reachability\"");
-        assertThat(getPage(page + "/reachability").getBody()).contains("Out of range");
+        assertThat(getPage(page + "/reachability").getBody()).contains("Out of range")
+                .contains("Only " + RemoteWorkstation.NAME + " can connect to this address")
+                .doesNotContain("Not reached");
     }
 
     @Test

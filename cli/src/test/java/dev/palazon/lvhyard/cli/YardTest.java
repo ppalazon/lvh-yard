@@ -639,6 +639,26 @@ class YardTest {
     }
 
     @Test
+    void testSkipsAnInstanceOutOfRangeWithoutFailing() {
+        dashboard.answer("GET", "/api/services/ws-b/grafana/reachability", 200, """
+                {"workstation": "ws-b", "service": "grafana", "passed": true,
+                 "instances": [{"id": "1a2b", "address": "192.168.1.20:3000", "reached": true},
+                               {"id": "3c4d", "address": "127.0.0.1:3000", "reached": false, "outOfRange": true}],
+                 "routes": [{"hostname": "grafana.ws-b.lvh.me", "reached": true, "status": 200}]}
+                """);
+
+        Run run = yard("test", "grafana", "--workstation", "ws-b");
+
+        assertThat(run.exitCode()).isZero();
+        assertThat(run.lines()).containsExactly(
+                "Reachability of grafana on ws-b, from this Workstation:",
+                "  ok    Instance 192.168.1.20:3000",
+                "  skip  Instance 127.0.0.1:3000: out of range, only ws-b can connect to it",
+                "  ok    Route grafana.ws-b.lvh.me: answered 200",
+                "Every check passed; 1 skipped.");
+    }
+
+    @Test
     void testOfUnknownServiceIsRefused() {
         dashboard.answer("GET", "/api/workstation/services/wbe/reachability", 404, """
                 {"type": "about:blank", "title": "Not Found", "status": 404,

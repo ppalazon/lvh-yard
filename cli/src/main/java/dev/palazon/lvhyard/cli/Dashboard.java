@@ -145,8 +145,15 @@ final class Dashboard {
             List<RouteReachability> routes, String noRoute, boolean passed) {
     }
 
-    /** Whether a connection straight to an Instance was made, or why not. */
-    record InstanceReachability(String id, String address, boolean reached, String error) {
+    /**
+     * Whether a connection straight to an Instance was made, or why not. One out of range was skipped: only its Home
+     * Workstation can connect to its address. The API leaves {@code outOfRange} out when it is false.
+     */
+    record InstanceReachability(String id, String address, boolean reached, Boolean outOfRange, String error) {
+
+        boolean skipped() {
+            return Boolean.TRUE.equals(outOfRange);
+        }
     }
 
     /** Whether a request for a hostname through Traefik reached the Service, the status it answered, or why not. */

@@ -57,7 +57,7 @@ public class ReachabilityTester {
         List<String> hostnames = hostnames(service);
         try (ExecutorService checks = Executors.newVirtualThreadPerTaskExecutor()) {
             List<Future<InstanceReachability>> instances = service.instances().stream()
-                    .map(instance -> checks.submit(() -> connect(service, instance))).toList();
+                    .map(instance -> checks.submit(() -> connect(instance))).toList();
             List<Future<RouteReachability>> routes = hostnames.stream()
                     .map(hostname -> checks.submit(() -> request(hostname))).toList();
             return new Reachability(service.workstation(), service.name(), results(instances), results(routes),
@@ -95,23 +95,22 @@ public class ReachabilityTester {
     }
 
     /**
-     * A TCP connection straight to {@code instance}, closed at once. An Out-of-range Instance is not connected to:
-     * its address is on its own Workstation, so a connection here would reach something else.
+     * A TCP connection straight to {@code instance}, closed at once. An Out-of-range Instance is skipped: its address
+     * is on its own Workstation, so a connection here would reach something else.
      */
-    private static InstanceReachability connect(Service service, Instance instance) {
+    private static InstanceReachability connect(Instance instance) {
         if (instance.outOfRange()) {
-            return new InstanceReachability(instance.id(), instance.address(), false, "Out of range: only "
-                    + service.workstation() + " can connect to this address, so it is not tested from here.");
+            return new InstanceReachability(instance.id(), instance.address(), false, true, null);
         }
         try (Socket socket = new Socket()) {
             socket.connect(new InetSocketAddress(instance.host(), instance.port()),
                     (int) CONNECT_TIMEOUT.toMillis());
-            return new InstanceReachability(instance.id(), instance.address(), true, null);
+            return new InstanceReachability(instance.id(), instance.address(), true, false, null);
         } catch (SocketTimeoutException e) {
-            return new InstanceReachability(instance.id(), instance.address(), false,
+            return new InstanceReachability(instance.id(), instance.address(), false, false,
                     "No answer within " + CONNECT_TIMEOUT.toSeconds() + " s: a firewall may drop the connection.");
         } catch (IOException e) {
-            return new InstanceReachability(instance.id(), instance.address(), false, describe(e));
+            return new InstanceReachability(instance.id(), instance.address(), false, false, describe(e));
         }
     }
 

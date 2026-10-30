@@ -703,6 +703,8 @@ components:
           type: string
         id:
           type: string
+        outOfRange:
+          type: boolean
         reached:
           type: boolean
       required:

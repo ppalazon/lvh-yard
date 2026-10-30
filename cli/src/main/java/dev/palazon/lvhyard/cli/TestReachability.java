@@ -12,7 +12,8 @@ import picocli.CommandLine.Spec;
 
 /**
  * {@code yard test}: tests whether this Workstation reaches a Service, straight to each Instance and through Traefik
- * at each hostname, and prints each check. It exits with 1 when any check fails.
+ * at each hostname, and prints each check. An Out-of-range Instance is skipped, which is no failure. It exits with 1
+ * when any check fails.
  */
 @Command(name = "test", mixinStandardHelpOptions = true,
         description = { "Tests whether this Workstation reaches a Service: straight to each Instance, and through"
@@ -40,7 +41,14 @@ class TestReachability implements Callable<Integer> {
         out.println("Reachability of " + tested.service() + " on " + tested.workstation()
                 + ", from this Workstation:");
         int failed = 0;
+        int skipped = 0;
         for (Dashboard.InstanceReachability instance : tested.instances()) {
+            if (instance.skipped()) {
+                out.println("  skip  Instance " + instance.address() + ": out of range, only "
+                        + tested.workstation() + " can connect to it");
+                skipped++;
+                continue;
+            }
             out.println(line(instance.reached(), "Instance " + instance.address(), instance.error()));
             failed += instance.reached() ? 0 : 1;
         }
@@ -52,9 +60,10 @@ class TestReachability implements Callable<Integer> {
         if (tested.noRoute() != null) {
             out.println(tested.noRoute());
         }
-        int checks = tested.instances().size() + tested.routes().size();
-        out.println(failed == 0 ? "Every check passed."
-                : failed + " of " + checks + " check" + (checks == 1 ? "" : "s") + " failed.");
+        int checks = tested.instances().size() - skipped + tested.routes().size();
+        out.println((failed == 0 ? "Every check passed"
+                : failed + " of " + checks + " check" + (checks == 1 ? "" : "s") + " failed")
+                + (skipped == 0 ? "." : "; " + skipped + " skipped."));
         out.flush();
         return tested.passed() ? 0 : 1;
     }

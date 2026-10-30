@@ -157,8 +157,15 @@ final class ServicePage {
                 .tbody()
                     .of(body -> reachability.instances().forEach(instance -> body.tr()
                             .td().text("Instance " + instance.address()).__()
-                            .td().of(cell -> result(cell, instance.reached())).__()
-                            .td().text(instanceDetails(instance)).__()
+                            .td().of(cell -> {
+                                if (instance.outOfRange()) {
+                                    cell.span().attrClass("badge").addAttr("data-variant", "secondary")
+                                            .text("Out of range").__();
+                                } else {
+                                    result(cell, instance.reached());
+                                }
+                            }).__()
+                            .td().text(instanceDetails(service, instance)).__()
                     .__()))
                     .of(body -> reachability.routes().forEach(route -> body.tr()
                             .td().text("Route " + route.hostname()).__()
@@ -174,7 +181,10 @@ final class ServicePage {
                 .text(reached ? "Reached" : "Not reached").__();
     }
 
-    private static String instanceDetails(InstanceReachability instance) {
+    private static String instanceDetails(Service service, InstanceReachability instance) {
+        if (instance.outOfRange()) {
+            return "Only " + service.workstation() + " can connect to this address, so it is not tested from here.";
+        }
         return instance.reached() ? "Connected straight to it." : instance.error();
     }
 

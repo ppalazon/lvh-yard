@@ -16,7 +16,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
  *        found it
  * @param noRoute why this Workstation has no Route to the Service, so only its Instances were tested; {@code null},
  *        and left out of the JSON, when it has one
- * @param passed whether every check reached the Service
+ * @param passed whether every check that ran reached the Service; a skipped Out-of-range Instance does not count
  */
 public record Reachability(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String workstation,
@@ -29,7 +29,7 @@ public record Reachability(
     Reachability(String workstation, String service, List<InstanceReachability> instances,
             List<RouteReachability> routes, String noRoute) {
         this(workstation, service, instances, routes, noRoute,
-                instances.stream().allMatch(InstanceReachability::reached)
+                instances.stream().noneMatch(InstanceReachability::failed)
                         && routes.stream().allMatch(RouteReachability::reached));
     }
 }
