@@ -31,6 +31,7 @@ class OpenApiTest extends DashboardTest {
         assertThat(response.getBody().get("paths").propertyNames()).containsExactlyInAnyOrder(
                 "/api/services",
                 "/api/services/{workstation}/{service}",
+                "/api/workstations",
                 "/api/workstation/services",
                 "/api/workstation/services/{service}",
                 "/api/workstation/services/{service}/instances",
@@ -42,7 +43,9 @@ class OpenApiTest extends DashboardTest {
     void errorsAreDescribedAsProblemDetails() {
         JsonNode paths = get("/v3/api-docs").getBody().get("paths");
 
+        assertThat(answersWithProblem(paths, "/api/services", "get", "503")).isTrue();
         assertThat(answersWithProblem(paths, "/api/services/{workstation}/{service}", "get", "404")).isTrue();
+        assertThat(answersWithProblem(paths, "/api/services/{workstation}/{service}", "get", "503")).isTrue();
         assertThat(answersWithProblem(paths, "/api/workstation/services/{service}", "get", "404")).isTrue();
         assertThat(answersWithProblem(paths, "/api/workstation/services/{service}/instances", "post", "400"))
                 .isTrue();

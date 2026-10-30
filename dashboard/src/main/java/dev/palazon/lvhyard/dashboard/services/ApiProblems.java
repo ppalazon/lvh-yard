@@ -10,7 +10,8 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
  * The REST API answers every error with a Problem Details document (RFC 9457): a broken rule with a detail that
  * explains it, and Spring's own errors, such as a malformed body or an unknown Service, as its base class does.
  */
-@RestControllerAdvice(assignableTypes = { ServicesController.class, WorkstationServicesController.class })
+@RestControllerAdvice(assignableTypes = { ServicesController.class, WorkstationServicesController.class,
+        WorkstationsController.class })
 class ApiProblems extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler
@@ -21,6 +22,11 @@ class ApiProblems extends ResponseEntityExceptionHandler {
     @ExceptionHandler
     ProblemDetail unknownInstance(UnknownInstanceException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+    }
+
+    @ExceptionHandler
+    ProblemDetail unreachableWorkstation(UnreachableWorkstationException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage());
     }
 
     @ExceptionHandler

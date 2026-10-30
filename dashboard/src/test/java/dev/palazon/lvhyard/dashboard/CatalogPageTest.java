@@ -60,6 +60,25 @@ class CatalogPageTest extends DashboardTest {
         assertThat(rowOf(getPage("/").getBody(), web)).contains("Unavailable");
     }
 
+    @Test
+    void groupsServicesByHomeWorkstationThisOneFirst() {
+        String web = newServiceName("web");
+        register(web, Map.of("host", "10.1.2.3", "port", 8080));
+        String api = newServiceName("api");
+        remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
+
+        String page = getPage("/").getBody();
+
+        int own = page.indexOf("<h2>ws-test</h2>");
+        int other = page.indexOf("<h2>" + RemoteWorkstation.NAME + "</h2>");
+        assertThat(own).as("this Workstation's heading").isNotNegative();
+        assertThat(other).as("the remote Workstation's heading").isGreaterThan(own);
+        assertThat(page.indexOf("href=\"/services/ws-test/" + web + "\"")).isBetween(own, other);
+        assertThat(page.indexOf("href=\"/services/" + RemoteWorkstation.NAME + "/" + api + "\""))
+                .isGreaterThan(other);
+        assertThat(page).contains("10.9.8.7:9090");
+    }
+
     /** The table row that links to {@code service}'s page. */
     private static String rowOf(String page, String service) {
         int link = page.indexOf("href=\"/services/ws-test/" + service + "\"");

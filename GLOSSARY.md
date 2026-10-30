@@ -72,6 +72,10 @@ _Avoid_: Rename, nickname, CNAME
 The proxy rule built from a Publication, which sends a hostname to the Service's Instances.
 _Avoid_: Router, mapping
 
+**Unreachable Workstation**:
+A Workstation whose Consul datacenter does not answer. Its Services are not shown until it answers again.
+_Avoid_: Offline, down, unreachable Service
+
 ### Service states
 
 **Unpublished**:

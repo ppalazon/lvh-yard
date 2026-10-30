@@ -17,14 +17,15 @@ import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.media.StringSchema;
 
 /**
- * The OpenAPI document of the REST API. The controller names each error response's status and meaning; every 4xx
- * response is then given the Problem Details body (RFC 9457) the API answers errors with. The server is relative, so
+ * The OpenAPI document of the REST API. The controller names each error response's status and meaning; every 4xx and
+ * 5xx response is then given the Problem Details body (RFC 9457) the API answers errors with. The server is relative, so
  * the committed copy at {@code dashboard/openapi.yaml} does not depend on the port it was generated at.
  */
 @Configuration(proxyBeanMethods = false)
 @OpenAPIDefinition(info = @Info(title = "LVH Yard",
-        description = "The Services of the Yard, and the Static Instances and Publications of this Workstation's"
-                + " Services"),
+        description = "The Workstations and Services of the Yard, read only, and the Static Instances and"
+                + " Publications of this Workstation's Services. A Remote Service can be changed only on its Home"
+                + " Workstation, so a change asked under /api/services is refused with 405."),
         servers = @Server(url = "/"))
 class ApiDocumentation {
 
@@ -39,7 +40,7 @@ class ApiDocumentation {
                             .schema(new Schema<>().$ref("#/components/schemas/" + PROBLEM_DETAIL)));
             openApi.getPaths().values().forEach(path -> path.readOperations().forEach(operation -> operation
                     .getResponses().forEach((status, response) -> {
-                        if (status.startsWith("4")) {
+                        if (status.startsWith("4") || status.startsWith("5")) {
                             response.setContent(problem);
                         }
                     })));

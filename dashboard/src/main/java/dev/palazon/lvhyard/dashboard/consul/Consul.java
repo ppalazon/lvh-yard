@@ -1,6 +1,9 @@
 package dev.palazon.lvhyard.dashboard.consul;
 
+import java.net.URI;
+import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -10,15 +13,18 @@ import java.util.TreeMap;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.util.UriBuilder;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * This Workstation's Consul agent, through its HTTP API. Only the calls LVH Yard makes, with Consul's own names; it
- * knows nothing of the Yard's rules.
+ * knows nothing of the Yard's rules. A read can name another datacenter, which the agent forwards it to over WAN
+ * federation; {@code null} names the agent's own.
  */
 @Component
 public class Consul {
@@ -26,10 +32,26 @@ public class Consul {
     /** The Consul server's own entry in its catalog, which is no Service of the Yard. */
     public static final String CONSUL_SERVICE = "consul";
 
+    /**
+     * How long an answer may take. A datacenter on a computer that is switched off never answers, and the agent waits
+     * well over a minute before it gives up on it.
+     */
+    private static final Duration ANSWER_TIMEOUT = Duration.ofSeconds(3);
+
     private final RestClient http;
 
     Consul(ConsulSettings settings) {
-        this.http = RestClient.builder().baseUrl(settings.url().toString()).build();
+        JdkClientHttpRequestFactory requests = new JdkClientHttpRequestFactory(HttpClient.newBuilder()
+                .connectTimeout(ANSWER_TIMEOUT).build());
+        requests.setReadTimeout(ANSWER_TIMEOUT);
+        this.http = RestClient.builder().baseUrl(settings.url().toString()).requestFactory(requests).build();
+    }
+
+    /** The datacenters the agent knows of: its own, and every one federated with it, answering or not. */
+    public List<String> datacenters() {
+        List<String> datacenters = http.get().uri("/v1/catalog/datacenters").retrieve()
+                .body(new ParameterizedTypeReference<>() { });
+        return datacenters == null ? List.of() : datacenters;
     }
 
     /** The address the agent binds to, which compose.yaml sets to the Workstation's LAN address. */
@@ -62,16 +84,23 @@ public class Consul {
         http.put().uri("/v1/agent/service/deregister/{id}", id).retrieve().toBodilessEntity();
     }
 
-    /** The names of the Services registered in the agent's datacenter. */
-    public List<String> serviceNames() {
-        Map<String, List<String>> services = http.get().uri("/v1/catalog/services").retrieve()
+    /** The names of the Services registered in {@code datacenter}. */
+    public List<String> serviceNames(String datacenter) {
+        Map<String, List<String>> services = http.get()
+                .uri(builder -> in(datacenter, builder.path("/v1/catalog/services"))).retrieve()
                 .body(new ParameterizedTypeReference<>() { });
         return services == null ? List.of() : List.copyOf(services.keySet());
     }
 
     /** Every registration of a Service in the agent's datacenter, each with its own checks and its node's. */
     public List<HealthEntry> health(String service) {
-        List<HealthEntry> entries = http.get().uri("/v1/health/service/{service}", service).retrieve()
+        return health(null, service);
+    }
+
+    /** Every registration of a Service in {@code datacenter}, each with its own checks and its node's. */
+    public List<HealthEntry> health(String datacenter, String service) {
+        List<HealthEntry> entries = http.get()
+                .uri(builder -> in(datacenter, builder.path("/v1/health/service/{service}"), service)).retrieve()
                 .body(new ParameterizedTypeReference<>() { });
         return entries == null ? List.of() : entries;
     }
@@ -82,10 +111,10 @@ public class Consul {
                 .body(value).retrieve().toBodilessEntity();
     }
 
-    /** Every value in the KV store whose key starts with {@code prefix}, by key. */
-    public Map<String, String> values(String prefix) {
-        List<KeyValue> entries = http.get().uri(builder -> builder.path("/v1/kv/" + prefix)
-                .queryParam("recurse", true).build()).exchange((request, response) ->
+    /** Every value in {@code datacenter}'s KV store whose key starts with {@code prefix}, by key. */
+    public Map<String, String> values(String datacenter, String prefix) {
+        List<KeyValue> entries = http.get().uri(builder -> in(datacenter, builder.path("/v1/kv/" + prefix)
+                .queryParam("recurse", true))).exchange((request, response) ->
                         response.getStatusCode() == HttpStatus.NOT_FOUND
                                 ? List.of()
                                 : response.bodyTo(new ParameterizedTypeReference<>() { }));
@@ -99,6 +128,11 @@ public class Consul {
     /** Removes {@code key} from the KV store; a key that is not there is no error. */
     public void deleteValue(String key) {
         http.delete().uri(builder -> builder.path("/v1/kv/" + key).build()).retrieve().toBodilessEntity();
+    }
+
+    /** The URI {@code builder} holds, asked of {@code datacenter}, or of the agent's own when it is null. */
+    private static URI in(String datacenter, UriBuilder builder, Object... variables) {
+        return (datacenter == null ? builder : builder.queryParam("dc", datacenter)).build(variables);
     }
 
     /** A KV entry as Consul gives it back: the value in base64, or null when empty. */

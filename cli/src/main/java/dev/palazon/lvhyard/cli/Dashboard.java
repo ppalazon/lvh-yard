@@ -55,6 +55,13 @@ final class Dashboard {
             List<Instance> instances) {
     }
 
+    /**
+     * A Workstation of the Yard with its Services. An unreachable one, whose datacenter does not answer, has none for
+     * now.
+     */
+    record Workstation(String name, boolean unreachable, List<Service> services) {
+    }
+
     /** A Service's Publication, with its Scope. */
     record Publication(String scope) {
     }
@@ -91,9 +98,9 @@ final class Dashboard {
         return (host.contains(":") ? "[" + host + "]" : host) + ":" + port;
     }
 
-    /** This Workstation's Services. */
-    List<Service> ownServices() {
-        return read(send(get("api/workstation/services")), new TypeReference<>() { });
+    /** Every Workstation of the Yard with its Services, this one first. */
+    List<Workstation> workstations() {
+        return read(send(get("api/workstations")), new TypeReference<>() { });
     }
 
     /** The Services of {@code workstation}, as the Yard sees them. */

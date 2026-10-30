@@ -42,37 +42,45 @@ class YardTest {
     }
 
     @Test
-    void listShowsEachOwnServiceWithItsStateHostnameInstancesAndTheirHealth() {
-        dashboard.answer("GET", "/api/workstation/services", 200, """
-                [{"workstation": "ws-a", "name": "api", "state": "unavailable", "publication": {"scope": "local"},
-                  "hostname": "api.lvh.me", "instances": []},
-                 {"workstation": "ws-a", "name": "grafana", "state": "healthy", "publication": {"scope": "local"},
-                  "hostname": "grafana.lvh.me", "instances": [
-                    {"id": "3f2a", "host": "10.1.2.3", "port": 3000, "health": "passing",
-                     "tags": [], "meta": {}, "checks": []}]},
-                 {"workstation": "ws-a", "name": "postgres", "state": "unhealthy", "publication": {"scope": "local"},
-                  "hostname": "postgres.lvh.me", "instances": [
-                    {"id": "5e6f", "host": "10.1.2.3", "port": 5432, "health": "critical",
-                     "tags": [], "meta": {}, "checks": []}]},
-                 {"workstation": "ws-a", "name": "web", "state": "unpublished", "instances": [
-                    {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical",
-                     "tags": [], "meta": {}, "checks": []},
-                    {"id": "9d4e", "host": "10.1.2.3", "port": 8081, "health": "warning",
-                     "tags": [], "meta": {}, "checks": []}]}]
+    void listShowsEveryWorkstationsServicesThisOneFirstWithTheirStateHostnameInstancesAndHealth() {
+        dashboard.answer("GET", "/api/workstations", 200, """
+                [{"name": "ws-a", "unreachable": false, "services": [
+                   {"workstation": "ws-a", "name": "api", "state": "unavailable", "publication": {"scope": "local"},
+                    "hostname": "api.lvh.me", "instances": []},
+                   {"workstation": "ws-a", "name": "grafana", "state": "healthy", "publication": {"scope": "local"},
+                    "hostname": "grafana.lvh.me", "instances": [
+                      {"id": "3f2a", "host": "10.1.2.3", "port": 3000, "health": "passing",
+                       "tags": [], "meta": {}, "checks": []}]},
+                   {"workstation": "ws-a", "name": "web", "state": "unpublished", "instances": [
+                      {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical",
+                       "tags": [], "meta": {}, "checks": []},
+                      {"id": "9d4e", "host": "10.1.2.3", "port": 8081, "health": "warning",
+                       "tags": [], "meta": {}, "checks": []}]}]},
+                 {"name": "ws-b", "unreachable": false, "services": [
+                   {"workstation": "ws-b", "name": "postgres", "state": "unhealthy",
+                    "publication": {"scope": "local"}, "instances": [
+                      {"id": "5e6f", "host": "10.1.2.4", "port": 5432, "health": "critical",
+                       "tags": [], "meta": {}, "checks": []}]}]},
+                 {"name": "ws-c", "unreachable": true, "services": []},
+                 {"name": "ws-d", "unreachable": false, "services": []}]
                 """);
 
         Run run = yard("list");
 
         assertThat(run.exitCode()).isZero();
         assertThat(run.lines()).containsExactly(
-                "api on ws-a: unavailable at api.lvh.me",
-                "grafana on ws-a: healthy at grafana.lvh.me",
-                "  10.1.2.3:3000  passing   3f2a",
-                "postgres on ws-a: unhealthy at postgres.lvh.me",
-                "  10.1.2.3:5432  critical  5e6f",
-                "web on ws-a: unpublished",
-                "  10.1.2.3:8080  critical  7b1c",
-                "  10.1.2.3:8081  warning   9d4e");
+                "ws-a (this Workstation)",
+                "  api: unavailable at api.lvh.me",
+                "  grafana: healthy at grafana.lvh.me",
+                "    10.1.2.3:3000  passing   3f2a",
+                "  web: unpublished",
+                "    10.1.2.3:8080  critical  7b1c",
+                "    10.1.2.3:8081  warning   9d4e",
+                "ws-b",
+                "  postgres: unhealthy",
+                "    10.1.2.4:5432  critical  5e6f",
+                "ws-c: Workstation unreachable",
+                "ws-d: no Services");
     }
 
     @Test
@@ -87,17 +95,32 @@ class YardTest {
 
         assertThat(run.exitCode()).isZero();
         assertThat(run.lines()).containsExactly(
-                "postgres on ws-b: unpublished",
-                "  10.1.2.4:5432  passing   5e6f");
+                "ws-b",
+                "  postgres: unpublished",
+                "    10.1.2.4:5432  passing   5e6f");
     }
 
     @Test
     void listWithoutServicesSaysSo() {
-        dashboard.answer("GET", "/api/workstation/services", 200, "[]");
+        dashboard.answer("GET", "/api/workstations", 200, """
+                [{"name": "ws-a", "unreachable": false, "services": []}]
+                """);
         dashboard.answer("GET", "/api/services?workstation=ws-b", 200, "[]");
 
-        assertThat(yard("list").out()).isEqualTo("This Workstation has no Services.\n");
-        assertThat(yard("list", "--workstation", "ws-b").out()).isEqualTo("ws-b has no Services.\n");
+        assertThat(yard("list").out()).isEqualTo("ws-a (this Workstation): no Services\n");
+        assertThat(yard("list", "--workstation", "ws-b").out()).isEqualTo("ws-b: no Services\n");
+    }
+
+    @Test
+    void listOfUnreachableWorkstationFailsWithTheReason() {
+        dashboard.answer("GET", "/api/services?workstation=ws-b", 503, """
+                {"status": 503, "detail": "Workstation ws-b is unreachable: its Consul datacenter does not answer."}
+                """);
+
+        Run run = yard("list", "--workstation", "ws-b");
+
+        assertThat(run.exitCode()).isNotZero();
+        assertThat(run.err()).contains("Workstation ws-b is unreachable: its Consul datacenter does not answer.");
     }
 
     @Test
@@ -344,17 +367,21 @@ class YardTest {
 
     @Test
     void dashboardUrlComesFromTheEnvironment() throws Exception {
-        dashboard.answer("GET", "/api/workstation/services", 200, "[]");
+        dashboard.answer("GET", "/api/workstations", 200, """
+                [{"name": "ws-a", "unreachable": false, "services": []}]
+                """);
 
         Run run = yardProcess(Map.of("YARD_DASHBOARD_URL", dashboard.url().toString()), "list");
 
         assertThat(run.exitCode()).isZero();
-        assertThat(run.out()).isEqualTo("This Workstation has no Services.\n");
+        assertThat(run.out()).isEqualTo("ws-a (this Workstation): no Services\n");
     }
 
     @Test
     void dashboardOptionWinsOverTheEnvironment() throws Exception {
-        dashboard.answer("GET", "/api/workstation/services", 200, "[]");
+        dashboard.answer("GET", "/api/workstations", 200, """
+                [{"name": "ws-a", "unreachable": false, "services": []}]
+                """);
 
         Run run = yardProcess(Map.of("YARD_DASHBOARD_URL", "http://127.0.0.1:" + freePort()),
                 "--dashboard", dashboard.url().toString(), "list");

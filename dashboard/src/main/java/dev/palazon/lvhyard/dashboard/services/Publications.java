@@ -47,8 +47,16 @@ public class Publications {
 
     /** This Workstation's Publications, by Service name. */
     Map<String, Publication> all() {
+        return all(null);
+    }
+
+    /**
+     * The Publications in {@code datacenter}'s KV, by Service name: those of the Workstation it belongs to, or this
+     * one's when it is {@code null}.
+     */
+    Map<String, Publication> all(String datacenter) {
         Map<String, Publication> publications = new TreeMap<>();
-        consul.values(PREFIX).forEach((key, scope) ->
+        consul.values(datacenter, PREFIX).forEach((key, scope) ->
                 publications.put(key.substring(PREFIX.length()), new Publication(Scope.of(scope))));
         return publications;
     }

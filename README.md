@@ -36,11 +36,11 @@ mise run dev:down
 java -jar cli/target/cli-0.0.1-SNAPSHOT.jar --help
 ```
 
-`yard` talks to the dashboard on this Workstation, at `--dashboard`, else `YARD_DASHBOARD_URL`, else `http://127.0.0.1:8780`. It changes only this Workstation's Services:
+`yard` talks to the dashboard on this Workstation, at `--dashboard`, else `YARD_DASHBOARD_URL`, else `http://127.0.0.1:8780`. It sees the whole Yard, but changes only this Workstation's Services:
 
 ```sh
-yard list                               # this Workstation's Services: state, hostname, Instances and Health
-yard list --workstation ws-b            # another Workstation's
+yard list                               # every Service by Workstation, this one first: state, hostname, Instances, Health
+yard list --workstation ws-b            # one Workstation's
 yard register web --port 8080           # at this Workstation's LAN address
 yard register web --host 127.0.0.1 --port 8080
 yard register web --port 8080 --path /health --interval 5s --timeout 1s   # an HTTP check (default: TCP, 10s, 2s)
@@ -55,10 +55,12 @@ Each Service is `unpublished`, `unavailable` (published, no Instances), `unhealt
 
 Each Instance has one health check: TCP, which connects to its port, or HTTP, which GETs a path and passes on a 2xx answer. Script checks are not offered. The Service's page shows each check's last output, and edits an Instance's host, port, check, tags and meta; it stays the same Instance.
 
+A Remote Service, one whose Home Workstation is another, can be seen but not changed: its page has no forms, and the API refuses any change asked under `/api/services` with 405. A Workstation whose Consul datacenter does not answer shows as "Workstation unreachable", and its Services show again by themselves once it answers.
+
 Every failure prints its reason and exits with a non-zero code.
 
 ## Checks
 
-`mise run check` builds the stylesheet, builds both modules from scratch and runs every test. The dashboard's tests start a real Consul with Testcontainers, so they need Docker.
+`mise run check` builds the stylesheet, builds both modules from scratch and runs every test. The dashboard's tests start a Yard of two federated Consul datacenters with Testcontainers, so they need Docker. The second Workstation, `ws-remote`, runs a dashboard of its own in the same JVM.
 
 `dashboard/openapi.yaml` describes the REST API that the CLI uses. A test fails when it differs from what the dashboard serves; after changing the API, `mise run openapi` rewrites it.

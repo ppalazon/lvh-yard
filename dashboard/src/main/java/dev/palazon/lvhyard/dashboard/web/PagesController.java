@@ -22,6 +22,7 @@ import dev.palazon.lvhyard.dashboard.services.RemoteServiceException;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import dev.palazon.lvhyard.dashboard.services.UnknownInstanceException;
 import dev.palazon.lvhyard.dashboard.services.UnknownServiceException;
+import dev.palazon.lvhyard.dashboard.services.UnreachableWorkstationException;
 import dev.palazon.lvhyard.dashboard.services.YardReader;
 
 /** The HTML pages. They only translate to views. */
@@ -47,7 +48,7 @@ class PagesController {
     @GetMapping(path = "/", produces = MediaType.TEXT_HTML_VALUE)
     @ResponseBody
     String catalog() {
-        return CatalogPage.render(workstation, yard.services());
+        return CatalogPage.render(workstation, yard.workstations());
     }
 
     @GetMapping(path = RegisterPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
@@ -71,8 +72,12 @@ class PagesController {
     @GetMapping(path = "/services/{workstation}/{service}", produces = MediaType.TEXT_HTML_VALUE)
     @ResponseBody
     String service(@PathVariable("workstation") String home, @PathVariable String service) {
-        return yard.service(home, service).map(found -> ServicePage.render(workstation, found))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        try {
+            return yard.service(home, service).map(found -> ServicePage.render(workstation, found))
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        } catch (UnreachableWorkstationException e) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage(), e);
+        }
     }
 
     @GetMapping(path = "/services/{workstation}/{service}/instances/{id}/edit", produces = MediaType.TEXT_HTML_VALUE)

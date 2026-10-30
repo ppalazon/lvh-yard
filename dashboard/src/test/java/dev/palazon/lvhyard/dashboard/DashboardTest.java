@@ -20,8 +20,8 @@ import tools.jackson.databind.JsonNode;
 
 /**
  * The single test seam: the running dashboard as a black box, on Workstation {@code ws-test}, with a real Consul
- * behind it. The Consul is shared by every test, so each test registers Services under names of its own
- * ({@link #newServiceName}).
+ * behind it, federated with a {@link RemoteWorkstation}'s. Both are shared by every test, so each test registers
+ * Services under names of its own ({@link #newServiceName}).
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "lvh-yard.workstation.name=" + DashboardTest.WORKSTATION,
@@ -40,6 +40,10 @@ abstract class DashboardTest {
 
     @Autowired
     private GenericContainer<?> consulContainer;
+
+    /** The test Yard's other Workstation, whose Services are Remote Services here. */
+    @Autowired
+    RemoteWorkstation remote;
 
     private RestClient http;
 
