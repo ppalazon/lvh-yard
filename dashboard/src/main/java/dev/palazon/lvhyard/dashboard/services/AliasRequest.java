@@ -9,6 +9,5 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * @param service its name
  */
 public record AliasRequest(
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String workstation,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String service) {
-}
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String workstation,
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String service) {}

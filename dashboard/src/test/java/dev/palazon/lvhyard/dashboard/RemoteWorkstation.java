@@ -1,7 +1,6 @@
 package dev.palazon.lvhyard.dashboard;
 
 import java.util.Map;
-
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.TypeExcludeFilter;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -14,144 +13,199 @@ import org.springframework.web.client.RestClient;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
-
 import tools.jackson.databind.JsonNode;
 
 /**
- * The test Yard's other Workstation, {@value #NAME}: its own Consul datacenter, joined to the test Workstation's by
- * WAN federation, and its own dashboard, which the tests change it through as its developer would.
+ * The test Yard's other Workstation, {@value #NAME}: its own Consul datacenter, joined to the test
+ * Workstation's by WAN federation, and its own dashboard, which the tests change it through as its
+ * developer would.
  */
 final class RemoteWorkstation implements AutoCloseable {
 
-    static final String NAME = "ws-remote";
+  static final String NAME = "ws-remote";
 
-    private final GenericContainer<?> consul;
+  private final GenericContainer<?> consul;
 
-    private ConfigurableApplicationContext dashboard;
+  private ConfigurableApplicationContext dashboard;
 
-    private RestClient http;
+  private RestClient http;
 
-    /** Starts the Workstation's Consul, joined to the Consul at {@code peer} on {@code network}, and its dashboard. */
-    RemoteWorkstation(Network network, String peer) {
-        consul = TestcontainersConfiguration.consul().withNetwork(network)
-                .withCommand(TestcontainersConfiguration.consulCommand(NAME, "-retry-join-wan=" + peer));
-        consul.start();
-        startDashboard();
+  /**
+   * Starts the Workstation's Consul, joined to the Consul at {@code peer} on {@code network}, and
+   * its dashboard.
+   */
+  RemoteWorkstation(Network network, String peer) {
+    consul =
+        TestcontainersConfiguration.consul()
+            .withNetwork(network)
+            .withCommand(
+                TestcontainersConfiguration.consulCommand(NAME, "-retry-join-wan=" + peer));
+    consul.start();
+    startDashboard();
+  }
+
+  /** Stops this Workstation's dashboard, does {@code meanwhile}, and starts the dashboard again. */
+  void whileDashboardIsStopped(Runnable meanwhile) {
+    dashboard.close();
+    try {
+      meanwhile.run();
+    } finally {
+      startDashboard();
     }
+  }
 
-    /** Stops this Workstation's dashboard, does {@code meanwhile}, and starts the dashboard again. */
-    void whileDashboardIsStopped(Runnable meanwhile) {
-        dashboard.close();
-        try {
-            meanwhile.run();
-        } finally {
-            startDashboard();
-        }
-    }
+  private void startDashboard() {
+    dashboard =
+        new SpringApplicationBuilder(DashboardApplication.class)
+            .initializers(context ->
+                context
+                    .getBeanFactory()
+                    .registerSingleton(
+                        SkipTestConfigurations.class.getName(), new SkipTestConfigurations()))
+            // Arguments, which win over the .env a developer may have at the repository root.
+            .run(
+                "--server.port=0",
+                "--spring.main.banner-mode=off",
+                "--lvh-yard.workstation.name=" + NAME,
+                "--lvh-yard.workstation.base-domain=" + DashboardTest.BASE_DOMAIN,
+                "--lvh-yard.docker.host=" + TestcontainersConfiguration.dockerHost(),
+                "--lvh-yard.consul.url=http://"
+                    + consul.getHost()
+                    + ":"
+                    + consul.getMappedPort(TestcontainersConfiguration.CONSUL_HTTP_PORT));
+    http =
+        RestClient.builder()
+            .baseUrl(
+                "http://127.0.0.1:"
+                    + dashboard.getEnvironment().getRequiredProperty("local.server.port"))
+            .build();
+  }
 
-    private void startDashboard() {
-        dashboard = new SpringApplicationBuilder(DashboardApplication.class)
-                .initializers(context -> context.getBeanFactory()
-                        .registerSingleton(SkipTestConfigurations.class.getName(), new SkipTestConfigurations()))
-                // Arguments, which win over the .env a developer may have at the repository root.
-                .run("--server.port=0", "--spring.main.banner-mode=off",
-                        "--lvh-yard.workstation.name=" + NAME,
-                        "--lvh-yard.workstation.base-domain=" + DashboardTest.BASE_DOMAIN,
-                        "--lvh-yard.docker.host=" + TestcontainersConfiguration.dockerHost(),
-                        "--lvh-yard.consul.url=http://" + consul.getHost() + ":"
-                                + consul.getMappedPort(TestcontainersConfiguration.CONSUL_HTTP_PORT));
-        http = RestClient.builder()
-                .baseUrl("http://127.0.0.1:" + dashboard.getEnvironment().getRequiredProperty("local.server.port"))
-                .build();
-    }
+  /** Registers a Static Instance of {@code service} on this Workstation, through its dashboard. */
+  JsonNode register(String service, Map<String, Object> instance) {
+    return http.post()
+        .uri(DashboardTest.instancesPath(service))
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(instance)
+        .retrieve()
+        .body(JsonNode.class);
+  }
 
-    /** Registers a Static Instance of {@code service} on this Workstation, through its dashboard. */
-    JsonNode register(String service, Map<String, Object> instance) {
-        return http.post().uri(DashboardTest.instancesPath(service)).contentType(MediaType.APPLICATION_JSON)
-                .body(instance).retrieve().body(JsonNode.class);
-    }
+  /**
+   * Binds {@code service} on this Workstation to {@code container}'s {@code port}, through its
+   * dashboard.
+   */
+  void bind(String service, String container, int port) {
+    http.post()
+        .uri(DashboardTest.containerBindingsPath(service))
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(Map.of("container", container, "port", port))
+        .retrieve()
+        .toBodilessEntity();
+  }
 
-    /** Binds {@code service} on this Workstation to {@code container}'s {@code port}, through its dashboard. */
-    void bind(String service, String container, int port) {
-        http.post().uri(DashboardTest.containerBindingsPath(service)).contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("container", container, "port", port)).retrieve().toBodilessEntity();
-    }
+  /** Publishes {@code service} on this Workstation, through its dashboard. */
+  void publish(String service) {
+    http.put().uri(DashboardTest.publicationPath(service)).retrieve().toBodilessEntity();
+  }
 
-    /** Publishes {@code service} on this Workstation, through its dashboard. */
-    void publish(String service) {
-        http.put().uri(DashboardTest.publicationPath(service)).retrieve().toBodilessEntity();
-    }
+  /** Publishes {@code service} on this Workstation with {@code scope}, such as {@code yard}. */
+  void publish(String service, String scope) {
+    http.put()
+        .uri(DashboardTest.publicationPath(service))
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(Map.of("scope", scope))
+        .retrieve()
+        .toBodilessEntity();
+  }
 
-    /** Publishes {@code service} on this Workstation with {@code scope}, such as {@code yard}. */
-    void publish(String service, String scope) {
-        http.put().uri(DashboardTest.publicationPath(service)).contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("scope", scope)).retrieve().toBodilessEntity();
-    }
+  /** Unpublishes {@code service} on this Workstation, through its dashboard. */
+  void unpublish(String service) {
+    http.delete().uri(DashboardTest.publicationPath(service)).retrieve().toBodilessEntity();
+  }
 
-    /** Unpublishes {@code service} on this Workstation, through its dashboard. */
-    void unpublish(String service) {
-        http.delete().uri(DashboardTest.publicationPath(service)).retrieve().toBodilessEntity();
-    }
+  /**
+   * Removes the Static Instance {@code id} of {@code service} on this Workstation, through its
+   * dashboard.
+   */
+  void remove(String service, String id) {
+    http.delete()
+        .uri(DashboardTest.instancesPath(service) + "/" + id)
+        .retrieve()
+        .toBodilessEntity();
+  }
 
-    /** Removes the Static Instance {@code id} of {@code service} on this Workstation, through its dashboard. */
-    void remove(String service, String id) {
-        http.delete().uri(DashboardTest.instancesPath(service) + "/" + id).retrieve().toBodilessEntity();
-    }
+  /** What this Workstation's Traefik reads from its dashboard. */
+  JsonNode traefikConfiguration() {
+    return http.get().uri("/traefik/configuration").retrieve().body(JsonNode.class);
+  }
 
-    /** What this Workstation's Traefik reads from its dashboard. */
-    JsonNode traefikConfiguration() {
-        return http.get().uri("/traefik/configuration").retrieve().body(JsonNode.class);
-    }
+  /** One of this Workstation's Services, as its own dashboard sees it. */
+  ResponseEntity<JsonNode> service(String service) {
+    return http.get().uri(DashboardTest.servicePath(service)).retrieve().toEntity(JsonNode.class);
+  }
 
-    /** One of this Workstation's Services, as its own dashboard sees it. */
-    ResponseEntity<JsonNode> service(String service) {
-        return http.get().uri(DashboardTest.servicePath(service)).retrieve().toEntity(JsonNode.class);
-    }
+  /**
+   * Writes {@code value} at {@code key} in this Workstation's Consul KV, straight to Consul, so the
+   * test can store what its dashboard would refuse.
+   */
+  void putConsulValue(String key, String value) {
+    consulHttp()
+        .put()
+        .uri("/v1/kv/" + key)
+        .contentType(MediaType.TEXT_PLAIN)
+        .body(value)
+        .retrieve()
+        .toBodilessEntity();
+  }
 
-    /**
-     * Writes {@code value} at {@code key} in this Workstation's Consul KV, straight to Consul, so the test can store
-     * what its dashboard would refuse.
-     */
-    void putConsulValue(String key, String value) {
-        consulHttp().put().uri("/v1/kv/" + key).contentType(MediaType.TEXT_PLAIN).body(value).retrieve()
-                .toBodilessEntity();
-    }
+  /** Removes {@code key} from this Workstation's Consul KV, straight from Consul. */
+  void deleteConsulValue(String key) {
+    consulHttp().delete().uri("/v1/kv/" + key).retrieve().toBodilessEntity();
+  }
 
-    /** Removes {@code key} from this Workstation's Consul KV, straight from Consul. */
-    void deleteConsulValue(String key) {
-        consulHttp().delete().uri("/v1/kv/" + key).retrieve().toBodilessEntity();
-    }
+  private RestClient consulHttp() {
+    return RestClient.builder()
+        .baseUrl(
+            "http://"
+                + consul.getHost()
+                + ":"
+                + consul.getMappedPort(TestcontainersConfiguration.CONSUL_HTTP_PORT))
+        .build();
+  }
 
-    private RestClient consulHttp() {
-        return RestClient.builder().baseUrl("http://" + consul.getHost() + ":"
-                + consul.getMappedPort(TestcontainersConfiguration.CONSUL_HTTP_PORT)).build();
-    }
+  /**
+   * Freezes this Workstation's Consul, as a computer that is switched off: nothing it is asked is
+   * answered.
+   */
+  void stopAnswering() {
+    DockerClientFactory.instance().client().pauseContainerCmd(consul.getContainerId()).exec();
+  }
 
-    /** Freezes this Workstation's Consul, as a computer that is switched off: nothing it is asked is answered. */
-    void stopAnswering() {
-        DockerClientFactory.instance().client().pauseContainerCmd(consul.getContainerId()).exec();
-    }
+  /** Lets this Workstation's Consul answer again, where {@link #stopAnswering} left it. */
+  void answerAgain() {
+    DockerClientFactory.instance().client().unpauseContainerCmd(consul.getContainerId()).exec();
+  }
 
-    /** Lets this Workstation's Consul answer again, where {@link #stopAnswering} left it. */
-    void answerAgain() {
-        DockerClientFactory.instance().client().unpauseContainerCmd(consul.getContainerId()).exec();
-    }
+  @Override
+  public void close() {
+    dashboard.close();
+    consul.stop();
+  }
+
+  /**
+   * Keeps the test Workstation's {@link TestConfiguration}s out of this dashboard's component scan,
+   * as a {@code @SpringBootTest} does for its own: otherwise this dashboard would start a Yard of
+   * its own.
+   */
+  static final class SkipTestConfigurations extends TypeExcludeFilter {
 
     @Override
-    public void close() {
-        dashboard.close();
-        consul.stop();
+    public boolean match(
+        MetadataReader metadataReader, MetadataReaderFactory metadataReaderFactory) {
+      return metadataReader
+          .getAnnotationMetadata()
+          .hasAnnotation(TestConfiguration.class.getName());
     }
-
-    /**
-     * Keeps the test Workstation's {@link TestConfiguration}s out of this dashboard's component scan, as a
-     * {@code @SpringBootTest} does for its own: otherwise this dashboard would start a Yard of its own.
-     */
-    static final class SkipTestConfigurations extends TypeExcludeFilter {
-
-        @Override
-        public boolean match(MetadataReader metadataReader, MetadataReaderFactory metadataReaderFactory) {
-            return metadataReader.getAnnotationMetadata().hasAnnotation(TestConfiguration.class.getName());
-        }
-    }
+  }
 }

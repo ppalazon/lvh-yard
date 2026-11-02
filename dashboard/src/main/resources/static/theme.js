@@ -13,7 +13,9 @@ try {
 function apply() {
   const dark = (choice ?? (system.matches ? "dark" : "light")) === "dark";
   document.documentElement.classList.toggle("dark", dark);
-  document.getElementById("theme-toggle")?.setAttribute("aria-pressed", String(dark));
+  document
+    .getElementById("theme-toggle")
+    ?.setAttribute("aria-pressed", String(dark));
 }
 
 apply();
@@ -23,7 +25,9 @@ document.addEventListener("click", (event) => {
   if (!event.target.closest("#theme-toggle")) {
     return;
   }
-  choice = document.documentElement.classList.contains("dark") ? "light" : "dark";
+  choice = document.documentElement.classList.contains("dark")
+    ? "light"
+    : "dark";
   try {
     localStorage.setItem(KEY, choice);
   } catch {

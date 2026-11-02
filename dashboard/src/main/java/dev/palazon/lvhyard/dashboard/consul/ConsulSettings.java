@@ -1,7 +1,6 @@
 package dev.palazon.lvhyard.dashboard.consul;
 
 import java.net.URI;
-
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -10,5 +9,4 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param url the agent's HTTP API, on loopback
  */
 @ConfigurationProperties("lvh-yard.consul")
-public record ConsulSettings(URI url) {
-}
+public record ConsulSettings(URI url) {}

@@ -7,50 +7,56 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 /**
- * The REST API answers every error with a Problem Details document (RFC 9457): a broken rule with a detail that
- * explains it, and Spring's own errors, such as a malformed body or an unknown Service, as its base class does.
+ * The REST API answers every error with a Problem Details document (RFC 9457): a broken rule with a
+ * detail that explains it, and Spring's own errors, such as a malformed body or an unknown Service,
+ * as its base class does.
  */
-@RestControllerAdvice(assignableTypes = { AliasesController.class, ServicesController.class,
-        WorkstationServicesController.class, YardController.class })
+@RestControllerAdvice(
+    assignableTypes = {
+      AliasesController.class,
+      ServicesController.class,
+      WorkstationServicesController.class,
+      YardController.class
+    })
 class ApiProblems extends ResponseEntityExceptionHandler {
 
-    @ExceptionHandler
-    ProblemDetail invalidRegistration(InvalidRegistrationException exception) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
-    }
+  @ExceptionHandler
+  ProblemDetail invalidRegistration(InvalidRegistrationException exception) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+  }
 
-    @ExceptionHandler
-    ProblemDetail unknownState(UnknownStateException exception) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
-    }
+  @ExceptionHandler
+  ProblemDetail unknownState(UnknownStateException exception) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+  }
 
-    @ExceptionHandler
-    ProblemDetail unknownInstance(UnknownInstanceException exception) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
-    }
+  @ExceptionHandler
+  ProblemDetail unknownInstance(UnknownInstanceException exception) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+  }
 
-    @ExceptionHandler
-    ProblemDetail unknownContainerBinding(UnknownContainerBindingException exception) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
-    }
+  @ExceptionHandler
+  ProblemDetail unknownContainerBinding(UnknownContainerBindingException exception) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+  }
 
-    @ExceptionHandler
-    ProblemDetail unreachableWorkstation(UnreachableWorkstationException exception) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage());
-    }
+  @ExceptionHandler
+  ProblemDetail unreachableWorkstation(UnreachableWorkstationException exception) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage());
+  }
 
-    @ExceptionHandler
-    ProblemDetail unknownWorkstation(UnknownWorkstationException exception) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
-    }
+  @ExceptionHandler
+  ProblemDetail unknownWorkstation(UnknownWorkstationException exception) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+  }
 
-    @ExceptionHandler
-    ProblemDetail unknownAlias(UnknownAliasException exception) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
-    }
+  @ExceptionHandler
+  ProblemDetail unknownAlias(UnknownAliasException exception) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+  }
 
-    @ExceptionHandler
-    ProblemDetail unknownService(UnknownServiceException exception) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
-    }
+  @ExceptionHandler
+  ProblemDetail unknownService(UnknownServiceException exception) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+  }
 }

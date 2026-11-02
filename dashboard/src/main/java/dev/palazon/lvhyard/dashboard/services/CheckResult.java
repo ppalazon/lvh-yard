@@ -10,7 +10,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * @param output what it last saw, such as the answer to an HTTP check; empty before it first runs
  */
 public record CheckResult(
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Health health,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String output) {
-}
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Health health,
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String output) {}

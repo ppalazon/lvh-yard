@@ -1,5 +1,7 @@
 package dev.palazon.lvhyard.dashboard.consul;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
@@ -9,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
-
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -18,194 +19,226 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriBuilder;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 /**
- * This Workstation's Consul agent, through its HTTP API. Only the calls LVH Yard makes, with Consul's own names; it
- * knows nothing of the Yard's rules. A read can name another datacenter, which the agent forwards it to over WAN
- * federation; {@code null} names the agent's own.
+ * This Workstation's Consul agent, through its HTTP API. Only the calls LVH Yard makes, with
+ * Consul's own names; it knows nothing of the Yard's rules. A read can name another datacenter,
+ * which the agent forwards it to over WAN federation; {@code null} names the agent's own.
  */
 @Component
 public class Consul {
 
-    /** The Consul server's own entry in its catalog, which is no Service of the Yard. */
-    public static final String CONSUL_SERVICE = "consul";
+  /** The Consul server's own entry in its catalog, which is no Service of the Yard. */
+  public static final String CONSUL_SERVICE = "consul";
 
-    /**
-     * How long an answer may take. A datacenter on a computer that is switched off never answers, and the agent waits
-     * well over a minute before it gives up on it.
-     */
-    private static final Duration ANSWER_TIMEOUT = Duration.ofSeconds(3);
+  /**
+   * How long an answer may take. A datacenter on a computer that is switched off never answers, and
+   * the agent waits well over a minute before it gives up on it.
+   */
+  private static final Duration ANSWER_TIMEOUT = Duration.ofSeconds(3);
 
-    private final RestClient http;
+  private final RestClient http;
 
-    Consul(ConsulSettings settings) {
-        JdkClientHttpRequestFactory requests = new JdkClientHttpRequestFactory(HttpClient.newBuilder()
-                .connectTimeout(ANSWER_TIMEOUT).build());
-        requests.setReadTimeout(ANSWER_TIMEOUT);
-        this.http = RestClient.builder().baseUrl(settings.url().toString()).requestFactory(requests).build();
-    }
+  Consul(ConsulSettings settings) {
+    JdkClientHttpRequestFactory requests =
+        new JdkClientHttpRequestFactory(
+            HttpClient.newBuilder().connectTimeout(ANSWER_TIMEOUT).build());
+    requests.setReadTimeout(ANSWER_TIMEOUT);
+    this.http =
+        RestClient.builder().baseUrl(settings.url().toString()).requestFactory(requests).build();
+  }
 
-    /** The datacenters the agent knows of: its own, and every one federated with it, answering or not. */
-    public List<String> datacenters() {
-        List<String> datacenters = http.get().uri("/v1/catalog/datacenters").retrieve()
-                .body(new ParameterizedTypeReference<>() { });
-        return datacenters == null ? List.of() : datacenters;
-    }
+  /**
+   * The datacenters the agent knows of: its own, and every one federated with it, answering or not.
+   */
+  public List<String> datacenters() {
+    List<String> datacenters =
+        http.get()
+            .uri("/v1/catalog/datacenters")
+            .retrieve()
+            .body(new ParameterizedTypeReference<>() {});
+    return datacenters == null ? List.of() : datacenters;
+  }
 
-    /** The address the agent binds to, which compose.yaml sets to the Workstation's LAN address. */
-    public String agentAddress() {
-        return http.get().uri("/v1/agent/self").retrieve().body(AgentSelf.class).member().address();
-    }
+  /** The address the agent binds to, which compose.yaml sets to the Workstation's LAN address. */
+  public String agentAddress() {
+    return http.get().uri("/v1/agent/self").retrieve().body(AgentSelf.class).member().address();
+  }
 
-    /** Adds a registration to the agent, or replaces the one with the same ID. */
-    public void register(Registration registration) {
-        http.put().uri("/v1/agent/service/register").contentType(MediaType.APPLICATION_JSON).body(registration)
-                .retrieve().toBodilessEntity();
-    }
+  /** Adds a registration to the agent, or replaces the one with the same ID. */
+  public void register(Registration registration) {
+    http.put()
+        .uri("/v1/agent/service/register")
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(registration)
+        .retrieve()
+        .toBodilessEntity();
+  }
 
-    /** Every registration on the agent, by ID. */
-    public Map<String, AgentService> agentServices() {
-        Map<String, AgentService> services = http.get().uri("/v1/agent/services").retrieve()
-                .body(new ParameterizedTypeReference<>() { });
-        return services == null ? Map.of() : services;
-    }
+  /** Every registration on the agent, by ID. */
+  public Map<String, AgentService> agentServices() {
+    Map<String, AgentService> services =
+        http.get().uri("/v1/agent/services").retrieve().body(new ParameterizedTypeReference<>() {});
+    return services == null ? Map.of() : services;
+  }
 
-    /** The agent's registration with this ID, if it has one. */
-    public Optional<AgentService> agentService(String id) {
-        return http.get().uri("/v1/agent/service/{id}", id).exchange((request, response) ->
+  /** The agent's registration with this ID, if it has one. */
+  public Optional<AgentService> agentService(String id) {
+    return http.get()
+        .uri("/v1/agent/service/{id}", id)
+        .exchange((request, response) ->
+            response.getStatusCode() == HttpStatus.NOT_FOUND
+                ? Optional.empty()
+                : Optional.ofNullable(response.bodyTo(AgentService.class)));
+  }
+
+  public void deregister(String id) {
+    http.put().uri("/v1/agent/service/deregister/{id}", id).retrieve().toBodilessEntity();
+  }
+
+  /** The names of the Services registered in {@code datacenter}. */
+  public List<String> serviceNames(String datacenter) {
+    Map<String, List<String>> services =
+        http.get()
+            .uri(builder -> in(datacenter, builder.path("/v1/catalog/services")))
+            .retrieve()
+            .body(new ParameterizedTypeReference<>() {});
+    return services == null ? List.of() : List.copyOf(services.keySet());
+  }
+
+  /**
+   * Every registration of a Service in the agent's datacenter, each with its own checks and its
+   * node's.
+   */
+  public List<HealthEntry> health(String service) {
+    return health(null, service);
+  }
+
+  /**
+   * Every registration of a Service in {@code datacenter}, each with its own checks and its node's.
+   */
+  public List<HealthEntry> health(String datacenter, String service) {
+    List<HealthEntry> entries =
+        http.get()
+            .uri(builder -> in(datacenter, builder.path("/v1/health/service/{service}"), service))
+            .retrieve()
+            .body(new ParameterizedTypeReference<>() {});
+    return entries == null ? List.of() : entries;
+  }
+
+  /** Stores {@code value} at {@code key} in the datacenter's KV store, replacing what was there. */
+  public void putValue(String key, String value) {
+    http.put()
+        .uri(builder -> builder.path("/v1/kv/" + key).build())
+        .contentType(MediaType.TEXT_PLAIN)
+        .body(value)
+        .retrieve()
+        .toBodilessEntity();
+  }
+
+  /** Every value in {@code datacenter}'s KV store whose key starts with {@code prefix}, by key. */
+  public Map<String, String> values(String datacenter, String prefix) {
+    List<KeyValue> entries =
+        http.get()
+            .uri(builder ->
+                in(datacenter, builder.path("/v1/kv/" + prefix).queryParam("recurse", true)))
+            .exchange((request, response) ->
                 response.getStatusCode() == HttpStatus.NOT_FOUND
-                        ? Optional.empty()
-                        : Optional.ofNullable(response.bodyTo(AgentService.class)));
+                    ? List.of()
+                    : response.bodyTo(new ParameterizedTypeReference<>() {}));
+    Map<String, String> values = new TreeMap<>();
+    if (entries != null) {
+      entries.forEach(entry -> values.put(entry.key(), entry.value()));
     }
+    return values;
+  }
 
-    public void deregister(String id) {
-        http.put().uri("/v1/agent/service/deregister/{id}", id).retrieve().toBodilessEntity();
+  /** Removes {@code key} from the KV store; a key that is not there is no error. */
+  public void deleteValue(String key) {
+    http.delete()
+        .uri(builder -> builder.path("/v1/kv/" + key).build())
+        .retrieve()
+        .toBodilessEntity();
+  }
+
+  /**
+   * The URI {@code builder} holds, asked of {@code datacenter}, or of the agent's own when it is
+   * null.
+   */
+  private static URI in(String datacenter, UriBuilder builder, Object... variables) {
+    return (datacenter == null ? builder : builder.queryParam("dc", datacenter)).build(variables);
+  }
+
+  /** A KV entry as Consul gives it back: the value in base64, or null when empty. */
+  record KeyValue(@JsonProperty("Key") String key, @JsonProperty("Value") String base64) {
+
+    /** The value as text. */
+    String value() {
+      return base64 == null
+          ? ""
+          : new String(Base64.getDecoder().decode(base64), StandardCharsets.UTF_8);
     }
+  }
 
-    /** The names of the Services registered in {@code datacenter}. */
-    public List<String> serviceNames(String datacenter) {
-        Map<String, List<String>> services = http.get()
-                .uri(builder -> in(datacenter, builder.path("/v1/catalog/services"))).retrieve()
-                .body(new ParameterizedTypeReference<>() { });
-        return services == null ? List.of() : List.copyOf(services.keySet());
+  record AgentSelf(@JsonProperty("Member") Member member) {}
+
+  record Member(@JsonProperty("Addr") String address) {}
+
+  /** What the agent is given to register a Service's Instance. */
+  public record Registration(
+      @JsonProperty("ID") String id,
+      @JsonProperty("Name") String name,
+      @JsonProperty("Address") String address,
+      @JsonProperty("Port") int port,
+      @JsonProperty("Tags") List<String> tags,
+      @JsonProperty("Meta") Map<String, String> meta,
+      @JsonProperty("Check") Check check) {}
+
+  /**
+   * An HTTP check, which GETs {@code http} and passes on a 2xx answer, or a TCP check, which
+   * connects to {@code tcp}. Consul starts every check as critical until it first passes.
+   */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public record Check(
+      @JsonProperty("Name") String name,
+      @JsonProperty("HTTP") String http,
+      @JsonProperty("TCP") String tcp,
+      @JsonProperty("Interval") String interval,
+      @JsonProperty("Timeout") String timeout) {}
+
+  /**
+   * A registration as the agent and the catalog give it back. Consul leaves out a port of 0 and
+   * empty meta.
+   */
+  public record AgentService(
+      @JsonProperty("ID") String id,
+      @JsonProperty("Service") String name,
+      @JsonProperty("Address") String address,
+      @JsonProperty("Port") Integer port,
+      @JsonProperty("Tags") List<String> tags,
+      @JsonProperty("Meta") Map<String, String> meta) {
+
+    public AgentService {
+      port = port == null ? 0 : port;
+      tags = tags == null ? List.of() : tags;
+      meta = meta == null ? Map.of() : meta;
     }
+  }
 
-    /** Every registration of a Service in the agent's datacenter, each with its own checks and its node's. */
-    public List<HealthEntry> health(String service) {
-        return health(null, service);
-    }
+  public record HealthEntry(
+      @JsonProperty("Service") AgentService service,
+      @JsonProperty("Checks") List<CheckStatus> checks) {}
 
-    /** Every registration of a Service in {@code datacenter}, each with its own checks and its node's. */
-    public List<HealthEntry> health(String datacenter, String service) {
-        List<HealthEntry> entries = http.get()
-                .uri(builder -> in(datacenter, builder.path("/v1/health/service/{service}"), service)).retrieve()
-                .body(new ParameterizedTypeReference<>() { });
-        return entries == null ? List.of() : entries;
-    }
-
-    /** Stores {@code value} at {@code key} in the datacenter's KV store, replacing what was there. */
-    public void putValue(String key, String value) {
-        http.put().uri(builder -> builder.path("/v1/kv/" + key).build()).contentType(MediaType.TEXT_PLAIN)
-                .body(value).retrieve().toBodilessEntity();
-    }
-
-    /** Every value in {@code datacenter}'s KV store whose key starts with {@code prefix}, by key. */
-    public Map<String, String> values(String datacenter, String prefix) {
-        List<KeyValue> entries = http.get().uri(builder -> in(datacenter, builder.path("/v1/kv/" + prefix)
-                .queryParam("recurse", true))).exchange((request, response) ->
-                        response.getStatusCode() == HttpStatus.NOT_FOUND
-                                ? List.of()
-                                : response.bodyTo(new ParameterizedTypeReference<>() { }));
-        Map<String, String> values = new TreeMap<>();
-        if (entries != null) {
-            entries.forEach(entry -> values.put(entry.key(), entry.value()));
-        }
-        return values;
-    }
-
-    /** Removes {@code key} from the KV store; a key that is not there is no error. */
-    public void deleteValue(String key) {
-        http.delete().uri(builder -> builder.path("/v1/kv/" + key).build()).retrieve().toBodilessEntity();
-    }
-
-    /** The URI {@code builder} holds, asked of {@code datacenter}, or of the agent's own when it is null. */
-    private static URI in(String datacenter, UriBuilder builder, Object... variables) {
-        return (datacenter == null ? builder : builder.queryParam("dc", datacenter)).build(variables);
-    }
-
-    /** A KV entry as Consul gives it back: the value in base64, or null when empty. */
-    record KeyValue(@JsonProperty("Key") String key, @JsonProperty("Value") String base64) {
-
-        /** The value as text. */
-        String value() {
-            return base64 == null ? "" : new String(Base64.getDecoder().decode(base64), StandardCharsets.UTF_8);
-        }
-    }
-
-    record AgentSelf(@JsonProperty("Member") Member member) {
-    }
-
-    record Member(@JsonProperty("Addr") String address) {
-    }
-
-    /** What the agent is given to register a Service's Instance. */
-    public record Registration(
-            @JsonProperty("ID") String id,
-            @JsonProperty("Name") String name,
-            @JsonProperty("Address") String address,
-            @JsonProperty("Port") int port,
-            @JsonProperty("Tags") List<String> tags,
-            @JsonProperty("Meta") Map<String, String> meta,
-            @JsonProperty("Check") Check check) {
-    }
-
-    /**
-     * An HTTP check, which GETs {@code http} and passes on a 2xx answer, or a TCP check, which connects to
-     * {@code tcp}. Consul starts every check as critical until it first passes.
-     */
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record Check(
-            @JsonProperty("Name") String name,
-            @JsonProperty("HTTP") String http,
-            @JsonProperty("TCP") String tcp,
-            @JsonProperty("Interval") String interval,
-            @JsonProperty("Timeout") String timeout) {
-    }
-
-    /** A registration as the agent and the catalog give it back. Consul leaves out a port of 0 and empty meta. */
-    public record AgentService(
-            @JsonProperty("ID") String id,
-            @JsonProperty("Service") String name,
-            @JsonProperty("Address") String address,
-            @JsonProperty("Port") Integer port,
-            @JsonProperty("Tags") List<String> tags,
-            @JsonProperty("Meta") Map<String, String> meta) {
-
-        public AgentService {
-            port = port == null ? 0 : port;
-            tags = tags == null ? List.of() : tags;
-            meta = meta == null ? Map.of() : meta;
-        }
-    }
-
-    public record HealthEntry(
-            @JsonProperty("Service") AgentService service,
-            @JsonProperty("Checks") List<CheckStatus> checks) {
-    }
-
-    /**
-     * A check's last result: passing, warning or critical (maintenance is critical too). A node's check has no
-     * service ID, type, interval or timeout; Consul gives the last two as Go durations, such as {@code 1m30s}.
-     */
-    public record CheckStatus(
-            @JsonProperty("Name") String name,
-            @JsonProperty("Status") String status,
-            @JsonProperty("Output") String output,
-            @JsonProperty("ServiceID") String serviceId,
-            @JsonProperty("Type") String type,
-            @JsonProperty("Interval") String interval,
-            @JsonProperty("Timeout") String timeout) {
-    }
+  /**
+   * A check's last result: passing, warning or critical (maintenance is critical too). A node's
+   * check has no service ID, type, interval or timeout; Consul gives the last two as Go durations,
+   * such as {@code 1m30s}.
+   */
+  public record CheckStatus(
+      @JsonProperty("Name") String name,
+      @JsonProperty("Status") String status,
+      @JsonProperty("Output") String output,
+      @JsonProperty("ServiceID") String serviceId,
+      @JsonProperty("Type") String type,
+      @JsonProperty("Interval") String interval,
+      @JsonProperty("Timeout") String timeout) {}
 }

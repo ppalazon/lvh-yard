@@ -1,8 +1,7 @@
 package dev.palazon.lvhyard.dashboard.services;
 
-import java.util.List;
-
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 
 /**
  * Another Workstation of the Yard, whose Services are Remote Services here.
@@ -12,7 +11,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * @param services its Services, ordered by name; none while it is unreachable
  */
 public record YardWorkstation(
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean unreachable,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<Service> services) {
-}
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean unreachable,
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<Service> services) {}
