@@ -77,7 +77,7 @@ class TestcontainersConfiguration {
                   + ":"
                   + consulContainer.getMappedPort(CONSUL_HTTP_PORT));
       registry.add("lvh-yard.docker.host", TestcontainersConfiguration::dockerHost);
-      registry.add("lvh-yard.traefik.url", () -> "http://127.0.0.1:" + TRAEFIK_PORT);
+      registry.add("lvh-yard.traefik.port", () -> TRAEFIK_PORT);
     };
   }
 

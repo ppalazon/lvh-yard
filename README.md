@@ -28,6 +28,14 @@ on `127.0.0.1:80`, and the dashboard, which gives Traefik its Routes
 The other Workstations must reach this one's Consul server and serf WAN ports
 (8300, and 8302 over TCP and UDP).
 
+Traefik and the dashboard listen on `127.0.0.1`, so only this computer reaches
+them. `YARD_TRAEFIK_BIND_ADDRESS` and `YARD_DASHBOARD_BIND_ADDRESS` change that,
+each to an IPv4 address: `0.0.0.0` listens on every address, loopback included,
+and any other address listens there only. Traefik without loopback breaks the `lvh.me`
+hostnames on this computer, as they resolve to `127.0.0.1`. The dashboard has no
+login: whoever reaches it can change this Workstation's Services and, through
+the Docker socket, its containers.
+
 ### The dashboard from its image
 
 A Workstation without Java can run the dashboard from its image,

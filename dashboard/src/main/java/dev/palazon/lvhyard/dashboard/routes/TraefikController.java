@@ -1,5 +1,6 @@
 package dev.palazon.lvhyard.dashboard.routes;
 
+import dev.palazon.lvhyard.dashboard.BindAddress;
 import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.services.Aliases;
 import dev.palazon.lvhyard.dashboard.services.Yard;
@@ -42,7 +43,11 @@ class TraefikController {
   @GetMapping(path = PATH, produces = MediaType.APPLICATION_JSON_VALUE)
   TraefikConfiguration configuration() {
     // The port the server actually listens on, which is only known once it has started.
-    String dashboard = "http://127.0.0.1:" + environment.getRequiredProperty("local.server.port");
+    String dashboard =
+        "http://"
+            + BindAddress.host(environment.getRequiredProperty("server.address"))
+            + ":"
+            + environment.getRequiredProperty("local.server.port");
     Yard routable = yard.routableYard();
     return RouteBuilder.build(workstation, dashboard, routable.services(), aliases.of(routable));
   }

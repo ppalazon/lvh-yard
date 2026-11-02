@@ -1,6 +1,7 @@
 # Consul and Traefik for one Workstation, set up from .env (copy .env.example). Both use host networking: Traefik
 # reaches Instances listening on the Workstation's loopback, and Consul's federation ports face the LAN directly.
-# Consul's HTTP API and Traefik listen on 127.0.0.1 only.
+# Consul's HTTP API listens on 127.0.0.1 only; Traefik and the dashboard listen on 127.0.0.1 unless
+# YARD_TRAEFIK_BIND_ADDRESS and YARD_DASHBOARD_BIND_ADDRESS say otherwise.
 services:
   # This Workstation's own Consul datacenter, joined to the other Workstations by WAN federation (ADR-0001).
   consul:
@@ -39,11 +40,21 @@ services:
     image: traefik:v3.7.16
     network_mode: host
     restart: unless-stopped
+    environment:
+      YARD_TRAEFIK_BIND_ADDRESS: ${YARD_TRAEFIK_BIND_ADDRESS:-127.0.0.1}
+      YARD_DASHBOARD_BIND_ADDRESS: ${YARD_DASHBOARD_BIND_ADDRESS:-127.0.0.1}
+    # A shell first, with the dashboard's BindAddress rule: a dashboard on the wildcard 0.0.0.0 is reached through
+    # loopback.
+    entrypoint: ["/bin/sh", "-c"]
     command:
-      - --entryPoints.web.address=127.0.0.1:${YARD_HTTP_PORT:-80}
-      - --providers.http.endpoint=http://127.0.0.1:${YARD_DASHBOARD_PORT:-7780}/traefik/configuration
-      - --providers.http.pollInterval=5s
-      - --log.level=INFO
+      - |
+        dashboard="$${YARD_DASHBOARD_BIND_ADDRESS}"
+        [ "$$dashboard" != 0.0.0.0 ] || dashboard=127.0.0.1
+        exec traefik \
+          --entryPoints.web.address="$${YARD_TRAEFIK_BIND_ADDRESS}:${YARD_HTTP_PORT:-80}" \
+          --providers.http.endpoint="http://$$dashboard:${YARD_DASHBOARD_PORT:-7780}/traefik/configuration" \
+          --providers.http.pollInterval=5s \
+          --log.level=INFO
 
   # The dashboard from its image, for a Workstation without Java. Off unless asked for: COMPOSE_PROFILES=dashboard in
   # .env, or `docker compose --profile dashboard up -d`. `mise run dashboard` runs it from the sources instead.
@@ -51,7 +62,8 @@ services:
     profiles: [dashboard]
     image: ${YARD_DASHBOARD_IMAGE:-ghcr.io/ppalazon/lvh-yard-dashboard:latest}
     build: .
-    # Host networking: it listens on 127.0.0.1, where Traefik reads its Routes, and reaches Consul and Traefik there.
+    # Host networking: it listens on YARD_DASHBOARD_BIND_ADDRESS, where Traefik reads its Routes, and reaches Consul on
+    # 127.0.0.1 and Traefik on YARD_TRAEFIK_BIND_ADDRESS.
     network_mode: host
     restart: unless-stopped
     # The defaults are the dashboard's own (application.yaml). YARD_OUT_OF_RANGE takes its default only when unset (-,
@@ -61,7 +73,9 @@ services:
       YARD_BASE_DOMAIN: ${YARD_BASE_DOMAIN:-lvh.me}
       YARD_OUT_OF_RANGE: ${YARD_OUT_OF_RANGE-127.0.0.0/8,::1/128,172.17.0.0/16,172.18.0.0/15,172.20.0.0/14,172.24.0.0/13}
       YARD_HTTP_PORT: ${YARD_HTTP_PORT:-80}
+      YARD_TRAEFIK_BIND_ADDRESS: ${YARD_TRAEFIK_BIND_ADDRESS:-127.0.0.1}
       YARD_DASHBOARD_PORT: ${YARD_DASHBOARD_PORT:-7780}
+      YARD_DASHBOARD_BIND_ADDRESS: ${YARD_DASHBOARD_BIND_ADDRESS:-127.0.0.1}
       YARD_CONSUL_HTTP_PORT: ${YARD_CONSUL_HTTP_PORT:-8500}
     # The Container Bindings follow this Workstation's containers.
     volumes:
