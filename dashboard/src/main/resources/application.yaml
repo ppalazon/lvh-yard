@@ -9,7 +9,7 @@ spring:
 server:
   # Loopback only: Traefik on the same Workstation is the way in, at yard.<base-domain>.
   address: 127.0.0.1
-  port: ${YARD_DASHBOARD_PORT:8780}
+  port: ${YARD_DASHBOARD_PORT:7780}
 
 # The OpenAPI document of the REST API, at /v3/api-docs, which the CLI is written against. Its committed copy is
 # dashboard/openapi.yaml: `mise run openapi` rewrites it.

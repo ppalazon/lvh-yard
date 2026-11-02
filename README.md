@@ -23,7 +23,7 @@ on `127.0.0.1:80`, and the dashboard, which gives Traefik its Routes
    and `YARD_PEERS`.
 2. `mise run up` starts Consul and Traefik.
 3. `mise run dashboard` starts the dashboard. Open
-   [yard.lvh.me](http://yard.lvh.me), or `127.0.0.1:8780` when Traefik is down.
+   [yard.lvh.me](http://yard.lvh.me), or `127.0.0.1:7780` when Traefik is down.
 
 The other Workstations must reach this one's Consul server and serf WAN ports
 (8300, and 8302 over TCP and UDP).
@@ -79,7 +79,7 @@ mise run native
 ```
 
 `lvh-yard` talks to the dashboard on this Workstation, at `--dashboard`, else
-`YARD_DASHBOARD_URL`, else `http://127.0.0.1:8780`. It sees the whole Yard, but
+`YARD_DASHBOARD_URL`, else `http://127.0.0.1:7780`. It sees the whole Yard, but
 changes only this Workstation's Services:
 
 ```sh

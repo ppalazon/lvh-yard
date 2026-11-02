@@ -41,7 +41,7 @@ services:
     restart: unless-stopped
     command:
       - --entryPoints.web.address=127.0.0.1:${YARD_HTTP_PORT:-80}
-      - --providers.http.endpoint=http://127.0.0.1:${YARD_DASHBOARD_PORT:-8780}/traefik/configuration
+      - --providers.http.endpoint=http://127.0.0.1:${YARD_DASHBOARD_PORT:-7780}/traefik/configuration
       - --providers.http.pollInterval=5s
       - --log.level=INFO
 
@@ -61,7 +61,7 @@ services:
       YARD_BASE_DOMAIN: ${YARD_BASE_DOMAIN:-lvh.me}
       YARD_OUT_OF_RANGE: ${YARD_OUT_OF_RANGE-127.0.0.0/8,::1/128,172.17.0.0/16,172.18.0.0/15,172.20.0.0/14,172.24.0.0/13}
       YARD_HTTP_PORT: ${YARD_HTTP_PORT:-80}
-      YARD_DASHBOARD_PORT: ${YARD_DASHBOARD_PORT:-8780}
+      YARD_DASHBOARD_PORT: ${YARD_DASHBOARD_PORT:-7780}
       YARD_CONSUL_HTTP_PORT: ${YARD_CONSUL_HTTP_PORT:-8500}
     # The Container Bindings follow this Workstation's containers.
     volumes:

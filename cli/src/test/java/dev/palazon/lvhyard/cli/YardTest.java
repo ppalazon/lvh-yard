@@ -1142,7 +1142,7 @@ class YardTest {
   void dashboardUrlDefaultsToLoopback() throws Exception {
     Run run = yardProcess(Map.of(), "--help");
 
-    assertThat(run.out()).contains("else http://127.0.0.1:8780.");
+    assertThat(run.out()).contains("else http://127.0.0.1:7780.");
   }
 
   private void answerWebWithBindings(String bindings) {

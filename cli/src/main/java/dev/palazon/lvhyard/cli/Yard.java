@@ -27,7 +27,7 @@ import picocli.CommandLine.Spec;
 public class Yard implements Runnable {
 
   /** Where {@code mise run dashboard} serves the dashboard. */
-  private static final String LOOPBACK_DASHBOARD = "http://127.0.0.1:8780";
+  private static final String LOOPBACK_DASHBOARD = "http://127.0.0.1:7780";
 
   @Option(
       names = "--dashboard",
