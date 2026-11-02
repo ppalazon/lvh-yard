@@ -22,7 +22,8 @@ RUN --mount=type=cache,target=/root/.m2 \
     && cp dashboard/target/dashboard-*.jar /dashboard.jar
 
 FROM eclipse-temurin:25-jre
-# Root, so the dashboard can read the Docker socket mounted into it, whichever group owns the socket on the host.
+# Root by default, so a plain docker run can read the Docker socket mounted into it, whichever group owns the socket on
+# the host. compose.yaml runs it as YARD_UID instead, with the socket's group, YARD_DOCKER_GID.
 COPY --from=build /dashboard.jar /app/dashboard.jar
 WORKDIR /app
 ENTRYPOINT ["java", "-jar", "/app/dashboard.jar"]

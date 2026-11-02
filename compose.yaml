@@ -8,6 +8,8 @@ services:
     image: hashicorp/consul:2.1.0
     network_mode: host
     restart: unless-stopped
+    # The image's own consul user and group. Its entrypoint would switch to them, but the shell below replaces it.
+    user: "100:1000"
     environment:
       YARD_WORKSTATION: ${YARD_WORKSTATION:?set YARD_WORKSTATION in .env}
       YARD_GOSSIP_KEY: ${YARD_GOSSIP_KEY:?set YARD_GOSSIP_KEY in .env}
@@ -40,6 +42,7 @@ services:
     image: traefik:v3.7.16
     network_mode: host
     restart: unless-stopped
+    # Root, to listen on port 80: Docker gives a non-root user no capabilities, NET_BIND_SERVICE included.
     environment:
       YARD_TRAEFIK_BIND_ADDRESS: ${YARD_TRAEFIK_BIND_ADDRESS:-127.0.0.1}
       YARD_DASHBOARD_BIND_ADDRESS: ${YARD_DASHBOARD_BIND_ADDRESS:-127.0.0.1}
@@ -66,6 +69,12 @@ services:
     # 127.0.0.1 and Traefik on YARD_TRAEFIK_BIND_ADDRESS.
     network_mode: host
     restart: unless-stopped
+    # Not root: the user from .env, with the Docker socket's group to read it. The group has no default, as it differs
+    # on each computer, and is not required with :?, which would stop Compose even with the dashboard's profile off.
+    # Unset, Docker refuses to start the dashboard: "unable to find group".
+    user: "${YARD_UID:-1000}:${YARD_GID:-1000}"
+    group_add:
+      - "${YARD_DOCKER_GID:-}"
     # The defaults are the dashboard's own (application.yaml). YARD_OUT_OF_RANGE takes its default only when unset (-,
     # not :-): set but empty, nothing is out of range.
     environment:

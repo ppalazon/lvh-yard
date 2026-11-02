@@ -40,7 +40,10 @@ the Docker socket, its containers.
 
 A Workstation without Java can run the dashboard from its image,
 `ghcr.io/ppalazon/lvh-yard-dashboard`, next to Consul and Traefik. Add
-`COMPOSE_PROFILES=dashboard` to `.env`, then `docker compose up -d` starts all
+`COMPOSE_PROFILES=dashboard` to `.env`, and set `YARD_DOCKER_GID` to the group
+that owns the Docker socket (`stat -c %g /var/run/docker.sock`). The dashboard
+runs as `YARD_UID` and `YARD_GID`, 1000 by default, not root, with that group
+added to read the socket. Then `docker compose up -d` starts all
 three. Set `YARD_DASHBOARD_IMAGE` to pin a version, such as
 `ghcr.io/ppalazon/lvh-yard-dashboard:0.1.0`. `docker compose build dashboard`
 builds the image from this repository instead.
