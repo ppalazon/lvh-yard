@@ -1,0 +1,40 @@
+# Formats and checks files before each commit. Run by prek (or pre-commit).
+# Set up once: `mise run hooks`. Format everything: `mise run fmt`.
+
+# dashboard/openapi.yaml is written by `mise run openapi`, and OpenApiTest compares it byte for byte.
+# .trail/ is written by trail. package-lock.json is written by npm.
+exclude: ^(dashboard/openapi\.yaml|\.trail/.*|package-lock\.json)$
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+        exclude: ^mvnw\.cmd$
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-xml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: detect-private-key
+
+  # Java: Google Java Format. Version 2.0.0 or later is needed to run on Java 27;
+  # older versions and Palantir Java Format crash on it.
+  # TOML has only check-toml above: the TOML formatter sorts keys and would scramble mise.toml's task order.
+  - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
+    rev: v2.16.0
+    hooks:
+      - id: pretty-format-java
+        args: [--autofix, --google-java-formatter-version=2.0.0]
+
+  # YAML, JSON, Markdown, JavaScript and CSS.
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: v3.9.10
+    hooks:
+      - id: prettier
+        types_or: [yaml, json, markdown, javascript, css]

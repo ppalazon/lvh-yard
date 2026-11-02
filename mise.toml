@@ -1,5 +1,6 @@
 [tools]
 node = "24"
+prek = "0.3.10"
 
 [tasks."css:install"]
 description = "Install Tailwind CSS and Basecoat into node_modules/, as package-lock.json pins them"
@@ -16,6 +17,14 @@ run = "npx tailwindcss -i dashboard/src/main/css/app.css -o dashboard/src/main/r
 description = "Rebuild app.css whenever a web view or app.css's source changes"
 depends = ["css:install"]
 run = "npx tailwindcss -i dashboard/src/main/css/app.css -o dashboard/src/main/resources/static/app.css --minify --watch"
+
+[tasks.hooks]
+description = "Install the git hook that formats and checks files before each commit (.pre-commit-config.yaml)"
+run = "prek install"
+
+[tasks.fmt]
+description = "Format and check every file, as the pre-commit hook does"
+run = "prek run --all-files"
 
 [tasks.check]
 description = "Build app.css, build both modules from scratch and run every test"
