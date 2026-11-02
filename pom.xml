@@ -10,7 +10,7 @@
     </parent>
     <groupId>dev.palazon</groupId>
     <artifactId>lvh-yard</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>${revision}</version>
     <packaging>pom</packaging>
     <name>lvh-yard</name>
     <description>Predictable hostnames for development services on every Workstation in a Yard</description>
@@ -50,6 +50,8 @@
     </modules>
 
     <properties>
+        <!-- The version of both modules. A release sets it from its tag: -Drevision=0.1.0 -->
+        <revision>0.0.1-SNAPSHOT</revision>
         <java.version>25</java.version>
         <maven-toolchains-plugin.version>3.2.0</maven-toolchains-plugin.version>
     </properties>

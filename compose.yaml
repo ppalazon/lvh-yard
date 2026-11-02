@@ -45,5 +45,27 @@ services:
       - --providers.http.pollInterval=5s
       - --log.level=INFO
 
+  # The dashboard from its image, for a Workstation without Java. Off unless asked for: COMPOSE_PROFILES=dashboard in
+  # .env, or `docker compose --profile dashboard up -d`. `mise run dashboard` runs it from the sources instead.
+  dashboard:
+    profiles: [dashboard]
+    image: ${YARD_DASHBOARD_IMAGE:-ghcr.io/ppalazon/lvh-yard-dashboard:latest}
+    build: .
+    # Host networking: it listens on 127.0.0.1, where Traefik reads its Routes, and reaches Consul and Traefik there.
+    network_mode: host
+    restart: unless-stopped
+    # A name alone passes the setting as .env has it, and nothing when unset: the dashboard keeps its own defaults, and
+    # a YARD_OUT_OF_RANGE set but empty stays empty.
+    environment:
+      - YARD_WORKSTATION=${YARD_WORKSTATION:?set YARD_WORKSTATION in .env}
+      - YARD_BASE_DOMAIN
+      - YARD_OUT_OF_RANGE
+      - YARD_HTTP_PORT
+      - YARD_DASHBOARD_PORT
+      - YARD_CONSUL_HTTP_PORT
+    # The Container Bindings follow this Workstation's containers.
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
 volumes:
   consul-data:

@@ -28,6 +28,18 @@ on `127.0.0.1:80`, and the dashboard, which gives Traefik its Routes
 The other Workstations must reach this one's Consul server and serf WAN ports
 (8300, and 8302 over TCP and UDP).
 
+### The dashboard from its image
+
+A Workstation without Java can run the dashboard from its image,
+`ghcr.io/ppalazon/lvh-yard-dashboard`, next to Consul and Traefik. Add
+`COMPOSE_PROFILES=dashboard` to `.env`, then `docker compose up -d` starts all
+three. Set `YARD_DASHBOARD_IMAGE` to pin a version, such as
+`ghcr.io/ppalazon/lvh-yard-dashboard:0.1.0`. `docker compose build dashboard`
+builds the image from this repository instead.
+
+The dashboard uses host networking and this Workstation's Docker socket. On
+Docker Desktop, turn on host networking in its settings.
+
 ## A Yard on one computer
 
 Two test Workstations, ws-a and ws-b, can run side by side on loopback
@@ -166,6 +178,20 @@ datacenters with Testcontainers, so they need Docker. The second Workstation,
 `dashboard/openapi.yaml` describes the REST API that the CLI uses. A test fails
 when it differs from what the dashboard serves; after changing the API,
 `mise run openapi` rewrites it.
+
+## Releasing
+
+Run `mise run check`, then push a tag:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The Release workflow (`.github/workflows/release.yml`) builds the dashboard
+image for amd64 and arm64, with the tag as its version, and pushes it to
+`ghcr.io/ppalazon/lvh-yard-dashboard` as `0.1.0`, `0.1` and `latest`. After the
+first release, make the package public once in its settings on GitHub.
 
 ## AI-assisted development
 

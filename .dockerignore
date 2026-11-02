@@ -1,0 +1,15 @@
+# Only what the Dockerfile builds from: the Maven wrapper and poms, both modules' sources and the npm files.
+**/target/
+node_modules/
+.env
+.git/
+.scratch/
+.trail/
+.claude/
+.idea/
+.vscode/
+.settings/
+.classpath
+.project
+**/*.iml
+dashboard/src/main/resources/static/app.css
