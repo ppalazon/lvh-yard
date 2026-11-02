@@ -10,9 +10,9 @@ import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
 /**
- * {@code yard test}: tests whether this Workstation reaches a Service, straight to each Instance
- * and through Traefik at each hostname, and prints each check. An Out-of-range Instance is skipped,
- * which is no failure. It exits with 1 when any check fails.
+ * {@code lvh-yard test}: tests whether this Workstation reaches a Service, straight to each
+ * Instance and through Traefik at each hostname, and prints each check. An Out-of-range Instance is
+ * skipped, which is no failure. It exits with 1 when any check fails.
  */
 @Command(
     name = "test",

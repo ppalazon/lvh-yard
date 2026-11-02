@@ -9,8 +9,8 @@ import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
 /**
- * {@code yard list}: Services grouped by Home Workstation, this one first, each with its state, its
- * hostname, its Instances and their Health.
+ * {@code lvh-yard list}: Services grouped by Home Workstation, this one first, each with its state,
+ * its hostname, its Instances and their Health.
  */
 @Command(
     name = "list",

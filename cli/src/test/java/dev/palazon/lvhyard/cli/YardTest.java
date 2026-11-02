@@ -18,8 +18,8 @@ import org.junit.jupiter.api.Test;
 import picocli.CommandLine;
 
 /**
- * The {@code yard} command as a shell runs it: arguments in, exit code and output out. Behind it is
- * a stub dashboard that answers only what {@code openapi.yaml} describes.
+ * The {@code lvh-yard} command as a shell runs it: arguments in, exit code and output out. Behind
+ * it is a stub dashboard that answers only what {@code openapi.yaml} describes.
  */
 class YardTest {
 
@@ -41,7 +41,7 @@ class YardTest {
     Run run = yard();
 
     assertThat(run.exitCode()).isZero();
-    assertThat(run.out()).contains("Usage: yard").contains("--dashboard=<url>");
+    assertThat(run.out()).contains("Usage: lvh-yard").contains("--dashboard=<url>");
   }
 
   @Test
@@ -49,7 +49,7 @@ class YardTest {
     Run run = yard("--version");
 
     assertThat(run.exitCode()).isZero();
-    assertThat(run.out()).isEqualTo("yard " + Version.VERSION + "\n");
+    assertThat(run.out()).isEqualTo("lvh-yard " + Version.VERSION + "\n");
     assertThat(Version.VERSION).matches("\\d+\\.\\d+\\.\\d+(-.+)?");
   }
 
@@ -58,7 +58,7 @@ class YardTest {
     Run run = yard("alias", "add", "-V");
 
     assertThat(run.exitCode()).isZero();
-    assertThat(run.out()).isEqualTo("yard " + Version.VERSION + "\n");
+    assertThat(run.out()).isEqualTo("lvh-yard " + Version.VERSION + "\n");
   }
 
   @Test
@@ -1167,7 +1167,7 @@ class YardTest {
             + "]}");
   }
 
-  /** The output of one run of {@code yard}. */
+  /** The output of one run of {@code lvh-yard}. */
   record Run(int exitCode, String out, String err) {
 
     List<String> lines() {
@@ -1175,7 +1175,7 @@ class YardTest {
     }
   }
 
-  /** Runs {@code yard} against the stub dashboard. */
+  /** Runs {@code lvh-yard} against the stub dashboard. */
   private Run yard(String... args) {
     List<String> withDashboard =
         new ArrayList<>(List.of("--dashboard", dashboard.url().toString()));
@@ -1184,8 +1184,8 @@ class YardTest {
   }
 
   /**
-   * Runs {@code yard} in a process of its own, as a shell does, with {@code environment} in place
-   * of any {@code YARD_*} variables of this one.
+   * Runs {@code lvh-yard} in a process of its own, as a shell does, with {@code environment} in
+   * place of any {@code YARD_*} variables of this one.
    */
   private static Run yardProcess(Map<String, String> environment, String... args) throws Exception {
     ProcessBuilder builder = new ProcessBuilder(command(args));
@@ -1194,7 +1194,9 @@ class YardTest {
     return run(builder);
   }
 
-  /** {@code yard} with {@code args}: the native executable when given, else a JVM of its own. */
+  /**
+   * {@code lvh-yard} with {@code args}: the native executable when given, else a JVM of its own.
+   */
   private static List<String> command(String... args) {
     List<String> command =
         NATIVE_YARD != null
@@ -1223,7 +1225,7 @@ class YardTest {
     }
   }
 
-  /** Runs {@code yard} with exactly {@code args}. */
+  /** Runs {@code lvh-yard} with exactly {@code args}. */
   private static Run yardAsTyped(String... args) {
     if (NATIVE_YARD != null) {
       try {

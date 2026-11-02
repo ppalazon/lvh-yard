@@ -43,7 +43,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # The yard command as one executable per platform, tested before it is packed: the CLI's tests run once on the
+  # The lvh-yard command as one executable per platform, tested before it is packed: the CLI's tests run once on the
   # JVM and once against the executable (-Pnative verify). Linux builds on 22.04, so its older glibc lets the
   # executable run on more distributions.
   cli-native:
@@ -67,11 +67,11 @@ jobs:
           cache: maven
       - run: ./mvnw -B -Pnative -pl cli verify -Drevision="${GITHUB_REF_NAME#v}"
       # A tar keeps the executable bit, which an uploaded artifact loses.
-      - run: tar -czf "yard-${GITHUB_REF_NAME#v}-${{ matrix.platform }}.tar.gz" -C cli/target yard -C ../.. LICENSE
+      - run: tar -czf "lvh-yard-${GITHUB_REF_NAME#v}-${{ matrix.platform }}.tar.gz" -C cli/target lvh-yard -C ../.. LICENSE
       - uses: actions/upload-artifact@v4
         with:
-          name: yard-${{ matrix.platform }}
-          path: yard-*.tar.gz
+          name: lvh-yard-${{ matrix.platform }}
+          path: lvh-yard-*.tar.gz
 
   # The GitHub release, once the image is pushed and every executable is built: its notes come from the commits
   # since the last tag, and SHA256SUMS lets a download be checked with sha256sum -c.
@@ -84,9 +84,9 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: yard-*
+          pattern: lvh-yard-*
           merge-multiple: true
-      - run: sha256sum yard-*.tar.gz > SHA256SUMS
-      - run: gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes yard-*.tar.gz SHA256SUMS
+      - run: sha256sum lvh-yard-*.tar.gz > SHA256SUMS
+      - run: gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes lvh-yard-*.tar.gz SHA256SUMS
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

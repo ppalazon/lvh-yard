@@ -12,8 +12,9 @@ import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
 /**
- * {@code yard register}: a Static Instance of one of this Workstation's Services, or, with {@code
- * --container} or {@code --compose-project} and {@code --compose-service}, a Container Binding.
+ * {@code lvh-yard register}: a Static Instance of one of this Workstation's Services, or, with
+ * {@code --container} or {@code --compose-project} and {@code --compose-service}, a Container
+ * Binding.
  */
 @Command(
     name = "register",

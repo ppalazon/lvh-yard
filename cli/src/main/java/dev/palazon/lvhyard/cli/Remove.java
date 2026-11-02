@@ -11,7 +11,7 @@ import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
 /**
- * {@code yard remove}: a Static Instance of one of this Workstation's Services, by its ID or by
+ * {@code lvh-yard remove}: a Static Instance of one of this Workstation's Services, by its ID or by
  * where it is, or a Container Binding, by its container or its Compose service.
  */
 @Command(
@@ -33,8 +33,8 @@ class Remove implements Runnable {
   @Spec CommandSpec spec;
 
   /**
-   * Either an ID, as {@code yard list} shows it, or where it is: a port, a host, a container or a
-   * Compose service.
+   * Either an ID, as {@code lvh-yard list} shows it, or where it is: a port, a host, a container or
+   * a Compose service.
    */
   static class Which {
 

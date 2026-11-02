@@ -8,11 +8,11 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Spec;
 
 /**
- * The {@code yard} command. It talks only to the dashboard on its own Workstation, through the REST
- * API that {@code openapi.yaml} describes; it never talks to Consul.
+ * The {@code lvh-yard} command. It talks only to the dashboard on its own Workstation, through the
+ * REST API that {@code openapi.yaml} describes; it never talks to Consul.
  */
 @Command(
-    name = "yard",
+    name = "lvh-yard",
     mixinStandardHelpOptions = true,
     subcommands = {
       ListServices.class,
@@ -74,7 +74,7 @@ public class Yard implements Runnable {
 
   /** {@code command} and each of its subcommands print this build's version for -V. */
   private static void withVersion(CommandLine command) {
-    command.getCommandSpec().version("yard " + Version.VERSION);
+    command.getCommandSpec().version("lvh-yard " + Version.VERSION);
     command.getSubcommands().values().forEach(Yard::withVersion);
   }
 

@@ -10,7 +10,7 @@ import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
 /**
- * {@code yard alias}: adds, lists and removes this Workstation's Aliases, short hostnames for
+ * {@code lvh-yard alias}: adds, lists and removes this Workstation's Aliases, short hostnames for
  * Remote Services that exist only here.
  */
 @Command(
@@ -33,8 +33,8 @@ class Alias implements Runnable {
   }
 
   /**
-   * {@code yard alias add}: gives a Remote Service an Alias, and says why it has no Route if it has
-   * none.
+   * {@code lvh-yard alias add}: gives a Remote Service an Alias, and says why it has no Route if it
+   * has none.
    */
   @Command(
       name = "add",
@@ -94,8 +94,8 @@ class Alias implements Runnable {
   }
 
   /**
-   * {@code yard alias list}: every Alias, with the Remote Service it names, its state and why it
-   * has no Route.
+   * {@code lvh-yard alias list}: every Alias, with the Remote Service it names, its state and why
+   * it has no Route.
    */
   @Command(
       name = "list",
@@ -132,7 +132,7 @@ class Alias implements Runnable {
     }
   }
 
-  /** {@code yard alias remove}: removes an Alias, and its Route. */
+  /** {@code lvh-yard alias remove}: removes an Alias, and its Route. */
   @Command(
       name = "remove",
       mixinStandardHelpOptions = true,

@@ -11,7 +11,7 @@ import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
 /**
- * {@code yard publish}: gives one of this Workstation's Services its hostname, or changes its
+ * {@code lvh-yard publish}: gives one of this Workstation's Services its hostname, or changes its
  * Scope, and prints any warning about it.
  */
 @Command(

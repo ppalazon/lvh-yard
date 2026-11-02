@@ -32,7 +32,7 @@ description = "Build app.css, build both modules from scratch and run every test
 run = [{ task = "css" }, "./mvnw -q clean verify"]
 
 [tasks.native]
-description = "Build the yard executable with GraalVM, and run the CLI's tests on it: cli/target/yard"
+description = "Build the lvh-yard executable with GraalVM, and run the CLI's tests on it: cli/target/lvh-yard"
 # GraalVM for this task only, as the release workflow uses it; JAVA_HOME then names it, whatever GRAALVM_HOME says.
 # clean: picocli-codegen lists the commands' options only when Maven recompiles them.
 tools = { java = "graalvm-community-25.0.2" }
