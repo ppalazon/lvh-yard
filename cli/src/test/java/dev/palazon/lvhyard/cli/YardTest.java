@@ -23,6 +23,12 @@ import picocli.CommandLine;
  */
 class YardTest {
 
+  /**
+   * The native executable to test in place of the classes, as {@code -Pnative} builds it: every
+   * test then runs it in a process of its own. Unset, the tests run the classes in this JVM.
+   */
+  private static final String NATIVE_YARD = System.getProperty("yard.executable");
+
   private final StubDashboard dashboard = new StubDashboard();
 
   @AfterEach
@@ -1161,21 +1167,32 @@ class YardTest {
   }
 
   /**
-   * Runs {@code yard} in a JVM of its own, as a shell does, with {@code environment} in place of
-   * any {@code YARD_*} variables of this one.
+   * Runs {@code yard} in a process of its own, as a shell does, with {@code environment} in place
+   * of any {@code YARD_*} variables of this one.
    */
   private static Run yardProcess(Map<String, String> environment, String... args) throws Exception {
-    List<String> command =
-        new ArrayList<>(
-            List.of(
-                ProcessHandle.current().info().command().orElseThrow(),
-                "-cp",
-                System.getProperty("java.class.path"),
-                Yard.class.getName()));
-    command.addAll(List.of(args));
-    ProcessBuilder builder = new ProcessBuilder(command);
+    ProcessBuilder builder = new ProcessBuilder(command(args));
     builder.environment().keySet().removeIf(name -> name.startsWith("YARD_"));
     builder.environment().putAll(environment);
+    return run(builder);
+  }
+
+  /** {@code yard} with {@code args}: the native executable when given, else a JVM of its own. */
+  private static List<String> command(String... args) {
+    List<String> command =
+        NATIVE_YARD != null
+            ? new ArrayList<>(List.of(NATIVE_YARD))
+            : new ArrayList<>(
+                List.of(
+                    ProcessHandle.current().info().command().orElseThrow(),
+                    "-cp",
+                    System.getProperty("java.class.path"),
+                    Yard.class.getName()));
+    command.addAll(List.of(args));
+    return command;
+  }
+
+  private static Run run(ProcessBuilder builder) throws IOException, InterruptedException {
     Process process = builder.start();
     String out = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
     String err = new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
@@ -1191,6 +1208,13 @@ class YardTest {
 
   /** Runs {@code yard} with exactly {@code args}. */
   private static Run yardAsTyped(String... args) {
+    if (NATIVE_YARD != null) {
+      try {
+        return run(new ProcessBuilder(command(args)));
+      } catch (IOException | InterruptedException e) {
+        throw new IllegalStateException("Could not run " + NATIVE_YARD, e);
+      }
+    }
     StringWriter out = new StringWriter();
     StringWriter err = new StringWriter();
     CommandLine command = Yard.commandLine();

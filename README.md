@@ -54,9 +54,28 @@ mise run dev:down
 
 ## The CLI
 
+Each release has `yard` as one executable for Linux (amd64, arm64) and macOS
+(arm64), with no Java needed. Download it from the
+[releases](https://github.com/ppalazon/lvh-yard/releases), check it against
+`SHA256SUMS`, and put it on your `PATH`:
+
+```sh
+sha256sum -c SHA256SUMS --ignore-missing
+tar -xzf yard-0.1.0-linux-amd64.tar.gz yard
+sudo mv yard /usr/local/bin/
+```
+
+On macOS, a downloaded executable is blocked until you clear its quarantine:
+`xattr -d com.apple.quarantine yard`.
+
+From the sources, as a jar, or as the executable. `mise run native` installs
+GraalVM for that task only, builds `cli/target/yard`, and runs the CLI's tests
+again against it:
+
 ```sh
 ./mvnw -q -pl cli package
 java -jar cli/target/cli-0.0.1-SNAPSHOT.jar --help
+mise run native
 ```
 
 `yard` talks to the dashboard on this Workstation, at `--dashboard`, else
@@ -192,6 +211,11 @@ The Release workflow (`.github/workflows/release.yml`) builds the dashboard
 image for amd64 and arm64, with the tag as its version, and pushes it to
 `ghcr.io/ppalazon/lvh-yard-dashboard` as `0.1.0`, `0.1` and `latest`. After the
 first release, make the package public once in its settings on GitHub.
+
+It also builds `yard` for each platform, runs the CLI's tests against it, and
+attaches the executables and their `SHA256SUMS` to a GitHub release, whose notes
+list the commits since the last tag. The release appears only when the image and
+every executable are ready.
 
 ## AI-assisted development
 

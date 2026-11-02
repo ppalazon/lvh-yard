@@ -31,6 +31,13 @@ description = "Build app.css, build both modules from scratch and run every test
 # clean: compiled classes of moved or deleted sources otherwise linger in target/ and fail as phantom tests.
 run = [{ task = "css" }, "./mvnw -q clean verify"]
 
+[tasks.native]
+description = "Build the yard executable with GraalVM, and run the CLI's tests on it: cli/target/yard"
+# GraalVM for this task only, as the release workflow uses it; JAVA_HOME then names it, whatever GRAALVM_HOME says.
+# clean: picocli-codegen lists the commands' options only when Maven recompiles them.
+tools = { java = "graalvm-community-25.0.2" }
+run = 'GRAALVM_HOME="$JAVA_HOME" ./mvnw -q -Pnative -pl cli clean verify'
+
 [tasks.openapi]
 description = "Rewrite dashboard/openapi.yaml from the running dashboard's OpenAPI document"
 run = "./mvnw -q -pl dashboard test -Dtest=OpenApiTest#committedCopyIsCurrent -Dopenapi.update=true -Dsurefire.failIfNoSpecifiedTests=false"

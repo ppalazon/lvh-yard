@@ -14,6 +14,7 @@
     <properties>
         <picocli.version>4.7.7</picocli.version>
         <wiremock.version>3.13.1</wiremock.version>
+        <nativeimage.version>25.0.2</nativeimage.version>
         <main.class>dev.palazon.lvhyard.cli.Yard</main.class>
     </properties>
 
@@ -28,6 +29,13 @@
         <dependency>
             <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <!-- NativeRecords' API, which native-image itself provides when it builds the yard executable. -->
+        <dependency>
+            <groupId>org.graalvm.sdk</groupId>
+            <artifactId>nativeimage</artifactId>
+            <version>${nativeimage.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -55,6 +63,26 @@
 
     <build>
         <plugins>
+            <!-- picocli-codegen lists every command's options for the native image, which cannot find them by reflection. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>info.picocli</groupId>
+                            <artifactId>picocli-codegen</artifactId>
+                            <version>${picocli.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                    <compilerArgs>
+                        <arg>-Aproject=${project.groupId}/${project.artifactId}</arg>
+                        <!-- No proxy-config.json: no command is an interface, so it would be empty, and native-image
+                             warns that its format is deprecated. -->
+                        <arg>-Adisable.proxy.config</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
             <!-- One runnable jar holding picocli too: java -jar cli/target/cli-*.jar -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -79,4 +107,58 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- The yard command as one executable, with no Java needed to run it: mise run native, or
+             ./mvnw -Pnative -pl cli verify with GraalVM's native-image on GRAALVM_HOME. The Spring Boot parent's own
+             native profile sets up the plugin. -->
+        <profile>
+            <id>native</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>build-native</id>
+                                <goals>
+                                    <goal>compile-no-fork</goal>
+                                </goals>
+                                <phase>package</phase>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <imageName>yard</imageName>
+                            <mainClass>${main.class}</mainClass>
+                            <buildArgs>
+                                <buildArg>--features=dev.palazon.lvhyard.cli.NativeRecords</buildArg>
+                            </buildArgs>
+                        </configuration>
+                    </plugin>
+                    <!-- The tests again, against the executable: a class the native image cannot reach by reflection
+                         fails here, not on a user's machine. Runs in verify: ./mvnw -Pnative -pl cli verify -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>test-native</id>
+                                <phase>integration-test</phase>
+                                <goals>
+                                    <goal>test</goal>
+                                </goals>
+                                <configuration>
+                                    <reportsDirectory>${project.build.directory}/surefire-reports-native</reportsDirectory>
+                                    <systemPropertyVariables>
+                                        <yard.executable>${project.build.directory}/yard</yard.executable>
+                                    </systemPropertyVariables>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
