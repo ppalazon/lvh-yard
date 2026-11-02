@@ -15,6 +15,7 @@
         <picocli.version>4.7.7</picocli.version>
         <wiremock.version>3.13.1</wiremock.version>
         <nativeimage.version>25.0.2</nativeimage.version>
+        <templating-maven-plugin.version>3.1.1</templating-maven-plugin.version>
         <main.class>dev.palazon.lvhyard.cli.Yard</main.class>
     </properties>
 
@@ -63,6 +64,19 @@
 
     <build>
         <plugins>
+            <!-- Version.java, with the pom's version written in, from src/main/java-templates. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>templating-maven-plugin</artifactId>
+                <version>${templating-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>filter-sources</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <!-- picocli-codegen lists every command's options for the native image, which cannot find them by reflection. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

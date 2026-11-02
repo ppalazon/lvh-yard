@@ -58,15 +58,24 @@ public class Yard implements Runnable {
    * with 1.
    */
   static CommandLine commandLine() {
-    return new CommandLine(new Yard())
-        .setExecutionExceptionHandler((exception, command, parseResult) -> {
-          if (!(exception instanceof YardException)) {
-            throw exception;
-          }
-          command.getErr().println(exception.getMessage());
-          command.getErr().flush();
-          return 1;
-        });
+    CommandLine yard =
+        new CommandLine(new Yard())
+            .setExecutionExceptionHandler((exception, command, parseResult) -> {
+              if (!(exception instanceof YardException)) {
+                throw exception;
+              }
+              command.getErr().println(exception.getMessage());
+              command.getErr().flush();
+              return 1;
+            });
+    withVersion(yard);
+    return yard;
+  }
+
+  /** {@code command} and each of its subcommands print this build's version for -V. */
+  private static void withVersion(CommandLine command) {
+    command.getCommandSpec().version("yard " + Version.VERSION);
+    command.getSubcommands().values().forEach(Yard::withVersion);
   }
 
   public static void main(String[] args) {

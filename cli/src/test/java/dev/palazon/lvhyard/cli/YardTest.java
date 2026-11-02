@@ -45,6 +45,23 @@ class YardTest {
   }
 
   @Test
+  void versionNamesThisBuild() {
+    Run run = yard("--version");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).isEqualTo("yard " + Version.VERSION + "\n");
+    assertThat(Version.VERSION).matches("\\d+\\.\\d+\\.\\d+(-.+)?");
+  }
+
+  @Test
+  void everySubcommandNamesTheVersionToo() {
+    Run run = yard("alias", "add", "-V");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).isEqualTo("yard " + Version.VERSION + "\n");
+  }
+
+  @Test
   void listShowsThisWorkstationThenTheOthersWithTheirStateHostnameInstancesAndHealth() {
     dashboard.answer(
         "GET",
