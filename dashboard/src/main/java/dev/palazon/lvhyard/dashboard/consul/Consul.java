@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -33,19 +32,13 @@ public class Consul {
    */
   private static final String CONSUL_SERVICE = "consul";
 
-  /**
-   * How long an answer may take. A datacenter on a computer that is switched off never answers, and
-   * the agent waits well over a minute before it gives up on it.
-   */
-  private static final Duration ANSWER_TIMEOUT = Duration.ofSeconds(3);
-
   private final RestClient http;
 
   public Consul(ConsulSettings settings) {
     JdkClientHttpRequestFactory requests =
         new JdkClientHttpRequestFactory(
-            HttpClient.newBuilder().connectTimeout(ANSWER_TIMEOUT).build());
-    requests.setReadTimeout(ANSWER_TIMEOUT);
+            HttpClient.newBuilder().connectTimeout(settings.answerTimeout()).build());
+    requests.setReadTimeout(settings.answerTimeout());
     this.http =
         RestClient.builder().baseUrl(settings.url().toString()).requestFactory(requests).build();
   }

@@ -35,7 +35,10 @@ import tools.jackson.databind.JsonNode;
       "lvh-yard.workstation.base-domain=" + DashboardTest.BASE_DOMAIN,
       // The test Workstation joins no Peer: ws-remote joins it. Not the Peers of a developer's
       // .env.
-      "lvh-yard.consul.peers="
+      "lvh-yard.consul.peers=",
+      // A paused ws-remote is found unreachable, and back, in seconds.
+      "lvh-yard.consul.answer-timeout=1s",
+      "lvh-yard.consul.unreachable-pause=2s"
     })
 @Import(TestcontainersConfiguration.class)
 abstract class DashboardTest {
@@ -185,11 +188,13 @@ abstract class DashboardTest {
 
   /**
    * Starts a process that accepts TCP connections on {@code port} at the {@link #lanAddress}, as a
-   * Service on the Workstation would. It runs until the Consul container stops.
+   * Service on the Workstation would. It runs until the Consul container stops. Its {@code nc} ends
+   * after each connection, such as a health check's, so a loop starts it again.
    */
   void listenOnLanAddress(int port) {
     try {
-      consulContainer.execInContainer("sh", "-c", "nc -lk -p " + port + " >/dev/null 2>&1 &");
+      consulContainer.execInContainer(
+          "sh", "-c", "while true; do nc -l -p " + port + " >/dev/null; done >/dev/null 2>&1 &");
     } catch (IOException | InterruptedException e) {
       throw new IllegalStateException("Could not listen on port " + port, e);
     }

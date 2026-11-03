@@ -51,7 +51,8 @@ mise run native                 # builds cli/target/lvh-yard with GraalVM and te
 `mise run check` builds the stylesheet, builds both modules from scratch and
 runs every test. The dashboard tests start a Yard of two federated Consul
 datacenters with Testcontainers, so they need Docker. The second Workstation,
-`ws-remote`, runs its own dashboard in the same JVM.
+`ws-remote`, runs its own dashboard in the same JVM. The test classes run in
+four JVMs at the same time, and each JVM starts its own test Yard.
 
 `dashboard/openapi.yaml` describes the REST API that the CLI uses. If it
 differs from the API that the dashboard serves, a test fails. After you change

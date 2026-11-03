@@ -4,6 +4,7 @@ import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.consul.Consul;
 import dev.palazon.lvhyard.dashboard.consul.Consul.AgentService;
 import dev.palazon.lvhyard.dashboard.consul.Consul.HealthEntry;
+import dev.palazon.lvhyard.dashboard.consul.ConsulSettings;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
@@ -47,24 +48,6 @@ public class YardReader {
   private static final Pattern GO_DURATION_PART =
       Pattern.compile("(\\d+(?:\\.\\d+)?)(h|ms|m|s|us|µs|ns)");
 
-  /**
-   * When another Workstation is not asked: after two reads in a row found it unreachable, for ten
-   * seconds. Then one read tries it again, and the Workstation shows again by itself once that read
-   * succeeds. So a Workstation that is switched off does not make every load wait for Consul's
-   * timeout.
-   */
-  private static final CircuitBreakerConfig UNREACHABLE =
-      CircuitBreakerConfig.custom()
-          .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
-          .slidingWindowSize(2)
-          .minimumNumberOfCalls(2)
-          .failureRateThreshold(100)
-          .waitDurationInOpenState(Duration.ofSeconds(10))
-          .permittedNumberOfCallsInHalfOpenState(1)
-          // Any other error means the datacenter answered: a fault, not an unreachable Workstation.
-          .recordExceptions(ResourceAccessException.class, HttpServerErrorException.class)
-          .build();
-
   private final Workstation workstation;
 
   private final Consul consul;
@@ -75,19 +58,39 @@ public class YardReader {
 
   private final OutOfRange outOfRange;
 
-  private final CircuitBreakerRegistry breakers = CircuitBreakerRegistry.of(UNREACHABLE);
+  /**
+   * When another Workstation is not asked: after two reads in a row found it unreachable, for the
+   * unreachable pause. Then one read tries it again, and the Workstation shows again by itself once
+   * that read succeeds. So a Workstation that is switched off does not make every load wait for
+   * Consul's timeout.
+   */
+  private final CircuitBreakerRegistry breakers;
 
   YardReader(
       Workstation workstation,
       Consul consul,
       Publications publications,
       ContainerBindings containerBindings,
-      OutOfRange outOfRange) {
+      OutOfRange outOfRange,
+      ConsulSettings consulSettings) {
     this.workstation = workstation;
     this.consul = consul;
     this.publications = publications;
     this.containerBindings = containerBindings;
     this.outOfRange = outOfRange;
+    this.breakers =
+        CircuitBreakerRegistry.of(
+            CircuitBreakerConfig.custom()
+                .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
+                .slidingWindowSize(2)
+                .minimumNumberOfCalls(2)
+                .failureRateThreshold(100)
+                .waitDurationInOpenState(consulSettings.unreachablePause())
+                .permittedNumberOfCallsInHalfOpenState(1)
+                // Any other error means the datacenter answered: a fault, not an unreachable
+                // Workstation.
+                .recordExceptions(ResourceAccessException.class, HttpServerErrorException.class)
+                .build());
   }
 
   /**

@@ -60,7 +60,7 @@ class ConsulStatusTest {
     ConsulStatus status =
         new ConsulStatus(
             consul(consulAnswering("\"10.0.0.1:8300\"", WS_B)),
-            new ConsulSettings(URI.create("http://unused"), "slow.example 10.0.0.2"),
+            settings(URI.create("http://unused"), "slow.example 10.0.0.2"),
             host -> {
               if (host.equals("slow.example")) {
                 try {
@@ -88,11 +88,15 @@ class ConsulStatusTest {
   }
 
   private Part read(URI consulUrl, String peers) {
-    return new ConsulStatus(consul(consulUrl), new ConsulSettings(consulUrl, peers)).read();
+    return new ConsulStatus(consul(consulUrl), settings(consulUrl, peers)).read();
   }
 
   private static Consul consul(URI url) {
-    return new Consul(new ConsulSettings(url, ""));
+    return new Consul(settings(url, ""));
+  }
+
+  private static ConsulSettings settings(URI url, String peers) {
+    return new ConsulSettings(url, peers, Duration.ofSeconds(3), Duration.ofSeconds(10));
   }
 
   /** A stand-in Consul whose leader is {@code leaderJson} and whose WAN pool is {@code members}. */
