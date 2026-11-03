@@ -40,6 +40,7 @@ class DockerStatus implements PartReader {
   public Part read() {
     Docker.Version version;
     try {
+      docker.ping();
       version = docker.version();
     } catch (RuntimeException e) {
       return Part.failing(NAME, whyNot(e));
@@ -48,6 +49,7 @@ class DockerStatus implements PartReader {
         NAME,
         "Docker answers, so Container Bindings work.",
         List.of(
+            new Part.Detail("ping", "OK", PartState.OK),
             Part.Detail.fact("version", version.version()),
             Part.Detail.fact("API version", version.apiVersion()),
             Part.Detail.fact("host", settings.host().toString())));

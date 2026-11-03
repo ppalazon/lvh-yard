@@ -58,10 +58,11 @@ class StatusTest extends DashboardTest {
   }
 
   @Test
-  void dockerThatAnswersIsOkWithItsVersion() {
+  void dockerThatAnswersItsPingIsOkWithItsVersion() {
     JsonNode docker = part(get("/api/status").getBody(), "Docker");
 
     assertThat(docker.get("state").asString()).isEqualTo("ok");
+    assertThat(detail(docker, "ping").get("state").asString()).isEqualTo("ok");
     assertThat(detail(docker, "version").get("value").asString()).matches("\\d+\\.\\d+.*");
   }
 
@@ -168,6 +169,20 @@ class StatusTest extends DashboardTest {
                 .contains("Failing")
                 .contains("There is no Docker socket at /nowhere/docker.sock"),
         "--lvh-yard.docker.host=unix:///nowhere/docker.sock");
+  }
+
+  @Test
+  void pageAndSummaryShowAPartWithAWarningAsAWarning() {
+    remote.whileDashboardRunsWith(
+        () -> {
+          String consul = div(remote.page("/status"), "id=\"part-consul\"");
+          assertThat(consul).contains("! Warning").contains("A Peer is not in Consul");
+          String summary = remote.page("/status/summary");
+          assertThat(openingTag(summary, "id=\"dot-consul\""))
+              .contains("aria-label=\"Consul: Warning. A Peer is not in Consul");
+          assertThat(summary).containsPattern("id=\"dot-consul\"[^>]*>!</span>");
+        },
+        "--lvh-yard.consul.peers=192.0.2.1");
   }
 
   @Test

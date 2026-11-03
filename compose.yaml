@@ -15,14 +15,14 @@ services:
       YARD_GOSSIP_KEY: ${YARD_GOSSIP_KEY:?set YARD_GOSSIP_KEY in .env}
       YARD_BIND_ADDRESS: ${YARD_BIND_ADDRESS:-}
       YARD_PEERS: ${YARD_PEERS:-}
-    # A shell first: the peers are a list, and -retry-join-wan takes one address each.
+    # A shell first: the peers are a list, separated by spaces or commas, and -retry-join-wan takes one address each.
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
         bind="$${YARD_BIND_ADDRESS}"
         [ -n "$$bind" ] || bind='{{ GetDefaultInterfaces | include "type" "IPv4" | attr "address" }}'
-        set --
-        for peer in $${YARD_PEERS}; do set -- "$$@" "-retry-join-wan=$$peer"; done
+        set -f -- # -f: a Peer such as [fd00::1]:8302 is no file pattern
+        for peer in $$(printf '%s' "$${YARD_PEERS}" | tr ',' ' '); do set -- "$$@" "-retry-join-wan=$$peer"; done
         # check_update_interval 0s: a check's new output reaches the catalog at once, not 5 minutes later when its
         # status stays the same, so every Workstation reads each check's last output.
         exec consul agent -server -bootstrap-expect=1 -ui \

@@ -42,7 +42,7 @@ public class Consul {
 
   private final RestClient http;
 
-  Consul(ConsulSettings settings) {
+  public Consul(ConsulSettings settings) {
     JdkClientHttpRequestFactory requests =
         new JdkClientHttpRequestFactory(
             HttpClient.newBuilder().connectTimeout(ANSWER_TIMEOUT).build());

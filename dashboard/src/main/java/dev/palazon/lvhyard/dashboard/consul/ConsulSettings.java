@@ -11,7 +11,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *
  * @param url the agent's HTTP API, on loopback
  * @param peers the Peers' LAN addresses, separated by spaces or commas, each as {@code <ip>} or
- *     {@code <ip>:<serf-wan-port>}; none for the first Workstation of a Yard
+ *     {@code <ip>:<serf-wan-port>} or {@code [<ipv6>]:<serf-wan-port>}; none for the first
+ *     Workstation of a Yard
  */
 @ConfigurationProperties("lvh-yard.consul")
 public record ConsulSettings(URI url, String peers) {

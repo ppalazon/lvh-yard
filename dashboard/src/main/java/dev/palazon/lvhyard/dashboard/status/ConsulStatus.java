@@ -3,12 +3,24 @@ package dev.palazon.lvhyard.dashboard.status;
 import dev.palazon.lvhyard.dashboard.consul.Consul;
 import dev.palazon.lvhyard.dashboard.consul.Consul.WanMember;
 import dev.palazon.lvhyard.dashboard.consul.ConsulSettings;
+import jakarta.annotation.PreDestroy;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
@@ -24,16 +36,41 @@ class ConsulStatus implements PartReader {
 
   static final String NAME = "Consul";
 
-  /** The port a Peer's Consul listens on for the WAN pool when its address names none. */
-  private static final int SERF_WAN_PORT = 8302;
+  /**
+   * How long looking up the addresses of all Peers given by name may take. Past it, each Peer not
+   * yet looked up is a warning of its own, and the part still answers within the status's deadline.
+   */
+  static final Duration LOOKUP_TIMEOUT = Duration.ofSeconds(1);
+
+  /** Finds the addresses of a Peer's host, as {@link InetAddress#getAllByName} does. */
+  @FunctionalInterface
+  interface Lookup {
+    InetAddress[] addresses(String host) throws UnknownHostException;
+  }
 
   private final Consul consul;
 
   private final ConsulSettings settings;
 
+  private final Lookup lookup;
+
+  /** Lookups run on their own threads, so one that never answers is simply left behind. */
+  private final ExecutorService lookups = Executors.newVirtualThreadPerTaskExecutor();
+
+  @Autowired
   ConsulStatus(Consul consul, ConsulSettings settings) {
+    this(consul, settings, InetAddress::getAllByName);
+  }
+
+  ConsulStatus(Consul consul, ConsulSettings settings, Lookup lookup) {
     this.consul = consul;
     this.settings = settings;
+    this.lookup = lookup;
+  }
+
+  @PreDestroy
+  void close() {
+    lookups.shutdownNow();
   }
 
   @Override
@@ -52,11 +89,10 @@ class ConsulStatus implements PartReader {
       return Part.failing(
           NAME, "Consul does not answer at " + settings.url() + ": " + e.getMessage());
     }
-    if (leader.isEmpty()) {
-      return Part.failing(NAME, "Consul has no leader, so it cannot accept changes.");
-    }
     List<Part.Detail> details = new ArrayList<>();
-    details.add(Part.Detail.fact("leader", leader));
+    if (!leader.isEmpty()) {
+      details.add(Part.Detail.fact("leader", leader));
+    }
     members.stream()
         .sorted(Comparator.comparing(WanMember::datacenter))
         .forEach(member ->
@@ -65,11 +101,14 @@ class ConsulStatus implements PartReader {
                     member.datacenter(),
                     member.status() + " at " + member.address() + ":" + member.port(),
                     member.alive() ? PartState.OK : PartState.WARNING)));
-    List<String> missing =
-        settings.peerAddresses().stream().filter(peer -> !inPool(peer, members)).toList();
-    missing.forEach(peer ->
-        details.add(new Part.Detail("peer " + peer, "not in the WAN pool", PartState.WARNING)));
-    return Part.of(NAME, reason(members, missing), details);
+    Map<String, String> missing = missingPeers(members);
+    missing.forEach(
+        (peer, why) -> details.add(new Part.Detail("peer " + peer, why, PartState.WARNING)));
+    if (leader.isEmpty()) {
+      return new Part(
+          NAME, PartState.FAILING, "Consul has no leader, so it cannot accept changes.", details);
+    }
+    return Part.of(NAME, reason(members, List.copyOf(missing.keySet())), details);
   }
 
   private static String reason(List<WanMember> members, List<String> missing) {
@@ -93,25 +132,70 @@ class ConsulStatus implements PartReader {
         + " in its WAN pool.";
   }
 
-  /** Whether {@code peer}, {@code <host>} or {@code <host>:<port>}, is one of {@code members}. */
-  private static boolean inPool(String peer, List<WanMember> members) {
-    int colon = peer.lastIndexOf(':');
-    boolean hasPort = colon > 0 && peer.indexOf(':') == colon;
-    String host = hasPort ? peer.substring(0, colon) : peer;
-    int port;
-    try {
-      port = hasPort ? Integer.parseInt(peer.substring(colon + 1)) : SERF_WAN_PORT;
-    } catch (NumberFormatException e) {
-      return false;
+  /**
+   * Each Peer from {@code YARD_PEERS} that is not one of {@code members}, with why. Their addresses
+   * are looked up side by side, all within {@link #LOOKUP_TIMEOUT}.
+   */
+  private Map<String, String> missingPeers(List<WanMember> members) {
+    Map<String, CompletableFuture<Optional<String>>> checks = new LinkedHashMap<>();
+    for (String peer : settings.peerAddresses()) {
+      checks.put(peer, CompletableFuture.supplyAsync(() -> whyMissing(peer, members), lookups));
     }
-    List<String> addresses;
+    long deadline = System.nanoTime() + LOOKUP_TIMEOUT.toNanos();
+    Map<String, String> missing = new LinkedHashMap<>();
+    checks.forEach(
+        (peer, check) -> await(check, deadline).ifPresent(why -> missing.put(peer, why)));
+    return missing;
+  }
+
+  private static Optional<String> await(CompletableFuture<Optional<String>> check, long deadline) {
     try {
-      addresses =
-          Arrays.stream(InetAddress.getAllByName(host)).map(InetAddress::getHostAddress).toList();
+      return check.get(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);
+    } catch (TimeoutException e) {
+      check.cancel(true);
+      return Optional.of("its address lookup took more than " + LOOKUP_TIMEOUT.toSeconds() + " s");
+    } catch (ExecutionException e) {
+      return Optional.of("cannot be checked: " + Failures.message(e.getCause()));
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return Optional.of("interrupted while it was checked");
+    }
+  }
+
+  /**
+   * Why {@code written}, a Peer as YARD_PEERS writes it, is not one of {@code members}; none if it
+   * is.
+   */
+  private Optional<String> whyMissing(String written, List<WanMember> members) {
+    Peer peer;
+    try {
+      peer = Peer.parse(written);
+    } catch (IllegalArgumentException e) {
+      return Optional.of("not an address: " + e.getMessage());
+    }
+    List<InetAddress> addresses;
+    try {
+      addresses = Arrays.asList(lookup.addresses(peer.host()));
     } catch (UnknownHostException e) {
-      return false;
+      return Optional.of("its address cannot be found");
     }
-    return members.stream()
-        .anyMatch(member -> member.port() == port && addresses.contains(member.address()));
+    boolean inPool =
+        members.stream()
+            .anyMatch(member ->
+                member.port() == peer.port()
+                    && address(member).map(addresses::contains).orElse(false));
+    return inPool ? Optional.empty() : Optional.of("not in the WAN pool");
+  }
+
+  /** The member's address, which Consul gives as an IP address, so no lookup is needed. */
+  private static Optional<InetAddress> address(WanMember member) {
+    if (member.address() == null) {
+      return Optional.empty();
+    }
+    try {
+      return Optional.of(InetAddress.ofLiteral(member.address()));
+    } catch (IllegalArgumentException e) {
+      return Optional.empty();
+    }
   }
 }

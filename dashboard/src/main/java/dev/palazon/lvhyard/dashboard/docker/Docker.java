@@ -63,6 +63,13 @@ public class Docker {
     http.close();
   }
 
+  /** Asks Docker whether it answers; it fails when it does not. */
+  public void ping() {
+    try (Response response = http.execute(get("/_ping"))) {
+      checkOk(response);
+    }
+  }
+
   /** Docker's version, as {@code docker version} shows the Engine's. */
   public Version version() {
     try (Response response = http.execute(get("/version"))) {
