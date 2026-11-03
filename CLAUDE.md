@@ -14,4 +14,8 @@ Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/ag
 
 ### Checks
 
-Run `mise run check` before committing. To try a change across Workstations, `mise run dev:up` starts two test Workstations on this computer; see `README.md`.
+Run `mise run check` before committing. To try a change across Workstations, `mise run dev:up` starts two test Workstations on this computer. See `docs/development.md`.
+
+### Docs
+
+When a change affects how people install or use LVH Yard, update `docs/user-guide.md`. When it affects building, testing or releasing, update `docs/development.md`. The maintainer writes `README.md` by hand, so leave it to them.

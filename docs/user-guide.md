@@ -1,0 +1,247 @@
+# User guide
+
+LVH Yard lets you reach a development Service on any Workstation in your Yard
+at a fixed hostname, such as `http://grafana.lvh.me`. You do not need its IP
+address or port. [GLOSSARY.md](../GLOSSARY.md) defines the words, and
+[docs/adr/](adr/) records the decisions.
+
+Each Workstation runs three things:
+
+- its own Consul datacenter, federated with the others
+  ([ADR-0001](adr/0001-one-consul-datacenter-per-workstation.md))
+- a Traefik on `127.0.0.1:80`
+- the dashboard, which gives Traefik its Routes
+  ([ADR-0002](adr/0002-traefik-reads-routes-from-lvh-yard.md))
+
+## Running on a Workstation
+
+You need Docker with Compose and the `lvh-yard` executable. You do not need
+Java or a copy of this repository.
+
+1. Download `lvh-yard` and put it on your `PATH`, as
+   [Installing the CLI](#installing-the-cli) shows.
+2. Run `lvh-yard init`. It asks for the name of this Workstation and for its
+   Peers, the LAN addresses of the other Workstations. You can give both as
+   flags instead:
+
+   ```sh
+   lvh-yard init --workstation ws-a                                          # the first Workstation of a Yard
+   lvh-yard init --workstation ws-b --peers 192.168.1.10 --gossip-key <key>  # each next one
+   ```
+
+   `init` writes `compose.yaml`, `.env` and `route-profiles.yaml` to
+   `~/.config/lvh-yard`. If `XDG_CONFIG_HOME` is set, it writes to
+   `$XDG_CONFIG_HOME/lvh-yard`. `--dir` picks another folder.
+
+   On the first Workstation, `init` makes the gossip key of the Yard and prints
+   it. Give the same key to each next Workstation with `--gossip-key`.
+
+3. Open TCP port 8300 and TCP and UDP port 8302 to the other Workstations.
+4. Start this Workstation: `cd ~/.config/lvh-yard && docker compose up -d`.
+   This starts Consul, Traefik and the dashboard.
+5. Make sure that the Core Services work: `lvh-yard status`.
+
+If Traefik works, open [yard.lvh.me](http://yard.lvh.me). If Traefik is down,
+open `127.0.0.1:7780`. The Catalog shows the Core Services: `yard` (the
+dashboard), `consul` ([consul.lvh.me](http://consul.lvh.me)) and `traefik`
+([traefik.lvh.me](http://traefik.lvh.me)).
+
+### Upgrading
+
+`lvh-yard init` does not overwrite a file unless you give `--force`. After you
+install a new `lvh-yard`, use one of these flags:
+
+- `lvh-yard init --upgrade` changes only the consul, traefik and dashboard
+  images in `compose.yaml`. Then run `docker compose up -d` again.
+- `lvh-yard init --reinit` writes `compose.yaml` and `.env` again from the new
+  templates, with the values of the old `.env`. A flag that you give with it
+  replaces the old value. The old files stay as
+  `<file>.<yyyyMMdd-HHmmss>.bak`. `route-profiles.yaml` does not change.
+
+### Addresses and ports
+
+Traefik and the dashboard listen on `127.0.0.1`, so only this computer reaches
+them. To change that, set `YARD_TRAEFIK_BIND_ADDRESS` or
+`YARD_DASHBOARD_BIND_ADDRESS` to an IPv4 address. `0.0.0.0` listens on every
+address, loopback too.
+
+If Traefik does not listen on loopback, the `lvh.me` hostnames do not work on
+this computer, because they resolve to `127.0.0.1`.
+
+The dashboard has no login. Anyone who reaches it can change the Services of
+this Workstation, and its containers through the Docker socket.
+
+The admin page of Traefik is at `127.0.0.1:8080/dashboard/`, and its ping is at
+`127.0.0.1:8080/ping`. They are always on loopback, whatever
+`YARD_TRAEFIK_BIND_ADDRESS` says. `YARD_TRAEFIK_ADMIN_PORT` changes the port.
+
+### The dashboard image
+
+The folder that `lvh-yard init` writes runs the dashboard from its image,
+`ghcr.io/ppalazon/lvh-yard-dashboard`. The image tag is the version of
+`lvh-yard`. `init` sets these values in `.env`:
+
+- `COMPOSE_PROFILES=dashboard`, which turns on the dashboard in Compose
+- `YARD_DOCKER_GID`, the group that owns the Docker socket
+  (`stat -c %g /var/run/docker.sock`)
+- `YARD_UID` and `YARD_GID`, your user and group
+
+The dashboard runs as your user, not as root. It joins the socket group so that
+it can read the Docker socket. It uses host networking. On Docker Desktop, turn
+on host networking in the settings.
+
+## Installing the CLI
+
+Each release has `lvh-yard` as one executable for Linux (amd64, arm64) and
+macOS (arm64). It needs no Java. Download it from the
+[releases](https://github.com/ppalazon/lvh-yard/releases). Make sure that it
+matches `SHA256SUMS`, and put it on your `PATH`:
+
+```sh
+sha256sum -c SHA256SUMS --ignore-missing
+tar -xzf lvh-yard-0.1.0-linux-amd64.tar.gz lvh-yard
+sudo mv lvh-yard /usr/local/bin/
+```
+
+On macOS, the system blocks a downloaded executable. To unblock it, run
+`xattr -d com.apple.quarantine lvh-yard`.
+
+## Using the CLI
+
+`lvh-yard` talks to the dashboard on this Workstation. It uses the first
+address of this list:
+
+1. `--dashboard`
+2. `YARD_DASHBOARD_URL`
+3. the address in the `.env` that `init` wrote, in `YARD_CONFIG_DIR` or the
+   default folder
+4. `http://127.0.0.1:7780`
+
+It shows the whole Yard, but it changes only the Services of this Workstation:
+
+```sh
+lvh-yard list                               # every Service, by Workstation
+lvh-yard list --workstation ws-b            # the Services of ws-b
+lvh-yard register web --port 8080           # at this Workstation's LAN address
+lvh-yard register web --host 127.0.0.1 --port 8080
+lvh-yard register web --port 8080 --path /health --interval 5s --timeout 1s   # an HTTP check (default: TCP, 10s, 2s)
+lvh-yard register web --port 8080 --tag backend --meta owner=pablo           # repeat --tag and --meta for more
+lvh-yard register web --container web-1 --port 80                            # bind to the container web-1
+lvh-yard register web --compose-project shop --compose-service web --port 80 # bind to the Compose service web
+lvh-yard remove web --port 8080             # add --host if several Instances share the port
+lvh-yard remove web --id <id>               # the ID that lvh-yard list shows
+lvh-yard remove web --container web-1       # add --port if web-1 is bound on several ports
+lvh-yard remove web --compose-project shop --compose-service web
+lvh-yard publish web                        # http://web.<base-domain> (Local Scope)
+lvh-yard publish web --scope yard           # also on every other Workstation (Yard Scope)
+lvh-yard unpublish web
+lvh-yard alias add grafana --workstation ws-b                 # http://grafana.<base-domain> for grafana of ws-b
+lvh-yard alias add db --workstation ws-b --service postgres   # a name that differs from the Service
+lvh-yard alias list
+lvh-yard alias remove grafana
+lvh-yard test web                           # tests whether this Workstation reaches web
+lvh-yard test grafana --workstation ws-b    # a Remote Service
+lvh-yard status                             # whether the Core Services work
+lvh-yard status --strict                    # also exits with 1 on a warning
+```
+
+If a command fails, it prints the reason and exits with a code that is not 0.
+The `/status` page of the dashboard and `GET /api/status` show the same status
+as `lvh-yard status`.
+
+## How it works
+
+### Services and Publications
+
+A Service is `unpublished`, `unavailable` (published, no Instances), `unhealthy`
+(published, no passing Instance) or `healthy` (published, with a passing
+Instance). A Publication covers every Instance of the Service, also the ones
+that you register later. The Publications are in the Consul KV of this
+Workstation, under `lvh-yard/publications/`.
+
+A new Publication has Local Scope: only this Workstation routes it, at
+`<service>.<base-domain>`. With Yard Scope, the other Workstations also route
+it, at `<service>.<workstation>.<base-domain>`. If you publish again without
+`--scope`, the Scope does not change.
+
+A Service with Yard Scope shows a warning for each Instance on loopback, because
+other Workstations cannot reach it. The page, the API and `lvh-yard publish`
+show this warning.
+
+You can see a Remote Service, but only its Home Workstation can change it. Its
+page has no forms, and the API answers 405 to a change under `/api/services`.
+
+### Out-of-range Instances
+
+An address on loopback or on a Docker bridge network (172.17.0.0/16 to
+172.31.0.0/16) is out of range. If an Instance of a Remote Service has such an
+address, it is an Out-of-range Instance here. A Route to it reaches this
+computer instead. So no Route points to it, and the API (`outOfRange`), the
+page and `lvh-yard list` mark it.
+
+If your LAN uses these addresses, set `YARD_OUT_OF_RANGE` to your own list. The
+test Yard leaves loopback out, because its two Workstations share it.
+
+If a Workstation stops answering, or its Services cannot be read, only its own
+Routes are dropped. When it answers again, they come back.
+
+### Reachability tests
+
+A Reachability test tells whether this Workstation reaches a Service. To run
+one, press Test on the page of the Service, run `lvh-yard test`, or send
+`GET /api/services/<workstation>/<service>/reachability`.
+
+The test connects to each Instance directly. It also sends a request for each
+hostname of the Service, and of its active Aliases, through the local Traefik.
+If the Service has no Route here, only the Instances are tested, and the result
+says why. An Out-of-range Instance is skipped, and that is not a failure.
+
+If Traefik has no Route for the hostname, or answers 502, 503 or 504, the
+request through Traefik fails. Any other answer means that the request reached
+the Service. The results are not stored. If a test fails, `lvh-yard test` exits
+with 1.
+
+### Aliases
+
+An Alias gives a Remote Service a short hostname on this Workstation only, for
+example `grafana.<base-domain>` for `grafana.ws-b.<base-domain>`. Add and
+remove Aliases on the Aliases page or with `lvh-yard alias`. The Aliases are in
+the Consul KV of this Workstation, under `lvh-yard/aliases/`.
+
+The name of an Alias follows the rules for a Service name. It cannot be the
+name of a Core Service. The Remote Service needs Yard Scope before the Alias
+gets a Route. These are the states of an Alias:
+
+- `active`: routed to the Instances of the Remote Service
+- `unavailable`: the Remote Service has no Instance in range here
+- `hidden`: a published Service of this Workstation has the same name
+- `not-shared`: the Remote Service is unpublished or has Local Scope
+- `unreachable`: its Workstation does not answer
+- `missing`: the Remote Service or its Workstation is gone
+
+### Container Bindings
+
+A Container Binding binds a Service to a Docker container by its name, or to
+each container of a Compose project and service. Add one on the Register page
+or with `lvh-yard register --container` (or `--compose-project` and
+`--compose-service`). Remove it on the page of the Service or with
+`lvh-yard remove` and the same options. The Bindings are in the Consul KV of
+this Workstation, under `lvh-yard/container-bindings/`.
+
+Each running container that matches is a Bound Instance with a TCP check. If
+the container port is published on every host address, the Bound Instance is at
+the LAN address and the host port. Otherwise, it is at the address of the
+container and the container port. A Bound Instance comes and goes with its
+container, and you cannot edit or remove it alone.
+
+The dashboard follows the Docker events at `DOCKER_HOST`. If that is not set,
+it uses `unix:///var/run/docker.sock`. When it starts, or when Docker answers
+again, it updates each Binding to the containers that run then.
+
+### Health checks
+
+Each Instance has one health check. A TCP check connects to its port. An HTTP
+check sends a GET to a path and passes on a 2xx answer. Script checks are not
+available. The page of the Service shows the last output of each check. You can
+edit the host, port, check, tags and meta of a Static Instance there, and it
+keeps its ID.
