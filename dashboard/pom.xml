@@ -15,7 +15,7 @@
         <!-- HtmlFlow 5.2.0 is compiled for Java 17 and has no Spring integration: views render to a String. -->
         <htmlflow.version>5.2.0</htmlflow.version>
         <htmx.version>4.0.0</htmx.version>
-        <!-- springdoc 3.x is the line for Spring Boot 4; 3.1.x is built against Boot 4.1. -->
+        <!-- springdoc 3.x is the line for Spring Boot 4. 3.1.x is built against Boot 4.1. -->
         <springdoc.version>3.1.1</springdoc.version>
         <resilience4j.version>2.4.0</resilience4j.version>
         <!-- The version Testcontainers uses, so the tests and the dashboard share one Docker transport. -->
@@ -31,7 +31,7 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
-        <!-- The OpenAPI document of the REST API, at /v3/api-docs; openapi.yaml is its committed copy. -->
+        <!-- The OpenAPI document of the REST API, at /v3/api-docs. openapi.yaml is its committed copy. -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>

@@ -2,44 +2,48 @@ spring:
   application:
     name: dashboard
   config:
-    # The Workstation's settings live in the git-ignored .env at the repository root, which compose.yaml reads too.
-    # spring-boot:run starts in dashboard/, a packaged jar wherever it is launched; environment variables work too.
+    # The settings of the Workstation are in the .env at the repository root, which git ignores and compose.yaml
+    # also reads. spring-boot:run starts in dashboard/, and a packaged jar starts where you launch it. Environment
+    # variables also work.
     import: optional:file:../.env[.properties],optional:file:.env[.properties]
 
 server:
   # Loopback by default: Traefik on the same Workstation is the way in, at yard.<base-domain>. The dashboard has no
-  # login, so another address lets whoever reaches it change this Workstation's Services and Container Bindings.
+  # login. On another address, anyone who reaches it can change the Services and Container Bindings of this
+  # Workstation.
   address: ${YARD_DASHBOARD_BIND_ADDRESS:127.0.0.1}
   port: ${YARD_DASHBOARD_PORT:7780}
 
-# The OpenAPI document of the REST API, at /v3/api-docs, which the CLI is written against. Its committed copy is
-# dashboard/openapi.yaml: `mise run openapi` rewrites it.
+# The OpenAPI document of the REST API, at /v3/api-docs. The CLI is written against it. Its committed copy is
+# dashboard/openapi.yaml, and mise run openapi writes it again.
 springdoc:
   paths-to-match: /api/**
   default-produces-media-type: application/json
-  # Sorted keys keep the committed copy free of reordering noise.
+  # Sorted keys keep the committed copy free of changes in order.
   writer-with-order-by-keys: true
 
 lvh-yard:
   workstation:
     name: ${YARD_WORKSTATION:ws-a}
     base-domain: ${YARD_BASE_DOMAIN:lvh.me}
-  # The addresses only an Instance's own Workstation can reach: loopback and Docker's default bridge networks. A Remote
-  # Service's Instance there is out of range here and gets no Route. YARD_OUT_OF_RANGE replaces the whole list.
+  # The addresses that only the own Workstation of an Instance can reach: loopback and the default Docker bridge
+  # networks. An Instance of a Remote Service there is out of range here, and gets no Route. YARD_OUT_OF_RANGE
+  # replaces the whole list.
   out-of-range:
     ranges: ${YARD_OUT_OF_RANGE:127.0.0.0/8,::1/128,172.17.0.0/16,172.18.0.0/15,172.20.0.0/14,172.24.0.0/13}
-  # This Workstation's Consul agent, whose HTTP API listens on loopback only (compose.yaml).
+  # The Consul agent of this Workstation. Its HTTP API listens on loopback only (compose.yaml).
   consul:
     url: http://127.0.0.1:${YARD_CONSUL_HTTP_PORT:8500}
-    # The Peers Consul joins (compose.yaml). The status page shows one missing from Consul's WAN pool.
+    # The Peers that Consul joins (compose.yaml). The status shows a Peer that is missing from the WAN pool of Consul.
     peers: ${YARD_PEERS:}
-  # This Workstation's Traefik, whose entry point listens where compose.yaml binds it. A Reachability test requests a
-  # Service's hostnames through it.
+  # The Traefik of this Workstation. Its entry point listens where compose.yaml binds it. A Reachability test sends
+  # requests for the hostnames of a Service through it.
   traefik:
     bind-address: ${YARD_TRAEFIK_BIND_ADDRESS:127.0.0.1}
     port: ${YARD_HTTP_PORT:80}
     # Its admin entry point, with its admin page and ping, on loopback only.
     admin-port: ${YARD_TRAEFIK_ADMIN_PORT:8080}
-  # This Workstation's Docker, whose containers the Container Bindings follow: DOCKER_HOST, as the docker command uses it.
+  # The Docker of this Workstation, whose containers the Container Bindings follow. DOCKER_HOST, as the docker
+  # command uses it.
   docker:
     host: ${DOCKER_HOST:unix:///var/run/docker.sock}

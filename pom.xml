@@ -14,7 +14,7 @@
     <packaging>pom</packaging>
     <name>lvh-yard</name>
     <description>Predictable hostnames for development services on every Workstation in a Yard</description>
-    <!-- Each element below replaces what the Spring Boot parent would pass down: its url, Spring as developer, its scm. -->
+    <!-- Each element below replaces what the Spring Boot parent passes down: its url, Spring as developer, its scm. -->
     <url>https://github.com/ppalazon/lvh-yard</url>
     <inceptionYear>2026</inceptionYear>
     <licenses>
@@ -86,7 +86,7 @@
                         </goals>
                         <configuration>
                             <rules>
-                                <!-- requireJavaVersion only sees the JVM running Maven, so it can set a floor but not pin 25; the toolchain above does that. -->
+                                <!-- requireJavaVersion only sees the JVM that runs Maven, so it can set a floor but not pin 25. The toolchain above pins it. -->
                                 <requireJavaVersion>
                                     <version>[${java.version},)</version>
                                 </requireJavaVersion>

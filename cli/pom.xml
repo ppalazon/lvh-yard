@@ -118,7 +118,7 @@
                     </annotationProcessorPaths>
                     <compilerArgs>
                         <arg>-Aproject=${project.groupId}/${project.artifactId}</arg>
-                        <!-- No proxy-config.json: no command is an interface, so it would be empty, and native-image
+                        <!-- No proxy-config.json: no command is an interface, so it is empty, and native-image
                              warns that its format is deprecated. -->
                         <arg>-Adisable.proxy.config</arg>
                     </compilerArgs>

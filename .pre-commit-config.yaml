@@ -23,9 +23,9 @@ repos:
       - id: check-added-large-files
       - id: detect-private-key
 
-  # Java: Google Java Format. Version 2.0.0 or later is needed to run on Java 27;
-  # older versions and Palantir Java Format crash on it.
-  # TOML has only check-toml above: the TOML formatter sorts keys and would scramble mise.toml's task order.
+  # Java: Google Java Format. It needs version 2.0.0 or later to run on Java 27. Older versions and Palantir Java
+  # Format crash on it.
+  # TOML has only check-toml above, because the TOML formatter sorts keys and scrambles the task order of mise.toml.
   - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
     rev: v2.16.0
     hooks:

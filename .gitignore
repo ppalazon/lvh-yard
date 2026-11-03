@@ -1,4 +1,4 @@
-# graft's local graph cache — regenerable, not committed (run `graft build`).
+# The local graph cache of graft. `graft build` makes it again, so it is not committed.
 /graft/
 
 # Maven build output

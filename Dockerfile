@@ -12,7 +12,7 @@ RUN npx tailwindcss -i dashboard/src/main/css/app.css -o app.css --minify
 
 FROM --platform=$BUILDPLATFORM eclipse-temurin:25-jdk AS build
 WORKDIR /src
-# The release workflow passes the version from its tag; a local build keeps the poms' own.
+# The release workflow passes the version from its tag. A local build keeps the version of the poms.
 ARG VERSION
 COPY . .
 COPY --from=css /src/app.css dashboard/src/main/resources/static/app.css

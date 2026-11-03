@@ -1,30 +1,31 @@
-# Consul and Traefik for one Workstation, set up from .env (copy .env.example). Both use host networking: Traefik
-# reaches Instances listening on the Workstation's loopback, and Consul's federation ports face the LAN directly.
-# Consul's HTTP API listens on 127.0.0.1 only; Traefik and the dashboard listen on 127.0.0.1 unless
-# YARD_TRAEFIK_BIND_ADDRESS and YARD_DASHBOARD_BIND_ADDRESS say otherwise.
+# Consul, Traefik and the dashboard for one Workstation, with the settings from .env (copy .env.example).
+# Consul and Traefik use host networking. So Traefik reaches Instances on the loopback of the Workstation, and the
+# federation ports of Consul face the LAN directly. The HTTP API of Consul listens on 127.0.0.1 only. Traefik and
+# the dashboard listen on 127.0.0.1, unless YARD_TRAEFIK_BIND_ADDRESS and YARD_DASHBOARD_BIND_ADDRESS say
+# otherwise.
 services:
-  # This Workstation's own Consul datacenter, joined to the other Workstations by WAN federation (ADR-0001).
+  # The own Consul datacenter of this Workstation, joined to the other Workstations by WAN federation (ADR-0001).
   consul:
     image: hashicorp/consul:2.1.0
     network_mode: host
     restart: unless-stopped
-    # The image's own consul user and group. Its entrypoint would switch to them, but the shell below replaces it.
+    # The consul user and group of the image. Its entrypoint switches to them, but the shell below replaces it.
     user: "100:1000"
     environment:
       YARD_WORKSTATION: ${YARD_WORKSTATION:?set YARD_WORKSTATION in .env}
       YARD_GOSSIP_KEY: ${YARD_GOSSIP_KEY:?set YARD_GOSSIP_KEY in .env}
       YARD_BIND_ADDRESS: ${YARD_BIND_ADDRESS:-}
       YARD_PEERS: ${YARD_PEERS:-}
-    # A shell first: the peers are a list, separated by spaces or commas, and -retry-join-wan takes one address each.
+    # A shell first: the Peers are a list, separated by spaces or commas, and -retry-join-wan takes one address.
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
         bind="$${YARD_BIND_ADDRESS}"
         [ -n "$$bind" ] || bind='{{ GetDefaultInterfaces | include "type" "IPv4" | attr "address" }}'
-        set -f -- # -f: a Peer such as [fd00::1]:8302 is no file pattern
+        set -f -- # -f: a Peer such as [fd00::1]:8302 is not a file pattern
         for peer in $$(printf '%s' "$${YARD_PEERS}" | tr ',' ' '); do set -- "$$@" "-retry-join-wan=$$peer"; done
-        # check_update_interval 0s: a check's new output reaches the catalog at once, not 5 minutes later when its
-        # status stays the same, so every Workstation reads each check's last output.
+        # check_update_interval 0s: the new output of a check reaches the catalog at once. Otherwise it waits 5
+        # minutes while the status stays the same. So every Workstation reads the last output of each check.
         exec consul agent -server -bootstrap-expect=1 -ui \
           -datacenter="$${YARD_WORKSTATION}" -node="$${YARD_WORKSTATION}" \
           -data-dir=/consul/data -encrypt="$${YARD_GOSSIP_KEY}" \
@@ -37,20 +38,21 @@ services:
     volumes:
       - consul-data:/consul/data
 
-  # Reads its Routes from the dashboard on this Workstation (ADR-0002), and keeps the last ones while it is down.
+  # Reads its Routes from the dashboard on this Workstation (ADR-0002). While the dashboard is down, it keeps the
+  # last Routes.
   traefik:
     image: traefik:v3.7.16
     network_mode: host
     restart: unless-stopped
-    # Root, to listen on port 80: Docker gives a non-root user no capabilities, NET_BIND_SERVICE included.
+    # Root, to listen on port 80. Docker gives a user that is not root no capabilities, not even NET_BIND_SERVICE.
     environment:
       YARD_TRAEFIK_BIND_ADDRESS: ${YARD_TRAEFIK_BIND_ADDRESS:-127.0.0.1}
       YARD_DASHBOARD_BIND_ADDRESS: ${YARD_DASHBOARD_BIND_ADDRESS:-127.0.0.1}
-    # A shell first, with the dashboard's BindAddress rule: a dashboard on the wildcard 0.0.0.0 is reached through
-    # loopback.
-    # Traefik's admin page and its ping are on their own entry point, always on loopback, never on web. Traefik serves
-    # its API without a Route only on the entry point named traefik (--api.insecure), so that entry point is the admin
-    # one: it still answers while the dashboard, which gives the Routes, is down.
+    # A shell first, for the BindAddress rule of the dashboard: a dashboard on the wildcard 0.0.0.0 is reached
+    # through loopback.
+    # The admin page and the ping of Traefik are on their own entry point, always on loopback, never on web. Traefik
+    # serves its API without a Route only on the entry point named traefik (--api.insecure). So that entry point is
+    # the admin one, and it still answers while the dashboard, which gives the Routes, is down.
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -65,24 +67,24 @@ services:
           --providers.http.pollInterval=5s \
           --log.level=INFO
 
-  # The dashboard from its image, for a Workstation without Java. Off unless asked for: COMPOSE_PROFILES=dashboard in
-  # .env, or `docker compose --profile dashboard up -d`. `mise run dashboard` runs it from the sources instead.
+  # The dashboard image, for a Workstation without Java. It is off unless you turn it on: set
+  # COMPOSE_PROFILES=dashboard in .env, or run docker compose --profile dashboard up -d.
   dashboard:
     profiles: [dashboard]
     image: ${YARD_DASHBOARD_IMAGE:-ghcr.io/ppalazon/lvh-yard-dashboard:latest}
     build: .
-    # Host networking: it listens on YARD_DASHBOARD_BIND_ADDRESS, where Traefik reads its Routes, and reaches Consul on
-    # 127.0.0.1 and Traefik on YARD_TRAEFIK_BIND_ADDRESS.
+    # Host networking: it listens on YARD_DASHBOARD_BIND_ADDRESS, where Traefik reads its Routes. It reaches Consul
+    # on 127.0.0.1 and Traefik on YARD_TRAEFIK_BIND_ADDRESS.
     network_mode: host
     restart: unless-stopped
-    # Not root: the user from .env, with the Docker socket's group to read it. The group has no default, as it differs
-    # on each computer, and is not required with :?, which would stop Compose even with the dashboard's profile off.
-    # Unset, Docker refuses to start the dashboard: "unable to find group".
+    # The user from .env, not root, with the group of the Docker socket so that it can read the socket. The group has
+    # no default, because it differs on each computer. It is not required with :?, because that stops Compose even
+    # when the dashboard profile is off. If it is not set, Docker does not start the dashboard: "unable to find group".
     user: "${YARD_UID:-1000}:${YARD_GID:-1000}"
     group_add:
       - "${YARD_DOCKER_GID:-}"
-    # The defaults are the dashboard's own (application.yaml). YARD_OUT_OF_RANGE takes its default only when unset (-,
-    # not :-): set but empty, nothing is out of range.
+    # The defaults are the dashboard's own (application.yaml). YARD_OUT_OF_RANGE uses - and not :-, so it takes its
+    # default only when it is not set. If it is set but empty, no address is out of range.
     environment:
       YARD_WORKSTATION: ${YARD_WORKSTATION:?set YARD_WORKSTATION in .env}
       YARD_BASE_DOMAIN: ${YARD_BASE_DOMAIN:-lvh.me}
@@ -94,7 +96,7 @@ services:
       YARD_DASHBOARD_BIND_ADDRESS: ${YARD_DASHBOARD_BIND_ADDRESS:-127.0.0.1}
       YARD_CONSUL_HTTP_PORT: ${YARD_CONSUL_HTTP_PORT:-8500}
       YARD_PEERS: ${YARD_PEERS:-}
-    # The Container Bindings follow this Workstation's containers.
+    # The Container Bindings follow the containers of this Workstation.
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
