@@ -200,8 +200,9 @@ lvh-yard publish web --priority bound,static   # prefer the Docker copy
 ```
 
 The kinds are `static`, `bound` and `alias`. Each kind can appear only once.
-You can leave a kind out. Then the Route never prefers it, though it still
-uses it when no Instance passes its check. If you publish again without
+You can leave a kind out, and the Route never prefers it. For example,
+`--priority static,bound` never falls back to an Alias, and the Alias shows as
+`hidden`. If you publish again without
 `--priority`, the order does not change. The order stays with the
 Publication, so it is kept when the last Instance of a kind goes away. Every
 Workstation that routes the Service uses the order of its Home Workstation. A

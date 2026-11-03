@@ -97,6 +97,23 @@ class AliasesTest extends DashboardTest {
   }
 
   @Test
+  void aliasIsHiddenWhenTheSameNamedServicesOrderLeavesOutAlias() {
+    String grafana = sharedRemoteService("grafana");
+    put(aliasPath(grafana), Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
+    register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
+
+    put(publicationPath(grafana), Map.of("priority", List.of("static", "bound")));
+
+    JsonNode alias = alias(grafana);
+    assertThat(alias.get("state").asString()).isEqualTo("hidden");
+    assertThat(alias.get("reason").asString()).contains("leaves out the Alias");
+
+    put(publicationPath(grafana), Map.of("priority", List.of("static", "alias")));
+
+    assertThat(alias(grafana).get("state").asString()).isEqualTo("fallback");
+  }
+
+  @Test
   void ownUnpublishedServiceWithTheSameNameLeavesTheAliasActive() {
     String grafana = sharedRemoteService("grafana");
     register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
