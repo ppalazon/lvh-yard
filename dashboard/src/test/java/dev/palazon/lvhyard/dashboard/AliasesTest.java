@@ -76,7 +76,7 @@ class AliasesTest extends DashboardTest {
   }
 
   @Test
-  void ownPublishedServiceWithTheSameNameWinsAndHidesTheAlias() {
+  void ownPublishedServiceWithTheSameNameTakesTheHostnameAndTheAliasIsItsFallback() {
     String grafana = sharedRemoteService("grafana");
     put(aliasPath(grafana), Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
     register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
@@ -84,9 +84,12 @@ class AliasesTest extends DashboardTest {
     publish(grafana);
 
     JsonNode alias = alias(grafana);
-    assertThat(alias.get("state").asString()).isEqualTo("hidden");
+    assertThat(alias.get("state").asString()).isEqualTo("fallback");
     assertThat(alias.get("reason").asString())
-        .contains("this Workstation's published Service " + grafana);
+        .contains("The last fallback for this Workstation's Service " + grafana);
+    assertThat(routedHostnames(get("/traefik/configuration").getBody().get("http")))
+        .containsOnlyOnce(grafana + ".lvh.test");
+    // Neither Instance passes, as nothing listens at either address, so no kind wins.
     assertThat(
             TraefikConfigurationTest.serverUrlsAt(
                 get("/traefik/configuration").getBody().get("http"), grafana + ".lvh.test"))

@@ -3,7 +3,9 @@ package dev.palazon.lvhyard.dashboard.services;
 import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.consul.Consul;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import org.springframework.stereotype.Component;
 
 /**
@@ -67,21 +69,32 @@ public class Aliases {
   }
 
   public List<Alias> of(Yard yard) {
-    return consul.values(null, PREFIX).entrySet().stream()
-        .map(entry -> {
-          String name = entry.getKey().substring(PREFIX.length());
-          String[] target = entry.getValue().split("/", 2);
-          String home = target[0];
-          String service = target.length < 2 ? "" : target[1];
-          return alias(name, home, service, yard);
-        })
+    return targets(consul).entrySet().stream()
+        .map(entry ->
+            alias(entry.getKey(), entry.getValue().workstation(), entry.getValue().service(), yard))
         .toList();
   }
 
+  /** The Remote Service of each Alias of this Workstation, by the Alias's name. */
+  static Map<String, Target> targets(Consul consul) {
+    Map<String, Target> targets = new TreeMap<>();
+    consul
+        .values(null, PREFIX)
+        .forEach((key, value) -> {
+          String[] target = value.split("/", 2);
+          targets.put(
+              key.substring(PREFIX.length()),
+              new Target(target[0], target.length < 2 ? "" : target[1]));
+        });
+    return targets;
+  }
+
+  record Target(String workstation, String service) {}
+
   /**
-   * A published Service of this Workstation with the same name wins, because its Route has the same
-   * hostname. Otherwise the Alias is active by the same rules that give the Service its own Route
-   * here.
+   * A published Service of this Workstation with the same name takes the hostname. The Alias is
+   * then its last fallback, unless its Instance Priority leaves out the {@code alias} kind.
+   * Otherwise the Alias is active by the same rules that give the Service its own Route here.
    */
   private Alias alias(String name, String home, String service, Yard yard) {
     Alias.State state;
@@ -93,10 +106,16 @@ public class Aliases {
             .flatMap(found -> found.services().stream())
             .filter(candidate -> candidate.name().equals(service))
             .findFirst();
-    if (yard.home().services().stream()
-        .anyMatch(own -> own.name().equals(name) && own.published())) {
+    Optional<Service> own =
+        yard.home().services().stream()
+            .filter(candidate -> candidate.name().equals(name) && candidate.published())
+            .findFirst();
+    if (own.isPresent() && !own.get().priority().contains(InstanceKind.ALIAS)) {
       state = Alias.State.HIDDEN;
-      reason = "Hidden by this Workstation's published Service " + name + ".";
+      reason =
+          "Hidden by this Workstation's published Service "
+              + name
+              + ", whose Instance Priority leaves out the Alias.";
     } else if (remote.isEmpty()) {
       state = Alias.State.MISSING;
       reason = "The Yard has no Workstation " + home + ".";
@@ -115,6 +134,14 @@ public class Aliases {
     } else if (target.get().instances().stream().allMatch(Instance::outOfRange)) {
       state = Alias.State.UNAVAILABLE;
       reason = service + " has no Instance this Workstation can reach.";
+    } else if (own.isPresent()) {
+      state = Alias.State.FALLBACK;
+      reason =
+          own.get().routing() != null && own.get().routing().kind() == InstanceKind.ALIAS
+              ? "In use now, as no Instance of this Workstation's Service " + name + " passes."
+              : "The last fallback for this Workstation's Service "
+                  + name
+                  + ": used when none of its Instances passes.";
     } else {
       state = Alias.State.ACTIVE;
       reason = null;

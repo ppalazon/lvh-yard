@@ -115,6 +115,7 @@ final class AliasesPage {
     String label =
         switch (alias.state()) {
           case ACTIVE -> "Active";
+          case FALLBACK -> "Fallback";
           case HIDDEN -> "Hidden";
           case NOT_SHARED -> "Not shared";
           case UNAVAILABLE -> "Unavailable";

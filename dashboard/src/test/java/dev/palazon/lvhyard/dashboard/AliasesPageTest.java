@@ -94,4 +94,19 @@ class AliasesPageTest extends DashboardTest {
     assertThat(response.getHeaders().getLocation()).hasPath("/aliases");
     assertThat(getPage("/aliases").getBody()).doesNotContain("http://" + grafana + ".lvh.test");
   }
+
+  @Test
+  void aliasWithTheNameOfAPublishedServiceShowsItIsItsFallback() {
+    String grafana = newServiceName("grafana");
+    remote.register(grafana, Map.of("host", "10.9.8.7", "port", 3000));
+    remote.publish(grafana, "yard");
+    postForm("/aliases", Map.of("name", grafana, "target", RemoteWorkstation.NAME + "/" + grafana));
+    register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
+
+    publish(grafana);
+
+    assertThat(getPage("/aliases").getBody())
+        .contains("Fallback")
+        .contains("The last fallback for this Workstation");
+  }
 }
