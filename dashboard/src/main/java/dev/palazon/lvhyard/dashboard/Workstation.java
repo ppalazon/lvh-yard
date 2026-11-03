@@ -7,10 +7,14 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * YARD_BASE_DOMAIN}.
  *
  * @param name the Workstation's name, unique in the Yard and a single DNS label
- * @param baseDomain the Yard's base domain, which every hostname ends with
+ * @param baseDomain this Workstation's Base Domain, which every hostname it routes ends with; each
+ *     Workstation of the Yard picks its own
  */
 @ConfigurationProperties("lvh-yard.workstation")
 public record Workstation(String name, String baseDomain) {
+
+  /** Stands for the Base Domain of whichever Workstation reads a hostname that holds it. */
+  public static final String VIEWERS_BASE_DOMAIN = "<base-domain>";
 
   /** Whether {@code workstation} names this Workstation, not another one of the Yard. */
   public boolean is(String workstation) {
@@ -28,5 +32,14 @@ public record Workstation(String name, String baseDomain) {
    */
   public String hostname(String home, String service) {
     return service + "." + home + "." + baseDomain;
+  }
+
+  /**
+   * Where every other Workstation reaches this Workstation's own {@code service}: {@code
+   * <service>.<name>.<base-domain>}, with {@code <base-domain>} left as written, because each of
+   * them ends it with its own Base Domain.
+   */
+  public String yardHostname(String service) {
+    return service + "." + name + "." + VIEWERS_BASE_DOMAIN;
   }
 }

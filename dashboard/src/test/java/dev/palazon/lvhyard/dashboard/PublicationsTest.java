@@ -138,7 +138,9 @@ class PublicationsTest extends DashboardTest {
     assertThat(yard.getBody().get("hostname").asString())
         .as("the Home Workstation keeps the short hostname")
         .isEqualTo(web + ".lvh.test");
-    assertThat(yard.getBody().get("yardHostname").asString()).isEqualTo(web + ".ws-test.lvh.test");
+    assertThat(yard.getBody().get("yardHostname").asString())
+        .as("each other Workstation ends it with its own Base Domain, which this one cannot know")
+        .isEqualTo(web + ".ws-test.<base-domain>");
     put(publicationPath(web), Map.of("scope", "local"));
     assertThat(get(servicePath(web)).getBody().get("publication").get("scope").asString())
         .isEqualTo("local");

@@ -104,7 +104,7 @@ class ServicePageTest extends DashboardTest {
     assertThat(getPage(page).getBody())
         .contains("Yard Scope")
         .contains("href=\"http://" + web + ".lvh.test\"")
-        .contains(web + ".ws-test.lvh.test")
+        .contains(web + ".ws-test.&lt;base-domain&gt;")
         .contains("name=\"scope\" value=\"local\"");
     assertThat(get(servicePath(web)).getBody().get("publication").get("scope").asString())
         .isEqualTo("yard");

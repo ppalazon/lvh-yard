@@ -768,7 +768,7 @@ class YardTest {
         200,
         """
         {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "yard"},
-         "hostname": "web.lvh.me", "yardHostname": "web.ws-a.lvh.me", "containerBindings": [],
+         "hostname": "web.lvh.me", "yardHostname": "web.ws-a.<base-domain>", "containerBindings": [],
           "warnings": [], "instances": [
             {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "passing",
              "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}
@@ -780,7 +780,7 @@ class YardTest {
     assertThat(run.out())
         .isEqualTo(
             "Published web at web.lvh.me, with Yard Scope; other Workstations reach it at"
-                + " web.ws-a.lvh.me. It is healthy.\n");
+                + " web.ws-a.<base-domain>. It is healthy.\n");
     dashboard.verifyCalled(
         "PUT",
         "/api/workstation/services/web/publication",

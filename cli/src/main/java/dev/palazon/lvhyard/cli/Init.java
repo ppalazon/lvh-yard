@@ -82,7 +82,9 @@ class Init implements Runnable {
   @Option(
       names = "--base-domain",
       paramLabel = "<domain>",
-      description = "The Yard's base domain, the same on every Workstation. Default: lvh.me.")
+      description =
+          "This Workstation's base domain, which every hostname it routes ends with. Each"
+              + " Workstation picks its own. Default: lvh.me.")
   String baseDomain;
 
   /** What to do with files already there. At most one: picocli refuses a second (exit 2). */

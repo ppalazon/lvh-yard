@@ -15,8 +15,9 @@ import java.util.List;
  * @param hostname where this Workstation routes it while it has Instances; {@code null}, and left
  *     out of the JSON, when it is unpublished
  * @param yardHostname where every other Workstation routes it, {@code
- *     <service>.<workstation>.<base-domain>}; {@code null}, and left out of the JSON, unless it has
- *     Yard Scope
+ *     <service>.<workstation>.<base-domain>}; on its Home Workstation, {@code <base-domain>} stays
+ *     as written, because each other Workstation ends it with its own Base Domain; {@code null},
+ *     and left out of the JSON, unless it has Yard Scope
  * @param instances its registered Instances, ordered by host and port
  * @param containerBindings its Container Bindings, by ID, including those that match no running
  *     container

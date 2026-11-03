@@ -295,13 +295,15 @@ public class YardReader {
   }
 
   /**
-   * Where every other Workstation routes {@code name} of {@code home}, if its {@code publication}
-   * has Yard Scope.
+   * Where the Workstations other than {@code home} route {@code name} of {@code home}, if its
+   * {@code publication} has Yard Scope. Seen from {@code home}, their Base Domains are unknown, so
+   * it ends with {@code <base-domain>}; seen from another Workstation, it is that one's own Route.
    */
   private String yardHostname(String home, String name, Publication publication) {
-    return publication != null && publication.scope() == Scope.YARD
-        ? workstation.hostname(home, name)
-        : null;
+    if (publication == null || publication.scope() != Scope.YARD) {
+      return null;
+    }
+    return workstation.is(home) ? workstation.yardHostname(name) : workstation.hostname(home, name);
   }
 
   /**
