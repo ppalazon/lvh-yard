@@ -2,6 +2,7 @@ package dev.palazon.lvhyard.dashboard.services;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import java.util.Map;
@@ -12,16 +13,21 @@ import java.util.Optional;
  *
  * @param kind the first kind in the order with a passing Instance. It is left out when no kind has
  *     one: the Route then sends requests to every Instance in range.
- * @param instances the IDs of the Instances the Route sends requests to. For the {@code alias}
- *     kind, they are Instances of the Alias's Remote Service.
- * @param servers the Instances that {@code instances} names
+ * @param routedInstances the Instances the Route sends requests to. For the {@code alias} kind,
+ *     they are Instances of the Alias's Remote Service.
  * @param waiting the other kinds of the order that have an Instance in range
  */
 public record Routing(
     @JsonInclude(JsonInclude.Include.NON_NULL) InstanceKind kind,
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<String> instances,
-    @JsonIgnore @Schema(hidden = true) List<Instance> servers,
+    @JsonIgnore @Schema(hidden = true) List<Instance> routedInstances,
     @JsonIgnore @Schema(hidden = true) List<InstanceKind> waiting) {
+
+  /** The IDs of {@link #routedInstances}. */
+  @JsonProperty("instances")
+  @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+  public List<String> instances() {
+    return routedInstances.stream().map(Instance::id).toList();
+  }
 
   /**
    * Out-of-range Instances are never routed, so they never make a kind win. The {@code alias} kind
@@ -50,14 +56,13 @@ public record Routing(
             priority.stream()
                 .filter(other -> other != kind && !byKind.get(other).isEmpty())
                 .toList();
-        return Optional.of(
-            new Routing(kind, passing.stream().map(Instance::id).toList(), passing, waiting));
+        return Optional.of(new Routing(kind, passing, waiting));
       }
     }
     if (own.isEmpty()) {
       return Optional.empty();
     }
-    return Optional.of(new Routing(null, own.stream().map(Instance::id).toList(), own, List.of()));
+    return Optional.of(new Routing(null, own, List.of()));
   }
 
   private static List<Instance> ofKind(List<Instance> instances, InstanceKind kind) {
@@ -65,6 +70,6 @@ public record Routing(
   }
 
   public boolean routes(Instance instance) {
-    return instances.contains(instance.id());
+    return routedInstances.stream().anyMatch(routed -> routed.id().equals(instance.id()));
   }
 }

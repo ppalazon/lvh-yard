@@ -209,6 +209,9 @@ final class ServicePage {
     if (reachability.noRoute() != null) {
       content.p().text(reachability.noRoute()).__();
     }
+    if (reachability.routing() != null) {
+      content.p().text(routingNow(reachability)).__();
+    }
     content
         .div()
         .attrClass("table-container")
@@ -250,7 +253,7 @@ final class ServicePage {
                         })
                         .__()
                         .td()
-                        .text(instanceDetails(service, instance))
+                        .text(instanceDetails(service, reachability, instance))
                         .__()
                         .__()))
         .of(body ->
@@ -281,11 +284,35 @@ final class ServicePage {
         .__();
   }
 
-  private static String instanceDetails(Service service, InstanceReachability instance) {
+  /** Says whether the Route uses it, so a skipped Instance is not taken for a broken one. */
+  private static String instanceDetails(
+      Service service, Reachability reachability, InstanceReachability instance) {
     if (instance.outOfRange()) {
       return "Only " + service.workstation() + " reaches this address, so it is not tested.";
     }
-    return instance.reached() ? "Connected directly." : instance.error();
+    String result = instance.reached() ? "Connected directly." : instance.error();
+    if (reachability.routing() == null) {
+      return result;
+    }
+    return result + (instance.routed() ? " In the Route." : " Not in the Route now.");
+  }
+
+  private static String routingNow(Reachability reachability) {
+    InstanceKind kind = reachability.routing().kind();
+    if (kind == null) {
+      return "No Instance passes, so the Route uses every Instance in range.";
+    }
+    if (kind == InstanceKind.ALIAS) {
+      return "The Route sends requests to the Alias's Remote Service"
+          + (reachability.alias() == null
+              ? "."
+              : ": "
+                  + reachability.alias().service()
+                  + " on "
+                  + reachability.alias().workstation()
+                  + ".");
+    }
+    return "The Route uses the passing " + kindLabel(kind) + " Instances now.";
   }
 
   private static String routeDetails(RouteReachability route) {

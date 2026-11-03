@@ -234,6 +234,50 @@ class ReachabilityTest extends DashboardTest {
   }
 
   @Test
+  void testSaysWhichInstancesTheRouteUsesNow() {
+    String web = newServiceName("web");
+    // Consul checks from its own container, where nothing listens on this loopback port.
+    int failing = answerHttpOnLoopback("old code");
+    String skipped =
+        register(web, Map.of("host", "127.0.0.1", "port", failing)).get("id").asString();
+    int passing = newLanPort();
+    listenOnLanAddress(passing);
+    String used =
+        register(web, Map.of("port", passing, "check", Map.of("interval", "1s")))
+            .get("id")
+            .asString();
+    publish(web);
+
+    JsonNode result =
+        await()
+            .atMost(Duration.ofSeconds(30))
+            .until(
+                () -> get(reachabilityPath(WORKSTATION, web)).getBody(),
+                tested -> tested.path("routing").path("kind").asString("").equals("static"));
+
+    assertThat(result.get("routing").get("instances").valueStream().map(JsonNode::asString))
+        .containsExactly(used);
+    assertThat(result.has("alias")).isFalse();
+    JsonNode notRouted = instanceOf(result, skipped);
+    assertThat(notRouted.get("reached").asBoolean()).isTrue();
+    assertThat(notRouted.has("routed")).isFalse();
+    assertThat(instanceOf(result, used).get("routed").asBoolean()).isTrue();
+    assertThat(getPage("/services/ws-test/" + web + "/reachability").getBody())
+        .contains("The Route uses the passing Static Instances now.")
+        .contains("In the Route")
+        .contains("Not in the Route now");
+  }
+
+  private static JsonNode instanceOf(JsonNode result, String id) {
+    return result
+        .get("instances")
+        .valueStream()
+        .filter(instance -> instance.get("id").asString().equals(id))
+        .findFirst()
+        .orElseThrow();
+  }
+
+  @Test
   void remoteServicePageHasATestButtonToo() {
     String api = newServiceName("api");
     remote.register(api, Map.of("host", "127.0.0.1", "port", 9090));

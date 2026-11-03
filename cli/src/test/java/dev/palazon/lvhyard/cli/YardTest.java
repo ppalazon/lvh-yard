@@ -1138,6 +1138,61 @@ class YardTest {
   }
 
   @Test
+  void testMarksTheInstancesTheRouteUsesNow() {
+    dashboard.answer(
+        "GET",
+        "/api/workstation/services/web/reachability",
+        200,
+        """
+        {"workstation": "ws-a", "service": "web", "passed": true,
+         "instances": [{"id": "7b1c", "address": "10.1.2.3:8080", "reached": true, "routed": true},
+                       {"id": "8c2d", "address": "172.18.0.5:80", "reached": true}],
+         "routes": [{"hostname": "web.lvh.me", "reached": true, "status": 200}],
+         "routing": {"kind": "static", "instances": ["7b1c"]}}
+        """);
+
+    Run run = yard("test", "web");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.lines())
+        .containsExactly(
+            "Reachability of web on ws-a, from this Workstation:",
+            "  ok    Instance 10.1.2.3:8080 (in the Route)",
+            "  ok    Instance 172.18.0.5:80 (not in the Route now)",
+            "  ok    Route web.lvh.me: answered 200",
+            "The Route uses the passing Static Instances now.",
+            "Every check passed.");
+  }
+
+  @Test
+  void testSaysWhenTheRouteUsesTheAlias() {
+    dashboard.answer(
+        "GET",
+        "/api/workstation/services/web/reachability",
+        200,
+        """
+        {"workstation": "ws-a", "service": "web", "passed": false,
+         "instances": [{"id": "7b1c", "address": "10.1.2.3:8080", "reached": false,
+                        "error": "Connection refused"}],
+         "routes": [{"hostname": "web.lvh.me", "reached": true, "status": 200}],
+         "routing": {"kind": "alias", "instances": ["9e3f"]},
+         "alias": {"name": "web", "workstation": "ws-b", "service": "web",
+                   "hostname": "web.lvh.me", "state": "fallback"}}
+        """);
+
+    Run run = yard("test", "web");
+
+    assertThat(run.exitCode()).isEqualTo(1);
+    assertThat(run.lines())
+        .containsExactly(
+            "Reachability of web on ws-a, from this Workstation:",
+            "  FAIL  Instance 10.1.2.3:8080 (not in the Route now): Connection refused",
+            "  ok    Route web.lvh.me: answered 200",
+            "The Route sends requests to the Alias's Remote Service: web on ws-b.",
+            "1 of 2 checks failed.");
+  }
+
+  @Test
   void testOfUnknownServiceIsRefused() {
     dashboard.answer(
         "GET",

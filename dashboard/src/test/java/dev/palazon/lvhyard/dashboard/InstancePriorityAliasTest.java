@@ -20,7 +20,7 @@ class InstancePriorityAliasTest extends InstancePriorityTestSupport {
   void routeFallsBackToTheAliasWhenNoOwnInstancePassesAndComesBack() {
     String web = newServiceName("web");
     passingRemoteService(web);
-    int port = TestcontainersConfiguration.freePorts(1)[0];
+    int port = newLanPort();
     listenOnLanAddress(port);
     register(web, Map.of("port", port, "check", Map.of("interval", "1s")));
     publish(web);
@@ -60,13 +60,25 @@ class InstancePriorityAliasTest extends InstancePriorityTestSupport {
             .orElseThrow();
     assertThat(alias.get("state").asString()).isEqualTo("fallback");
     assertThat(alias.get("reason").asString()).startsWith("In use now");
+    JsonNode reachability = get(ReachabilityTest.reachabilityPath(WORKSTATION, web)).getBody();
+    assertThat(reachability.get("routing").get("kind").asString()).isEqualTo("alias");
+    assertThat(reachability.get("alias").get("workstation").asString())
+        .isEqualTo(RemoteWorkstation.NAME);
+    assertThat(reachability.get("alias").get("service").asString()).isEqualTo(web);
+    assertThat(getPage("/services/ws-test/" + web + "/reachability").getBody())
+        .contains(
+            "The Route sends requests to the Alias&#39;s Remote Service: "
+                + web
+                + " on "
+                + RemoteWorkstation.NAME
+                + ".");
   }
 
   @Test
   void otherWorkstationsNeverUseThisWorkstationsAlias() {
     String web = newServiceName("web");
     passingRemoteService(web);
-    int port = TestcontainersConfiguration.freePorts(1)[0];
+    int port = newLanPort();
     // Nothing listens on this port, so the Static Instance's check stays critical.
     register(web, Map.of("port", port, "check", Map.of("interval", "1s")));
     put(publicationPath(web), Map.of("scope", "yard"));

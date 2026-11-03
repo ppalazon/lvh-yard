@@ -3,6 +3,8 @@ package dev.palazon.lvhyard.dashboard.reachability;
 import dev.palazon.lvhyard.dashboard.services.Alias;
 import dev.palazon.lvhyard.dashboard.services.Aliases;
 import dev.palazon.lvhyard.dashboard.services.Instance;
+import dev.palazon.lvhyard.dashboard.services.InstanceKind;
+import dev.palazon.lvhyard.dashboard.services.Routing;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import java.io.IOException;
 import java.io.InputStream;
@@ -48,10 +50,13 @@ public class ReachabilityTester {
 
   public Reachability test(Service service) {
     List<String> hostnames = hostnames(service);
+    Routing routing = service.routing();
     try (ExecutorService checks = Executors.newVirtualThreadPerTaskExecutor()) {
       List<Future<InstanceReachability>> instances =
           service.instances().stream()
-              .map(instance -> checks.submit(() -> connect(instance)))
+              .map(instance ->
+                  checks.submit(
+                      () -> connect(instance, routing != null && routing.routes(instance))))
               .toList();
       List<Future<RouteReachability>> routes =
           hostnames.stream().map(hostname -> checks.submit(() -> request(hostname))).toList();
@@ -60,8 +65,18 @@ public class ReachabilityTester {
           service.name(),
           results(instances),
           results(routes),
-          hostnames.isEmpty() ? noRoute(service) : null);
+          hostnames.isEmpty() ? noRoute(service) : null,
+          routing,
+          routing != null && routing.kind() == InstanceKind.ALIAS ? fallback(service) : null);
     }
+  }
+
+  /** The Alias with the name of this Workstation's {@code service}, whose Route uses it. */
+  private Alias fallback(Service service) {
+    return aliases.all().stream()
+        .filter(alias -> alias.name().equals(service.name()))
+        .findFirst()
+        .orElse(null);
   }
 
   /**
@@ -97,26 +112,28 @@ public class ReachabilityTester {
    * Closed at once. An Out-of-range Instance is skipped, because a connection here would reach
    * something else.
    */
-  private static InstanceReachability connect(Instance instance) {
+  private static InstanceReachability connect(Instance instance, boolean routed) {
     if (instance.outOfRange()) {
-      return new InstanceReachability(instance.id(), instance.address(), false, true, null);
+      return new InstanceReachability(instance.id(), instance.address(), false, true, false, null);
     }
     try (Socket socket = new Socket()) {
       socket.connect(
           new InetSocketAddress(instance.host(), instance.port()),
           (int) CONNECT_TIMEOUT.toMillis());
-      return new InstanceReachability(instance.id(), instance.address(), true, false, null);
+      return new InstanceReachability(instance.id(), instance.address(), true, false, routed, null);
     } catch (SocketTimeoutException e) {
       return new InstanceReachability(
           instance.id(),
           instance.address(),
           false,
           false,
+          routed,
           "No answer within "
               + CONNECT_TIMEOUT.toSeconds()
               + " s: a firewall may drop the connection.");
     } catch (IOException e) {
-      return new InstanceReachability(instance.id(), instance.address(), false, false, describe(e));
+      return new InstanceReachability(
+          instance.id(), instance.address(), false, false, routed, describe(e));
     }
   }
 

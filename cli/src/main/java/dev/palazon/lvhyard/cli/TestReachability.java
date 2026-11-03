@@ -53,7 +53,12 @@ class TestReachability implements Callable<Integer> {
         skipped++;
         continue;
       }
-      out.println(line(instance.reached(), "Instance " + instance.address(), instance.error()));
+      String routed =
+          tested.routing() == null
+              ? ""
+              : instance.isRouted() ? " (in the Route)" : " (not in the Route now)";
+      out.println(
+          line(instance.reached(), "Instance " + instance.address() + routed, instance.error()));
       failed += instance.reached() ? 0 : 1;
     }
     for (Dashboard.RouteReachability route : tested.routes()) {
@@ -67,6 +72,9 @@ class TestReachability implements Callable<Integer> {
     if (tested.noRoute() != null) {
       out.println(tested.noRoute());
     }
+    if (tested.routing() != null) {
+      out.println(routingNow(tested));
+    }
     int checks = tested.instances().size() - skipped + tested.routes().size();
     out.println(
         (failed == 0
@@ -75,6 +83,22 @@ class TestReachability implements Callable<Integer> {
             + (skipped == 0 ? "." : ". " + skipped + " skipped."));
     out.flush();
     return tested.passed() ? 0 : 1;
+  }
+
+  private static String routingNow(Dashboard.Reachability tested) {
+    String kind = tested.routing().kind();
+    if (kind == null) {
+      return "No Instance passes, so the Route uses every Instance in range.";
+    }
+    if (kind.equals("alias")) {
+      Dashboard.Alias alias = tested.alias();
+      return "The Route sends requests to the Alias's Remote Service"
+          + (alias == null ? "." : ": " + alias.service() + " on " + alias.workstation() + ".");
+    }
+    return "The Route uses the passing "
+        + Character.toUpperCase(kind.charAt(0))
+        + kind.substring(1)
+        + " Instances now.";
   }
 
   private static String line(boolean reached, String what, String detail) {

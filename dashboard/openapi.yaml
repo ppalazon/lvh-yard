@@ -758,6 +758,8 @@ components:
           type: boolean
         reached:
           type: boolean
+        routed:
+          type: boolean
       required:
       - address
       - id
@@ -808,6 +810,8 @@ components:
     Reachability:
       type: object
       properties:
+        alias:
+          $ref: "#/components/schemas/Alias"
         instances:
           type: array
           items:
@@ -820,6 +824,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RouteReachability"
+        routing:
+          $ref: "#/components/schemas/Routing"
         service:
           type: string
         workstation:

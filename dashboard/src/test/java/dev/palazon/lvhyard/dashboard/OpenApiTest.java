@@ -121,6 +121,25 @@ class OpenApiTest extends DashboardTest {
   }
 
   @Test
+  void reachabilitySaysWhereTheRouteSendsRequests() {
+    JsonNode schemas = get("/v3/api-docs").getBody().get("components").get("schemas");
+
+    JsonNode reachability = schemas.get("Reachability").get("properties");
+    assertThat(reachability.get("routing").get("$ref").asString())
+        .isEqualTo("#/components/schemas/Routing");
+    assertThat(reachability.get("alias").get("$ref").asString())
+        .isEqualTo("#/components/schemas/Alias");
+    assertThat(
+            schemas
+                .get("InstanceReachability")
+                .get("properties")
+                .get("routed")
+                .get("type")
+                .asString())
+        .isEqualTo("boolean");
+  }
+
+  @Test
   void publishingTakesAnInstancePriority() {
     JsonNode request =
         get("/v3/api-docs")

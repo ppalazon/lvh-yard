@@ -146,14 +146,25 @@ final class Dashboard {
       List<InstanceReachability> instances,
       List<RouteReachability> routes,
       String noRoute,
+      Routing routing,
+      Alias alias,
       boolean passed) {}
 
-  /** The API leaves {@code outOfRange} out when it is false. */
+  /** The API leaves {@code outOfRange} and {@code routed} out when they are false. */
   record InstanceReachability(
-      String id, String address, boolean reached, Boolean outOfRange, String error) {
+      String id,
+      String address,
+      boolean reached,
+      Boolean outOfRange,
+      Boolean routed,
+      String error) {
 
     boolean skipped() {
       return Boolean.TRUE.equals(outOfRange);
+    }
+
+    boolean isRouted() {
+      return Boolean.TRUE.equals(routed);
     }
   }
 
