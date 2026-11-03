@@ -58,8 +58,8 @@ run = "./mvnw -q -pl dashboard spring-boot:run"
 [tasks."dev:up"]
 description = "Start a Yard of two test Workstations, ws-a and ws-b, on this computer (dev/*.env)"
 run = [
-  "docker compose -p ws-a --env-file dev/yard.env --env-file dev/ws-a.env up -d",
-  "docker compose -p ws-b --env-file dev/yard.env --env-file dev/ws-b.env up -d",
+  "docker compose -p ws-a --env-file dev/ws-a.env up -d",
+  "docker compose -p ws-b --env-file dev/ws-b.env up -d",
 ]
 
 [tasks."dev:down"]
@@ -70,4 +70,4 @@ run = ["docker compose -p ws-a down", "docker compose -p ws-b down"]
 description = "Run the dashboard of test Workstation ws-a or ws-b: mise run dev:dashboard ws-b"
 depends = ["css"]
 usage = 'arg "<workstation>" help="ws-a or ws-b"'
-run = "set -a; . dev/yard.env; . dev/${usage_workstation}.env; set +a; ./mvnw -q -pl dashboard spring-boot:run"
+run = "set -a; . dev/${usage_workstation}.env; set +a; ./mvnw -q -pl dashboard spring-boot:run"

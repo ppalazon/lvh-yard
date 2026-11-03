@@ -26,12 +26,13 @@ builds the image from this repository.
 ## A Yard on one computer
 
 Two test Workstations, ws-a and ws-b, can run side by side on loopback. Their
-settings are in `dev/*.env`.
+settings are in `dev/ws-a.env` and `dev/ws-b.env`. Each one is a full `.env`,
+and ws-b uses the Base Domain `localhost`.
 
 ```sh
 mise run dev:up                 # Consul and Traefik for both
 mise run dev:dashboard ws-a     # http://yard.lvh.me
-mise run dev:dashboard ws-b     # http://yard.lvh.me:8081
+mise run dev:dashboard ws-b     # http://yard.localhost:8081
 mise run dev:down
 ```
 
