@@ -1,7 +1,9 @@
 package dev.palazon.lvhyard.cli;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -50,6 +52,31 @@ final class EnvFile {
       }
     }
     throw new IllegalStateException(".env has no setting " + key);
+  }
+
+  /** Every setting that is not commented, by key, in the file's order. */
+  Map<String, String> settings() {
+    Map<String, String> settings = new LinkedHashMap<>();
+    for (String line : lines) {
+      Matcher setting = SETTING.matcher(line);
+      if (setting.matches() && setting.group(1) == null) {
+        settings.putIfAbsent(setting.group(2), setting.group(3));
+      }
+    }
+    return settings;
+  }
+
+  /** Whether the file has a line for {@code key}, commented or not. */
+  boolean has(String key) {
+    return lines.stream()
+        .map(SETTING::matcher)
+        .anyMatch(setting -> setting.matches() && setting.group(2).equals(key));
+  }
+
+  /** Adds {@code line} at the end. */
+  EnvFile append(String line) {
+    lines.add(line);
+    return this;
   }
 
   String text() {

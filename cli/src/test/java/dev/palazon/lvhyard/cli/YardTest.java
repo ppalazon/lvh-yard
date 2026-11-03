@@ -1453,6 +1453,119 @@ class YardTest {
   }
 
   @Test
+  void initWithReinitBacksUpComposeFileAndEnvAndNamesTheBackups(@TempDir Path dir)
+      throws Exception {
+    Files.writeString(dir.resolve("compose.yaml"), "old compose\n");
+    Files.writeString(dir.resolve(".env"), "YARD_WORKSTATION=ws-a\n");
+
+    Run run = yardAsTyped("init", "--dir", dir.toString(), "--reinit");
+
+    assertThat(run.exitCode()).as(run.err()).isZero();
+    List<Path> backups = backups(dir);
+    assertThat(backups)
+        .extracting(path -> path.getFileName().toString())
+        .hasSize(2)
+        .anyMatch(name -> name.matches("compose\\.yaml\\.\\d{8}-\\d{6}\\.bak"))
+        .anyMatch(name -> name.matches("\\.env\\.\\d{8}-\\d{6}\\.bak"));
+    for (Path backup : backups) {
+      assertThat(run.out()).contains(backup.toString());
+    }
+    assertThat(backups)
+        .filteredOn(path -> path.getFileName().toString().startsWith("compose"))
+        .singleElement()
+        .satisfies(path -> assertThat(path).hasContent("old compose"));
+    assertThat(Files.readString(dir.resolve("compose.yaml"))).contains("lvh-yard-dashboard:");
+  }
+
+  @Test
+  void initWithReinitCarriesOverTheOldValuesAndGivesNewSettingsTheirDefault(@TempDir Path dir)
+      throws Exception {
+    String key = "pUqJrVyVRj5jsiYEkM/tFQYfWyJIv4s3XkvDwy7Cu5s=";
+    Files.writeString(
+        dir.resolve(".env"),
+        """
+        # An older .env, without most of today's settings.
+        YARD_WORKSTATION=ws-b
+        YARD_GOSSIP_KEY=%s
+        YARD_PEERS=10.0.0.2 10.0.0.3:8302
+        YARD_DASHBOARD_PORT=7790
+        #YARD_HTTP_PORT=81
+        """
+            .formatted(key));
+
+    Run run = yardAsTyped("init", "--dir", dir.toString(), "--reinit");
+
+    assertThat(run.exitCode()).as(run.err()).isZero();
+    assertThat(env(dir))
+        .contains(
+            "YARD_WORKSTATION=ws-b",
+            "YARD_GOSSIP_KEY=" + key,
+            "YARD_PEERS=10.0.0.2 10.0.0.3:8302",
+            "YARD_DASHBOARD_PORT=7790",
+            "YARD_HTTP_PORT=80",
+            "YARD_BASE_DOMAIN=lvh.me",
+            "YARD_CONSUL_SERVER_PORT=8300");
+    assertThat(run.out())
+        .contains("The Yard's gossip key: " + key)
+        .contains("http://127.0.0.1:7790");
+  }
+
+  @Test
+  void initWithReinitKeepsOldKeysThatNoLongerExistCommentedAtTheEnd(@TempDir Path dir)
+      throws Exception {
+    Files.writeString(
+        dir.resolve(".env"), "YARD_WORKSTATION=ws-a\nYARD_GONE=1\nYARD_ALSO_GONE=a b\n");
+
+    yardAsTyped("init", "--dir", dir.toString(), "--reinit");
+
+    List<String> env = env(dir);
+    assertThat(env.subList(env.size() - 3, env.size()))
+        .containsExactly(
+            "# No longer settings of lvh-yard, kept from the old .env:",
+            "#YARD_GONE=1",
+            "#YARD_ALSO_GONE=a b");
+    assertThat(env).doesNotContain("YARD_GONE=1");
+  }
+
+  @Test
+  void initWithReinitLeavesRouteProfilesUntouched(@TempDir Path dir) throws Exception {
+    Files.writeString(dir.resolve(".env"), "YARD_WORKSTATION=ws-a\n");
+    Files.writeString(dir.resolve("route-profiles.yaml"), "mine: {}\n");
+
+    yardAsTyped("init", "--dir", dir.toString(), "--reinit");
+
+    assertThat(dir.resolve("route-profiles.yaml")).hasContent("mine: {}");
+    assertThat(backups(dir))
+        .extracting(path -> path.getFileName().toString())
+        .noneMatch(name -> name.startsWith("route-profiles"));
+  }
+
+  @Test
+  void initWithReinitLetsAFlagReplaceAnOldValue(@TempDir Path dir) throws Exception {
+    Files.writeString(dir.resolve(".env"), "YARD_WORKSTATION=ws-a\nYARD_BASE_DOMAIN=lvh.me\n");
+
+    yardAsTyped("init", "--dir", dir.toString(), "--reinit", "--base-domain", "localhost");
+
+    assertThat(env(dir)).contains("YARD_WORKSTATION=ws-a", "YARD_BASE_DOMAIN=localhost");
+  }
+
+  @Test
+  void initWithReinitButNoEnvRefusesAndWritesNothing(@TempDir Path dir) throws Exception {
+    Files.writeString(dir.resolve("compose.yaml"), "old compose\n");
+
+    Run run = yardAsTyped("init", "--dir", dir.toString(), "--reinit", "--workstation", "ws-a");
+
+    assertThat(run.exitCode()).isEqualTo(1);
+    assertThat(run.err())
+        .contains("No " + dir.resolve(".env") + " to carry values from")
+        .contains("without --reinit");
+    try (var files = Files.list(dir)) {
+      assertThat(files).containsExactly(dir.resolve("compose.yaml"));
+    }
+    assertThat(dir.resolve("compose.yaml")).hasContent("old compose");
+  }
+
+  @Test
   void initPrintsTheNextSteps(@TempDir Path dir) {
     Run run = yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a");
 
@@ -1509,6 +1622,13 @@ class YardTest {
   /** The lines of the {@code .env} that {@code init} wrote in {@code dir}. */
   private static List<String> env(Path dir) throws IOException {
     return Files.readAllLines(dir.resolve(".env"));
+  }
+
+  /** The {@code .bak} files in {@code dir}. */
+  private static List<Path> backups(Path dir) throws IOException {
+    try (var files = Files.list(dir)) {
+      return files.filter(path -> path.getFileName().toString().endsWith(".bak")).toList();
+    }
   }
 
   /** The value of {@code key} in the {@code .env} that {@code init} wrote in {@code dir}. */
