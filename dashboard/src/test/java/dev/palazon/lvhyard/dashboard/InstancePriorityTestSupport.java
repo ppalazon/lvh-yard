@@ -29,7 +29,7 @@ abstract class InstancePriorityTestSupport extends DashboardTest {
    * every second, and answers its address.
    */
   String staticInstance(String service) {
-    int port = TestcontainersConfiguration.freePorts(1)[0];
+    int port = newLanPort();
     listenOnLanAddress(port);
     register(service, Map.of("port", port, "check", Map.of("interval", "1s")));
     return lanAddress() + ":" + port;

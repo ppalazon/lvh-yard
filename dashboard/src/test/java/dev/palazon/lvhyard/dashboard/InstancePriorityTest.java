@@ -17,7 +17,7 @@ class InstancePriorityTest extends InstancePriorityTestSupport {
   @Test
   void routeMovesToTheBoundInstanceWhenTheStaticInstanceStopsAndBackWhenItStartsAgain() {
     String web = newServiceName("web");
-    int port = TestcontainersConfiguration.freePorts(1)[0];
+    int port = newLanPort();
     listenOnLanAddress(port);
     register(web, Map.of("port", port, "check", Map.of("interval", "1s")));
     String bound = boundInstance(web);

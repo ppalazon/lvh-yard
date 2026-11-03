@@ -40,7 +40,7 @@ class InstancePriorityThroughTraefikTest extends InstancePriorityTestSupport {
   @Test
   void hostnameReachesTheBoundInstanceWhileTheStaticInstanceIsStopped() {
     String web = newServiceName("web");
-    int listening = TestcontainersConfiguration.freePorts(1)[0];
+    int listening = newLanPort();
     answerHttpOnLanAddress(listening, "200 OK", "terminal");
     register(web, Map.of("port", listening, "check", Map.of("interval", "1s")));
     String name = newContainerName();

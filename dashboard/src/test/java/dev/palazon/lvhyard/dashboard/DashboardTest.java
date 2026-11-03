@@ -1,12 +1,19 @@
 package dev.palazon.lvhyard.dashboard;
 
+import static org.awaitility.Awaitility.await;
+
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.net.Socket;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,6 +56,9 @@ abstract class DashboardTest {
   static final String BASE_DOMAIN = "lvh.test";
 
   private static final AtomicInteger SERVICE_NAMES = new AtomicInteger();
+
+  /** Every port {@link #newLanPort} has given out, as the Consul container keeps its listeners. */
+  private static final Set<Integer> LAN_PORTS = ConcurrentHashMap.newKeySet();
 
   /** Whether this Workstation's dashboard has kept its Core Services since the tests started. */
   private static volatile boolean coreServicesKept;
@@ -215,9 +225,24 @@ abstract class DashboardTest {
   }
 
   /**
+   * A port that no test in this JVM has had yet, for a listener at the {@link #lanAddress}. A port
+   * free on this computer can come back from two calls in a row, and the same host and port
+   * registers the same Instance again, so a test would get one Instance where it made two.
+   */
+  static int newLanPort() {
+    while (true) {
+      int port = TestcontainersConfiguration.freePorts(1)[0];
+      if (LAN_PORTS.add(port)) {
+        return port;
+      }
+    }
+  }
+
+  /**
    * Starts a process that accepts TCP connections on {@code port} at the {@link #lanAddress}, as a
-   * Service on the Workstation would. It runs until the Consul container stops. Its {@code nc} ends
-   * after each connection, such as a health check's, so a loop starts it again.
+   * Service on the Workstation would, and waits until it does. It runs until the Consul container
+   * stops. Its {@code nc} ends after each connection, such as a health check's, so a loop starts it
+   * again.
    */
   void listenOnLanAddress(int port) {
     try {
@@ -226,6 +251,24 @@ abstract class DashboardTest {
     } catch (IOException | InterruptedException e) {
       throw new IllegalStateException("Could not listen on port " + port, e);
     }
+    awaitAccepting(port);
+  }
+
+  /**
+   * Fails at once when nothing accepts, rather than leaving a test to wait for a check that never
+   * passes.
+   */
+  private void awaitAccepting(int port) {
+    await()
+        .atMost(Duration.ofSeconds(10))
+        .ignoreExceptions()
+        .alias("a listener on " + lanAddress() + ":" + port)
+        .until(() -> {
+          try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress(lanAddress(), port), 1000);
+            return true;
+          }
+        });
   }
 
   /**
@@ -267,6 +310,7 @@ abstract class DashboardTest {
     } catch (IOException | InterruptedException e) {
       throw new IllegalStateException("Could not answer HTTP on port " + port, e);
     }
+    awaitAccepting(port);
   }
 
   /** The opening tag of the element with {@code attribute}. */

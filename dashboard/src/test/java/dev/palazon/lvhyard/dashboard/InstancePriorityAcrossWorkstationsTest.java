@@ -38,7 +38,7 @@ class InstancePriorityAcrossWorkstationsTest extends InstancePriorityTestSupport
   @Test
   void otherWorkstationsSkipAnOutOfRangeInstanceBeforeChoosingAKind() {
     String web = newServiceName("web");
-    int port = TestcontainersConfiguration.freePorts(1)[0];
+    int port = newLanPort();
     listenOnLanAddress(port);
     register(web, Map.of("host", "127.0.0.1", "port", port, "check", Map.of("interval", "1s")));
     String bound = boundInstance(web);

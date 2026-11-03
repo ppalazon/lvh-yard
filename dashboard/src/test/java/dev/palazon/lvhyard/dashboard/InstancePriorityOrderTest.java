@@ -23,6 +23,18 @@ class InstancePriorityOrderTest extends InstancePriorityTestSupport {
   }
 
   @Test
+  void publicationWrittenBeforeInstancePriorityRoutesWithTheDefaultOrder() throws Exception {
+    String web = newServiceName("web");
+    String terminal = staticInstance(web);
+    boundInstance(web);
+
+    // A Publication as LVH Yard stored it before Instance Priority: its Scope alone.
+    consulContainer.execInContainer("consul", "kv", "put", "lvh-yard/publications/" + web, "local");
+
+    awaitRoutedTo(web, terminal);
+  }
+
+  @Test
   void kindLeftOutIsNotWaiting() {
     String web = newServiceName("web");
     staticInstance(web);
