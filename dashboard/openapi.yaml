@@ -872,8 +872,6 @@ components:
             $ref: "#/components/schemas/ServiceWarning"
         workstation:
           type: string
-        yardHostname:
-          type: string
       required:
       - containerBindings
       - instances

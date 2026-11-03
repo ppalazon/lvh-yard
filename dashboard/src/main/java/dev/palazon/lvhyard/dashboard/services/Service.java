@@ -14,10 +14,6 @@ import java.util.List;
  *     unpublished
  * @param hostname where this Workstation routes it while it has Instances; {@code null}, and left
  *     out of the JSON, when it is unpublished
- * @param yardHostname where every other Workstation routes it, {@code
- *     <service>.<workstation>.<base-domain>}; on its Home Workstation, {@code <base-domain>} stays
- *     as written, because each other Workstation ends it with its own Base Domain; {@code null},
- *     and left out of the JSON, unless it has Yard Scope
  * @param instances its registered Instances, ordered by host and port
  * @param containerBindings its Container Bindings, by ID, including those that match no running
  *     container
@@ -31,7 +27,6 @@ public record Service(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) ServiceState state,
     @JsonInclude(JsonInclude.Include.NON_NULL) Publication publication,
     @JsonInclude(JsonInclude.Include.NON_NULL) String hostname,
-    @JsonInclude(JsonInclude.Include.NON_NULL) String yardHostname,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<Instance> instances,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ContainerBinding> containerBindings,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ServiceWarning> warnings,
@@ -46,7 +41,6 @@ public record Service(
       String name,
       Publication publication,
       String hostname,
-      String yardHostname,
       List<Instance> instances,
       List<ContainerBinding> containerBindings,
       boolean core) {
@@ -56,7 +50,6 @@ public record Service(
         ServiceState.of(publication, instances),
         publication,
         hostname,
-        yardHostname,
         instances,
         containerBindings,
         ServiceWarning.of(publication, instances),

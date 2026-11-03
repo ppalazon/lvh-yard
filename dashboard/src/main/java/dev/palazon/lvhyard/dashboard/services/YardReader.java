@@ -263,7 +263,6 @@ public class YardReader {
             name,
             publication,
             hostname(home, name, publication),
-            yardHostname(home, name, publication),
             instances,
             containerBindings,
             core(home, name, instances)));
@@ -291,19 +290,7 @@ public class YardReader {
     if (workstation.is(home)) {
       return workstation.hostname(name);
     }
-    return yardHostname(home, name, publication);
-  }
-
-  /**
-   * Where the Workstations other than {@code home} route {@code name} of {@code home}, if its
-   * {@code publication} has Yard Scope. Seen from {@code home}, their Base Domains are unknown, so
-   * it ends with {@code <base-domain>}; seen from another Workstation, it is that one's own Route.
-   */
-  private String yardHostname(String home, String name, Publication publication) {
-    if (publication == null || publication.scope() != Scope.YARD) {
-      return null;
-    }
-    return workstation.is(home) ? workstation.yardHostname(name) : workstation.hostname(home, name);
+    return publication.scope() == Scope.YARD ? workstation.hostname(home, name) : null;
   }
 
   /**

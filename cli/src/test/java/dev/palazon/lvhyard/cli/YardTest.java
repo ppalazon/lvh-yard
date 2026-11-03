@@ -149,7 +149,7 @@ class YardTest {
         200,
         """
         [{"workstation": "ws-b", "name": "api", "state": "healthy", "publication": {"scope": "yard"},
-          "hostname": "api.ws-b.lvh.me", "yardHostname": "api.ws-b.lvh.me", "containerBindings": [],
+          "hostname": "api.ws-b.lvh.me", "containerBindings": [],
            "warnings": [], "instances": [
             {"id": "1a2b", "host": "10.1.2.4", "port": 9090, "health": "passing",
              "tags": [], "meta": {}, "checks": [], "outOfRange": false},
@@ -768,7 +768,7 @@ class YardTest {
         200,
         """
         {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "yard"},
-         "hostname": "web.lvh.me", "yardHostname": "web.ws-a.<base-domain>", "containerBindings": [],
+         "hostname": "web.lvh.me", "containerBindings": [],
           "warnings": [], "instances": [
             {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "passing",
              "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}

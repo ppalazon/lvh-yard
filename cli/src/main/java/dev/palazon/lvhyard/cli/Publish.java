@@ -59,9 +59,15 @@ class Publish implements Runnable {
             + Character.toUpperCase(chosen.charAt(0))
             + chosen.substring(1)
             + " Scope"
-            + (published.yardHostname() == null
-                ? ""
-                : "; other Workstations reach it at " + published.yardHostname())
+            + (chosen.equals("yard")
+                // Each other Workstation ends it with its own Base Domain, which this one cannot
+                // know.
+                ? "; other Workstations reach it at "
+                    + service
+                    + "."
+                    + published.workstation()
+                    + ".<base-domain>"
+                : "")
             + ". It is "
             + published.state()
             + ".");

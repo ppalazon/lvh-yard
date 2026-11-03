@@ -516,7 +516,10 @@ final class ServicePage {
     if (!yard) {
       routedBy = ": only this Workstation routes it.";
     } else if (own) {
-      routedBy = ": every other Workstation routes it at " + service.yardHostname() + ".";
+      routedBy =
+          ": every other Workstation routes it at "
+              + workstation.yardHostname(service.name())
+              + ", ending with its own Base Domain.";
     } else {
       routedBy = ": every Workstation of the Yard routes it.";
     }

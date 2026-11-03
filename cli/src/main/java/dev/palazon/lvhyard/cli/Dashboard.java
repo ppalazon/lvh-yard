@@ -60,7 +60,6 @@ final class Dashboard {
       String state,
       Publication publication,
       String hostname,
-      String yardHostname,
       List<Instance> instances,
       List<ContainerBinding> containerBindings,
       List<Warning> warnings,
