@@ -4,9 +4,9 @@
 
 **Blocked by:** 01, core-services/02
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Traefik part: `/ping` on the admin port, and the time Traefik last fetched its configuration; older than 15s is a warning
-- [ ] Core Services part: each one's Health; a missing one is failing
-- [ ] Tested with a real Traefik, running and stopped
-- [ ] `lvh-yard status` shows both parts
+- [x] Traefik part: `/ping` on the admin port, and the time Traefik last fetched its configuration; older than 15s is a warning
+- [x] Core Services part: each one's Health; a missing one is failing
+- [x] Tested with a real Traefik, running and stopped
+- [x] `lvh-yard status` shows both parts

@@ -4,9 +4,9 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A `/status/summary` fragment renders one dot per part
-- [ ] The layout's header loads it through HTMX every 5s; an error answer keeps the last dots
-- [ ] Each dot has an accessible label and a title with its part's name and reason, and its state shows without colour
-- [ ] The dots link to `/status`
+- [x] A `/status/summary` fragment renders one dot per part
+- [x] The layout's header loads it through HTMX every 5s; an error answer keeps the last dots
+- [x] Each dot has an accessible label and a title with its part's name and reason, and its state shows without colour
+- [x] The dots link to `/status`

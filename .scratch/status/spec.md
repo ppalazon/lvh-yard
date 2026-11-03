@@ -1,6 +1,6 @@
 # Status of this Workstation's LVH Yard
 
-Status: ready-for-agent
+Status: done
 
 Words follow `GLOSSARY.md`. Builds on `.scratch/core-services/spec.md` (Core Services and Traefik's ping).
 
