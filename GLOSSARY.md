@@ -56,6 +56,10 @@ _Avoid_: Config folder, config dir, install dir
 The LAN address of another Workstation that this Workstation joins to find the Yard. One is enough, and the first Workstation of a Yard has none.
 _Avoid_: Seed, neighbour, node
 
+**WAN pool**:
+The Workstations whose Consul datacenters are federated with this Workstation's, as its Consul sees them now. Each one is alive or not. A Peer with no member at its address there is a join that failed.
+_Avoid_: Cluster, federation list, Yard (the Yard is every Workstation; the WAN pool is what Consul sees)
+
 **Gossip Key**:
 The Yard's shared secret. Every Workstation in the Yard needs the same one to join it.
 _Avoid_: Yard key, encryption key, secret
@@ -73,6 +77,14 @@ _Avoid_: Discovery, enrolment
 **Health**:
 The result of an Instance's checks: passing, warning or critical.
 _Avoid_: Status, availability, liveness
+
+**Status**:
+How LVH Yard itself works on one Workstation: each Status Part, and the worst of them. Each is OK, warning or failing, with a reason. It is about LVH Yard's own pieces, never about a Service.
+_Avoid_: Health, state, availability
+
+**Status Part**:
+One piece of LVH Yard with a Status of its own: Consul, Traefik, Docker or the Core Services.
+_Avoid_: Component, subsystem, check
 
 **Reachability**:
 Whether the Workstation you are using can actually connect to an Instance, directly and through its Route. It is tested on demand and never stored.
