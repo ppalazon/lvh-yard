@@ -1,6 +1,6 @@
 # LVH Yard MVP
 
-Status: ready-for-agent
+Status: done
 
 Words follow `GLOSSARY.md`. Decisions follow ADR-0001 (one Consul datacenter per Workstation), ADR-0002 (Traefik reads its Routes from LVH Yard) and ADR-0003 (hostnames of Remote Services name their Home Workstation).
 
