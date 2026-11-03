@@ -10,7 +10,6 @@ import org.xmlet.htmlapifaster.Button;
 import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
 import org.xmlet.htmlapifaster.Main;
-import org.xmlet.htmlapifaster.Nav;
 
 /**
  * The shell every page shares: the stylesheet built from Tailwind CSS and Basecoat ({@code mise run
@@ -64,7 +63,11 @@ final class Layout {
         .attrClass("font-semibold")
         .text("LVH Yard · " + workstation)
         .__()
+        .div()
+        .attrClass("flex items-center gap-3")
+        .of(Layout::statusDots)
         .of(Layout::themeToggle)
+        .__()
         .__()
         .__()
         .main()
@@ -77,10 +80,27 @@ final class Layout {
   }
 
   /**
+   * Where the {@link StatusSummary} dots go. HTMX loads them once the page is shown, and again
+   * every 5 seconds, so a slow part never slows the page. An error answer swaps nothing, so the
+   * dots keep their last state, as in a {@link #refreshed} region.
+   */
+  private static void statusDots(Div<?> header) {
+    header
+        .div()
+        .attrId("status-dots")
+        .addAttr("hx-get", StatusSummary.PATH)
+        .addAttr("hx-trigger", "load, every 5s")
+        .addAttr("hx-swap", "innerHTML")
+        .addAttr("hx-status:4xx", "swap:none")
+        .addAttr("hx-status:5xx", "swap:none")
+        .__();
+  }
+
+  /**
    * The button that switches between the light and dark theme, which {@code theme.js} handles. It
    * shows a moon in the light theme and a sun in the dark one (Lucide's icons).
    */
-  private static void themeToggle(Nav<?> nav) {
+  private static void themeToggle(Div<?> nav) {
     nav.button()
         .attrType(EnumTypeButtonType.BUTTON)
         .attrId("theme-toggle")

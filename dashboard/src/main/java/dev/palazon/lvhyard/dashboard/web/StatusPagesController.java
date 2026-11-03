@@ -25,4 +25,10 @@ class StatusPagesController {
   String status() {
     return StatusPage.render(workstation, status.status());
   }
+
+  @GetMapping(path = StatusSummary.PATH, produces = MediaType.TEXT_HTML_VALUE)
+  @ResponseBody
+  String summary() {
+    return StatusSummary.render(status.status());
+  }
 }

@@ -132,6 +132,46 @@ class StatusTest extends DashboardTest {
         .contains("hx-select=\"#status\"");
   }
 
+  @Test
+  void summaryShowsADotForEachPartWithItsNameStateAndReason() {
+    ResponseEntity<String> response = getPage("/status/summary");
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    String consul = openingTag(response.getBody(), "id=\"dot-consul\"");
+    assertThat(consul)
+        .contains("aria-label=\"Consul: OK. Consul has a leader")
+        .contains("title=\"Consul: OK. Consul has a leader");
+    assertThat(response.getBody())
+        .contains("id=\"dot-docker\"")
+        .contains("✓")
+        .doesNotContain("<html");
+  }
+
+  @Test
+  void summaryShowsAFailingPartWithACrossAndLinksToTheStatusPage() {
+    remote.whileDashboardRunsWith(
+        () -> {
+          String summary = remote.page("/status/summary");
+          assertThat(summary).contains("href=\"/status\"");
+          assertThat(openingTag(summary, "id=\"dot-docker\""))
+              .contains("aria-label=\"Docker: Failing. There is no Docker socket at");
+          assertThat(summary).contains("✕");
+        },
+        "--lvh-yard.docker.host=unix:///nowhere/docker.sock");
+  }
+
+  @Test
+  void everyPageHeaderLoadsTheDotsEveryFiveSecondsAndKeepsThemOnAnError() {
+    for (String path : new String[] {"/", "/status", "/register"}) {
+      assertThat(openingTag(getPage(path).getBody(), "id=\"status-dots\""))
+          .as(path)
+          .contains("hx-get=\"/status/summary\"")
+          .contains("hx-trigger=\"load, every 5s\"")
+          .contains("hx-status:4xx=\"swap:none\"")
+          .contains("hx-status:5xx=\"swap:none\"");
+    }
+  }
+
   /** The part called {@code name} of a status. */
   static JsonNode part(JsonNode status, String name) {
     return status
