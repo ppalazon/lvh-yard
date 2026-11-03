@@ -17,9 +17,7 @@ import picocli.CommandLine.Spec;
     name = "alias",
     mixinStandardHelpOptions = true,
     subcommands = {Alias.Add.class, Alias.ListAliases.class, Alias.Remove.class},
-    description =
-        "Adds, lists and removes Aliases: short hostnames for Remote Services, on this Workstation"
-            + " only.")
+    description = "Manages Aliases for Remote Services.")
 class Alias implements Runnable {
 
   @ParentCommand Yard yard;
@@ -39,8 +37,7 @@ class Alias implements Runnable {
   @Command(
       name = "add",
       mixinStandardHelpOptions = true,
-      description =
-          "Gives a Remote Service the Alias <alias>.<base-domain>, or points the Alias there.")
+      description = "Adds an Alias for a Remote Service.")
   static class Add implements Runnable {
 
     @ParentCommand Alias alias;
@@ -58,7 +55,7 @@ class Alias implements Runnable {
     @Option(
         names = "--service",
         paramLabel = "<service>",
-        description = "The Remote Service's name (default: the Alias's name).")
+        description = "The Remote Service's name (default: <alias>).")
     String service;
 
     @Spec CommandSpec spec;
@@ -97,11 +94,7 @@ class Alias implements Runnable {
    * {@code lvh-yard alias list}: every Alias, with the Remote Service it names, its state and why
    * it has no Route.
    */
-  @Command(
-      name = "list",
-      mixinStandardHelpOptions = true,
-      description =
-          "Lists this Workstation's Aliases, with the Remote Service each names and its state.")
+  @Command(name = "list", mixinStandardHelpOptions = true, description = "Lists the Aliases.")
   static class ListAliases implements Runnable {
 
     @ParentCommand Alias alias;
@@ -133,10 +126,7 @@ class Alias implements Runnable {
   }
 
   /** {@code lvh-yard alias remove}: removes an Alias, and its Route. */
-  @Command(
-      name = "remove",
-      mixinStandardHelpOptions = true,
-      description = "Removes an Alias, and its Route.")
+  @Command(name = "remove", mixinStandardHelpOptions = true, description = "Removes an Alias.")
   static class Remove implements Runnable {
 
     @ParentCommand Alias alias;

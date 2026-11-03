@@ -1291,7 +1291,8 @@ class YardTest {
     assertThat(run.err())
         .contains("The dashboard is not running on this Workstation")
         .contains(nothingListens)
-        .contains("mise run dashboard");
+        .contains("docker compose up -d")
+        .doesNotContain("mise");
   }
 
   @Test

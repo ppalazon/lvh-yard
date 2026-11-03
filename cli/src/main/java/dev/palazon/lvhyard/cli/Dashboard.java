@@ -419,14 +419,15 @@ final class Dashboard {
       throw new YardException(
           "The dashboard is not running on this Workstation: nothing answers at "
               + url
-              + ". Start it with: mise run dashboard");
+              + ". Start it with docker compose up -d, in the folder that lvh-yard init wrote.");
     } catch (HttpTimeoutException e) {
       throw new YardException(
           "The dashboard at "
               + url
               + " did not answer within "
               + ANSWER_TIMEOUT.toSeconds()
-              + " s. Is its Consul running? Start it with: mise run up");
+              + " s. Is its Consul running? Start it with docker compose up -d, in the folder that"
+              + " lvh-yard init wrote.");
     } catch (IOException e) {
       throw new YardException(
           "The dashboard at " + url + " could not be reached: " + e.getMessage());

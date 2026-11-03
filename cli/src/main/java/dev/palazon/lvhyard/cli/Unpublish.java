@@ -13,7 +13,7 @@ import picocli.CommandLine.Spec;
 @Command(
     name = "unpublish",
     mixinStandardHelpOptions = true,
-    description = "Unpublishes a Service of this Workstation. Its Instances stay registered.")
+    description = "Unpublishes a Service.")
 class Unpublish implements Runnable {
 
   @ParentCommand Yard yard;

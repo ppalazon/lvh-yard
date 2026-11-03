@@ -17,15 +17,14 @@ import picocli.CommandLine.Spec;
     name = "status",
     mixinStandardHelpOptions = true,
     description = {
-      "Shows how LVH Yard works on this Workstation: Consul, Traefik, Docker and the Core"
-          + " Services, each ok, warning or failing, with the reason.",
-      "Exits with 1 when any part is failing, or has a warning with --strict."
+      "Shows whether the Core Services work on this Workstation.",
+      "Exits with 1 when a part fails."
     })
 class Status implements Callable<Integer> {
 
   @ParentCommand Yard yard;
 
-  @Option(names = "--strict", description = "Exit with 1 on a warning too.")
+  @Option(names = "--strict", description = "Also exit with 1 on a warning.")
   boolean strict;
 
   @Spec CommandSpec spec;

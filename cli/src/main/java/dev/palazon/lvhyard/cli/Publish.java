@@ -17,8 +17,7 @@ import picocli.CommandLine.Spec;
 @Command(
     name = "publish",
     mixinStandardHelpOptions = true,
-    description =
-        "Publishes a Service of this Workstation at <service>.<base-domain>, or changes its Scope.")
+    description = "Publishes a Service, or changes its Scope.")
 class Publish implements Runnable {
 
   private static final List<String> SCOPES = List.of("local", "yard");
@@ -33,8 +32,8 @@ class Publish implements Runnable {
       paramLabel = "<scope>",
       description = {
         "local: only this Workstation routes it.",
-        "yard: every other Workstation also routes it, at <service>.<workstation>.<base-domain>.",
-        "Default: local for a new Publication; one that exists keeps its Scope."
+        "yard: the other Workstations also route it, at <service>.<workstation>.<base-domain>.",
+        "Default: local for a new Publication, else no change."
       })
   String scope;
 

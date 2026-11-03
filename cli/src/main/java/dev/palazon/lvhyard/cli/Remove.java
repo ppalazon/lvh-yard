@@ -17,9 +17,7 @@ import picocli.CommandLine.Spec;
 @Command(
     name = "remove",
     mixinStandardHelpOptions = true,
-    description =
-        "Removes a Static Instance of a Service on this Workstation, by its ID or by its port, or a"
-            + " Container Binding, by its container or its Compose service.")
+    description = "Removes an Instance or a Container Binding.")
 class Remove implements Runnable {
 
   @ParentCommand Yard yard;
@@ -55,37 +53,34 @@ class Remove implements Runnable {
         names = "--port",
         paramLabel = "<port>",
         description =
-            "The port the Instance listens on; with --container, the port inside the container,"
-                + " needed only when the container is bound on more than one.")
+            "The Instance's port. With --container, the port inside the container, needed only when"
+                + " it is bound on several ports.")
     Integer port;
 
     @Option(
         names = "--host",
         paramLabel = "<host>",
-        description =
-            "The address it listens on; needed only when the port is used on more than one.")
+        description = "The Instance's address, needed only when several Instances share the port.")
     String host;
 
     @Option(
         names = "--container",
         paramLabel = "<name>",
-        description =
-            "The container a Container Binding follows: removes the Binding and its Bound"
-                + " Instance.")
+        description = "Removes the Container Binding of this container, and its Bound Instance.")
     String container;
 
     @Option(
         names = "--compose-project",
         paramLabel = "<project>",
         description =
-            "With --compose-service, the Compose service a Container Binding follows: removes the"
-                + " Binding and its Bound Instances.")
+            "With --compose-service, removes the Container Binding of that Compose service, and its"
+                + " Bound Instances.")
     String composeProject;
 
     @Option(
         names = "--compose-service",
         paramLabel = "<service>",
-        description = "The Compose service a Container Binding follows, in --compose-project.")
+        description = "The Compose service, in --compose-project.")
     String composeService;
 
     /** Whether it names a Container Binding, by its container or its Compose service. */

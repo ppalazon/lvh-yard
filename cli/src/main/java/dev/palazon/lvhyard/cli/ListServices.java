@@ -15,9 +15,7 @@ import picocli.CommandLine.Spec;
 @Command(
     name = "list",
     mixinStandardHelpOptions = true,
-    description =
-        "Lists every Service in the Yard by Workstation, this one first, or one Workstation's, with"
-            + " their state, hostname, Instances and Health.")
+    description = "Lists the Services of every Workstation.")
 class ListServices implements Runnable {
 
   @ParentCommand Yard yard;
@@ -25,7 +23,7 @@ class ListServices implements Runnable {
   @Option(
       names = "--workstation",
       paramLabel = "<name>",
-      description = "The only Workstation whose Services to list (default: every one).")
+      description = "List only the Services of Workstation <name>.")
   String workstation;
 
   @Spec CommandSpec spec;

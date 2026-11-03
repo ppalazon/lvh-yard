@@ -30,10 +30,10 @@ import picocli.CommandLine.Spec;
       TestReachability.class,
       Status.class
     },
-    description = "Registers, publishes and tests Services on this Workstation's LVH Yard.")
+    description = "Registers, publishes and tests Services on this Workstation.")
 public class Yard implements Runnable {
 
-  /** Where {@code mise run dashboard} serves the dashboard. */
+  /** Where the dashboard listens when no .env gives its address. */
   private static final String LOOPBACK_DASHBOARD = "http://127.0.0.1:7780";
 
   @Option(
@@ -41,10 +41,9 @@ public class Yard implements Runnable {
       paramLabel = "<url>",
       description = {
         "The dashboard on this Workstation.",
-        "Default: YARD_DASHBOARD_URL when set,",
-        "else the bind address and port in the .env",
-        "that init wrote, in YARD_CONFIG_DIR, else",
-        "$XDG_CONFIG_HOME/lvh-yard or ~/.config/lvh-yard,",
+        "Default: YARD_DASHBOARD_URL, else the address",
+        "in the .env from init (in YARD_CONFIG_DIR,",
+        "$XDG_CONFIG_HOME/lvh-yard or ~/.config/lvh-yard),",
         "else " + LOOPBACK_DASHBOARD + "."
       })
   URI dashboard;

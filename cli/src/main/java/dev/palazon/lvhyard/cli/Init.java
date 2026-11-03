@@ -33,9 +33,7 @@ import picocli.CommandLine.Spec;
 @Command(
     name = "init",
     mixinStandardHelpOptions = true,
-    description =
-        "Writes compose.yaml, .env and route-profiles.yaml for this Workstation, ready for docker"
-            + " compose up -d, and prints the next steps.")
+    description = "Writes the configuration files for this Workstation.")
 class Init implements Runnable {
 
   /** The dashboard's rule for a Workstation name: one DNS label, lowercase. */
@@ -67,24 +65,21 @@ class Init implements Runnable {
       paramLabel = "<address>",
       split = PEER_SEPARATORS,
       description =
-          "The other Workstations' LAN addresses, each <ip> or <ip>:<serf-wan-port>. None for the"
-              + " first Workstation of a Yard.")
+          "The LAN addresses of the other Workstations, as <ip> or <ip>:<serf-wan-port>. Leave out"
+              + " for the first one.")
   List<String> peers;
 
   @Option(
       names = "--gossip-key",
       paramLabel = "<key>",
-      description =
-          "The Yard's gossip key, the same on every Workstation. Default: a new one, for the first"
-              + " Workstation of a Yard.")
+      description = "The Yard's gossip key, the same on every Workstation (default: a new key).")
   String gossipKey;
 
   @Option(
       names = "--base-domain",
       paramLabel = "<domain>",
       description =
-          "This Workstation's base domain, which every hostname it routes ends with. Each"
-              + " Workstation picks its own. Default: lvh.me.")
+          "The domain at the end of each hostname this Workstation routes (default: lvh.me).")
   String baseDomain;
 
   /** What to do with files already there. At most one: picocli refuses a second (exit 2). */
@@ -100,17 +95,15 @@ class Init implements Runnable {
     @Option(
         names = "--upgrade",
         description =
-            "Move the consul, traefik and dashboard images in the existing compose.yaml to this"
-                + " version's, and change nothing else.")
+            "Only update the consul, traefik and dashboard images in compose.yaml to this version.")
     boolean upgrade;
 
     @Option(
         names = "--reinit",
         description = {
-          "Rewrite compose.yaml and .env from this CLI's templates, keeping the values of the old"
-              + " .env. The old files are kept as <file>.<yyyyMMdd-HHmmss>.bak; route-profiles.yaml"
-              + " is left as it is.",
-          "A flag given with it replaces the old value."
+          "Rewrite compose.yaml and .env from this version's templates, with the old .env values.",
+          "A flag given with it replaces the old value.",
+          "Keeps the old files as <file>.<yyyyMMdd-HHmmss>.bak. Leaves route-profiles.yaml alone."
         })
     boolean reinit;
   }

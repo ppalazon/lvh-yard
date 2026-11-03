@@ -19,9 +19,7 @@ import picocli.CommandLine.Spec;
 @Command(
     name = "register",
     mixinStandardHelpOptions = true,
-    description =
-        "Registers a Static Instance of a Service on this Workstation, or binds the Service to a"
-            + " Docker container by its name or to a Compose service.")
+    description = "Registers an Instance of a Service, or binds it to a container.")
 class Register implements Runnable {
 
   @ParentCommand Yard yard;
@@ -40,26 +38,23 @@ class Register implements Runnable {
       names = "--port",
       paramLabel = "<port>",
       required = true,
-      description =
-          "The port the Instance listens on; for a Container Binding, the port inside the"
-              + " container.")
+      description = "The port the Instance listens on. For a container, the port inside it.")
   int port;
 
   @Option(
       names = "--container",
       paramLabel = "<name>",
       description =
-          "Binds the Service to the container of this name instead: while it runs, the Service has"
-              + " a Bound Instance at its current address, with a TCP check.")
+          "Binds the Service to this container. While it runs, it is a Bound Instance with a TCP"
+              + " check.")
   String container;
 
   @Option(
       names = "--compose-project",
       paramLabel = "<project>",
       description =
-          "With --compose-service, binds the Service to that Compose service of this project"
-              + " instead, whatever its containers are named: each one that runs gives a Bound"
-              + " Instance.")
+          "With --compose-service, binds the Service to a Compose service of this project. Each"
+              + " running container is a Bound Instance.")
   String composeProject;
 
   @Option(
@@ -72,8 +67,8 @@ class Register implements Runnable {
       names = "--check",
       paramLabel = "<type>",
       description =
-          "How its Health is checked: tcp connects to the port, http GETs the path (default: http"
-              + " with --path, else tcp).")
+          "The Health check: tcp connects to the port, http GETs --path (default: http with --path,"
+              + " else tcp).")
   String check;
 
   @Option(
@@ -85,8 +80,7 @@ class Register implements Runnable {
   @Option(
       names = "--interval",
       paramLabel = "<duration>",
-      description =
-          "How often the check runs, at least once a second, such as 5s or 1m (default: 10s).")
+      description = "Time between checks, 1s or more, such as 5s or 1m (default: 10s).")
   String interval;
 
   @Option(
@@ -98,13 +92,13 @@ class Register implements Runnable {
   @Option(
       names = "--tag",
       paramLabel = "<tag>",
-      description = "A word that says what the Instance is for. Repeat it for more tags.")
+      description = "A word that labels the Instance. Repeat for more.")
   List<String> tags = new ArrayList<>();
 
   @Option(
       names = "--meta",
       paramLabel = "<key=value>",
-      description = "A note about the Instance. Repeat it for more notes.")
+      description = "A note about the Instance. Repeat for more.")
   Map<String, String> meta = new LinkedHashMap<>();
 
   @Spec CommandSpec spec;

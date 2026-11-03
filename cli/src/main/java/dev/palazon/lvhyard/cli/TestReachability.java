@@ -18,9 +18,8 @@ import picocli.CommandLine.Spec;
     name = "test",
     mixinStandardHelpOptions = true,
     description = {
-      "Tests whether this Workstation reaches a Service: straight to each Instance, and through"
-          + " Traefik at each of its hostnames.",
-      "Exits with 1 when any check fails."
+      "Tests whether this Workstation reaches a Service.",
+      "Exits with 1 when a test fails."
     })
 class TestReachability implements Callable<Integer> {
 
@@ -32,7 +31,7 @@ class TestReachability implements Callable<Integer> {
   @Option(
       names = "--workstation",
       paramLabel = "<name>",
-      description = "The Service's Home Workstation (default: this Workstation).")
+      description = "The Service's Home Workstation (default: this one).")
   String workstation;
 
   @Spec CommandSpec spec;
