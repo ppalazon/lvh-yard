@@ -36,7 +36,7 @@ public class Aliases {
     if (workstation.is(home)) {
       throw new InvalidRegistrationException(
           "workstation",
-          "An Alias names a Remote Service: "
+          "An Alias is only for a Remote Service. "
               + service
               + " of this Workstation already has the short hostname "
               + workstation.hostname(service)

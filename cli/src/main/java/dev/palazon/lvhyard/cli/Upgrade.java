@@ -55,11 +55,7 @@ final class Upgrade {
       throw new YardException("Could not write " + file + ": " + e.getMessage());
     }
     out.println(
-        "Upgraded "
-            + file
-            + "; .env and route-profiles.yaml are untouched. Start the new images: cd "
-            + folder
-            + " && docker compose up -d");
+        "Upgraded " + file + ". Start the new images: cd " + folder + " && docker compose up -d");
     out.flush();
   }
 }

@@ -9,9 +9,6 @@ public class CoreServiceException extends RuntimeException {
 
   static CoreServiceException cannotBe(String service, String change) {
     return new CoreServiceException(
-        service
-            + " is a Core Service, which LVH Yard keeps so this Workstation works: it cannot be "
-            + change
-            + ".");
+        service + " is a Core Service, which LVH Yard needs: it cannot be " + change + ".");
   }
 }

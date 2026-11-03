@@ -49,12 +49,7 @@ class TestReachability implements Callable<Integer> {
     int skipped = 0;
     for (Dashboard.InstanceReachability instance : tested.instances()) {
       if (instance.skipped()) {
-        out.println(
-            "  skip  Instance "
-                + instance.address()
-                + ": out of range, only "
-                + tested.workstation()
-                + " can connect to it");
+        out.println("  skip  Instance " + instance.address() + ": out of range");
         skipped++;
         continue;
       }
@@ -77,7 +72,7 @@ class TestReachability implements Callable<Integer> {
         (failed == 0
                 ? "Every check passed"
                 : failed + " of " + checks + " check" + (checks == 1 ? "" : "s") + " failed")
-            + (skipped == 0 ? "." : "; " + skipped + " skipped."));
+            + (skipped == 0 ? "." : ". " + skipped + " skipped."));
     out.flush();
     return tested.passed() ? 0 : 1;
   }

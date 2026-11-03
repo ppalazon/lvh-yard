@@ -323,10 +323,7 @@ final class Dashboard {
       return JSON.readValue(response.body(), type);
     } catch (JacksonException e) {
       throw new YardException(
-          "What answers at "
-              + url
-              + " is not the LVH Yard dashboard: its answer is not"
-              + " the API's JSON.");
+          url + " is not the LVH Yard dashboard: its answer is not the API's JSON.");
     }
   }
 
@@ -339,20 +336,19 @@ final class Dashboard {
               HttpResponse.BodyHandlers.ofString());
     } catch (ConnectException | HttpConnectTimeoutException e) {
       throw new YardException(
-          "The dashboard is not running on this Workstation: nothing answers at "
+          "The dashboard does not answer at "
               + url
-              + ". Start it with docker compose up -d, in the folder that lvh-yard init wrote.");
+              + ". Start it with docker compose up -d in the folder that lvh-yard init wrote.");
     } catch (HttpTimeoutException e) {
       throw new YardException(
           "The dashboard at "
               + url
               + " did not answer within "
               + ANSWER_TIMEOUT.toSeconds()
-              + " s. Is its Consul running? Start it with docker compose up -d, in the folder that"
-              + " lvh-yard init wrote.");
+              + " s. Make sure that Consul runs: docker compose up -d in the folder that lvh-yard"
+              + " init wrote.");
     } catch (IOException e) {
-      throw new YardException(
-          "The dashboard at " + url + " could not be reached: " + e.getMessage());
+      throw new YardException("The dashboard at " + url + " cannot be reached: " + e.getMessage());
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new YardException("Interrupted while waiting for the dashboard at " + url + ".");

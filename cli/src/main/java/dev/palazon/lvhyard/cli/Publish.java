@@ -57,7 +57,7 @@ class Publish implements Runnable {
             + (chosen.equals("yard")
                 // Each other Workstation ends it with its own Base Domain, which this one cannot
                 // know.
-                ? "; other Workstations reach it at "
+                ? ". Other Workstations reach it at "
                     + service
                     + "."
                     + published.workstation()

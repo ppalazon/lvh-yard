@@ -164,7 +164,7 @@ class YardTest {
             "ws-b",
             "  api: healthy at api.ws-b.lvh.me",
             "    10.1.2.4:9090  passing   1a2b",
-            "    127.0.0.1:9091  passing   3c4d  out of range: only ws-b can reach it, no Route");
+            "    127.0.0.1:9091  passing   3c4d  out of range");
   }
 
   @Test
@@ -779,7 +779,7 @@ class YardTest {
     assertThat(run.exitCode()).isZero();
     assertThat(run.out())
         .isEqualTo(
-            "Published web at web.lvh.me, with Yard Scope; other Workstations reach it at"
+            "Published web at web.lvh.me, with Yard Scope. Other Workstations reach it at"
                 + " web.ws-a.<base-domain>. It is healthy.\n");
     dashboard.verifyCalled(
         "PUT",
@@ -965,9 +965,7 @@ class YardTest {
     Run run = yardAsTyped("--dashboard", nothingListens, "status");
 
     assertThat(run.exitCode()).isEqualTo(1);
-    assertThat(run.err())
-        .contains("The dashboard is not running on this Workstation")
-        .contains(nothingListens);
+    assertThat(run.err()).contains("The dashboard does not answer at").contains(nothingListens);
   }
 
   @Test
@@ -1065,9 +1063,9 @@ class YardTest {
         .containsExactly(
             "Reachability of grafana on ws-b, from this Workstation:",
             "  ok    Instance 192.168.1.20:3000",
-            "  skip  Instance 127.0.0.1:3000: out of range, only ws-b can connect to it",
+            "  skip  Instance 127.0.0.1:3000: out of range",
             "  ok    Route grafana.ws-b.lvh.me: answered 200",
-            "Every check passed; 1 skipped.");
+            "Every check passed. 1 skipped.");
   }
 
   @Test
@@ -1289,7 +1287,7 @@ class YardTest {
 
     assertThat(run.exitCode()).isNotZero();
     assertThat(run.err())
-        .contains("The dashboard is not running on this Workstation")
+        .contains("The dashboard does not answer at")
         .contains(nothingListens)
         .contains("docker compose up -d")
         .doesNotContain("mise");
@@ -1386,7 +1384,7 @@ class YardTest {
     Run run = yardProcess(Map.of("XDG_CONFIG_HOME", config.toString()), "list");
 
     assertThat(run.exitCode()).isNotZero();
-    assertThat(run.err()).contains("nothing answers at http://127.0.0.1:" + port);
+    assertThat(run.err()).contains("does not answer at http://127.0.0.1:" + port);
   }
 
   @Test
@@ -1648,7 +1646,7 @@ class YardTest {
     assertThat(Base64.getDecoder().decode(key)).hasSize(32);
     assertThat(run.out())
         .contains("The Yard's gossip key: " + key)
-        .contains("Every Workstation of the Yard needs this same key");
+        .contains("Give this key to every other Workstation");
     yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a", "--force");
     assertThat(setting(dir, "YARD_GOSSIP_KEY")).isNotEqualTo(key);
   }

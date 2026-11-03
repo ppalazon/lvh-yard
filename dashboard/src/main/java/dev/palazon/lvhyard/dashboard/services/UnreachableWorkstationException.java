@@ -4,11 +4,6 @@ package dev.palazon.lvhyard.dashboard.services;
 public class UnreachableWorkstationException extends RuntimeException {
 
   UnreachableWorkstationException(String workstation, Throwable cause) {
-    super(
-        "Workstation "
-            + workstation
-            + " is unreachable: its Consul datacenter does not answer. Its Services"
-            + " show again by themselves once it does.",
-        cause);
+    super("Workstation " + workstation + " is unreachable: its Consul does not answer.", cause);
   }
 }

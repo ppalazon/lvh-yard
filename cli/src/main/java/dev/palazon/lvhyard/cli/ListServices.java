@@ -64,9 +64,7 @@ class ListServices implements Runnable {
             instance.address(),
             instance.health(),
             instance.id(),
-            instance.outOfRange()
-                ? "  out of range: only " + service.workstation() + " can reach it, no Route"
-                : "");
+            instance.outOfRange() ? "  out of range" : "");
       }
     }
   }

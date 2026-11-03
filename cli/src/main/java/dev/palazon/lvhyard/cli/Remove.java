@@ -91,8 +91,8 @@ class Remove implements Runnable {
       Where where = which.where;
       if (where.host != null) {
         throw new YardException(
-            "A Container Binding has no --host: give --container, or --compose-project"
-                + " and --compose-service, and --port if it is bound on more than one.");
+            "A Container Binding has no --host. Give --container, or --compose-project and"
+                + " --compose-service.");
       }
       if (where.container != null
           && (where.composeProject != null || where.composeService != null)) {
@@ -116,10 +116,9 @@ class Remove implements Runnable {
               + ".";
     } else if (which.where.port == null) {
       throw new YardException(
-          "Give --id, --port, --container or --compose-project and --compose-service:"
-              + " which Instance or Container Binding of "
+          "Say what to remove from "
               + service
-              + " to remove.");
+              + ": give --id, --port, --container, or --compose-project and --compose-service.");
     } else {
       Dashboard.Instance instance = instanceAt(dashboard.ownService(service));
       dashboard.remove(service, instance.id());

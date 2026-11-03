@@ -180,16 +180,14 @@ class Init implements Runnable {
       err.println(
           "Warning: no Docker socket at "
               + dockerSocket
-              + ", so YARD_DOCKER_GID in .env is not set. The dashboard from its image will not"
-              + " start, nor follow containers, until it is: stat -c %g /var/run/docker.sock.");
+              + ", so YARD_DOCKER_GID in .env is empty. Set it to what stat -c %g"
+              + " /var/run/docker.sock prints, or the dashboard will not start.");
       err.flush();
     }
     out.println("Wrote " + String.join(", ", files.keySet()) + " to " + folder + ".");
     out.println();
     out.println("The Yard's gossip key: " + key);
-    out.println(
-        "Every Workstation of the Yard needs this same key: give it to the next one with"
-            + " lvh-yard init --gossip-key.");
+    out.println("Give this key to every other Workstation: lvh-yard init --gossip-key <key>.");
     out.println();
     out.print(nextSteps(folder, env));
     out.flush();
