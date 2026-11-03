@@ -134,6 +134,7 @@ lvh-yard remove web --container web-1       # add --port if web-1 is bound on se
 lvh-yard remove web --compose-project shop --compose-service web
 lvh-yard publish web                        # http://web.<base-domain> (Local Scope)
 lvh-yard publish web --scope yard           # also on every other Workstation (Yard Scope)
+lvh-yard publish web --priority bound,static  # prefer Bound Instances (Instance Priority)
 lvh-yard unpublish web
 lvh-yard alias add grafana --workstation ws-b                 # http://grafana.<base-domain> for grafana of ws-b
 lvh-yard alias add db --workstation ws-b --service postgres   # a name that differs from the Service
@@ -184,6 +185,26 @@ to the Docker copy. This takes up to about 15 seconds.
 If no Instance passes its check, the Route uses every Instance, as before.
 Every Workstation makes the same choice for a Service with Yard Scope. Each one
 leaves out its Out-of-range Instances first.
+
+To change the order for one Service, give the kinds in the order you want:
+
+```sh
+lvh-yard publish web --priority bound,static   # prefer the Docker copy
+```
+
+The kinds are `static`, `bound` and `alias`. Each kind can appear only once.
+You can leave a kind out. Then the Route never prefers it, though it still
+uses it when no Instance passes its check. If you publish again without
+`--priority`, the order does not change. The order stays with the
+Publication, so it is kept when the last Instance of a kind goes away. Every
+Workstation that routes the Service uses the order of its Home Workstation. A
+Publication made before this feature uses the default order,
+`static,bound,alias`.
+
+On the page of the Service, the Instance Priority section changes the order
+with the Up, Down, Remove and Add buttons. The API takes the order as
+`priority` in the body of `PUT /api/workstation/services/{service}/publication`.
+A Core Service always uses the default order.
 
 The page of the Service shows the kind in use, for example
 `Routing to: Static (Bound waiting)`. `lvh-yard list` marks each Instance that

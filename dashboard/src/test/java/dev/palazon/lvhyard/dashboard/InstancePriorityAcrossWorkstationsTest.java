@@ -1,5 +1,6 @@
 package dev.palazon.lvhyard.dashboard;
 
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -20,6 +21,18 @@ class InstancePriorityAcrossWorkstationsTest extends InstancePriorityTestSupport
 
     awaitRoutedTo(web, terminal);
     onRemoteThatReachesContainers(() -> awaitRoutedOnRemote(web, terminal));
+  }
+
+  @Test
+  void yardScopedServiceIsRoutedWithItsHomeWorkstationsOrderOnEveryWorkstation() {
+    String web = newServiceName("web");
+    staticInstance(web);
+    String bound = boundInstance(web);
+
+    put(publicationPath(web), Map.of("scope", "yard", "priority", List.of("bound", "static")));
+
+    awaitRoutedTo(web, bound);
+    onRemoteThatReachesContainers(() -> awaitRoutedOnRemote(web, bound));
   }
 
   @Test

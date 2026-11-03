@@ -116,6 +116,48 @@ class ServicePageTest extends DashboardTest {
   }
 
   @Test
+  void instancePriorityIsEditedByMovingAKindUpOrDownOrRemovingIt() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+    publish(web);
+    String page = "/services/ws-test/" + web;
+    assertThat(getPage(page).getBody())
+        .contains("Instance Priority")
+        .contains("aria-label=\"Move Bound up\"")
+        .contains("name=\"priority\" value=\"bound,static,alias\"")
+        .contains("aria-label=\"Move Bound down\"")
+        .contains("name=\"priority\" value=\"static,alias,bound\"")
+        .contains("aria-label=\"Remove Bound\"")
+        .contains("name=\"priority\" value=\"static,alias\"")
+        .doesNotContain("Move Static up")
+        .doesNotContain("Move Alias down");
+
+    ResponseEntity<String> response = postForm(page + "/publish", Map.of("priority", "bound"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    assertThat(response.getHeaders().getLocation()).hasPath(page);
+    assertThat(get(servicePath(web)).getBody().get("priority").valueStream())
+        .extracting(JsonNode::asString)
+        .containsExactly("bound");
+    assertThat(getPage(page).getBody())
+        .as("the last kind cannot be removed, and a removed one can be added back")
+        .doesNotContain("aria-label=\"Remove Bound\"")
+        .contains("aria-label=\"Add Static\"")
+        .contains("name=\"priority\" value=\"bound,static\"");
+  }
+
+  @Test
+  void instancePriorityWithAnUnknownKindIsRefused() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+
+    ResponseEntity<String> response =
+        postForm("/services/ws-test/" + web + "/publish", Map.of("priority", "static,docker"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+  }
+
+  @Test
   void unknownScopeIsRefused() {
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));

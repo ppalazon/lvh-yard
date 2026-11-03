@@ -491,7 +491,8 @@ paths:
     put:
       description: "With Yard Scope, the other Workstations also route it, at <service>.<workstation>.<base-domain>.\
         \ With no Scope, a new Publication gets Local Scope and an existing one keeps\
-        \ its own."
+        \ its own. With no priority, a new Publication gets static, bound, alias and\
+        \ an existing one keeps its own."
       operationId: publish
       parameters:
       - in: path
@@ -517,7 +518,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: "The name is not a single DNS label or is taken by a Core Service,\
-            \ or the Scope is not local or yard"
+            \ the Scope is not local or yard, or the priority is empty, repeats a\
+            \ kind or names an unknown one"
         "404":
           content:
             application/problem+json:
@@ -529,8 +531,9 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: The Service is a Core Service and the Scope is yard
-      summary: "Publishes a Service, or changes its Scope"
+          description: "The Service is a Core Service, and the Scope is yard or a\
+            \ priority is given"
+      summary: "Publishes a Service, or changes its Scope or Instance Priority"
       tags:
       - workstation-services-controller
   /api/workstation/services/{service}/reachability:
@@ -788,6 +791,14 @@ components:
     PublicationRequest:
       type: object
       properties:
+        priority:
+          type: array
+          items:
+            type: string
+            enum:
+            - static
+            - bound
+            - alias
         scope:
           type: string
           enum:

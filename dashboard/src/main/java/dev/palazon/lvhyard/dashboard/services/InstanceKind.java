@@ -1,6 +1,8 @@
 package dev.palazon.lvhyard.dashboard.services;
 
 import com.fasterxml.jackson.annotation.JsonValue;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /** What an Instance Priority orders. */
@@ -16,6 +18,35 @@ public enum InstanceKind {
 
   static InstanceKind of(Instance instance) {
     return instance.bound() ? BOUND : STATIC;
+  }
+
+  /** The message of a refusal says what is wrong, for the person who gave {@code values}. */
+  static List<InstanceKind> priority(List<String> values) {
+    if (values.isEmpty()) {
+      throw invalidPriority(
+          "An Instance Priority needs at least one kind: static, bound or alias.");
+    }
+    List<InstanceKind> kinds = new ArrayList<>();
+    for (String value : values) {
+      InstanceKind kind =
+          Arrays.stream(values())
+              .filter(candidate -> candidate.value().equals(value))
+              .findFirst()
+              .orElseThrow(() ->
+                  invalidPriority(
+                      "The Instance Priority has the unknown kind "
+                          + value
+                          + ". The kinds are static, bound and alias."));
+      if (kinds.contains(kind)) {
+        throw invalidPriority("The Instance Priority has the kind " + value + " more than once.");
+      }
+      kinds.add(kind);
+    }
+    return List.copyOf(kinds);
+  }
+
+  private static InvalidRegistrationException invalidPriority(String message) {
+    return new InvalidRegistrationException("priority", message);
   }
 
   @JsonValue

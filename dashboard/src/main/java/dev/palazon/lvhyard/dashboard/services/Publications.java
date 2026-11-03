@@ -2,18 +2,24 @@ package dev.palazon.lvhyard.dashboard.services;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.consul.Consul;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
- * One Consul KV key per published Service, holding its Scope. Publishing never touches an Instance.
+ * One Consul KV key per published Service, holding its Scope and Instance Priority. Publishing
+ * never touches an Instance.
  */
 @Component
 public class Publications {
 
   private static final String PREFIX = "lvh-yard/publications/";
+
+  private static final ObjectMapper JSON = JsonMapper.builder().build();
 
   private final Workstation workstation;
 
@@ -28,10 +34,11 @@ public class Publications {
   }
 
   /**
-   * {@code workstation} must be this one. With no Scope, a new Publication gets Local Scope and an
-   * existing one keeps its own. A Core Service keeps Local Scope.
+   * {@code workstation} must be this one. With no Scope or no priority, a new Publication gets
+   * Local Scope or the default order, and an existing one keeps its own. A Core Service keeps Local
+   * Scope and the default order.
    */
-  public void publish(String workstation, String service, Scope scope) {
+  public void publish(String workstation, String service, Scope scope, List<String> priority) {
     checkHome(workstation);
     Optional<CoreService> core = CoreService.named(service);
     if (core.isPresent()) {
@@ -41,18 +48,54 @@ public class Publications {
             "given Yard Scope, as its Instance is on loopback, so other Workstations could not"
                 + " reach it");
       }
+      if (priority != null) {
+        throw CoreServiceException.cannotBe(
+            service, "given an Instance Priority, as it has only its own Instance");
+      }
       keepCorePublication(core.get());
       return;
     }
     Registrations.checkName(service);
+    List<InstanceKind> kinds = priority == null ? null : InstanceKind.priority(priority);
     checkExists(service);
-    Scope chosen = scope;
-    if (chosen == null) {
-      Publication existing = all().get(service);
-      chosen = existing == null ? Scope.LOCAL : existing.scope();
-    }
-    consul.putValue(PREFIX + service, chosen.value());
+    Publication existing = all().get(service);
+    Publication chosen =
+        new Publication(
+            scope != null ? scope : existing == null ? Scope.LOCAL : existing.scope(),
+            kinds != null
+                ? kinds
+                : existing == null ? InstanceKind.DEFAULT_PRIORITY : existing.priority());
+    consul.putValue(PREFIX + service, value(chosen));
   }
+
+  /**
+   * The Scope alone, as before Instance Priority, while the order is the default. So Workstations
+   * on an older version still read most Publications.
+   */
+  private static String value(Publication publication) {
+    if (publication.priority().equals(InstanceKind.DEFAULT_PRIORITY)) {
+      return publication.scope().value();
+    }
+    return JSON.writeValueAsString(
+        new StoredPublication(
+            publication.scope().value(),
+            publication.priority().stream().map(InstanceKind::value).toList()));
+  }
+
+  private static Publication publication(String value) {
+    if (!value.startsWith("{")) {
+      return new Publication(Scope.of(value));
+    }
+    StoredPublication stored = JSON.readValue(value, StoredPublication.class);
+    try {
+      return new Publication(Scope.of(stored.scope()), InstanceKind.priority(stored.priority()));
+    } catch (InvalidRegistrationException e) {
+      // A fault in the stored data, not a refusal of what someone asked.
+      throw new IllegalStateException(e.getMessage(), e);
+    }
+  }
+
+  private record StoredPublication(String scope, List<String> priority) {}
 
   /**
    * A Yard Scope from before it was refused for Core Services goes back to Local. No name rule
@@ -84,8 +127,8 @@ public class Publications {
     Map<String, Publication> publications = new TreeMap<>();
     consul
         .values(datacenter, PREFIX)
-        .forEach((key, scope) ->
-            publications.put(key.substring(PREFIX.length()), new Publication(Scope.of(scope))));
+        .forEach(
+            (key, value) -> publications.put(key.substring(PREFIX.length()), publication(value)));
     return publications;
   }
 

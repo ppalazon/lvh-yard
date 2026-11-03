@@ -4,10 +4,10 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `PublicationRequest` takes `priority`; absent keeps the current order, as with `scope`
-- [ ] Unknown or repeated kinds are refused with a reason; a kind can be left out
-- [ ] The order is stored with the Publication; Publications without one use the default
-- [ ] The Service page edits the order (move up, move down, remove)
-- [ ] `lvh-yard publish --priority` sends it; refusals exit 1
+- [x] `PublicationRequest` takes `priority`; absent keeps the current order, as with `scope`
+- [x] Unknown or repeated kinds are refused with a reason; a kind can be left out
+- [x] The order is stored with the Publication; Publications without one use the default
+- [x] The Service page edits the order (move up, move down, remove)
+- [x] `lvh-yard publish --priority` sends it; refusals exit 1

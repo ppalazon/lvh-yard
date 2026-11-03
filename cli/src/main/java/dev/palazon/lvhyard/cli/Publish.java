@@ -13,7 +13,7 @@ import picocli.CommandLine.Spec;
 @Command(
     name = "publish",
     mixinStandardHelpOptions = true,
-    description = "Publishes a Service, or changes its Scope.")
+    description = "Publishes a Service, or changes its Scope or Instance Priority.")
 class Publish implements Runnable {
 
   private static final List<String> SCOPES = List.of("local", "yard");
@@ -33,6 +33,16 @@ class Publish implements Runnable {
       })
   String scope;
 
+  @Option(
+      names = "--priority",
+      paramLabel = "<kinds>",
+      split = ",",
+      description = {
+        "The Instance kinds the Route prefers, in order: static, bound, alias.",
+        "Default: static,bound,alias for a new Publication, else no change."
+      })
+  List<String> priority;
+
   @Spec CommandSpec spec;
 
   @Override
@@ -42,7 +52,7 @@ class Publish implements Runnable {
           spec.commandLine(),
           "Invalid value for option '--scope': " + scope + " is not local or yard.");
     }
-    Dashboard.Service published = yard.dashboard().publish(service, scope);
+    Dashboard.Service published = yard.dashboard().publish(service, scope, priority);
     String chosen = published.publication().scope();
     PrintWriter out = spec.commandLine().getOut();
     out.println(

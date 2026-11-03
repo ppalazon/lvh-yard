@@ -819,6 +819,46 @@ class YardTest {
   }
 
   @Test
+  void publishWithPrioritySendsTheOrder() {
+    dashboard.answer(
+        "PUT",
+        "/api/workstation/services/web/publication",
+        200,
+        """
+        {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "local"},
+         "hostname": "web.lvh.me", "containerBindings": [], "warnings": [],
+         "priority": ["bound", "static"], "instances": []}
+        """);
+
+    Run run = yard("publish", "web", "--priority", "bound,static");
+
+    assertThat(run.exitCode()).isZero();
+    dashboard.verifyCalled(
+        "PUT",
+        "/api/workstation/services/web/publication",
+        """
+        {"priority": ["bound", "static"]}
+        """);
+  }
+
+  @Test
+  void publishWithARefusedPriorityShowsWhyAndExitsWithOne() {
+    dashboard.answer(
+        "PUT",
+        "/api/workstation/services/web/publication",
+        400,
+        """
+        {"status": 400,
+         "detail": "The Instance Priority has the kind bound more than once."}
+        """);
+
+    Run run = yard("publish", "web", "--priority", "bound,static,bound");
+
+    assertThat(run.exitCode()).isEqualTo(1);
+    assertThat(run.err()).contains("The Instance Priority has the kind bound more than once.");
+  }
+
+  @Test
   void publishPrintsTheServicesWarnings() {
     dashboard.answer(
         "PUT",

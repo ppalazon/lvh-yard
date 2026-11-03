@@ -121,6 +121,22 @@ class OpenApiTest extends DashboardTest {
   }
 
   @Test
+  void publishingTakesAnInstancePriority() {
+    JsonNode request =
+        get("/v3/api-docs")
+            .getBody()
+            .get("components")
+            .get("schemas")
+            .get("PublicationRequest")
+            .get("properties");
+
+    assertThat(request.get("priority").get("type").asString()).isEqualTo("array");
+    assertThat(request.get("priority").get("items").get("enum").valueStream())
+        .map(JsonNode::asString)
+        .containsExactly("static", "bound", "alias");
+  }
+
+  @Test
   void committedCopyIsCurrent() throws IOException {
     ResponseEntity<String> response = getPage("/v3/api-docs.yaml");
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);

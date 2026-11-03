@@ -266,16 +266,25 @@ final class Dashboard {
     send(HttpRequest.newBuilder(URI.create(instancesUrl(service) + "/" + segment(id))).DELETE());
   }
 
-  /** With no Scope, a new Publication gets Local Scope, and an existing one keeps its Scope. */
-  Service publish(String service, String scope) {
+  /**
+   * With no Scope or no priority, a new Publication gets Local Scope or the default order, and an
+   * existing one keeps its own.
+   */
+  Service publish(String service, String scope, List<String> priority) {
     HttpRequest.Builder request = HttpRequest.newBuilder(publicationUrl(service));
-    if (scope == null) {
+    Map<String, Object> body = new LinkedHashMap<>();
+    if (scope != null) {
+      body.put("scope", scope);
+    }
+    if (priority != null) {
+      body.put("priority", priority);
+    }
+    if (body.isEmpty()) {
       request.PUT(HttpRequest.BodyPublishers.noBody());
     } else {
       request
           .header("Content-Type", "application/json")
-          .PUT(
-              HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(Map.of("scope", scope))));
+          .PUT(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body)));
     }
     return read(send(request), new TypeReference<>() {});
   }

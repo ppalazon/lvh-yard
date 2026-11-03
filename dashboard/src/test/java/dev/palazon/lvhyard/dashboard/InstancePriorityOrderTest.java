@@ -1,0 +1,38 @@
+package dev.palazon.lvhyard.dashboard;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+
+/** An Instance Priority set for one Service, which changes the kind its Route prefers. */
+class InstancePriorityOrderTest extends InstancePriorityTestSupport {
+
+  @Test
+  void boundBeforeStaticRoutesToTheBoundInstance() {
+    String web = newServiceName("web");
+    staticInstance(web);
+    String bound = boundInstance(web);
+
+    put(publicationPath(web), Map.of("priority", List.of("bound", "static")));
+
+    awaitRoutedTo(web, bound);
+    assertThat(getPage("/services/ws-test/" + web).getBody())
+        .contains("Routing to: Bound (Static waiting)");
+  }
+
+  @Test
+  void kindLeftOutIsNotWaiting() {
+    String web = newServiceName("web");
+    staticInstance(web);
+    String bound = boundInstance(web);
+
+    put(publicationPath(web), Map.of("priority", List.of("bound")));
+
+    awaitRoutedTo(web, bound);
+    assertThat(getPage("/services/ws-test/" + web).getBody())
+        .contains("Routing to: Bound")
+        .doesNotContain("Static waiting");
+  }
+}

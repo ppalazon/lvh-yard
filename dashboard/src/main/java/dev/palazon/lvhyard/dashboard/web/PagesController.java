@@ -25,6 +25,7 @@ import dev.palazon.lvhyard.dashboard.services.YardReader;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -249,12 +250,18 @@ class PagesController {
     return seeOther(yard.service(home, service).map(ServicePage::path).orElse("/"));
   }
 
-  /** With no Scope, a new Publication gets Local Scope, and an existing one keeps its Scope. */
+  /**
+   * With no Scope or no priority, a new Publication gets Local Scope or the default order, and an
+   * existing one keeps its own.
+   *
+   * @param priority the kinds in order, separated by commas
+   */
   @PostMapping("/services/{workstation}/{service}/publish")
   ResponseEntity<String> publish(
       @PathVariable("workstation") String home,
       @PathVariable String service,
-      @RequestParam(required = false) String scope) {
+      @RequestParam(required = false) String scope,
+      @RequestParam(required = false) String priority) {
     Scope chosen =
         scope == null
             ? null
@@ -263,7 +270,8 @@ class PagesController {
                     new ResponseStatusException(
                         HttpStatus.BAD_REQUEST, "The Scope is local or yard, not " + scope + "."));
     try {
-      publications.publish(home, service, chosen);
+      publications.publish(
+          home, service, chosen, priority == null ? null : List.of(priority.split(",", -1)));
     } catch (UnknownServiceException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
     } catch (InvalidRegistrationException e) {

@@ -10,7 +10,9 @@ import dev.palazon.lvhyard.dashboard.services.InstanceKind;
 import dev.palazon.lvhyard.dashboard.services.Scope;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import dev.palazon.lvhyard.dashboard.services.ServiceWarning;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
 import org.xmlet.htmlapifaster.EnumTypeInputType;
@@ -98,6 +100,11 @@ final class ServicePage {
                                 .of(content -> {
                                   if (!service.warnings().isEmpty()) {
                                     warnings(content, service);
+                                  }
+                                })
+                                .of(content -> {
+                                  if (own && !service.core() && service.published()) {
+                                    instancePriority(content, service);
                                   }
                                 })
                                 .of(content -> {
@@ -406,6 +413,105 @@ final class ServicePage {
         .__()
         .__()
         .__();
+  }
+
+  /**
+   * Each button posts the whole new order, so the page needs no script. The last kind has no Remove
+   * button, as an order needs at least one kind.
+   */
+  private static void instancePriority(Div<?> content, Service service) {
+    List<InstanceKind> order = service.priority();
+    content
+        .div()
+        .attrClass("flex flex-col gap-2")
+        .h2()
+        .attrClass("text-lg font-semibold")
+        .text("Instance Priority")
+        .__()
+        .p()
+        .attrClass("text-muted-foreground")
+        .text("The Route uses the first kind that has a passing Instance.")
+        .__()
+        .ol()
+        .attrClass("flex flex-col gap-2")
+        .of(list -> {
+          for (int i = 0; i < order.size(); i++) {
+            InstanceKind kind = order.get(i);
+            String label = kindLabel(kind);
+            int at = i;
+            list.li()
+                .div()
+                .attrClass("flex flex-wrap items-center gap-2")
+                .span()
+                .attrClass("min-w-16")
+                .text((at + 1) + ". " + label)
+                .__()
+                .of(buttons -> {
+                  if (at > 0) {
+                    priorityForm(
+                        buttons, service, moved(order, at, at - 1), "Up", "Move " + label + " up");
+                  }
+                  if (at < order.size() - 1) {
+                    priorityForm(
+                        buttons,
+                        service,
+                        moved(order, at, at + 1),
+                        "Down",
+                        "Move " + label + " down");
+                  }
+                  if (order.size() > 1) {
+                    List<InstanceKind> without =
+                        order.stream().filter(other -> other != kind).toList();
+                    priorityForm(buttons, service, without, "Remove", "Remove " + label);
+                  }
+                })
+                .__()
+                .__();
+          }
+        })
+        .__()
+        .div()
+        .attrClass("flex flex-wrap gap-2")
+        .of(buttons -> {
+          for (InstanceKind kind : InstanceKind.values()) {
+            if (!order.contains(kind)) {
+              List<InstanceKind> with = Stream.concat(order.stream(), Stream.of(kind)).toList();
+              String add = "Add " + kindLabel(kind);
+              priorityForm(buttons, service, with, add, add);
+            }
+          }
+        })
+        .__()
+        .__();
+  }
+
+  /** {@code label} is the button's accessible name, as several buttons share a short text. */
+  private static void priorityForm(
+      Div<?> buttons, Service service, List<InstanceKind> order, String text, String label) {
+    buttons
+        .form()
+        .addAttr("method", "post")
+        .addAttr("action", Layout.attr(path(service) + "/publish"))
+        .input()
+        .attrType(EnumTypeInputType.HIDDEN)
+        .attrName("priority")
+        .attrValue(String.join(",", order.stream().map(InstanceKind::value).toList()))
+        .__()
+        .button()
+        .attrType(EnumTypeButtonType.SUBMIT)
+        .attrClass("btn")
+        .addAttr("data-variant", "outline")
+        .addAttr("data-size", "sm")
+        .addAttr("aria-label", Layout.attr(label))
+        .text(text)
+        .__()
+        .__();
+  }
+
+  private static List<InstanceKind> moved(List<InstanceKind> order, int from, int to) {
+    List<InstanceKind> moved = new ArrayList<>(order);
+    moved.add(to, moved.remove(from));
+    return moved;
   }
 
   /** Why other Workstations may not reach the Service, though its Scope gives them a Route. */

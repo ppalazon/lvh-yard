@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -226,5 +227,99 @@ class PublicationsTest extends DashboardTest {
     ResponseEntity<JsonNode> response = delete(publicationPath(newServiceName("api")));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+  }
+
+  @Test
+  void instancePriorityIsStoredWithThePublication() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+
+    ResponseEntity<JsonNode> response =
+        put(publicationPath(web), Map.of("priority", List.of("bound", "static")));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(priority(get(servicePath(web)).getBody())).containsExactly("bound", "static");
+  }
+
+  @Test
+  void publishingAgainWithoutPriorityKeepsTheOrderAndChangingTheScopeKeepsItToo() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+    put(publicationPath(web), Map.of("priority", List.of("bound")));
+
+    put(publicationPath(web));
+    put(publicationPath(web), Map.of("scope", "yard"));
+
+    JsonNode service = get(servicePath(web)).getBody();
+    assertThat(priority(service)).containsExactly("bound");
+    assertThat(service.get("publication").get("scope").asString()).isEqualTo("yard");
+
+    put(publicationPath(web), Map.of("priority", List.of("static", "bound", "alias")));
+
+    service = get(servicePath(web)).getBody();
+    assertThat(priority(service)).containsExactly("static", "bound", "alias");
+    assertThat(service.get("publication").get("scope").asString()).isEqualTo("yard");
+  }
+
+  @Test
+  void instancePriorityIsKeptWhenTheLastInstanceGoesAndComesBack() {
+    String web = newServiceName("web");
+    String id = register(web, Map.of("host", "10.1.2.3", "port", 8080)).get("id").asString();
+    put(publicationPath(web), Map.of("priority", List.of("bound", "static")));
+
+    delete(instancesPath(web) + "/" + id);
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+
+    assertThat(priority(get(servicePath(web)).getBody())).containsExactly("bound", "static");
+  }
+
+  @Test
+  void instancePriorityWithAnUnknownOrRepeatedKindOrNoKindIsRefused() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+    put(publicationPath(web), Map.of("priority", List.of("bound", "static")));
+
+    ResponseEntity<JsonNode> unknown =
+        put(publicationPath(web), Map.of("priority", List.of("static", "docker")));
+    ResponseEntity<JsonNode> repeated =
+        put(publicationPath(web), Map.of("priority", List.of("bound", "static", "bound")));
+    ResponseEntity<JsonNode> empty = put(publicationPath(web), Map.of("priority", List.of()));
+
+    assertThat(unknown.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(unknown.getBody().get("detail").asString())
+        .isEqualTo(
+            "The Instance Priority has the unknown kind docker. The kinds are static, bound and"
+                + " alias.");
+    assertThat(repeated.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(repeated.getBody().get("detail").asString())
+        .isEqualTo("The Instance Priority has the kind bound more than once.");
+    assertThat(empty.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(empty.getBody().get("detail").asString())
+        .isEqualTo("An Instance Priority needs at least one kind: static, bound or alias.");
+    assertThat(priority(get(servicePath(web)).getBody())).containsExactly("bound", "static");
+  }
+
+  @Test
+  void coreServiceRefusesAnInstancePriority() {
+    ResponseEntity<JsonNode> response =
+        put(publicationPath("consul"), Map.of("priority", List.of("bound")));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+  }
+
+  @Test
+  void publicationWrittenBeforeInstancePriorityUsesTheDefaultOrder() {
+    String api = newServiceName("api");
+    remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
+    // A Publication as LVH Yard stored it before Instance Priority: its Scope alone.
+    remote.putConsulValue("lvh-yard/publications/" + api, "yard");
+
+    assertThat(priority(remote.service(api).getBody())).containsExactly("static", "bound", "alias");
+    assertThat(priority(get("/api/services/" + RemoteWorkstation.NAME + "/" + api).getBody()))
+        .containsExactly("static", "bound", "alias");
+  }
+
+  private static List<String> priority(JsonNode service) {
+    return service.get("priority").valueStream().map(JsonNode::asString).toList();
   }
 }
