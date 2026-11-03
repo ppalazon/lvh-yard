@@ -104,6 +104,23 @@ class OpenApiTest extends DashboardTest {
   }
 
   @Test
+  void servicesHaveTheirInstancePriorityAndRouting() {
+    JsonNode schemas = get("/v3/api-docs").getBody().get("components").get("schemas");
+
+    JsonNode service = schemas.get("Service").get("properties");
+    assertThat(service.get("priority").get("type").asString()).isEqualTo("array");
+    assertThat(service.get("priority").get("items").get("enum").valueStream())
+        .map(JsonNode::asString)
+        .containsExactly("static", "bound", "alias");
+    assertThat(service.get("routing").get("$ref").asString())
+        .isEqualTo("#/components/schemas/Routing");
+    JsonNode routing = schemas.get("Routing").get("properties");
+    assertThat(routing.has("kind")).isTrue();
+    assertThat(routing.get("instances").get("type").asString()).isEqualTo("array");
+    assertThat(schemas.get("Publication").get("properties").has("priority")).isFalse();
+  }
+
+  @Test
   void committedCopyIsCurrent() throws IOException {
     ResponseEntity<String> response = getPage("/v3/api-docs.yaml");
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);

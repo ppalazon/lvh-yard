@@ -114,6 +114,32 @@ class TestcontainersConfiguration {
   }
 
   /**
+   * As {@link #listener}, but it answers every HTTP request on {@code port} with 200 and the text
+   * {@code body}.
+   */
+  static GenericContainer<?> httpListener(String name, int port, String body) {
+    String response =
+        "HTTP/1.1 200 OK\\r\\nContent-Type: text/plain\\r\\nContent-Length: "
+            + body.length()
+            + "\\r\\nConnection: close\\r\\n\\r\\n"
+            + body;
+    return new GenericContainer<>(CONSUL_IMAGE)
+        .withCreateContainerCmdModifier(command ->
+            command
+                .withName(name)
+                .withEntrypoint(
+                    "sh",
+                    "-c",
+                    "while true; do printf '"
+                        + response
+                        + "' | nc -l -p "
+                        + port
+                        + " >/dev/null; done")
+                .withCmd())
+        .waitingFor(Wait.forListeningPort());
+  }
+
+  /**
    * Traefik as compose.yaml runs it, on the host's network and on loopback at {@link
    * #TRAEFIK_PORT}, with its ping at {@link #TRAEFIK_ADMIN_PORT}, reading its Routes from the
    * dashboard at {@code dashboardPort}. It polls every second, so tests wait less for a new Route.

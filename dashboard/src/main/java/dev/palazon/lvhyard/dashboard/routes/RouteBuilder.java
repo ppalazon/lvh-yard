@@ -45,7 +45,7 @@ final class RouteBuilder {
         .forEach(service -> {
           List<Server> servers =
               service.instances().stream()
-                  .filter(instance -> !instance.outOfRange())
+                  .filter(service.routing()::routes)
                   .map(instance -> new Server("http://" + instance.address()))
                   .toList();
           String name = name(workstation, service);

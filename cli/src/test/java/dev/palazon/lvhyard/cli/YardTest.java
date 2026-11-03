@@ -142,6 +142,35 @@ class YardTest {
   }
 
   @Test
+  void listMarksTheInstancesTheRouteSendsRequestsTo() {
+    dashboard.answer(
+        "GET",
+        "/api/services?workstation=ws-a",
+        200,
+        """
+        [{"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "local"},
+          "hostname": "web.lvh.me", "containerBindings": [], "warnings": [],
+          "priority": ["static", "bound", "alias"],
+          "routing": {"kind": "static", "instances": ["1a2b"]},
+          "instances": [
+            {"id": "1a2b", "host": "10.1.2.3", "port": 3000, "health": "passing",
+             "tags": [], "meta": {}, "checks": [], "outOfRange": false},
+            {"id": "web:abc:80", "host": "172.17.0.2", "port": 80, "health": "passing",
+             "tags": [], "meta": {}, "checks": [], "outOfRange": false,
+             "containerBinding": "abc:80"}]}]
+        """);
+
+    Run run = yard("list", "--workstation", "ws-a");
+
+    assertThat(run.lines())
+        .containsExactly(
+            "ws-a",
+            "  web: healthy at web.lvh.me",
+            "    10.1.2.3:3000  passing   1a2b  routed",
+            "    172.17.0.2:80  passing   web:abc:80");
+  }
+
+  @Test
   void listMarksAnInstanceOutOfRange() {
     dashboard.answer(
         "GET",

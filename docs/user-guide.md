@@ -171,6 +171,25 @@ show this warning.
 You can see a Remote Service, but only its Home Workstation can change it. Its
 page has no forms, and the API answers 405 to a change under `/api/services`.
 
+### Instance Priority
+
+A Route prefers some Instances over others, by their kind. A Static Instance
+comes first, then a Bound Instance. The Route uses only the first kind that has
+an Instance with a passing check, and only those passing Instances. For
+example, `web` runs in Docker and you also start it in a terminal as a Static
+Instance. While the terminal copy passes its check, `web.<base-domain>` reaches
+only that copy. When you stop it, its check turns critical, and the Route moves
+to the Docker copy. This takes up to about 15 seconds.
+
+If no Instance passes its check, the Route uses every Instance, as before.
+Every Workstation makes the same choice for a Service with Yard Scope. Each one
+leaves out its Out-of-range Instances first.
+
+The page of the Service shows the kind in use, for example
+`Routing to: Static (Bound waiting)`. `lvh-yard list` marks each Instance that
+the Route uses with `routed`. The API shows the order in `priority` and the
+Instances in use in `routing`.
+
 ### Out-of-range Instances
 
 An address on loopback or on a Docker bridge network (172.17.0.0/16 to

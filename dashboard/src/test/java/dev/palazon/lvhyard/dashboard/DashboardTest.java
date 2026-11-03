@@ -21,6 +21,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.Network;
 import tools.jackson.databind.JsonNode;
 
 /**
@@ -58,6 +59,8 @@ abstract class DashboardTest {
 
   /** The test Yard's other Workstation, whose Services are Remote Services here. */
   @Autowired RemoteWorkstation remote;
+
+  @Autowired Network yardNetwork;
 
   private RestClient http;
 
@@ -104,6 +107,31 @@ abstract class DashboardTest {
     if (publish) {
       container.withExposedPorts(containerPort);
     }
+    containers.add(container);
+    container.start();
+    return container;
+  }
+
+  /**
+   * Starts a container called {@code name} on the test Yard's network, where the Consul checks
+   * reach it, that accepts TCP connections on {@code containerPort}. It is removed after the test.
+   */
+  GenericContainer<?> startYardNetworkContainer(String name, int containerPort) {
+    return startYardNetworkContainer(
+        TestcontainersConfiguration.listener(name, containerPort).withNetwork(yardNetwork));
+  }
+
+  /**
+   * As {@link #startYardNetworkContainer(String, int)}, but it answers every HTTP request on {@code
+   * containerPort} with 200 and the text {@code body}.
+   */
+  GenericContainer<?> startYardNetworkContainer(String name, int containerPort, String body) {
+    return startYardNetworkContainer(
+        TestcontainersConfiguration.httpListener(name, containerPort, body)
+            .withNetwork(yardNetwork));
+  }
+
+  private GenericContainer<?> startYardNetworkContainer(GenericContainer<?> container) {
     containers.add(container);
     container.start();
     return container;
@@ -197,6 +225,19 @@ abstract class DashboardTest {
           "sh", "-c", "while true; do nc -l -p " + port + " >/dev/null; done >/dev/null 2>&1 &");
     } catch (IOException | InterruptedException e) {
       throw new IllegalStateException("Could not listen on port " + port, e);
+    }
+  }
+
+  /**
+   * Stops what {@link #listenOnLanAddress} or {@link #answerHttpOnLanAddress} started on {@code
+   * port}. The loop goes first, so it starts no new {@code nc}.
+   */
+  void stopListeningOnLanAddress(int port) {
+    try {
+      consulContainer.execInContainer("pkill", "-f", "while true.* nc -l -p " + port + " ");
+      consulContainer.execInContainer("pkill", "-f", "^nc -l -p " + port + "$");
+    } catch (IOException | InterruptedException e) {
+      throw new IllegalStateException("Could not stop listening on port " + port, e);
     }
   }
 

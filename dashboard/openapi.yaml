@@ -833,6 +833,21 @@ components:
       required:
       - hostname
       - reached
+    Routing:
+      type: object
+      properties:
+        instances:
+          type: array
+          items:
+            type: string
+        kind:
+          type: string
+          enum:
+          - static
+          - bound
+          - alias
+      required:
+      - instances
     Service:
       type: object
       properties:
@@ -850,8 +865,18 @@ components:
             $ref: "#/components/schemas/Instance"
         name:
           type: string
+        priority:
+          type: array
+          items:
+            type: string
+            enum:
+            - static
+            - bound
+            - alias
         publication:
           $ref: "#/components/schemas/Publication"
+        routing:
+          $ref: "#/components/schemas/Routing"
         state:
           type: string
           enum:

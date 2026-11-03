@@ -60,10 +60,11 @@ class ListServices implements Runnable {
               + (service.isCore() ? "  (Core Service)" : ""));
       for (Dashboard.Instance instance : service.instances()) {
         out.printf(
-            "    %-13s  %-8s  %s%s%n",
+            "    %-13s  %-8s  %s%s%s%n",
             instance.address(),
             instance.health(),
             instance.id(),
+            service.routes(instance) ? "  routed" : "",
             instance.outOfRange() ? "  out of range" : "");
       }
     }

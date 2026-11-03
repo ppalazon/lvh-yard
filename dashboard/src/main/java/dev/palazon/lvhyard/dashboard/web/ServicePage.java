@@ -6,9 +6,11 @@ import dev.palazon.lvhyard.dashboard.reachability.Reachability;
 import dev.palazon.lvhyard.dashboard.reachability.RouteReachability;
 import dev.palazon.lvhyard.dashboard.services.ContainerBinding;
 import dev.palazon.lvhyard.dashboard.services.Instance;
+import dev.palazon.lvhyard.dashboard.services.InstanceKind;
 import dev.palazon.lvhyard.dashboard.services.Scope;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import dev.palazon.lvhyard.dashboard.services.ServiceWarning;
+import java.util.List;
 import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
 import org.xmlet.htmlapifaster.EnumTypeInputType;
@@ -482,11 +484,37 @@ final class ServicePage {
     } else {
       routedBy = ".";
     }
-    div.p()
+    div.div()
+        .p()
         .text("Published at ")
         .of(p -> ServiceViews.hostname(p, service))
         .text(", with " + scopeLabel(service) + " Scope" + routedBy)
+        .__()
+        .of(texts -> {
+          if (service.routing() != null) {
+            texts.p().attrClass("text-muted-foreground").text(routing(service)).__();
+          }
+        })
         .__();
+  }
+
+  /** Such as {@code Routing to: Static (Bound waiting)}. */
+  private static String routing(Service service) {
+    if (service.routing().kind() == null) {
+      return "Routing to: every Instance, as none is passing.";
+    }
+    List<String> waiting = service.waitingKinds().stream().map(ServicePage::kindLabel).toList();
+    return "Routing to: "
+        + kindLabel(service.routing().kind())
+        + (waiting.isEmpty() ? "" : " (" + String.join(", ", waiting) + " waiting)");
+  }
+
+  private static String kindLabel(InstanceKind kind) {
+    return switch (kind) {
+      case STATIC -> "Static";
+      case BOUND -> "Bound";
+      case ALIAS -> "Alias";
+    };
   }
 
   private static String scopeLabel(Service service) {
