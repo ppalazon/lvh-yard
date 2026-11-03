@@ -59,6 +59,8 @@ public class YardReader {
 
   private final OutOfRange outOfRange;
 
+  private final AliasKeys aliasKeys;
+
   /**
    * When another Workstation is not asked: after two reads in a row found it unreachable, for the
    * unreachable pause. Then one read tries it again, and the Workstation shows again by itself once
@@ -73,12 +75,14 @@ public class YardReader {
       Publications publications,
       ContainerBindings containerBindings,
       OutOfRange outOfRange,
+      AliasKeys aliasKeys,
       ConsulSettings consulSettings) {
     this.workstation = workstation;
     this.consul = consul;
     this.publications = publications;
     this.containerBindings = containerBindings;
     this.outOfRange = outOfRange;
+    this.aliasKeys = aliasKeys;
     this.breakers =
         CircuitBreakerRegistry.of(
             CircuitBreakerConfig.custom()
@@ -136,14 +140,7 @@ public class YardReader {
       HomeWorkstation home =
           new HomeWorkstation(
               workstation.name(),
-              withAliases(
-                  own,
-                  (target, service) ->
-                      others.stream()
-                          .filter(other -> other.name().equals(target))
-                          .flatMap(other -> other.services().stream())
-                          .filter(candidate -> candidate.name().equals(service))
-                          .findFirst()));
+              withAliases(own, (target, service) -> Yard.remoteService(others, target, service)));
       return new Yard(home, others);
     }
   }
@@ -184,10 +181,10 @@ public class YardReader {
     if (services.stream().noneMatch(Service::published)) {
       return services;
     }
-    Map<String, Aliases.Target> aliases = Aliases.targets(consul);
+    Map<String, AliasKeys.Target> aliases = aliasKeys.targets();
     return services.stream()
         .map(service -> {
-          Aliases.Target alias = aliases.get(service.name());
+          AliasKeys.Target alias = aliases.get(service.name());
           if (alias == null || service.hostname() == null) {
             return service;
           }
@@ -202,7 +199,8 @@ public class YardReader {
 
   /**
    * Any fault reading it means no Alias fallback, so it never breaks this Workstation's own
-   * Services.
+   * Services. The read goes through the other Workstation's circuit breaker, so one that is
+   * switched off does not slow this Workstation's own answers for long.
    */
   private Optional<Service> aliasTarget(String remote, String service) {
     if (workstation.is(remote)) {

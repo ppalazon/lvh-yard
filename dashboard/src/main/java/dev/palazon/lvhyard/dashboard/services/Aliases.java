@@ -1,31 +1,23 @@
 package dev.palazon.lvhyard.dashboard.services;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
-import dev.palazon.lvhyard.dashboard.consul.Consul;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.TreeMap;
 import org.springframework.stereotype.Component;
 
-/**
- * One Consul KV key per Alias, holding {@code <workstation>/<service>}. No other Workstation reads
- * them, so an Alias never changes what others see.
- */
+/** Aliases never change what other Workstations see, as no other Workstation reads them. */
 @Component
 public class Aliases {
 
-  private static final String PREFIX = "lvh-yard/aliases/";
-
   private final Workstation workstation;
 
-  private final Consul consul;
+  private final AliasKeys keys;
 
   private final YardReader yard;
 
-  Aliases(Workstation workstation, Consul consul, YardReader yard) {
+  Aliases(Workstation workstation, AliasKeys keys, YardReader yard) {
     this.workstation = workstation;
-    this.consul = consul;
+    this.keys = keys;
     this.yard = yard;
   }
 
@@ -47,7 +39,7 @@ public class Aliases {
     if (yard.service(home, service).isEmpty()) {
       throw new UnknownServiceException(home, service);
     }
-    consul.putValue(PREFIX + name, home + "/" + service);
+    keys.put(name, new AliasKeys.Target(home, service));
     return of(yard.routableYard()).stream()
         .filter(alias -> alias.name().equals(name))
         .findFirst()
@@ -55,10 +47,10 @@ public class Aliases {
   }
 
   public void remove(String name) {
-    if (!consul.values(null, PREFIX).containsKey(PREFIX + name)) {
+    if (!keys.contains(name)) {
       throw new UnknownAliasException(name);
     }
-    consul.deleteValue(PREFIX + name);
+    keys.delete(name);
   }
 
   /**
@@ -69,27 +61,11 @@ public class Aliases {
   }
 
   public List<Alias> of(Yard yard) {
-    return targets(consul).entrySet().stream()
+    return keys.targets().entrySet().stream()
         .map(entry ->
             alias(entry.getKey(), entry.getValue().workstation(), entry.getValue().service(), yard))
         .toList();
   }
-
-  /** The Remote Service of each Alias of this Workstation, by the Alias's name. */
-  static Map<String, Target> targets(Consul consul) {
-    Map<String, Target> targets = new TreeMap<>();
-    consul
-        .values(null, PREFIX)
-        .forEach((key, value) -> {
-          String[] target = value.split("/", 2);
-          targets.put(
-              key.substring(PREFIX.length()),
-              new Target(target[0], target.length < 2 ? "" : target[1]));
-        });
-    return targets;
-  }
-
-  record Target(String workstation, String service) {}
 
   /**
    * A published Service of this Workstation with the same name takes the hostname. The Alias is
@@ -101,11 +77,7 @@ public class Aliases {
     String reason;
     Optional<YardWorkstation> remote =
         yard.remotes().stream().filter(candidate -> candidate.name().equals(home)).findFirst();
-    Optional<Service> target =
-        remote.stream()
-            .flatMap(found -> found.services().stream())
-            .filter(candidate -> candidate.name().equals(service))
-            .findFirst();
+    Optional<Service> target = yard.remoteService(home, service);
     Optional<Service> own =
         yard.home().services().stream()
             .filter(candidate -> candidate.name().equals(name) && candidate.published())

@@ -45,6 +45,10 @@ class RemoteServicesTest extends DashboardTest {
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
     String api = newServiceName("api");
     remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
+    remote.publish(api, "yard");
+    publish(web);
+    // The Alias makes this Workstation's own Service read the Remote Service as its fallback.
+    put(AliasesTest.aliasPath(web), Map.of("workstation", RemoteWorkstation.NAME, "service", api));
 
     remote.stopAnswering();
     try {
@@ -61,6 +65,11 @@ class RemoteServicesTest extends DashboardTest {
       await()
           .atMost(Duration.ofSeconds(30))
           .until(() -> answerTime("/api/yard"), time -> time.compareTo(Duration.ofSeconds(1)) < 0);
+      for (String own : List.of("/api/workstation/services", servicePath(web))) {
+        await()
+            .atMost(Duration.ofSeconds(30))
+            .until(() -> answerTime(own), time -> time.compareTo(Duration.ofSeconds(1)) < 0);
+      }
       assertThat(serviceNames(yard.get("home"))).contains(web);
       ResponseEntity<JsonNode> one = get("/api/services/" + RemoteWorkstation.NAME + "/" + api);
       assertThat(one.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
