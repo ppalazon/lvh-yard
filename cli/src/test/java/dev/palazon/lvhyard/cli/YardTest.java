@@ -1484,6 +1484,96 @@ class YardTest {
         .contains("\"dashboard\": {");
   }
 
+  @Test
+  void initUpgradeMovesOnlyTheThreeImagesToThisVersions(@TempDir Path dir) throws Exception {
+    yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a");
+    String current = Files.readString(dir.resolve("compose.yaml"));
+    String consul = imageOf(current, "hashicorp/consul:");
+    String traefik = imageOf(current, "traefik:");
+    String dashboard = imageOf(current, "${YARD_DASHBOARD_IMAGE:-");
+    String oldDashboard = "${YARD_DASHBOARD_IMAGE:-ghcr.io/ppalazon/lvh-yard-dashboard:0.1.0}";
+    // An older release's file, edited by hand.
+    String old =
+        current
+            .replace(consul, "hashicorp/consul:1.0.0")
+            .replace(traefik, "traefik:v3.0.0  # pinned by me")
+            .replace(dashboard, oldDashboard)
+            .replace("services:", "services:\n  # my own note");
+    Files.writeString(dir.resolve("compose.yaml"), old);
+    Files.writeString(dir.resolve(".env"), "YARD_WORKSTATION=mine\n");
+    Files.writeString(dir.resolve("route-profiles.yaml"), "# mine\n");
+
+    Run run = yardAsTyped("init", "--dir", dir.toString(), "--upgrade");
+
+    assertThat(run.exitCode()).as(run.err()).isZero();
+    assertThat(Files.readString(dir.resolve("compose.yaml")))
+        .isEqualTo(
+            current
+                .replace(traefik, traefik + "  # pinned by me")
+                .replace("services:", "services:\n  # my own note"));
+    assertThat(Files.readString(dir.resolve(".env"))).isEqualTo("YARD_WORKSTATION=mine\n");
+    assertThat(Files.readString(dir.resolve("route-profiles.yaml"))).isEqualTo("# mine\n");
+    assertThat(run.out())
+        .contains("consul: hashicorp/consul:1.0.0 -> " + consul)
+        .contains("traefik: traefik:v3.0.0 -> " + traefik)
+        .contains("dashboard: " + oldDashboard + " -> " + dashboard);
+  }
+
+  @Test
+  void initUpgradeReportsAMissingImageLineAndLeavesTheFileAsItIs(@TempDir Path dir)
+      throws Exception {
+    yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a");
+    String current = Files.readString(dir.resolve("compose.yaml"));
+    String old =
+        current
+            .replace(imageOf(current, "hashicorp/consul:"), "hashicorp/consul:1.0.0")
+            .replace("    image: " + imageOf(current, "traefik:"), "    # image: mine");
+    Files.writeString(dir.resolve("compose.yaml"), old);
+
+    Run run = yardAsTyped("init", "--dir", dir.toString(), "--upgrade");
+
+    assertThat(run.exitCode()).isEqualTo(1);
+    assertThat(run.err())
+        .contains(dir.resolve("compose.yaml") + " has no image: line for traefik")
+        .contains("nothing was changed");
+    assertThat(Files.readString(dir.resolve("compose.yaml"))).isEqualTo(old);
+  }
+
+  @Test
+  void initUpgradeWithoutAComposeFileSaysToRunInitFirst(@TempDir Path dir) {
+    Run run = yardAsTyped("init", "--dir", dir.toString(), "--upgrade");
+
+    assertThat(run.exitCode()).isEqualTo(1);
+    assertThat(run.err())
+        .contains(dir.resolve("compose.yaml") + " does not exist")
+        .contains("lvh-yard init");
+    assertThat(dir.resolve("compose.yaml")).doesNotExist();
+  }
+
+  @Test
+  void initUpgradeAndForceCannotBeCombined(@TempDir Path dir) {
+    Run run =
+        yardAsTyped(
+            "init", "--dir", dir.toString(), "--workstation", "ws-a", "--upgrade", "--force");
+
+    assertThat(run.exitCode()).isEqualTo(2);
+    assertThat(run.err()).contains("--force, --upgrade are mutually exclusive");
+    assertThat(dir.resolve("compose.yaml")).doesNotExist();
+  }
+
+  /**
+   * The value of the first {@code image:} line in {@code compose} that starts with {@code prefix}.
+   */
+  private static String imageOf(String compose, String prefix) {
+    return compose
+        .lines()
+        .map(String::strip)
+        .filter(line -> line.startsWith("image: " + prefix))
+        .map(line -> line.substring("image: ".length()))
+        .findFirst()
+        .orElseThrow();
+  }
+
   private void answerWebWithBindings(String bindings) {
     dashboard.answer(
         "GET",

@@ -6,8 +6,8 @@
 
 **Status:** ready-for-agent
 
-- [ ] Only the `image:` values of the three services change; every other line stays byte for byte
-- [ ] `.env` and `route-profiles.yaml` are untouched
-- [ ] Each changed image is printed, from and to
-- [ ] An image line that is not found is reported, and that file is left as it is
-- [ ] `--upgrade`, `--reinit` and `--force` cannot be combined
+- [x] Only the `image:` values of the three services change; every other line stays byte for byte
+- [x] `.env` and `route-profiles.yaml` are untouched
+- [x] Each changed image is printed, from and to
+- [x] An image line that is not found is reported, and that file is left as it is
+- [x] `--upgrade`, `--reinit` and `--force` cannot be combined

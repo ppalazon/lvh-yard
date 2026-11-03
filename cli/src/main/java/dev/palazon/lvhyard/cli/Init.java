@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermissions;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
+import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
@@ -79,8 +81,23 @@ class Init implements Runnable {
       description = "The Yard's base domain, the same on every Workstation. Default: lvh.me.")
   String baseDomain;
 
-  @Option(names = "--force", description = "Overwrite the files when they exist.")
-  boolean force;
+  /** What to do with files already there. At most one: picocli refuses a second (exit 2). */
+  @ArgGroup(exclusive = true, multiplicity = "0..1")
+  Mode mode = new Mode();
+
+  /** The ways to change files already there; a new one is one more option here. */
+  static class Mode {
+
+    @Option(names = "--force", description = "Overwrite the files when they exist.")
+    boolean force;
+
+    @Option(
+        names = "--upgrade",
+        description =
+            "Move the consul, traefik and dashboard images in the existing compose.yaml to this"
+                + " version's, and change nothing else.")
+    boolean upgrade;
+  }
 
   /** The socket whose group the dashboard needs to read Docker. Hidden: a test points it away. */
   @Option(names = "--docker-socket", hidden = true, defaultValue = "/var/run/docker.sock")
@@ -88,9 +105,16 @@ class Init implements Runnable {
 
   @Spec CommandSpec spec;
 
+  /** The services whose images {@code --upgrade} moves to this version's. */
+  private static final List<String> UPGRADED = List.of("consul", "traefik", "dashboard");
+
   @Override
   public void run() {
     Path folder = dir != null ? dir : ConfigFolder.standard(System.getenv());
+    if (mode.upgrade) {
+      upgrade(folder);
+      return;
+    }
     String name = required(workstation, "--workstation");
     if (!WORKSTATION.matcher(name).matches()) {
       throw usage(
@@ -142,6 +166,56 @@ class Init implements Runnable {
             + " lvh-yard init --gossip-key.");
     out.println();
     out.print(nextSteps(folder, env));
+    out.flush();
+  }
+
+  /**
+   * Moves the images of {@link #UPGRADED} in {@code folder}'s {@code compose.yaml} to the
+   * template's, by line. When one has no {@code image:} line, the file is left as it is.
+   */
+  private void upgrade(Path folder) {
+    Path file = folder.resolve(Templates.COMPOSE);
+    String text;
+    try {
+      text = Files.readString(file);
+    } catch (NoSuchFileException e) {
+      throw new YardException(
+          file + " does not exist: nothing to upgrade. Write it first with lvh-yard init.");
+    } catch (IOException e) {
+      throw new YardException("Could not read " + file + ": " + e.getMessage());
+    }
+    ComposeImages compose = ComposeImages.parse(text);
+    List<String> missing = compose.missing(UPGRADED);
+    if (!missing.isEmpty()) {
+      throw new YardException(
+          file
+              + " has no image: line for "
+              + String.join(", ", missing)
+              + ": nothing was changed. Change its images by hand.");
+    }
+    ComposeImages template = ComposeImages.parse(Templates.compose());
+    PrintWriter out = spec.commandLine().getOut();
+    for (String service : UPGRADED) {
+      String from = compose.image(service).orElseThrow();
+      String to = template.image(service).orElseThrow();
+      if (from.equals(to)) {
+        out.println(service + ": " + to + ", already this version's");
+      } else {
+        compose.setImage(service, to);
+        out.println(service + ": " + from + " -> " + to);
+      }
+    }
+    try {
+      Files.writeString(file, compose.text());
+    } catch (IOException e) {
+      throw new YardException("Could not write " + file + ": " + e.getMessage());
+    }
+    out.println(
+        "Upgraded "
+            + file
+            + "; .env and route-profiles.yaml are untouched. Start the new images: cd "
+            + folder
+            + " && docker compose up -d");
     out.flush();
   }
 
@@ -234,7 +308,7 @@ class Init implements Runnable {
    * any already exists. {@code .env} is readable by its owner only: it holds the gossip key.
    */
   private void write(Path folder, Map<String, String> files) {
-    if (!force) {
+    if (!mode.force) {
       List<String> existing =
           files.keySet().stream()
               .filter(name -> Files.exists(folder.resolve(name)))
@@ -252,7 +326,7 @@ class Init implements Runnable {
       Files.createDirectories(folder);
       for (Map.Entry<String, String> file : files.entrySet()) {
         current = folder.resolve(file.getKey());
-        if (force) {
+        if (mode.force) {
           Files.writeString(current, file.getValue());
         } else {
           Files.writeString(current, file.getValue(), StandardOpenOption.CREATE_NEW);
