@@ -1358,6 +1358,61 @@ class YardTest {
   }
 
   @Test
+  void initInATerminalAsksForTheWorkstationAndThePeers(@TempDir Path dir) throws Exception {
+    Run run = yardAtTerminal("ws-a\n10.0.0.2 10.0.0.3\n", "init", "--dir", dir.toString());
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).contains("Workstation name", "Peers");
+    assertThat(env(dir)).contains("YARD_WORKSTATION=ws-a", "YARD_PEERS=10.0.0.2 10.0.0.3");
+  }
+
+  @Test
+  void initInATerminalExplainsAnInvalidWorkstationNameAndAsksAgain(@TempDir Path dir)
+      throws Exception {
+    Run run = yardAtTerminal("WS_A\n\nws-a\n\n", "init", "--dir", dir.toString());
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).contains("WS_A is not a Workstation name", "A Workstation needs a name");
+    assertThat(run.out().split("Workstation name, unique", -1)).hasSize(4);
+    assertThat(env(dir)).contains("YARD_WORKSTATION=ws-a");
+  }
+
+  @Test
+  void initInATerminalAcceptsNoPeersForTheFirstWorkstation(@TempDir Path dir) throws Exception {
+    Run run = yardAtTerminal("ws-a\n\n", "init", "--dir", dir.toString());
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(env(dir)).contains("YARD_PEERS=");
+  }
+
+  @Test
+  void initInATerminalAsksOnlyForWhatNoFlagGave(@TempDir Path dir) throws Exception {
+    Run run =
+        yardAtTerminal("", "init", "--dir", dir.toString(), "--workstation", "ws-a", "--peers", "");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).doesNotContain("Workstation name", "Peers:");
+  }
+
+  @Test
+  void initWithoutATerminalNeverAsks(@TempDir Path dir) throws Exception {
+    Run run = yardProcess(Map.of(), "init", "--dir", dir.toString(), "--workstation", "ws-a");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).doesNotContain("Workstation name", "Peers:");
+    assertThat(env(dir)).contains("YARD_PEERS=");
+  }
+
+  @Test
+  void initInATerminalWhoseInputEndsNamesTheFlag(@TempDir Path dir) throws Exception {
+    Run run = yardAtTerminal("", "init", "--dir", dir.toString());
+
+    assertThat(run.exitCode()).isEqualTo(2);
+    assertThat(run.err()).contains("Missing --workstation");
+    assertThat(dir).isEmptyDirectory();
+  }
+
+  @Test
   void initMakesANewGossipKeyAndSaysToShareIt(@TempDir Path dir) throws Exception {
     Run run = yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a");
 
@@ -1557,6 +1612,22 @@ class YardTest {
         .removeIf(name -> name.startsWith("YARD_") || name.equals("XDG_CONFIG_HOME"));
     builder.environment().putAll(environment);
     return run(builder);
+  }
+
+  /**
+   * Runs {@code lvh-yard} in a process of its own as if at a terminal, with {@code answers} typed
+   * in.
+   */
+  private static Run yardAtTerminal(String answers, String... args) throws Exception {
+    List<String> withTerminal = new ArrayList<>(List.of(args));
+    withTerminal.add("--terminal");
+    Process process = new ProcessBuilder(command(withTerminal.toArray(String[]::new))).start();
+    try (var in = process.getOutputStream()) {
+      in.write(answers.getBytes(StandardCharsets.UTF_8));
+    }
+    String out = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+    String err = new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
+    return new Run(process.waitFor(), out, err);
   }
 
   /**

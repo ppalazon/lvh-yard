@@ -4,9 +4,9 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] With a terminal attached, `init` prompts for each missing value that has a flag
-- [ ] An invalid Workstation name is explained and asked again
-- [ ] Empty peers are accepted (the first Workstation of a Yard)
-- [ ] Without a terminal, no prompt is ever shown
+- [x] With a terminal attached, `init` prompts for each missing value that has a flag
+- [x] An invalid Workstation name is explained and asked again
+- [x] Empty peers are accepted (the first Workstation of a Yard)
+- [x] Without a terminal, no prompt is ever shown
