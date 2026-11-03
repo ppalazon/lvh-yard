@@ -158,6 +158,18 @@ class ServicePageTest extends DashboardTest {
   }
 
   @Test
+  void emptyInstancePriorityIsRefused() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+    publish(web);
+
+    ResponseEntity<String> response =
+        postForm("/services/ws-test/" + web + "/publish", Map.of("priority", " "));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+  }
+
+  @Test
   void unknownScopeIsRefused() {
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));

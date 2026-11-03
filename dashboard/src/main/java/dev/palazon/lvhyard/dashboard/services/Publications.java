@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.function.Function;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
@@ -61,11 +62,18 @@ public class Publications {
     Publication existing = all().get(service);
     Publication chosen =
         new Publication(
-            scope != null ? scope : existing == null ? Scope.LOCAL : existing.scope(),
-            kinds != null
-                ? kinds
-                : existing == null ? InstanceKind.DEFAULT_PRIORITY : existing.priority());
+            given(scope, existing, Publication::scope, Scope.LOCAL),
+            given(kinds, existing, Publication::priority, InstanceKind.DEFAULT_PRIORITY));
     consul.putValue(PREFIX + service, value(chosen));
+  }
+
+  /** {@code given} when there is one, else what {@code existing} has, else {@code fallback}. */
+  private static <T> T given(
+      T given, Publication existing, Function<Publication, T> kept, T fallback) {
+    if (given != null) {
+      return given;
+    }
+    return existing == null ? fallback : kept.apply(existing);
   }
 
   /**
@@ -89,7 +97,7 @@ public class Publications {
     StoredPublication stored = JSON.readValue(value, StoredPublication.class);
     try {
       return new Publication(Scope.of(stored.scope()), InstanceKind.priority(stored.priority()));
-    } catch (InvalidRegistrationException e) {
+    } catch (InvalidPriorityException e) {
       // A fault in the stored data, not a refusal of what someone asked.
       throw new IllegalStateException(e.getMessage(), e);
     }

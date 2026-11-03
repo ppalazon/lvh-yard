@@ -6,6 +6,7 @@ import dev.palazon.lvhyard.dashboard.services.Aliases;
 import dev.palazon.lvhyard.dashboard.services.ContainerBindings;
 import dev.palazon.lvhyard.dashboard.services.CoreServiceException;
 import dev.palazon.lvhyard.dashboard.services.Instance;
+import dev.palazon.lvhyard.dashboard.services.InvalidPriorityException;
 import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
 import dev.palazon.lvhyard.dashboard.services.Publications;
 import dev.palazon.lvhyard.dashboard.services.Registrations;
@@ -25,6 +26,7 @@ import dev.palazon.lvhyard.dashboard.services.YardReader;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -270,14 +272,23 @@ class PagesController {
                     new ResponseStatusException(
                         HttpStatus.BAD_REQUEST, "The Scope is local or yard, not " + scope + "."));
     try {
-      publications.publish(
-          home, service, chosen, priority == null ? null : List.of(priority.split(",", -1)));
+      publications.publish(home, service, chosen, kinds(priority));
     } catch (UnknownServiceException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
-    } catch (InvalidRegistrationException e) {
+    } catch (InvalidRegistrationException | InvalidPriorityException e) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
     }
     return seeOther(ServicePage.path(home, service));
+  }
+
+  /** Blank text names no kind, so it is refused as an empty order, not as an unknown kind. */
+  private static List<String> kinds(String priority) {
+    if (priority == null) {
+      return null;
+    }
+    return priority.isBlank()
+        ? List.of()
+        : Arrays.stream(priority.split(",", -1)).map(String::strip).toList();
   }
 
   /** Shows the Catalog when the Service had no Instances left. */

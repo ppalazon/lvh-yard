@@ -45,8 +45,8 @@ public enum InstanceKind {
     return List.copyOf(kinds);
   }
 
-  private static InvalidRegistrationException invalidPriority(String message) {
-    return new InvalidRegistrationException("priority", message);
+  private static InvalidPriorityException invalidPriority(String message) {
+    return new InvalidPriorityException(message);
   }
 
   @JsonValue
