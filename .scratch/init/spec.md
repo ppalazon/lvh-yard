@@ -1,6 +1,6 @@
 # Set up a Workstation with lvh-yard init
 
-Status: ready-for-agent
+Status: done
 
 Words follow `GLOSSARY.md`. Decisions follow ADR-0001 (one Consul datacenter per Workstation) and ADR-0002 (Traefik reads its Routes from LVH Yard). System packages (`.deb`, `.rpm`, AUR, Homebrew) are not built in this repository.
 

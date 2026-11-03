@@ -13,21 +13,50 @@ on `127.0.0.1:80`, and the dashboard, which gives Traefik its Routes
 
 ## Requirements
 
-- JDK 25 (the build selects it through a Maven toolchain)
-- Docker with Compose, for Consul and Traefik
-- [mise](https://mise.jdx.dev/), for the tasks and Node (Tailwind CSS)
+- Docker with Compose, for Consul, Traefik and the dashboard
+- To develop: JDK 25 (the build selects it through a Maven toolchain) and
+  [mise](https://mise.jdx.dev/), for the tasks and Node (Tailwind CSS)
 
 ## Running on a Workstation
 
-1. Copy `.env.example` to `.env`, and set `YARD_WORKSTATION`, `YARD_GOSSIP_KEY`
-   and `YARD_PEERS`.
-2. `mise run up` starts Consul and Traefik.
-3. `mise run dashboard` starts the dashboard. Open
-   [yard.lvh.me](http://yard.lvh.me), or `127.0.0.1:7780` when Traefik is down.
-   The catalog lists the Core Services, with their Health: `yard` (the
-   dashboard), `consul` ([consul.lvh.me](http://consul.lvh.me)) and `traefik`
-   ([traefik.lvh.me](http://traefik.lvh.me)). The dashboard registers them on
-   every start.
+You need Docker and the `lvh-yard` executable. You need no Java and no copy of
+this repository.
+
+1. Download `lvh-yard` and put it on your `PATH`, as [The CLI](#the-cli) shows.
+2. Run `lvh-yard init`. It writes `compose.yaml`, `.env` and
+   `route-profiles.yaml` to `~/.config/lvh-yard`, or to
+   `$XDG_CONFIG_HOME/lvh-yard` when that is set. `--dir` picks another folder.
+   It asks for this Workstation's name and for its peers: the other
+   Workstations' LAN addresses. You can give them as flags instead:
+
+   ```sh
+   lvh-yard init --workstation ws-a                                          # the first Workstation of a Yard
+   lvh-yard init --workstation ws-b --peers 192.168.1.10 --gossip-key <key>  # the next ones
+   ```
+
+   The first run makes the Yard's gossip key and prints it. Every Workstation
+   needs the same key. Give it to the next one with `--gossip-key`.
+
+3. Start this Workstation: `cd ~/.config/lvh-yard && docker compose up -d`. This
+   starts Consul, Traefik and the dashboard.
+4. Check that everything runs: `lvh-yard status`.
+
+Then open [yard.lvh.me](http://yard.lvh.me), or `127.0.0.1:7780` when Traefik
+is down. The catalog lists the Core Services, with their Health: `yard` (the
+dashboard), `consul` ([consul.lvh.me](http://consul.lvh.me)) and `traefik`
+([traefik.lvh.me](http://traefik.lvh.me)). The dashboard registers them on
+every start.
+
+`lvh-yard init` never overwrites a file; `--force` does. After you install a new
+`lvh-yard` version, two flags change the files already there:
+
+- `lvh-yard init --upgrade` moves the consul, traefik and dashboard images in
+  `compose.yaml` to this version's. It changes nothing else. Then run
+  `docker compose up -d` again.
+- `lvh-yard init --reinit` writes `compose.yaml` and `.env` again from this
+  version's templates. It keeps the values of the old `.env`. A flag given with
+  it replaces an old value. The old files stay as `<file>.<yyyyMMdd-HHmmss>.bak`.
+  `route-profiles.yaml` is left as it is.
 
 The other Workstations must reach this one's Consul server and serf WAN ports
 (8300, and 8302 over TCP and UDP).
@@ -46,18 +75,31 @@ Traefik's own admin page is at `127.0.0.1:8080/dashboard/`, and its ping at
 
 ### The dashboard from its image
 
-A Workstation without Java can run the dashboard from its image,
-`ghcr.io/ppalazon/lvh-yard-dashboard`, next to Consul and Traefik. Add
-`COMPOSE_PROFILES=dashboard` to `.env`, and set `YARD_DOCKER_GID` to the group
-that owns the Docker socket (`stat -c %g /var/run/docker.sock`). The dashboard
-runs as `YARD_UID` and `YARD_GID`, 1000 by default, not root, with that group
-added to read the socket. Then `docker compose up -d` starts all
-three. Set `YARD_DASHBOARD_IMAGE` to pin a version, such as
-`ghcr.io/ppalazon/lvh-yard-dashboard:0.1.0`. `docker compose build dashboard`
-builds the image from this repository instead.
+The folder that `lvh-yard init` writes runs the dashboard from its image,
+`ghcr.io/ppalazon/lvh-yard-dashboard`, next to Consul and Traefik. The image's
+tag is this `lvh-yard`'s version. `init` sets `COMPOSE_PROFILES=dashboard` in
+`.env`. It also sets `YARD_DOCKER_GID` to the group that owns the Docker socket
+(`stat -c %g /var/run/docker.sock`). The dashboard runs as `YARD_UID` and
+`YARD_GID`, your user and group, not root. That group is added so it can read
+the socket.
 
 The dashboard uses host networking and this Workstation's Docker socket. On
 Docker Desktop, turn on host networking in its settings.
+
+### From the sources
+
+To work on LVH Yard itself, run it from this repository:
+
+1. Copy `.env.example` to `.env`, and set `YARD_WORKSTATION`, `YARD_GOSSIP_KEY`
+   and `YARD_PEERS`.
+2. `mise run up` starts Consul and Traefik.
+3. `mise run dashboard` starts the dashboard from the sources.
+
+To run the dashboard from its image here too, add `COMPOSE_PROFILES=dashboard`
+and `YARD_DOCKER_GID` to `.env`, then run `docker compose up -d`. Set
+`YARD_DASHBOARD_IMAGE` to pin a version, such as
+`ghcr.io/ppalazon/lvh-yard-dashboard:0.1.0`. `docker compose build dashboard`
+builds the image from this repository.
 
 ## A Yard on one computer
 
@@ -98,8 +140,9 @@ mise run native
 ```
 
 `lvh-yard` talks to the dashboard on this Workstation, at `--dashboard`, else
-`YARD_DASHBOARD_URL`, else `http://127.0.0.1:7780`. It sees the whole Yard, but
-changes only this Workstation's Services:
+`YARD_DASHBOARD_URL`, else the address in the `.env` that `init` wrote (in
+`YARD_CONFIG_DIR`, else the default folder), else `http://127.0.0.1:7780`. It
+sees the whole Yard, but changes only this Workstation's Services:
 
 ```sh
 lvh-yard list                               # every Service by Workstation, this one first: state, hostname, Instances, Health

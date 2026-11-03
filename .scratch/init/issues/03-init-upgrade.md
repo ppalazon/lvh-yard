@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] Only the `image:` values of the three services change; every other line stays byte for byte
 - [x] `.env` and `route-profiles.yaml` are untouched

@@ -4,11 +4,11 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `compose.yaml` and `.env` are renamed to `<file>.<yyyyMMdd-HHmmss>.bak` before the new ones are written
-- [ ] Every `KEY=value` of the old `.env` whose key exists in the new template is carried over
-- [ ] New settings take their default
-- [ ] Old keys that no longer exist are kept at the end, commented, under a note
-- [ ] `route-profiles.yaml` is untouched
-- [ ] The backups are named in the output
+- [x] `compose.yaml` and `.env` are renamed to `<file>.<yyyyMMdd-HHmmss>.bak` before the new ones are written
+- [x] Every `KEY=value` of the old `.env` whose key exists in the new template is carried over
+- [x] New settings take their default
+- [x] Old keys that no longer exist are kept at the end, commented, under a note
+- [x] `route-profiles.yaml` is untouched
+- [x] The backups are named in the output
