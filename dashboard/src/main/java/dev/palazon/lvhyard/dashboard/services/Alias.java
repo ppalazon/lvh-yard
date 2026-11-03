@@ -23,7 +23,16 @@ public record Alias(
     /** Yard Scope, but no Instance this Workstation can reach. */
     UNAVAILABLE,
 
-    /** A published Service of this Workstation has the same name, and its Route wins. */
+    /**
+     * A published Service of this Workstation has the same name. Its Route uses the Remote Service
+     * only when none of its own Instances passes.
+     */
+    FALLBACK,
+
+    /**
+     * A published Service of this Workstation has the same name, and its Instance Priority leaves
+     * out the Alias.
+     */
     HIDDEN,
 
     /** The Remote Service has no Yard Scope. */

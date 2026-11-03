@@ -43,8 +43,35 @@ public record Service(
         containerBindings,
         ServiceWarning.of(publication, instances),
         publication == null ? null : publication.priority(),
-        routed(hostname, instances) ? Routing.of(publication.priority(), instances) : null,
+        routing(publication, hostname, instances, List.of()),
         core);
+  }
+
+  /**
+   * This Service with {@code aliased}, the Instances of the Remote Service of an active Alias with
+   * its name, as the {@code alias} kind of its Instance Priority.
+   */
+  Service withAlias(List<Instance> aliased) {
+    return new Service(
+        workstation,
+        name,
+        state,
+        publication,
+        hostname,
+        instances,
+        containerBindings,
+        warnings,
+        priority,
+        routing(publication, hostname, instances, aliased),
+        core);
+  }
+
+  private static Routing routing(
+      Publication publication, String hostname, List<Instance> instances, List<Instance> aliased) {
+    if (hostname == null) {
+      return null;
+    }
+    return Routing.of(publication.priority(), instances, aliased).orElse(null);
   }
 
   public boolean sharedWithYard() {
@@ -53,14 +80,11 @@ public record Service(
 
   /**
    * It needs a hostname here, and an Instance in range: a Route to an Out-of-range Instance would
-   * reach this Workstation's own loopback or containers.
+   * reach this Workstation's own loopback or containers. The passing Instances of an Alias with its
+   * name count too.
    */
   public boolean routed() {
-    return routed(hostname, instances);
-  }
-
-  private static boolean routed(String hostname, List<Instance> instances) {
-    return hostname != null && instances.stream().anyMatch(instance -> !instance.outOfRange());
+    return routing != null;
   }
 
   /** Whatever the Health of its Instances. */
@@ -73,14 +97,6 @@ public record Service(
    * kind its Route uses now.
    */
   public List<InstanceKind> waitingKinds() {
-    if (routing == null) {
-      return List.of();
-    }
-    return priority.stream()
-        .filter(kind -> kind != routing.kind())
-        .filter(kind ->
-            instances.stream()
-                .anyMatch(instance -> !instance.outOfRange() && InstanceKind.of(instance) == kind))
-        .toList();
+    return routing == null ? List.of() : routing.waiting();
   }
 }

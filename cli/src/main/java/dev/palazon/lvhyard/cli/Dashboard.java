@@ -100,8 +100,8 @@ final class Dashboard {
   record YardWorkstation(String name, boolean unreachable, List<Service> services) {}
 
   /**
-   * {@code state} is active, unavailable, hidden, not-shared, unreachable or missing. Only an
-   * active one has a Route.
+   * {@code state} is active, unavailable, fallback, hidden, not-shared, unreachable or missing.
+   * Only an active one has a Route.
    */
   record Alias(
       String name,

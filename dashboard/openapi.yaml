@@ -596,6 +596,7 @@ components:
           enum:
           - active
           - unavailable
+          - fallback
           - hidden
           - not-shared
           - unreachable

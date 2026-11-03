@@ -182,9 +182,16 @@ Instance. While the terminal copy passes its check, `web.<base-domain>` reaches
 only that copy. When you stop it, its check turns critical, and the Route moves
 to the Docker copy. This takes up to about 15 seconds.
 
-If no Instance passes its check, the Route uses every Instance, as before.
-Every Workstation makes the same choice for a Service with Yard Scope. Each one
-leaves out its Out-of-range Instances first.
+An Alias with the same name as the Service comes last. For example, you have an
+Alias `web` to the `web` of a teammate. If none of your own `web` Instances
+passes its check, `web.<base-domain>` reaches your teammate's `web`. Only the
+passing Instances of your teammate's Service are used. This works only on your
+own Workstation, for your short hostname. Other Workstations never use your
+Aliases.
+
+If no Instance passes its check, the Route uses every one of your own
+Instances, as before. Every Workstation makes the same choice for a Service
+with Yard Scope. Each one leaves out its Out-of-range Instances first.
 
 To change the order for one Service, give the kinds in the order you want:
 
@@ -254,7 +261,11 @@ gets a Route. These are the states of an Alias:
 
 - `active`: routed to the Instances of the Remote Service
 - `unavailable`: the Remote Service has no Instance in range here
-- `hidden`: a published Service of this Workstation has the same name
+- `fallback`: a published Service of this Workstation has the same name. Its
+  Route uses the Alias only when none of its own Instances passes. The reason
+  says if the Alias is in use now.
+- `hidden`: a published Service of this Workstation has the same name, and its
+  Instance Priority leaves out the Alias
 - `not-shared`: the Remote Service is unpublished or has Local Scope
 - `unreachable`: its Workstation does not answer
 - `missing`: the Remote Service or its Workstation is gone

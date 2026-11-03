@@ -4,10 +4,10 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] On the Home Workstation's own short hostname, the `alias` kind uses the active Alias's Remote Service's passing, in-range Instances
-- [ ] An Alias with no same-named Service works as before
-- [ ] Other Workstations never use this Workstation's Aliases
-- [ ] The Aliases page and `lvh-yard alias list` show an Alias acting as a fallback
-- [ ] Tested with the two-datacenter Yard
+- [x] On the Home Workstation's own short hostname, the `alias` kind uses the active Alias's Remote Service's passing, in-range Instances
+- [x] An Alias with no same-named Service works as before
+- [x] Other Workstations never use this Workstation's Aliases
+- [x] The Aliases page and `lvh-yard alias list` show an Alias acting as a fallback
+- [x] Tested with the two-datacenter Yard

@@ -19,6 +19,7 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -130,28 +131,89 @@ public class YardReader {
               .sorted()
               .map(name -> CompletableFuture.supplyAsync(() -> remote.apply(name), readers))
               .toList();
-      HomeWorkstation home = new HomeWorkstation(workstation.name(), read(workstation.name()));
-      return new Yard(home, remotes.stream().map(CompletableFuture::join).toList());
+      List<Service> own = read(workstation.name());
+      List<YardWorkstation> others = remotes.stream().map(CompletableFuture::join).toList();
+      HomeWorkstation home =
+          new HomeWorkstation(
+              workstation.name(),
+              withAliases(
+                  own,
+                  (target, service) ->
+                      others.stream()
+                          .filter(other -> other.name().equals(target))
+                          .flatMap(other -> other.services().stream())
+                          .filter(candidate -> candidate.name().equals(service))
+                          .findFirst()));
+      return new Yard(home, others);
     }
   }
 
   public List<Service> services(String workstation) {
     checkInYard(workstation);
-    return read(workstation);
+    List<Service> services = read(workstation);
+    return this.workstation.is(workstation) ? withAliases(services, this::aliasTarget) : services;
   }
 
   /** While it has an Instance, a Container Binding or a Publication. */
   public Optional<Service> service(String workstation, String name) {
     checkInYard(workstation);
-    return reading(
-        workstation,
-        datacenter ->
-            service(
-                workstation,
-                datacenter,
-                name,
-                publications.all(datacenter).get(name),
-                containerBindings.all(datacenter).getOrDefault(name, Map.of())));
+    Optional<Service> service =
+        reading(
+            workstation,
+            datacenter ->
+                service(
+                    workstation,
+                    datacenter,
+                    name,
+                    publications.all(datacenter).get(name),
+                    containerBindings.all(datacenter).getOrDefault(name, Map.of())));
+    return this.workstation.is(workstation)
+        ? service.map(found -> withAliases(List.of(found), this::aliasTarget).getFirst())
+        : service;
+  }
+
+  /**
+   * Gives each of this Workstation's {@code services} the Instances of an active Alias with its
+   * name, as the {@code alias} kind of its Instance Priority. Only this Workstation's own Aliases
+   * count, so no other Workstation's Route depends on them.
+   *
+   * @param remoteService finds a Remote Service by its Workstation and name
+   */
+  private List<Service> withAliases(
+      List<Service> services, BiFunction<String, String, Optional<Service>> remoteService) {
+    if (services.stream().noneMatch(Service::published)) {
+      return services;
+    }
+    Map<String, Aliases.Target> aliases = Aliases.targets(consul);
+    return services.stream()
+        .map(service -> {
+          Aliases.Target alias = aliases.get(service.name());
+          if (alias == null || service.hostname() == null) {
+            return service;
+          }
+          return remoteService
+              .apply(alias.workstation(), alias.service())
+              .filter(Service::sharedWithYard)
+              .map(target -> service.withAlias(target.instances()))
+              .orElse(service);
+        })
+        .toList();
+  }
+
+  /**
+   * Any fault reading it means no Alias fallback, so it never breaks this Workstation's own
+   * Services.
+   */
+  private Optional<Service> aliasTarget(String remote, String service) {
+    if (workstation.is(remote)) {
+      return Optional.empty();
+    }
+    try {
+      return service(remote, service);
+    } catch (RuntimeException fault) {
+      LOG.debug("No Alias fallback to {} of {}", service, remote, fault);
+      return Optional.empty();
+    }
   }
 
   private YardWorkstation remote(String workstation) {

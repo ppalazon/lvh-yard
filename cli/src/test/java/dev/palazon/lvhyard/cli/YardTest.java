@@ -1236,8 +1236,8 @@ class YardTest {
         200,
         """
         [{"name": "db", "workstation": "ws-b", "service": "postgres", "hostname": "db.lvh.me",
-          "state": "hidden",
-          "reason": "Hidden: this Workstation's Service db is published at the same hostname, and wins."},
+          "state": "fallback",
+          "reason": "The last fallback for this Workstation's Service db: used when none of its Instances passes."},
          {"name": "grafana", "workstation": "ws-b", "service": "grafana", "hostname": "grafana.lvh.me",
           "state": "active"}]
         """);
@@ -1247,8 +1247,9 @@ class YardTest {
     assertThat(run.exitCode()).isZero();
     assertThat(run.lines())
         .containsExactly(
-            "db.lvh.me: postgres on ws-b, hidden",
-            "  Hidden: this Workstation's Service db is published at the same hostname, and wins.",
+            "db.lvh.me: postgres on ws-b, fallback",
+            "  The last fallback for this Workstation's Service db: used when none of its Instances"
+                + " passes.",
             "grafana.lvh.me: grafana on ws-b, active");
   }
 

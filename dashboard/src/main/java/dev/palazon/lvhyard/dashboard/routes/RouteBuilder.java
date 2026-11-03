@@ -44,8 +44,7 @@ final class RouteBuilder {
         .filter(dev.palazon.lvhyard.dashboard.services.Service::routed)
         .forEach(service -> {
           List<Server> servers =
-              service.instances().stream()
-                  .filter(service.routing()::routes)
+              service.routing().servers().stream()
                   .map(instance -> new Server("http://" + instance.address()))
                   .toList();
           String name = name(workstation, service);
