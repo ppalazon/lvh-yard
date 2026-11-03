@@ -4,9 +4,9 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Order: `--dashboard`, `YARD_DASHBOARD_URL`, the `.env` in `YARD_CONFIG_DIR` or the default config folder, `http://127.0.0.1:7780`
-- [ ] A bind address of `0.0.0.0` is read as `127.0.0.1`
-- [ ] A missing or unreadable `.env` falls through to the default
-- [ ] `--help` shows the order
+- [x] Order: `--dashboard`, `YARD_DASHBOARD_URL`, the `.env` in `YARD_CONFIG_DIR` or the default config folder, `http://127.0.0.1:7780`
+- [x] A bind address of `0.0.0.0` is read as `127.0.0.1`
+- [x] A missing or unreadable `.env` falls through to the default
+- [x] `--help` shows the order
