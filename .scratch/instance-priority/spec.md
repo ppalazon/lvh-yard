@@ -1,6 +1,6 @@
 # Instance Priority: prefer the copy you are working on
 
-Status: done
+Status: ready-for-agent
 
 Words follow `GLOSSARY.md` (Instance Priority, Static Instance, Bound Instance, Alias, Out-of-range Instance). Decisions follow ADR-0005 (Instance Priority, by Instance kind, chosen from Health) and ADR-0002.
 
@@ -11,6 +11,8 @@ A user runs `web` in Docker, bound to the Service `web`, and reaches it at `web.
 ## Solution
 
 Each Publication has an Instance Priority: an order of Instance kinds, by default Static, then Bound, then Alias. The Route uses only the first kind that has an Instance with passing Health, and only those passing Instances. When the terminal copy stops and its check turns critical, the Route moves to the Docker copy, then to the teammate's Service through the Alias. The order can be changed per Service in the CLI and on the Service page, and the page shows which kind the Route uses now.
+
+A user can also turn the Instance Priority off for a Service. Then the Route uses every passing Static and Bound Instance of that Service together.
 
 ## User Stories
 
@@ -36,6 +38,15 @@ Each Publication has an Instance Priority: an order of Instance kinds, by defaul
 20. As a user, I want a Reachability test to say which Instances the Route uses now, so that I can tell a skipped Instance from a broken one.
 21. As a user, I want every Instance to have at least a check, so that fallback always works; a Static Instance and a Bound Instance already get a TCP check by default.
 22. As a user, I want the order kept when the last Instance of a kind goes away and comes back, so that I set it once.
+23. As a user, I want to turn the Instance Priority off for a Service, so that my Static and Bound Instances share the requests.
+24. As a user, I want `lvh-yard publish web --priority off` to turn it off, so that I can do it from the terminal.
+25. As a user, I want `--priority` with kinds to turn it on again, so that I can go back to an order.
+26. As a user, I want only my passing Instances routed while it is off, so that a stopped copy gets no requests.
+27. As a user, I want every in-range Instance routed if none passes while it is off, so that it behaves as an Unhealthy Service.
+28. As a user, I want a same-named Alias hidden while it is off, so that off never sends my requests to a teammate.
+29. As a user, I want to turn it off and on from the Service page, so that I can do it with the mouse.
+30. As a user, I want the Service page to show "Routing to: every passing Instance (Instance Priority off)", so that I know it is off.
+31. As a user, I want `lvh-yard publish web` without `--priority` to keep it off, so that publishing again does not turn it on.
 
 ## Implementation Decisions
 
@@ -47,13 +58,16 @@ Each Publication has an Instance Priority: an order of Instance kinds, by defaul
 - API: `PublicationRequest` gains `priority` (array of kinds, optional; absent keeps the current one). The Service model gains `priority` and `routing` (the kind in use, or none, and the Instance IDs it routes to). Documented in `openapi.yaml`.
 - CLI: `publish --priority <kinds>`; `list` marks routed Instances.
 - Page: the Service page shows the order with move up/down and remove controls, and the routing line.
+- Off is an empty order: `priority: []` in the API and in the stored Publication. The CLI word `off` sends `[]`. An empty order means "no preference", so the API no longer refuses it. With an empty order, the Static and Bound Instances form one group. The same Health rule picks from that group. The `alias` kind is never used. The Service model's `routing` has no `kind` while off. Off is stored as JSON, like any order other than the default. So older Workstations cannot read it.
+- To turn it on again, the user gives an order. The page's "Use an order" control sends the default order. The CLI takes `--priority` with kinds.
 
 ## Testing Decisions
 
 - A good test checks only what a user could see: API answers, the Traefik configuration the dashboard serves, pages, CLI output.
 - Seam 1, the dashboard, with real Consul and Docker from Testcontainers. Tests register Static and Bound Instances with checks that pass or fail (a listener the test opens and closes), then read the Traefik configuration: the preferred kind only; fallback when it turns critical; back again; all passing Instances of a kind; no passing Instance routes all; a custom order; a kind left out; the Alias fallback with the two-datacenter Yard; Out-of-range Instances skipped on the remote Workstation; the default order on a Publication written before this feature.
 - One end-to-end test with a real Traefik: a hostname reaches the Static Instance, then the Bound one after the Static one stops.
-- Seam 2, the CLI, with the stub dashboard: `--priority` sent and kept, refused orders, `list` marks.
+- Seam 1 also covers off. A passing Static and a passing Bound Instance share the Route. A critical Instance leaves it. With no passing Instance, the Route uses all. A same-named Alias stays hidden. Publishing again keeps off.
+- Seam 2, the CLI, with the stub dashboard: `--priority` sent and kept, refused orders, `list` marks, `--priority off` sends `[]`.
 - The OpenAPI test covers the new fields.
 - Prior art: the Traefik configuration test, the aliases test, the health checks test and the reachability test.
 
