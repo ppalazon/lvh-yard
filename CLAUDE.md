@@ -19,3 +19,11 @@ Run `mise run check` before committing. To try a change across Workstations, `mi
 ### Docs
 
 When a change affects how people install or use LVH Yard, update `docs/user-guide.md`. When it affects building, testing or releasing, update `docs/development.md`. The maintainer writes `README.md` by hand, so leave it to them.
+
+### Writing
+
+Write all text in simple English: CLI help, messages, page text, API docs, docs, code comments and configuration comments. Use short sentences, active voice, and the condition before the command.
+
+- CLI and page text says only what a thing does, in one short line.
+- A code comment says only what the code cannot: why, a hidden rule, or a value the type does not show.
+- Text that users see names `docker compose` and `lvh-yard` commands, never `mise` tasks, because Workstations run LVH Yard without this repo.
