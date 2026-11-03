@@ -26,6 +26,11 @@ class ApiProblems extends ResponseEntityExceptionHandler {
   }
 
   @ExceptionHandler
+  ProblemDetail coreService(CoreServiceException exception) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+  }
+
+  @ExceptionHandler
   ProblemDetail unknownState(UnknownStateException exception) {
     return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
   }

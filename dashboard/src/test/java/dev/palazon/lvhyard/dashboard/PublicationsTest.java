@@ -225,12 +225,4 @@ class PublicationsTest extends DashboardTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
   }
-
-  @Test
-  void publishingYardIsRefused() {
-    ResponseEntity<JsonNode> response = put(publicationPath("yard"));
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(response.getBody().get("detail").asString()).contains("taken by the dashboard");
-  }
 }

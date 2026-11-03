@@ -62,7 +62,7 @@ class AliasesPageTest extends DashboardTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody())
-        .contains("taken by the dashboard")
+        .contains("taken by a Core Service")
         .contains("aria-invalid=\"true\"")
         .contains("value=\"yard\"");
   }

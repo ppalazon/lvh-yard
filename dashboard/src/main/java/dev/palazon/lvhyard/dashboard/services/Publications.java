@@ -31,10 +31,20 @@ public class Publications {
   /**
    * Publishes {@code service} of {@code workstation}, which must be this one, with {@code scope}.
    * With no Scope, a new Publication gets Local Scope and one that exists keeps its own, so
-   * publishing again changes nothing.
+   * publishing again changes nothing. A Core Service keeps Local Scope.
    */
   public void publish(String workstation, String service, Scope scope) {
     checkHome(workstation);
+    if (CoreServices.NAMES.contains(service)) {
+      if (scope == Scope.YARD) {
+        throw new CoreServiceException(
+            service
+                + " is a Core Service, so it keeps Local Scope: its Instance is on loopback, so"
+                + " other Workstations could not reach it.");
+      }
+      keepCorePublication(service);
+      return;
+    }
     Registrations.checkName(service);
     checkExists(service);
     Scope chosen = scope;
@@ -46,21 +56,26 @@ public class Publications {
   }
 
   /**
-   * Publishes the Core Service {@code service} with Local Scope, unless it has a Publication
-   * already. No name rule applies: a Core Service's name is kept for it.
+   * Publishes the Core Service {@code service} with Local Scope, unless it has that already. One
+   * with Yard Scope, from before Yard Scope was refused, is put back to Local. No name rule
+   * applies: a Core Service's name is kept for it.
    */
   void keepCorePublication(String service) {
-    if (!all().containsKey(service)) {
+    Publication existing = all().get(service);
+    if (existing == null || existing.scope() != Scope.LOCAL) {
       consul.putValue(PREFIX + service, Scope.LOCAL.value());
     }
   }
 
   /**
    * Removes the Publication of {@code service} of {@code workstation}, which must be this one, if
-   * it has one.
+   * it has one. A Core Service cannot be unpublished.
    */
   public void unpublish(String workstation, String service) {
     checkHome(workstation);
+    if (CoreServices.NAMES.contains(service)) {
+      throw CoreServiceException.cannotBe(service, "unpublished");
+    }
     checkExists(service);
     consul.deleteValue(PREFIX + service);
   }

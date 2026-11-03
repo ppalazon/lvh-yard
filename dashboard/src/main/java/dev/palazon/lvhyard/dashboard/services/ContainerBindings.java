@@ -156,6 +156,9 @@ public class ContainerBindings {
    */
   public void remove(String workstation, String service, String id) {
     checkHome(workstation);
+    if (CoreServices.NAMES.contains(service)) {
+      throw CoreServiceException.cannotBe(service, "unbound");
+    }
     String key = PREFIX + service + "/" + id;
     if (!consul.values(null, PREFIX + service + "/").containsKey(key)) {
       throw new UnknownContainerBindingException(service, id);

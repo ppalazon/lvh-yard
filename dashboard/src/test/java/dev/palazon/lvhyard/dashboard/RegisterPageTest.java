@@ -64,7 +64,7 @@ class RegisterPageTest extends DashboardTest {
         postForm("/register", Map.of("name", "yard", "host", "", "port", "8080"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(response.getBody()).contains("taken by the dashboard");
+    assertThat(response.getBody()).contains("taken by a Core Service");
   }
 
   @Test

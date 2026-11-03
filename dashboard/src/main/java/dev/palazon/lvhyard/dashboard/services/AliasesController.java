@@ -48,7 +48,8 @@ class AliasesController {
   @ApiResponse(
       responseCode = "400",
       description =
-          "The name is not a single DNS label or is yard, or the" + " Workstation is this one")
+          "The name is not a single DNS label or is a Core Service's (yard, consul or traefik), or"
+              + " the Workstation is this one")
   @ApiResponse(
       responseCode = "404",
       description =

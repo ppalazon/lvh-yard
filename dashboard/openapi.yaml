@@ -3,7 +3,9 @@ info:
   description: "The Workstations and Services of the Yard, read only, the Static Instances\
     \ and Publications of this Workstation's Services, and this Workstation's Aliases.\
     \ A Remote Service can be changed only on its Home Workstation, so a change asked\
-    \ under /api/services is refused with 405."
+    \ under /api/services is refused with 405. A Core Service (yard, consul or traefik)\
+    \ is kept by LVH Yard, so removing or editing its Instances, unpublishing it or\
+    \ giving it Yard Scope is refused with 409."
   title: LVH Yard
 servers:
 - url: /
@@ -205,8 +207,8 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: "The name is not a single DNS label or is yard, or the Workstation\
-            \ is this one"
+          description: "The name is not a single DNS label or is a Core Service's\
+            \ (yard, consul or traefik), or the Workstation is this one"
         "404":
           content:
             application/problem+json:
@@ -297,9 +299,10 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: "The name is not a single DNS label or is yard, neither or\
-            \ both of a container and a Compose service are given, a name is not one\
-            \ Docker or Compose allows, or the port is missing or not a TCP port"
+          description: "The name is not a single DNS label or is a Core Service's\
+            \ (yard, consul or traefik), neither or both of a container and a Compose\
+            \ service are given, a name is not one Docker or Compose allows, or the\
+            \ port is missing or not a TCP port"
       summary: "Binds a Service to a Docker container by its name, or to a Compose\
         \ project and service, and a container port"
       tags:
@@ -328,6 +331,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: The Service has no Container Binding with this ID
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: The Service is a Core Service
       summary: "Removes a Container Binding, and its Bound Instances"
       tags:
       - workstation-services-controller
@@ -361,10 +370,11 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: "The name is not a single DNS label or is yard. The host is\
-            \ not an IP address or a hostname, the port is missing or not a TCP port,\
-            \ the check is not http or tcp or has a bad path, interval or timeout,\
-            \ or a tag or a meta key breaks its rules"
+          description: "The name is not a single DNS label or is a Core Service's\
+            \ (yard, consul or traefik). The host is not an IP address or a hostname,\
+            \ the port is missing or not a TCP port, the check is not http or tcp\
+            \ or has a bad path, interval or timeout, or a tag or a meta key breaks\
+            \ its rules"
       summary: "Registers a Static Instance; with no host, at this Workstation's LAN\
         \ address"
       tags:
@@ -392,6 +402,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: The Service has no Static Instance with this ID
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "The Instance is a Core Service's, which LVH Yard keeps"
       summary: Removes a Static Instance; a Service with nothing left leaves the Catalog
       tags:
       - workstation-services-controller
@@ -439,6 +455,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: The Service has no Static Instance with this ID
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "The Instance is a Core Service's, which LVH Yard keeps"
       summary: "Edits a Static Instance, which stays the same Instance"
       tags:
       - workstation-services-controller
@@ -461,6 +483,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: This Workstation has no Service of this name
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: The Service is a Core Service
       summary: "Unpublishes a Service, which keeps every Instance registered"
       tags:
       - workstation-services-controller
@@ -494,14 +522,21 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: "The name is not a single DNS label or is yard, or the Scope\
-            \ is not local or yard"
+          description: "The name is not a single DNS label or is a Core Service's\
+            \ (yard, consul or traefik), or the Scope is not local or yard"
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: This Workstation has no Service of this name
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "The Service is a Core Service and the Scope is yard: its Instance\
+            \ is on loopback, so other Workstations could not reach it"
       summary: "Publishes a Service at <service>.<base-domain>, or changes its Scope"
       tags:
       - workstation-services-controller

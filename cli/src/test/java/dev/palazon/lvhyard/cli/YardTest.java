@@ -1074,6 +1074,63 @@ class YardTest {
   }
 
   @Test
+  void removingACoreInstancePrintsTheReasonAndExitsWith1() {
+    dashboard.answer(
+        "DELETE",
+        "/api/workstation/services/consul/instances/lvh-yard-core-consul",
+        409,
+        coreRefusal("consul is a Core Service: it cannot be removed."));
+
+    Run run = yard("remove", "consul", "--id", "lvh-yard-core-consul");
+
+    assertThat(run.exitCode()).isEqualTo(1);
+    assertThat(run.out()).isEmpty();
+    assertThat(run.err()).isEqualTo("consul is a Core Service: it cannot be removed.\n");
+  }
+
+  @Test
+  void unpublishingACoreServicePrintsTheReasonAndExitsWith1() {
+    dashboard.answer(
+        "DELETE",
+        "/api/workstation/services/yard/publication",
+        409,
+        coreRefusal("yard is a Core Service: it cannot be unpublished."));
+
+    Run run = yard("unpublish", "yard");
+
+    assertThat(run.exitCode()).isEqualTo(1);
+    assertThat(run.out()).isEmpty();
+    assertThat(run.err()).isEqualTo("yard is a Core Service: it cannot be unpublished.\n");
+  }
+
+  @Test
+  void yardScopeForACoreServicePrintsTheReasonAndExitsWith1() {
+    dashboard.answer(
+        "PUT",
+        "/api/workstation/services/traefik/publication",
+        409,
+        coreRefusal(
+            "traefik is a Core Service, so it keeps Local Scope: its Instance is on"
+                + " loopback."));
+
+    Run run = yard("publish", "traefik", "--scope", "yard");
+
+    assertThat(run.exitCode()).isEqualTo(1);
+    assertThat(run.out()).isEmpty();
+    assertThat(run.err())
+        .isEqualTo(
+            "traefik is a Core Service, so it keeps Local Scope: its Instance is on loopback.\n");
+  }
+
+  /** The dashboard's answer to a change to a Core Service, with {@code detail}. */
+  private static String coreRefusal(String detail) {
+    return """
+    {"type": "about:blank", "title": "Conflict", "status": 409, "detail": "%s"}
+    """
+        .formatted(detail);
+  }
+
+  @Test
   void refusalIsPrintedWithItsReason() {
     dashboard.answer(
         "POST",

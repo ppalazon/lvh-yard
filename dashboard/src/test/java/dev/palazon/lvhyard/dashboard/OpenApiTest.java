@@ -78,6 +78,20 @@ class OpenApiTest extends DashboardTest {
   }
 
   @Test
+  void changesToACoreServiceAreRefusedWithProblemDetails() {
+    JsonNode paths = get("/v3/api-docs").getBody().get("paths");
+    String instance = "/api/workstation/services/{service}/instances/{id}";
+    String binding = "/api/workstation/services/{service}/container-bindings/{id}";
+    String publication = "/api/workstation/services/{service}/publication";
+
+    assertThat(answersWithProblem(paths, instance, "delete", "409")).isTrue();
+    assertThat(answersWithProblem(paths, instance, "put", "409")).isTrue();
+    assertThat(answersWithProblem(paths, binding, "delete", "409")).isTrue();
+    assertThat(answersWithProblem(paths, publication, "put", "409")).isTrue();
+    assertThat(answersWithProblem(paths, publication, "delete", "409")).isTrue();
+  }
+
+  @Test
   void servicesAndInstancesSayWhetherTheyAreCore() {
     JsonNode schemas = get("/v3/api-docs").getBody().get("components").get("schemas");
 

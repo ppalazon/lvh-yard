@@ -4,6 +4,7 @@ import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.reachability.ReachabilityTester;
 import dev.palazon.lvhyard.dashboard.services.Aliases;
 import dev.palazon.lvhyard.dashboard.services.ContainerBindings;
+import dev.palazon.lvhyard.dashboard.services.CoreServiceException;
 import dev.palazon.lvhyard.dashboard.services.Instance;
 import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
 import dev.palazon.lvhyard.dashboard.services.Publications;
@@ -196,8 +197,15 @@ class PagesController {
                   workstation, found, instance, fields, registrations.defaultHost(), error));
     } catch (UnknownInstanceException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+    } catch (CoreServiceException e) {
+      throw refused(e);
     }
     return seeOther(ServicePage.path(found));
+  }
+
+  /** A change to a Core Service, refused with its reason. */
+  private static ResponseStatusException refused(CoreServiceException e) {
+    return new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage(), e);
   }
 
   /**
@@ -235,6 +243,8 @@ class PagesController {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
     } catch (RemoteServiceException e) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage(), e);
+    } catch (CoreServiceException e) {
+      throw refused(e);
     }
     return seeOther(yard.service(home, service).map(ServicePage::path).orElse("/"));
   }
@@ -254,6 +264,8 @@ class PagesController {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
     } catch (RemoteServiceException e) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage(), e);
+    } catch (CoreServiceException e) {
+      throw refused(e);
     }
     return seeOther(yard.service(home, service).map(ServicePage::path).orElse("/"));
   }
@@ -282,6 +294,8 @@ class PagesController {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
     } catch (RemoteServiceException e) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage(), e);
+    } catch (CoreServiceException e) {
+      throw refused(e);
     }
     return seeOther(ServicePage.path(home, service));
   }
@@ -298,6 +312,8 @@ class PagesController {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
     } catch (RemoteServiceException e) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage(), e);
+    } catch (CoreServiceException e) {
+      throw refused(e);
     }
     return seeOther(yard.service(home, service).map(ServicePage::path).orElse("/"));
   }

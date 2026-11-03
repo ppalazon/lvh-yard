@@ -11,7 +11,10 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import tools.jackson.databind.JsonNode;
 
@@ -103,6 +106,15 @@ class CoreServicesTest extends DashboardTest {
     assertThat(consul.get("instances").get(0).get("port").asInt()).isEqualTo(remote.consulPort());
     assertCheck(consul.get("instances").get(0), "/v1/status/leader");
     assertThat(remote.service("traefik").getBody().get("publication").get("scope").asString())
+        .isEqualTo("local");
+  }
+
+  @Test
+  void startingAgainGivesACoreServiceWithYardScopeLocalScope() {
+    remote.whileDashboardIsStopped(
+        () -> remote.putConsulValue("lvh-yard/publications/consul", "yard"));
+
+    assertThat(remote.service("consul").getBody().get("publication").get("scope").asString())
         .isEqualTo("local");
   }
 
@@ -212,6 +224,128 @@ class CoreServicesTest extends DashboardTest {
         .contains("Core Service");
   }
 
+  @Test
+  void removingACoreInstanceIsRefusedWithAReason() {
+    String id = get(servicePath("consul")).getBody().get("instances").get(0).get("id").asString();
+
+    ResponseEntity<JsonNode> response = delete(instancesPath("consul") + "/" + id);
+
+    assertRefused(response, "Core Service");
+    assertThat(get(servicePath("consul")).getBody().get("instances")).hasSize(1);
+  }
+
+  @Test
+  void editingACoreInstanceIsRefusedWithAReason() {
+    JsonNode before = get(servicePath("traefik")).getBody().get("instances").get(0);
+
+    ResponseEntity<JsonNode> response =
+        put(
+            instancesPath("traefik") + "/" + before.get("id").asString(),
+            Map.of("host", "127.0.0.1", "port", 9999));
+
+    assertRefused(response, "Core Service");
+    assertThat(get(servicePath("traefik")).getBody().get("instances").get(0).get("port").asInt())
+        .isEqualTo(before.get("port").asInt());
+  }
+
+  @Test
+  void unpublishingACoreServiceIsRefusedWithAReason() {
+    ResponseEntity<JsonNode> response = delete(publicationPath("yard"));
+
+    assertRefused(response, "Core Service");
+    assertThat(get(servicePath("yard")).getBody().get("publication").get("scope").asString())
+        .isEqualTo("local");
+  }
+
+  @Test
+  void yardScopeForACoreServiceIsRefusedBecauseItsInstanceIsOnLoopback() {
+    ResponseEntity<JsonNode> response = put(publicationPath("consul"), Map.of("scope", "yard"));
+
+    assertRefused(response, "loopback");
+    assertThat(response.getBody().get("detail").asString()).contains("other Workstations");
+    assertThat(get(servicePath("consul")).getBody().get("publication").get("scope").asString())
+        .isEqualTo("local");
+  }
+
+  @Test
+  void publishingACoreServiceWithLocalScopeChangesNothing() {
+    ResponseEntity<JsonNode> response = put(publicationPath("yard"), Map.of("scope", "local"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody().get("publication").get("scope").asString()).isEqualTo("local");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"yard", "consul", "traefik"})
+  void registeringAnInstanceUnderACoreServiceNameIsRefused(String name) {
+    ResponseEntity<JsonNode> response = post(instancesPath(name), Map.of("port", 8080));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getBody().get("detail").asString()).contains(name).contains("Core Service");
+    assertThat(get(servicePath(name)).getBody().get("instances")).hasSize(1);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"yard", "consul", "traefik"})
+  void bindingAContainerToACoreServiceIsRefused(String name) {
+    ResponseEntity<JsonNode> response =
+        post(containerBindingsPath(name), Map.of("container", "web", "port", 80));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getBody().get("detail").asString()).contains("Core Service");
+  }
+
+  @Test
+  void removingAContainerBindingOfACoreServiceIsRefusedWithAReason() {
+    ResponseEntity<JsonNode> response = delete(containerBindingsPath("consul") + "/any");
+
+    assertRefused(response, "Core Service");
+  }
+
+  @Test
+  void aliasCannotTakeACoreServiceName() {
+    ResponseEntity<JsonNode> response =
+        put(
+            "/api/workstation/aliases/traefik",
+            Map.of("workstation", RemoteWorkstation.NAME, "service", "consul"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getBody().get("detail").asString()).contains("Core Service");
+  }
+
+  @Test
+  void coreServicePageHidesTheRemoveUnpublishAndScopeControls() {
+    String page = getPage("/services/" + WORKSTATION + "/consul").getBody();
+
+    String content = page.substring(page.indexOf("<main"));
+    // Its one form is the Reachability test's, which only reads.
+    assertThat(content).doesNotContain("method=\"post\"").doesNotContain("/edit\"");
+    assertThat(content.split("<form", -1)).hasSize(2);
+    assertThat(content)
+        .doesNotContain("Unpublish")
+        .doesNotContain("Share with the Yard")
+        .doesNotContain(">Remove<");
+  }
+
+  @Test
+  void coreServicePageFormsAreRefusedWithAReason() {
+    String id = get(servicePath("yard")).getBody().get("instances").get(0).get("id").asString();
+    String service = "/services/" + WORKSTATION + "/yard";
+
+    assertThat(postForm(service + "/instances/" + id + "/remove", Map.of()).getStatusCode())
+        .isEqualTo(HttpStatus.CONFLICT);
+    assertThat(postForm(service + "/unpublish", Map.of()).getStatusCode())
+        .isEqualTo(HttpStatus.CONFLICT);
+    assertThat(postForm(service + "/publish", Map.of("scope", "yard")).getStatusCode())
+        .isEqualTo(HttpStatus.CONFLICT);
+    assertThat(
+            postForm(service + "/instances/" + id + "/edit", Map.of("port", "9999"))
+                .getStatusCode())
+        .isEqualTo(HttpStatus.CONFLICT);
+    assertThat(get(servicePath("yard")).getBody().get("instances").get(0).get("port").asInt())
+        .isEqualTo(port);
+  }
+
   /** The catalog's first row for {@code service} of {@code workstation}. */
   private static String rowOf(String page, String workstation, String service) {
     int link = page.indexOf("href=\"/services/" + workstation + "/" + service + "\"");
@@ -222,6 +356,14 @@ class CoreServicesTest extends DashboardTest {
   /** The ID of the remote Workstation's Instance of the Core Service {@code service}. */
   private String coreInstanceId(String service) {
     return remote.service(service).getBody().get("instances").get(0).get("id").asString();
+  }
+
+  /** {@code response} refuses a change to a Core Service, with a detail that has {@code reason}. */
+  private static void assertRefused(ResponseEntity<JsonNode> response, String reason) {
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(response.getHeaders().getContentType())
+        .hasToString(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
+    assertThat(response.getBody().get("detail").asString()).contains(reason);
   }
 
   static void assertCheck(JsonNode instance, String path) {

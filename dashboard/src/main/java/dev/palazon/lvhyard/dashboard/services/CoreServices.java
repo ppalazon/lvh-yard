@@ -26,6 +26,16 @@ public class CoreServices implements SmartLifecycle {
   /** The names of the Core Services, which no other Service can take. */
   public static final Set<String> NAMES = Set.of(Workstation.RESERVED_NAME, "consul", "traefik");
 
+  /** What the Core Service {@code name} is, in words: "the dashboard" for {@code yard}. */
+  static String what(String name) {
+    return switch (name) {
+      case Workstation.RESERVED_NAME -> "the dashboard";
+      case "consul" -> "Consul's web page";
+      case "traefik" -> "Traefik's admin page";
+      default -> throw new IllegalArgumentException(name + " is not a Core Service");
+    };
+  }
+
   private static final Logger LOG = LoggerFactory.getLogger(CoreServices.class);
 
   /** How long to wait before trying a Consul that does not answer again. */

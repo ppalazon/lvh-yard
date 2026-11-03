@@ -101,7 +101,7 @@ final class ServicePage {
                                 .attrClass("flex flex-wrap items-center justify-between gap-4")
                                 .of(div -> publication(div, workstation, service, own))
                                 .of(div -> {
-                                  if (own) {
+                                  if (own && !service.core()) {
                                     publicationForms(div, service);
                                   }
                                 })
@@ -163,7 +163,8 @@ final class ServicePage {
                                                 .of(cell -> InstanceViews.checks(cell, instance))
                                                 .__()
                                                 .of(row -> {
-                                                  if (own && instance.bound()) {
+                                                  if (own
+                                                      && (instance.bound() || instance.core())) {
                                                     row.td().__();
                                                   } else if (own) {
                                                     actions(row, service, instance);

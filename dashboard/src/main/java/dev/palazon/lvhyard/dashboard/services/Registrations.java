@@ -131,7 +131,7 @@ public class Registrations {
   public Instance edit(
       String workstation, String service, String id, StaticInstanceRequest request) {
     checkHome(workstation);
-    staticInstance(service, id);
+    checkNotCore(staticInstance(service, id), "edited");
     StaticInstanceRequest checked = checked(request);
     Optional<String> other =
         staticInstanceAt(service, checked.host(), checked.port())
@@ -364,8 +364,15 @@ public class Registrations {
    */
   public void remove(String workstation, String service, String id) {
     checkHome(workstation);
-    staticInstance(service, id);
+    checkNotCore(staticInstance(service, id), "removed");
     consul.deregister(id);
+  }
+
+  /** Refuses {@code change} to {@code registration} when it is a Core Instance. */
+  private static void checkNotCore(AgentService registration, String change) {
+    if ("true".equals(registration.meta().get(CORE))) {
+      throw CoreServiceException.cannotBe(registration.name(), change);
+    }
   }
 
   /** The registration of the Static Instance {@code id} of {@code service}, which must be there. */
@@ -414,14 +421,14 @@ public class Registrations {
     }
   }
 
-  /** Refuses a Service name that is not a single DNS label, or is the dashboard's own. */
+  /** Refuses a Service name that is not a single DNS label, or is a Core Service's. */
   static void checkName(String service) {
     checkName("Service", service);
   }
 
   /**
-   * Refuses the name of a {@code kind}, such as an Alias, that is not a single DNS label, or is the
-   * dashboard's own: a Service and an Alias both take a hostname's first part.
+   * Refuses the name of a {@code kind}, such as an Alias, that is not a single DNS label, or is a
+   * Core Service's: a Service and an Alias both take a hostname's first part.
    */
   static void checkName(String kind, String name) {
     if (!DNS_LABEL.matcher(name).matches()) {
@@ -434,15 +441,17 @@ public class Registrations {
               + " is not a single DNS label: use 1 to 63 lowercase letters, digits and -, not"
               + " starting or ending with -.");
     }
-    if (name.equals(Workstation.RESERVED_NAME)) {
+    if (CoreServices.NAMES.contains(name)) {
       throw new InvalidRegistrationException(
           "name",
           "The "
               + kind
               + " name "
-              + Workstation.RESERVED_NAME
-              + " is taken by the dashboard, at "
-              + Workstation.RESERVED_NAME
+              + name
+              + " is taken by a Core Service: LVH Yard keeps "
+              + CoreServices.what(name)
+              + " at "
+              + name
               + ".<base-domain>.");
     }
   }
