@@ -8,11 +8,7 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
-/**
- * {@code lvh-yard status}: how LVH Yard on this Workstation is, part by part, with each part's
- * reason and what was found. It exits with 1 when any part is failing, or with {@code --strict}
- * when any part has a warning too, so a script can wait until LVH Yard is ready.
- */
+/** Exits with 1 on a failing part, so a script can wait until LVH Yard is ready. */
 @Command(
     name = "status",
     mixinStandardHelpOptions = true,
@@ -56,9 +52,6 @@ class Status implements Callable<Integer> {
     return State.of(state).mark;
   }
 
-  /**
-   * A state as the dashboard names it, how it is printed, and whether it makes the command fail.
-   */
   private enum State {
     OK("ok    "),
     WARNING("WARN  "),
@@ -70,7 +63,7 @@ class Status implements Callable<Integer> {
       this.mark = mark;
     }
 
-    /** The state the dashboard calls {@code name}; failing for one this command does not know. */
+    /** An unknown state counts as failing. */
     static State of(String name) {
       return switch (name) {
         case "ok" -> OK;
@@ -79,7 +72,6 @@ class Status implements Callable<Integer> {
       };
     }
 
-    /** Whether the command exits with 1 for this state; a warning only with {@code --strict}. */
     boolean fails(boolean strict) {
       return this == FAILING || (this == WARNING && strict);
     }

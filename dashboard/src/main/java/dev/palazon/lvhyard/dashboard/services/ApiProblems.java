@@ -6,11 +6,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
-/**
- * The REST API answers every error with a Problem Details document (RFC 9457): a broken rule with a
- * detail that explains it, and Spring's own errors, such as a malformed body or an unknown Service,
- * as its base class does.
- */
+/** Every error is a Problem Details document (RFC 9457). */
 @RestControllerAdvice(
     assignableTypes = {
       AliasesController.class,

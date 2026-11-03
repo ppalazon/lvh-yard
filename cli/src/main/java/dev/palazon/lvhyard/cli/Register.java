@@ -11,11 +11,6 @@ import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
-/**
- * {@code lvh-yard register}: a Static Instance of one of this Workstation's Services, or, with
- * {@code --container} or {@code --compose-project} and {@code --compose-service}, a Container
- * Binding.
- */
 @Command(
     name = "register",
     mixinStandardHelpOptions = true,
@@ -187,7 +182,6 @@ class Register implements Runnable {
     spec.commandLine().getOut().flush();
   }
 
-  /** Whether a container's Binding gives its Bound Instance now. */
   private String containerInstance(Dashboard.ContainerBinding binding) {
     return binding.instances().isEmpty()
         ? "No container of that name runs now: "
@@ -196,9 +190,6 @@ class Register implements Runnable {
         : "It runs now, so " + service + " has its Bound Instance.";
   }
 
-  /**
-   * How many Bound Instances a Compose service's Binding gives now, one per container that runs.
-   */
   private String composeInstances(Dashboard.ContainerBinding binding) {
     int running = binding.instances().size();
     if (running == 0) {

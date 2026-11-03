@@ -4,36 +4,25 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.Arrays;
 import java.util.Optional;
 
-/**
- * Who gets a Route for a Publication: only the Home Workstation (Local), or every Workstation of
- * the Yard.
- */
 public enum Scope {
 
-  /** Only the Home Workstation, at {@code <service>.<base-domain>}. */
+  /** At {@code <service>.<base-domain>}. */
   LOCAL,
 
-  /**
-   * Every Workstation of the Yard: the Home Workstation at {@code <service>.<base-domain>}, every
-   * other one at {@code <service>.<workstation>.<base-domain>}.
-   */
+  /** The other Workstations route it at {@code <service>.<workstation>.<base-domain>}. */
   YARD;
 
-  /** The Scope stored as {@code value}. */
   static Scope of(String value) {
     return named(value)
         .orElseThrow(
             () -> new IllegalStateException("A Publication has the unknown Scope " + value + "."));
   }
 
-  /** The Scope whose {@link #value} is {@code value}, such as {@code yard}, if there is one. */
   public static Optional<Scope> named(String value) {
     return Arrays.stream(values()).filter(scope -> scope.value().equals(value)).findFirst();
   }
 
-  /**
-   * The Scope's name in the API and in Consul KV, such as {@code local}; the API reads it back too.
-   */
+  /** Also its value in Consul KV. */
   @JsonValue
   public String value() {
     return name().toLowerCase();

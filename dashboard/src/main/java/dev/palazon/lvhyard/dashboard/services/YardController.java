@@ -5,7 +5,6 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** The Yard, with each Workstation's Services, as JSON, read only. */
 @RestController
 class YardController {
 

@@ -1,8 +1,6 @@
 package dev.palazon.lvhyard.dashboard.services;
 
-/**
- * Another Workstation's Consul datacenter did not answer, so its Services are not known for now.
- */
+/** Its Consul datacenter did not answer, so its Services are not known for now. */
 public class UnreachableWorkstationException extends RuntimeException {
 
   UnreachableWorkstationException(String workstation, Throwable cause) {

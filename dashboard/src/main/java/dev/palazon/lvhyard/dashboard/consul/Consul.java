@@ -21,9 +21,8 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriBuilder;
 
 /**
- * This Workstation's Consul agent, through its HTTP API. Only the calls LVH Yard makes, with
- * Consul's own names; it knows nothing of the Yard's rules. A read can name another datacenter,
- * which the agent forwards it to over WAN federation; {@code null} names the agent's own.
+ * Only the calls LVH Yard makes, with Consul's own names. A read can name another datacenter, which
+ * the agent forwards over WAN federation. {@code null} names the agent's own.
  */
 @Component
 public class Consul {
@@ -51,9 +50,7 @@ public class Consul {
         RestClient.builder().baseUrl(settings.url().toString()).requestFactory(requests).build();
   }
 
-  /**
-   * The datacenters the agent knows of: its own, and every one federated with it, answering or not.
-   */
+  /** Every federated datacenter, answering or not. */
   public List<String> datacenters() {
     List<String> datacenters =
         http.get()
@@ -63,10 +60,7 @@ public class Consul {
     return datacenters == null ? List.of() : datacenters;
   }
 
-  /**
-   * The address of the datacenter's leader, as {@code <ip>:<server-port>}, or empty while it has
-   * none.
-   */
+  /** Empty while the datacenter has no leader. */
   public String leader() {
     String leader = http.get().uri("/v1/status/leader").retrieve().body(String.class);
     return leader == null ? "" : leader.strip().replace("\"", "");
@@ -82,12 +76,12 @@ public class Consul {
     return members == null ? List.of() : members;
   }
 
-  /** The address the agent binds to, which compose.yaml sets to the Workstation's LAN address. */
+  /** compose.yaml sets it to the Workstation's LAN address. */
   public String agentAddress() {
     return http.get().uri("/v1/agent/self").retrieve().body(AgentSelf.class).member().address();
   }
 
-  /** Adds a registration to the agent, or replaces the one with the same ID. */
+  /** Replaces the registration with the same ID. */
   public void register(Registration registration) {
     http.put()
         .uri("/v1/agent/service/register")
@@ -97,14 +91,12 @@ public class Consul {
         .toBodilessEntity();
   }
 
-  /** Every registration on the agent, by ID. */
   public Map<String, AgentService> agentServices() {
     Map<String, AgentService> services =
         http.get().uri("/v1/agent/services").retrieve().body(new ParameterizedTypeReference<>() {});
     return services == null ? Map.of() : services;
   }
 
-  /** The agent's registration with this ID, if it has one. */
   public Optional<AgentService> agentService(String id) {
     return http.get()
         .uri("/v1/agent/service/{id}", id)
@@ -114,7 +106,6 @@ public class Consul {
                 : Optional.ofNullable(response.bodyTo(AgentService.class)));
   }
 
-  /** The agent's checks of its registration {@code id}. */
   public List<CheckStatus> agentChecks(String id) {
     Map<String, CheckStatus> checks =
         http.get().uri("/v1/agent/checks").retrieve().body(new ParameterizedTypeReference<>() {});
@@ -127,7 +118,6 @@ public class Consul {
     http.put().uri("/v1/agent/service/deregister/{id}", id).retrieve().toBodilessEntity();
   }
 
-  /** The names of the Services registered in {@code datacenter}. */
   public List<String> serviceNames(String datacenter) {
     Map<String, List<String>> services =
         http.get()
@@ -137,17 +127,11 @@ public class Consul {
     return services == null ? List.of() : List.copyOf(services.keySet());
   }
 
-  /**
-   * Every registration of a Service in the agent's datacenter, each with its own checks and its
-   * node's.
-   */
+  /** Each registration comes with its own checks and its node's. */
   public List<HealthEntry> health(String service) {
     return health(null, service);
   }
 
-  /**
-   * Every registration of a Service in {@code datacenter}, each with its own checks and its node's.
-   */
   public List<HealthEntry> health(String datacenter, String service) {
     List<HealthEntry> entries =
         http.get()
@@ -157,7 +141,6 @@ public class Consul {
     return entries == null ? List.of() : entries;
   }
 
-  /** Stores {@code value} at {@code key} in the datacenter's KV store, replacing what was there. */
   public void putValue(String key, String value) {
     http.put()
         .uri(builder -> builder.path("/v1/kv/" + key).build())
@@ -167,7 +150,6 @@ public class Consul {
         .toBodilessEntity();
   }
 
-  /** Every value in {@code datacenter}'s KV store whose key starts with {@code prefix}, by key. */
   public Map<String, String> values(String datacenter, String prefix) {
     List<KeyValue> entries =
         http.get()
@@ -184,7 +166,7 @@ public class Consul {
     return values;
   }
 
-  /** Removes {@code key} from the KV store; a key that is not there is no error. */
+  /** A key that is not there is no error. */
   public void deleteValue(String key) {
     http.delete()
         .uri(builder -> builder.path("/v1/kv/" + key).build())
@@ -192,23 +174,18 @@ public class Consul {
         .toBodilessEntity();
   }
 
-  /** Whether {@code registration} is the Consul server's own entry in its catalog. */
   public static boolean isServerItself(AgentService registration) {
     return registration.name().equals(CONSUL_SERVICE) && registration.id().equals(CONSUL_SERVICE);
   }
 
-  /**
-   * The URI {@code builder} holds, asked of {@code datacenter}, or of the agent's own when it is
-   * null.
-   */
+  /** {@code null} asks the agent's own datacenter. */
   private static URI in(String datacenter, UriBuilder builder, Object... variables) {
     return (datacenter == null ? builder : builder.queryParam("dc", datacenter)).build(variables);
   }
 
-  /** A KV entry as Consul gives it back: the value in base64, or null when empty. */
+  /** Consul gives the value in base64, or null when empty. */
   record KeyValue(@JsonProperty("Key") String key, @JsonProperty("Value") String base64) {
 
-    /** The value as text. */
     String value() {
       return base64 == null
           ? ""
@@ -216,14 +193,7 @@ public class Consul {
     }
   }
 
-  /**
-   * A server in the WAN pool.
-   *
-   * @param address its LAN address
-   * @param port its serf WAN port
-   * @param status alive, leaving, left or failed, as Serf says
-   * @param tags its tags, among them {@code dc}, its datacenter
-   */
+  /** {@code status} is alive, leaving, left or failed. The {@code dc} tag is its datacenter. */
   public record WanMember(
       @JsonProperty("Addr") String address,
       @JsonProperty("Port") int port,
@@ -235,7 +205,7 @@ public class Consul {
       tags = tags == null ? Map.of() : tags;
     }
 
-    /** Its datacenter, which is its Workstation's name. */
+    /** The datacenter, which is its Workstation's name. */
     public String datacenter() {
       return tags.getOrDefault("dc", "");
     }
@@ -245,7 +215,7 @@ public class Consul {
     }
   }
 
-  /** A WAN member's state, which Consul sends as Serf's code. */
+  /** Consul sends it as Serf's code. */
   public enum SerfStatus {
     UNKNOWN,
     ALIVE,
@@ -253,14 +223,13 @@ public class Consul {
     LEFT,
     FAILED;
 
-    /** The state of Serf's {@code code}: 1 alive, 2 leaving, 3 left, 4 failed. */
+    /** 1 alive, 2 leaving, 3 left, 4 failed. */
     @JsonCreator
     public static SerfStatus of(int code) {
       SerfStatus[] all = values();
       return code > 0 && code < all.length ? all[code] : UNKNOWN;
     }
 
-    /** The state in words: alive, leaving, left, failed or unknown. */
     @Override
     public String toString() {
       return name().toLowerCase();
@@ -271,7 +240,6 @@ public class Consul {
 
   record Member(@JsonProperty("Addr") String address) {}
 
-  /** What the agent is given to register a Service's Instance. */
   public record Registration(
       @JsonProperty("ID") String id,
       @JsonProperty("Name") String name,
@@ -281,10 +249,7 @@ public class Consul {
       @JsonProperty("Meta") Map<String, String> meta,
       @JsonProperty("Check") Check check) {}
 
-  /**
-   * An HTTP check, which GETs {@code http} and passes on a 2xx answer, or a TCP check, which
-   * connects to {@code tcp}. Consul starts every check as critical until it first passes.
-   */
+  /** Consul starts every check as critical until it first passes. */
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public record Check(
       @JsonProperty("Name") String name,
@@ -293,10 +258,7 @@ public class Consul {
       @JsonProperty("Interval") String interval,
       @JsonProperty("Timeout") String timeout) {}
 
-  /**
-   * A registration as the agent and the catalog give it back. Consul leaves out a port of 0 and
-   * empty meta.
-   */
+  /** Consul leaves out a port of 0 and empty meta. */
   public record AgentService(
       @JsonProperty("ID") String id,
       @JsonProperty("Service") String name,
@@ -317,9 +279,8 @@ public class Consul {
       @JsonProperty("Checks") List<CheckStatus> checks) {}
 
   /**
-   * A check's last result: passing, warning or critical (maintenance is critical too). A node's
-   * check has no service ID, type, interval or timeout; Consul gives the last two as Go durations,
-   * such as {@code 1m30s}.
+   * Maintenance counts as critical. A node's check has no service ID, type, interval or timeout.
+   * Consul gives durations in Go format, such as {@code 1m30s}.
    */
   public record CheckStatus(
       @JsonProperty("Name") String name,

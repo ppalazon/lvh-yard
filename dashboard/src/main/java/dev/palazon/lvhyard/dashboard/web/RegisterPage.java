@@ -9,33 +9,21 @@ import org.xmlet.htmlapifaster.EnumTypeButtonType;
 import org.xmlet.htmlapifaster.EnumTypeInputType;
 import org.xmlet.htmlapifaster.Form;
 
-/**
- * The Register form, which adds a Static Instance of a Service on this Workstation, or binds the
- * Service to a Docker container by its name or to a Compose service.
- */
 final class RegisterPage {
 
   static final String PATH = "/register";
 
-  /** The {@code kind} that adds a Static Instance, the default. */
+  /** The default {@code kind}. */
   static final String STATIC_INSTANCE = "static";
 
-  /** The {@code kind} that adds a Container Binding to a container by its name. */
   static final String CONTAINER_BINDING = "container";
 
-  /** The {@code kind} that adds a Container Binding to a Compose project and service. */
   static final String COMPOSE_BINDING = "compose";
 
   private RegisterPage() {}
 
   /**
-   * What to register, and the Container Binding's fields, as typed.
-   *
    * @param kind {@value #STATIC_INSTANCE}, {@value #CONTAINER_BINDING} or {@value #COMPOSE_BINDING}
-   * @param container the name of the container to bind to
-   * @param composeProject the Compose project to bind to
-   * @param composeService the Compose service to bind to
-   * @param containerPort the container port to bind to
    */
   record Choice(
       String kind,
@@ -46,10 +34,7 @@ final class RegisterPage {
 
     static final Choice EMPTY = new Choice(STATIC_INSTANCE, "", "", "", "");
 
-    /**
-     * A choice as a form posts it, which Spring fills by name: a field left out is empty, the kind
-     * static.
-     */
+    /** Spring fills the fields by name. A field left out is empty, and the kind is static. */
     Choice {
       kind =
           CONTAINER_BINDING.equals(kind) || COMPOSE_BINDING.equals(kind) ? kind : STATIC_INSTANCE;
@@ -59,14 +44,11 @@ final class RegisterPage {
       containerPort = containerPort == null ? "" : containerPort;
     }
 
-    /** Whether it adds a Container Binding, to a container by its name or to a Compose service. */
     boolean containerBinding() {
       return !kind.equals(STATIC_INSTANCE);
     }
 
-    /**
-     * The Container Binding the fields of its kind ask for; the other kind's fields are left out.
-     */
+    /** The other kind's fields are left out. */
     ContainerBindingRequest request() {
       Integer port = Registrations.parsePort("containerPort", containerPort);
       return kind.equals(COMPOSE_BINDING)
@@ -76,9 +58,6 @@ final class RegisterPage {
   }
 
   /**
-   * The form holding the Service's {@code name}, what to register and the fields of both, as typed,
-   * with {@code error}, if any, shown at the field it is about.
-   *
    * @param defaultHost the host a Static Instance gets when none is typed
    */
   static String render(
@@ -170,7 +149,6 @@ final class RegisterPage {
                 .__());
   }
 
-  /** The choice of what to register, with the fields each one uses. */
   private static void kinds(Form<?> form, Choice choice) {
     form.div()
         .attrClass("flex flex-col gap-3")

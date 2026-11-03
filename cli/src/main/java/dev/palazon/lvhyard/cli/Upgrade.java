@@ -8,20 +8,16 @@ import java.nio.file.Path;
 import java.util.List;
 
 /**
- * {@code lvh-yard init --upgrade}: moves the images of {@link #UPGRADED} in a folder's {@code
- * compose.yaml} to the template's, by line ({@link ComposeImages}), and changes nothing else.
+ * {@code lvh-yard init --upgrade}: changes only the image lines of {@link #UPGRADED} ({@link
+ * ComposeImages}).
  */
 final class Upgrade {
 
-  /** The services whose images {@code --upgrade} moves to this version's. */
   private static final List<String> UPGRADED = List.of("consul", "traefik", "dashboard");
 
   private Upgrade() {}
 
-  /**
-   * Upgrades {@code folder}'s {@code compose.yaml}, telling {@code out} what moved. When one of
-   * {@link #UPGRADED} has no {@code image:} line, the file is left as it is.
-   */
+  /** When one of {@link #UPGRADED} has no {@code image:} line, the file is left as it is. */
   static void run(Path folder, PrintWriter out) {
     Path file = folder.resolve(Templates.COMPOSE);
     String text;

@@ -12,23 +12,18 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 /**
- * Keeps this Workstation's {@linkplain CoreService Core Services} on its Consul: the dashboard
- * ({@code yard}), Consul's web page ({@code consul}) and Traefik's admin page ({@code traefik}).
- * Each is a Static Instance on loopback with a fixed ID and an HTTP check, published with Local
- * Scope. On every start of the dashboard, whatever is missing or has moved is written again, and
- * the rest is left alone. This is done in the background, so a slow Consul never holds up the
- * start: each try has a time limit, and a Consul that does not answer yet is tried again every few
- * seconds. When a try has finished, the time is written at {@value #INITIALIZED}.
+ * Each Core Service is a Static Instance on loopback with a fixed ID and an HTTP check, published
+ * with Local Scope. On every start, whatever is missing or has moved is written again. This runs in
+ * the background, so a slow Consul never holds up the start. When a try finishes, the time is
+ * written at {@value #INITIALIZED}.
  */
 @Component
 public class CoreServices implements SmartLifecycle {
 
   private static final Logger LOG = LoggerFactory.getLogger(CoreServices.class);
 
-  /** The KV key where the time this start finished keeping the Core Services is written. */
   public static final String INITIALIZED = "lvh-yard/core-services/initialized";
 
-  /** How long to wait before trying a Consul that does not answer again. */
   private static final Duration RETRY = Duration.ofSeconds(5);
 
   /**
@@ -49,10 +44,8 @@ public class CoreServices implements SmartLifecycle {
 
   private final Environment environment;
 
-  /** Whether it has started and not stopped since. */
   private volatile boolean running;
 
-  /** The thread that keeps the Core Services, until they are kept or the dashboard stops. */
   private volatile Thread keepingThread;
 
   CoreServices(
@@ -70,7 +63,6 @@ public class CoreServices implements SmartLifecycle {
     this.environment = environment;
   }
 
-  /** Starts keeping the Core Services in the background, so the start does not wait for Consul. */
   @Override
   public void start() {
     running = true;
@@ -94,10 +86,6 @@ public class CoreServices implements SmartLifecycle {
     return running;
   }
 
-  /**
-   * Tries until the Core Services are kept, then writes the time at {@value #INITIALIZED}; or until
-   * the dashboard stops.
-   */
   private void keepUntilKept() {
     boolean failedBefore = false;
     while (keepingThread == Thread.currentThread()) {
@@ -126,10 +114,6 @@ public class CoreServices implements SmartLifecycle {
     }
   }
 
-  /**
-   * Writes each Core Service's Instance and Publication that is missing or has moved, giving up
-   * when {@code deadline} has passed.
-   */
   private void keep(Instant deadline) {
     CoreService.Settings settings = settings();
     for (CoreService service : CoreService.values()) {
@@ -140,7 +124,6 @@ public class CoreServices implements SmartLifecycle {
     }
   }
 
-  /** Fails the try when {@code deadline} has passed. */
   private static void before(Instant deadline) {
     if (Instant.now().isAfter(deadline)) {
       throw new IllegalStateException(
@@ -148,10 +131,7 @@ public class CoreServices implements SmartLifecycle {
     }
   }
 
-  /**
-   * This Workstation's settings that place the Core Services. The dashboard's port is known once
-   * its web server has started.
-   */
+  /** The dashboard's port is known once its web server has started. */
   private CoreService.Settings settings() {
     String dashboardPort =
         environment.getProperty(

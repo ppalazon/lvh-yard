@@ -14,10 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * This Workstation's Aliases, as JSON. They exist only here, so the paths do not name the
- * Workstation.
- */
+/** The Aliases exist only here, so the paths do not name the Workstation. */
 @RestController
 @RequestMapping(path = "/api/workstation/aliases", produces = MediaType.APPLICATION_JSON_VALUE)
 class AliasesController {

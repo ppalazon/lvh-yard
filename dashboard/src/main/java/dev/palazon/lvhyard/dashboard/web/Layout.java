@@ -20,7 +20,6 @@ import org.xmlet.htmlapifaster.Main;
  */
 final class Layout {
 
-  /** What pages and fragments are sent as. */
   static final MediaType HTML = new MediaType(MediaType.TEXT_HTML, StandardCharsets.UTF_8);
 
   private Layout() {}
@@ -97,8 +96,8 @@ final class Layout {
   }
 
   /**
-   * The button that switches between the light and dark theme, which {@code theme.js} handles. It
-   * shows a moon in the light theme and a sun in the dark one (Lucide's icons).
+   * {@code theme.js} handles it. It shows a moon in the light theme and a sun in the dark one
+   * (Lucide's icons).
    */
   private static void themeToggle(Div<?> header) {
     header
@@ -127,7 +126,6 @@ final class Layout {
         .__();
   }
 
-  /** A 24×24 line icon drawn with {@code paths}, shown as {@code classes} say. */
   private static void icon(Button<?> button, String classes, String... paths) {
     button
         .svg()
@@ -164,7 +162,6 @@ final class Layout {
         .__();
   }
 
-  /** {@code value} escaped for an attribute. */
   static String attr(String value) {
     return HtmlUtils.htmlEscape(value);
   }

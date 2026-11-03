@@ -9,10 +9,6 @@ import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
-/**
- * {@code lvh-yard alias}: adds, lists and removes this Workstation's Aliases, short hostnames for
- * Remote Services that exist only here.
- */
 @Command(
     name = "alias",
     mixinStandardHelpOptions = true,
@@ -24,16 +20,11 @@ class Alias implements Runnable {
 
   @Spec CommandSpec spec;
 
-  /** With no subcommand there is nothing to do but show what the command offers. */
   @Override
   public void run() {
     spec.commandLine().usage(spec.commandLine().getOut());
   }
 
-  /**
-   * {@code lvh-yard alias add}: gives a Remote Service an Alias, and says why it has no Route if it
-   * has none.
-   */
   @Command(
       name = "add",
       mixinStandardHelpOptions = true,
@@ -90,10 +81,6 @@ class Alias implements Runnable {
     }
   }
 
-  /**
-   * {@code lvh-yard alias list}: every Alias, with the Remote Service it names, its state and why
-   * it has no Route.
-   */
   @Command(name = "list", mixinStandardHelpOptions = true, description = "Lists the Aliases.")
   static class ListAliases implements Runnable {
 
@@ -125,7 +112,6 @@ class Alias implements Runnable {
     }
   }
 
-  /** {@code lvh-yard alias remove}: removes an Alias, and its Route. */
   @Command(name = "remove", mixinStandardHelpOptions = true, description = "Removes an Alias.")
   static class Remove implements Runnable {
 

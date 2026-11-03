@@ -13,11 +13,7 @@ import java.util.Optional;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-/**
- * The Health of each of this Workstation's Core Services, from the catalog: whether the dashboard,
- * Consul's web page and Traefik's admin page answer through their checks. A Core Service with no
- * Instance is failing.
- */
+/** A Core Service with no Instance is failing. */
 @Component
 @Order(StatusOrder.CORE_SERVICES)
 class CoreServicesStatus implements PartReader {

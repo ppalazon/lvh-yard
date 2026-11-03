@@ -15,10 +15,8 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
- * Whether this Workstation's Traefik answers its ping, on its admin entry point, and when it last
- * fetched its Routes from this dashboard. A last fetch older than {@link #STALE}, or none since the
- * dashboard started, is a warning: Traefik then reads another dashboard, or none, and its Routes
- * may be old.
+ * A last fetch older than {@link #STALE}, or none, is a warning: Traefik then reads another
+ * dashboard, or none, and its Routes may be old.
  */
 @Component
 @Order(StatusOrder.TRAEFIK)
@@ -87,7 +85,6 @@ class TraefikStatus implements PartReader {
     return "Traefik answers, and fetched its Routes " + age.toSeconds() + " s ago.";
   }
 
-  /** Why {@code ping} did not answer OK; none when it did. */
   private Optional<String> pingFault(URI ping) {
     try {
       HttpResponse<String> answer =

@@ -6,9 +6,8 @@ import htmlflow.HtmlFlow;
 import org.xmlet.htmlapifaster.A;
 
 /**
- * The status dots every page's header shows: one per part, with the part's state as a symbol as
- * well as a colour, and its name and reason on hover. They link to the {@link StatusPage}. The
- * header loads them through HTMX, so a slow part never slows the page.
+ * The state shows as a symbol as well as a colour. The header loads the dots through HTMX, so a
+ * slow part never slows the page.
  */
 final class StatusSummary {
 
@@ -30,7 +29,6 @@ final class StatusSummary {
     return out.toString();
   }
 
-  /** One part's dot, such as a red cross labelled {@code Docker: Failing. There is no…}. */
   private static void dot(A<?> link, Part part) {
     StatusViews.Look look = StatusViews.look(part.state());
     String label = part.name() + ": " + look.label() + ". " + part.reason();

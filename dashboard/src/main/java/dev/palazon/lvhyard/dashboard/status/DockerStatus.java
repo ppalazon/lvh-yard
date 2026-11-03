@@ -11,11 +11,6 @@ import java.util.Optional;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-/**
- * Whether the dashboard can reach this Workstation's Docker, which Container Bindings need, and its
- * version. When it cannot, it says whether the socket is missing or cannot be read, and how to fix
- * it.
- */
 @Component
 @Order(StatusOrder.DOCKER)
 class DockerStatus implements PartReader {
@@ -55,7 +50,6 @@ class DockerStatus implements PartReader {
             Part.Detail.fact("host", settings.host().toString())));
   }
 
-  /** Why Docker did not answer: no socket, a socket the dashboard cannot read, or {@code e}. */
   private String whyNot(RuntimeException e) {
     if ("unix".equals(settings.host().getScheme())) {
       Path socket = Path.of(settings.host().getPath());

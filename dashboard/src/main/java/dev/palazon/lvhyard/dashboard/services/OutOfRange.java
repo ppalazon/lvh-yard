@@ -6,12 +6,8 @@ import java.util.Locale;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * The addresses only an Instance's own Workstation can connect to, from {@code YARD_OUT_OF_RANGE}:
- * by default loopback and Docker's default bridge networks, 172.17.0.0/16 to 172.31.0.0/16. A
- * Remote Service's Instance at one of them is out of range here, since a Route to it would reach
- * this Workstation's own loopback or containers.
- *
- * @param ranges the ranges, each as an address and a prefix length, such as {@code 172.17.0.0/16}
+ * From {@code YARD_OUT_OF_RANGE}, by default loopback and 172.17.0.0/16 to 172.31.0.0/16. A Route
+ * to such an address would reach this Workstation's own loopback or containers.
  */
 @ConfigurationProperties("lvh-yard.out-of-range")
 public record OutOfRange(List<String> ranges) {
@@ -26,9 +22,8 @@ public record OutOfRange(List<String> ranges) {
   }
 
   /**
-   * Whether {@code host} is in one of the ranges. {@code localhost} and names under it count as
-   * {@code 127.0.0.1} and {@code ::1}; any other hostname is not looked up, so it is never out of
-   * range.
+   * {@code localhost} and names under it count as loopback. Any other hostname is not looked up, so
+   * it is never out of range.
    */
   boolean contains(String host) {
     List<InetAddress> addresses;
@@ -65,7 +60,6 @@ public record OutOfRange(List<String> ranges) {
     }
   }
 
-  /** The addresses whose first {@code prefix} bits are those of {@code network}. */
   private record Range(byte[] network, int prefix) {
 
     boolean contains(InetAddress address) {

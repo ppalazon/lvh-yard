@@ -20,21 +20,17 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * This Workstation's own Services, their Static Instances, Container Bindings and Publications, as
- * JSON. The paths do not name the Workstation: only a Service's Home Workstation can change it, so
- * there is no other one to name.
+ * The paths do not name the Workstation, because only a Service's Home Workstation can change it.
  */
 @RestController
 @RequestMapping(path = "/api/workstation/services", produces = MediaType.APPLICATION_JSON_VALUE)
 class WorkstationServicesController {
 
-  /** Why a Static Instance is refused, when it is registered or edited. */
   private static final String INVALID_INSTANCE =
       "The host is not an IP address or a hostname, the port is missing or not a TCP port, the"
           + " check is not http or tcp or has a bad path, interval or timeout, or a tag or a meta"
           + " key breaks its rules";
 
-  /** Why changing or removing a Core Service's Static Instance is refused. */
   private static final String CORE_INSTANCE_REFUSAL =
       "The Instance is a Core Service's, which LVH Yard keeps";
 

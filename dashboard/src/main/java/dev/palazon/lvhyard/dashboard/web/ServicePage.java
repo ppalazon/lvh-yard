@@ -17,18 +17,13 @@ import org.xmlet.htmlapifaster.Td;
 import org.xmlet.htmlapifaster.Tr;
 
 /**
- * One Service: its state and Publication with buttons to change it and its Scope, its warnings, its
- * Instances, each with its tags, meta and each check's last output, and buttons to edit and remove
- * a Static Instance, its Container Bindings, with a button to remove each, and a button that tests
- * its Reachability, with the results once tested. A Remote Service's page has no forms or buttons
- * that change it: only its Home Workstation can change it. All but the Reachability test refreshes
- * itself, so a refresh neither runs the test again nor drops its results.
+ * A Remote Service's page has no forms or buttons that change it. All but the Reachability test
+ * refreshes itself, so a refresh neither runs the test again nor drops its results.
  */
 final class ServicePage {
 
   private ServicePage() {}
 
-  /** Where a Service's page is: {@code /services/<workstation>/<name>}. */
   static String path(Service service) {
     return path(service.workstation(), service.name());
   }
@@ -37,22 +32,18 @@ final class ServicePage {
     return "/services/" + workstation + "/" + name;
   }
 
-  /** Where the form that removes {@code instance} posts to. */
   static String removePath(Service service, Instance instance) {
     return path(service) + "/instances/" + instance.id() + "/remove";
   }
 
-  /** Where the form that removes {@code binding} posts to. */
   static String removePath(Service service, ContainerBinding binding) {
     return path(service) + "/container-bindings/" + binding.id() + "/remove";
   }
 
-  /** Where the Test button goes: the Service's page again, with a Reachability test's results. */
   static String reachabilityPath(Service service) {
     return path(service) + "/reachability";
   }
 
-  /** Where the form that publishes the Service, or unpublishes it, posts to. */
   static String publicationPath(Service service) {
     return path(service) + (service.published() ? "/unpublish" : "/publish");
   }
@@ -61,10 +52,6 @@ final class ServicePage {
     return render(workstation, service, null);
   }
 
-  /**
-   * The page, with {@code reachability}, a test just run, or with no results when it is {@code
-   * null}.
-   */
   static String render(Workstation workstation, Service service, Reachability reachability) {
     boolean own = workstation.is(service.workstation());
     return Layout.page(
@@ -182,11 +169,6 @@ final class ServicePage {
                 .of(content -> reachability(content, workstation, service, reachability)));
   }
 
-  /**
-   * The button that tests the Service's Reachability from this Workstation, and the results of the
-   * test when one was just run: each Instance reached straight, then each hostname through Traefik,
-   * or why it has no Route.
-   */
   private static void reachability(
       Main<?> content, Workstation workstation, Service service, Reachability reachability) {
     content
@@ -301,10 +283,6 @@ final class ServicePage {
     return route.reached() ? "Answered " + route.status() + " through Traefik." : route.error();
   }
 
-  /**
-   * Each Container Binding, with the Bound Instances it gives now or that no container of it runs,
-   * and a button to remove it.
-   */
   private static void containerBindings(Div<?> content, Service service, boolean own) {
     content
         .h2()
@@ -387,10 +365,6 @@ final class ServicePage {
         .__();
   }
 
-  /**
-   * The button that publishes the Service with Local Scope, or, once it is published, the buttons
-   * that change its Scope and unpublish it.
-   */
   private static void publicationForms(Div<?> div, Service service) {
     div.div()
         .attrClass("flex flex-wrap gap-2")
@@ -453,7 +427,6 @@ final class ServicePage {
         .__();
   }
 
-  /** The buttons that edit and remove {@code instance}. */
   private static void actions(Tr<?> row, Service service, Instance instance) {
     row.td()
         .attrClass("align-top")
@@ -481,11 +454,7 @@ final class ServicePage {
         .__();
   }
 
-  /**
-   * Where the Service is published, with its Scope, or that it is not. A Remote Service with Local
-   * Scope has no hostname here; an own one with Yard Scope also says where the other Workstations
-   * reach it.
-   */
+  /** A Remote Service with Local Scope has no hostname here. */
   private static void publication(
       Div<?> div, Workstation workstation, Service service, boolean own) {
     if (!service.published()) {

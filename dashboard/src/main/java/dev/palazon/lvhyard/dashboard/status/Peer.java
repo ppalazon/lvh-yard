@@ -1,22 +1,17 @@
 package dev.palazon.lvhyard.dashboard.status;
 
 /**
- * A Peer from {@code YARD_PEERS}: the host its Consul answers on for the WAN pool, and the port.
- *
- * @param host an IPv4 or IPv6 address, without brackets, or a name
- * @param port its serf WAN port
+ * @param host an IPv4 or IPv6 address without brackets, or a name
  */
 record Peer(String host, int port) {
 
-  /** The port a Peer's Consul listens on for the WAN pool when its address names none. */
+  /** When the Peer's address names no port. */
   static final int SERF_WAN_PORT = 8302;
 
   /**
-   * The Peer written as {@code <host>}, {@code <host>:<port>}, {@code [<ipv6>]:<port>} or a bare
-   * IPv6 address.
+   * From {@code <host>}, {@code <host>:<port>}, {@code [<ipv6>]:<port>} or a bare IPv6 address.
    *
-   * @throws IllegalArgumentException when {@code peer} has a port that is not a number, or an
-   *     unclosed bracket
+   * @throws IllegalArgumentException for a port that is not a number, or an unclosed bracket
    */
   static Peer parse(String peer) {
     if (peer.startsWith("[")) {

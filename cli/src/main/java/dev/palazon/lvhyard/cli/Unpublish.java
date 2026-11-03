@@ -6,10 +6,6 @@ import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
-/**
- * {@code lvh-yard unpublish}: takes away one of this Workstation's Services' hostname, and keeps
- * its Instances.
- */
 @Command(
     name = "unpublish",
     mixinStandardHelpOptions = true,

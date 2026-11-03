@@ -11,26 +11,17 @@ import org.xmlet.htmlapifaster.Main;
 import org.xmlet.htmlapifaster.Td;
 import org.xmlet.htmlapifaster.Tr;
 
-/**
- * This Workstation's Aliases, each with the Remote Service it names, its state and why it has no
- * Route, and a button to remove it; and the form that adds one, offering every Remote Service with
- * Yard Scope.
- */
 final class AliasesPage {
 
   static final String PATH = "/aliases";
 
   private AliasesPage() {}
 
-  /** Where the form that removes {@code alias} posts to. */
   static String removePath(Alias alias) {
     return PATH + "/" + alias.name() + "/remove";
   }
 
   /**
-   * The Aliases, and the form holding {@code name} and {@code target} as typed, with {@code error},
-   * if any, shown at the field it is about.
-   *
    * @param target the chosen Remote Service, as {@code <workstation>/<service>}
    */
   static String render(
@@ -120,9 +111,6 @@ final class AliasesPage {
         .__();
   }
 
-  /**
-   * The state as a badge, plain when active and muted otherwise, with why it has no Route below it.
-   */
   private static void state(Td<?> cell, Alias alias) {
     String label =
         switch (alias.state()) {
@@ -163,7 +151,6 @@ final class AliasesPage {
         .__();
   }
 
-  /** The form that adds an Alias, or why there is nothing to add one for. */
   private static void form(
       Main<?> main,
       List<Service> shared,

@@ -21,17 +21,14 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * This Workstation's Container Bindings, in its Consul KV: one key per Binding, under its Service,
- * holding the container's name, or the Compose project and service, and the port as JSON. It keeps
- * the Bound Instances in step with the containers running now; the {@link ContainerWatcher} tells
- * it when they may have changed.
+ * One Consul KV key per Binding, under its Service, holding the request as JSON. The {@link
+ * ContainerWatcher} says when the containers may have changed.
  */
 @Component
 public class ContainerBindings {
 
   private static final Logger LOG = LoggerFactory.getLogger(ContainerBindings.class);
 
-  /** Where the Container Bindings live in the KV store, under LVH Yard's own prefix. */
   private static final String PREFIX = "lvh-yard/container-bindings/";
 
   /** A container name, as Docker allows them. */
@@ -68,10 +65,8 @@ public class ContainerBindings {
   }
 
   /**
-   * Binds {@code service} of {@code workstation}, which must be this one, to the container {@code
-   * request} names, or to its Compose project and service, and its port. Binding the same again
-   * changes nothing. The containers that match and run now give the Service their Bound Instances
-   * at once.
+   * {@code workstation} must be this one. Binding the same again changes nothing. Running
+   * containers that match give their Bound Instances at once.
    *
    * @return the Binding's ID
    */
@@ -85,10 +80,7 @@ public class ContainerBindings {
     return id;
   }
 
-  /**
-   * {@code request} with its names stripped, once it names a container, or a Compose project and
-   * service.
-   */
+  /** Strips the names, and fails unless it names a container, or a Compose project and service. */
   private static ContainerBindingRequest checked(ContainerBindingRequest request) {
     String container = stripped(request.container());
     String project = stripped(request.composeProject());
@@ -143,16 +135,13 @@ public class ContainerBindings {
     return ContainerBindingRequest.compose(project, composeService, request.port());
   }
 
-  /** {@code name} without the spaces around it; {@code null} when nothing is left. */
   private static String stripped(String name) {
     return name == null || name.isBlank() ? null : name.strip();
   }
 
   /**
-   * Removes the Container Binding {@code id} of {@code service} of {@code workstation}, which must
-   * be this one, and with it its Bound Instances, whether Docker answers or not.
-   *
-   * @throws UnknownContainerBindingException when the Service has no such Binding
+   * {@code workstation} must be this one. Removes the Bound Instances too, whether Docker answers
+   * or not.
    */
   public void remove(String workstation, String service, String id) {
     checkHome(workstation);
@@ -167,11 +156,7 @@ public class ContainerBindings {
     registrations.removeBoundInstances(service, id);
   }
 
-  /**
-   * The Container Bindings in {@code datacenter}'s KV, by Service name, each as it is kept: those
-   * of the Workstation it belongs to, or this one's when it is {@code null}. Each Service's come by
-   * ID.
-   */
+  /** {@code null} reads this Workstation's own. Each Service's Bindings come by ID. */
   Map<String, Map<String, ContainerBindingRequest>> all(String datacenter) {
     Map<String, Map<String, ContainerBindingRequest>> bindings = new TreeMap<>();
     consul
@@ -194,9 +179,7 @@ public class ContainerBindings {
   }
 
   /**
-   * Brings every Bound Instance in step with the containers running now: each running container a
-   * Binding matches gives it a Bound Instance, at its current address, and every other Bound
-   * Instance is removed.
+   * Every Bound Instance that no running container gives is removed.
    *
    * @throws RuntimeException when Docker or Consul does not answer, which leaves the Bound
    *     Instances as they were
@@ -215,19 +198,13 @@ public class ContainerBindings {
     registrations.keepBoundInstances(wanted);
   }
 
-  /**
-   * Whether {@code container} is the one {@code binding} names, or one of its Compose service's.
-   */
   private static boolean matches(ContainerBindingRequest binding, Container container) {
     return binding.followsCompose()
         ? container.isOfComposeService(binding.composeProject(), binding.composeService())
         : container.isNamed(binding.container());
   }
 
-  /**
-   * Syncs after a change to the Bindings; a Docker that does not answer leaves it to the watcher,
-   * later.
-   */
+  /** A Docker that does not answer leaves the sync to the watcher. */
   private void syncIfDockerAnswers() {
     try {
       sync();

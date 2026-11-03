@@ -10,10 +10,6 @@ import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
-/**
- * {@code lvh-yard remove}: a Static Instance of one of this Workstation's Services, by its ID or by
- * where it is, or a Container Binding, by its container or its Compose service.
- */
 @Command(
     name = "remove",
     mixinStandardHelpOptions = true,
@@ -30,10 +26,6 @@ class Remove implements Runnable {
 
   @Spec CommandSpec spec;
 
-  /**
-   * Either an ID, as {@code lvh-yard list} shows it, or where it is: a port, a host, a container or
-   * a Compose service.
-   */
   static class Which {
 
     @Option(
@@ -83,7 +75,6 @@ class Remove implements Runnable {
         description = "The Compose service, in --compose-project.")
     String composeService;
 
-    /** Whether it names a Container Binding, by its container or its Compose service. */
     boolean binding() {
       return container != null || composeProject != null || composeService != null;
     }
@@ -138,7 +129,6 @@ class Remove implements Runnable {
     spec.commandLine().getOut().flush();
   }
 
-  /** The one Instance of {@code found} at the port, and at the host when one was given. */
   private Dashboard.Instance instanceAt(Dashboard.Service found) {
     Where where = which.where;
     List<Dashboard.Instance> matches =
@@ -169,10 +159,6 @@ class Remove implements Runnable {
     return matches.getFirst();
   }
 
-  /**
-   * The one Container Binding of {@code found} to the container or the Compose service, and to the
-   * port when one was given.
-   */
   private Dashboard.ContainerBinding bindingTo(Dashboard.Service found) {
     Where where = which.where;
     List<Dashboard.ContainerBinding> matches =

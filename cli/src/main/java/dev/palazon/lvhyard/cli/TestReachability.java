@@ -9,11 +9,7 @@ import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
-/**
- * {@code lvh-yard test}: tests whether this Workstation reaches a Service, straight to each
- * Instance and through Traefik at each hostname, and prints each check. An Out-of-range Instance is
- * skipped, which is no failure. It exits with 1 when any check fails.
- */
+/** An Out-of-range Instance is skipped, and that is not a failure. */
 @Command(
     name = "test",
     mixinStandardHelpOptions = true,
@@ -86,7 +82,6 @@ class TestReachability implements Callable<Integer> {
     return tested.passed() ? 0 : 1;
   }
 
-  /** One check, as {@code ok <what>: <detail>}, or with FAIL when it did not reach the Service. */
   private static String line(boolean reached, String what, String detail) {
     return "  " + (reached ? "ok    " : "FAIL  ") + what + (detail == null ? "" : ": " + detail);
   }

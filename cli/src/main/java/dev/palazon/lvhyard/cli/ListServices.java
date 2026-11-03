@@ -8,10 +8,6 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
-/**
- * {@code lvh-yard list}: Services grouped by Home Workstation, this one first, each with its state,
- * its hostname, its Instances and their Health.
- */
 @Command(
     name = "list",
     mixinStandardHelpOptions = true,
@@ -48,7 +44,6 @@ class ListServices implements Runnable {
     out.flush();
   }
 
-  /** A heading for the Workstation called {@code name}, then its Services, or that it has none. */
   private static void print(PrintWriter out, String name, List<Dashboard.Service> services) {
     if (services.isEmpty()) {
       out.println(name + ": no Services");

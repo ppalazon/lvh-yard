@@ -8,14 +8,8 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * A Static Instance to register, or what an edited one becomes.
- *
- * @param host the address it listens on; this Workstation's LAN address when left out
- * @param port the port it listens on
- * @param check how its Health is checked; a TCP check on its port when left out
- * @param tags words that say what it is for, without spaces or commas
- * @param meta notes about it, by key; keys use letters, digits, - and _, and do not start with
- *     lvh-yard- or consul-
+ * Defaults: this Workstation's LAN address, and a TCP check on its port. Meta keys do not start
+ * with lvh-yard- or consul-.
  */
 public record StaticInstanceRequest(
     String host,

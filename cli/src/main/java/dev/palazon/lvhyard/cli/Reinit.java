@@ -12,14 +12,13 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * {@code lvh-yard init --reinit}: the settings of a folder's old {@code .env}, carried over to the
- * new one, and the backups of the old files.
+ * {@code lvh-yard init --reinit}: carries the old {@code .env} settings over, and backs up the old
+ * files.
  */
 final class Reinit {
 
   private final Path folder;
 
-  /** The old {@code .env}'s settings that are not commented, by key. */
   private final Map<String, String> settings;
 
   private Reinit(Path folder, Map<String, String> settings) {
@@ -48,7 +47,6 @@ final class Reinit {
     }
   }
 
-  /** The old value of {@code key}, when it was set and not empty. */
   Optional<String> oldValue(String key) {
     return Optional.ofNullable(settings.get(key)).filter(value -> !value.isEmpty());
   }
@@ -73,10 +71,10 @@ final class Reinit {
   }
 
   /**
-   * Renames {@code compose.yaml} and {@code .env}, those that exist, to {@code
+   * Renames each existing {@code compose.yaml} and {@code .env} to {@code
    * <file>.<yyyyMMdd-HHmmss>.bak}.
    *
-   * @return each file's backup, by the file's name
+   * @return each backup, by file name
    */
   Map<String, Path> backUp() {
     String now = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));

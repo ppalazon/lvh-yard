@@ -11,23 +11,12 @@ import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeInputType;
 import org.xmlet.htmlapifaster.Form;
 
-/** The fields of a Static Instance, which the Register form and the edit form share. */
+/** Shared by the Register form and the edit form. */
 final class InstanceForm {
 
   private InstanceForm() {}
 
-  /**
-   * What was typed into the fields, as typed.
-   *
-   * @param host the Instance's host; empty for the default host
-   * @param port the Instance's port
-   * @param check {@code tcp} or {@code http}
-   * @param path the path an HTTP check GETs; empty for {@code /}
-   * @param interval how often the check runs; empty for 10 s
-   * @param timeout how long the check waits; empty for 2 s
-   * @param tags the tags, separated by commas
-   * @param meta one {@code key=value} on each line
-   */
+  /** As typed. An empty field gets the default. */
   record Fields(
       String host,
       String port,
@@ -40,10 +29,7 @@ final class InstanceForm {
 
     static final Fields EMPTY = new Fields("", "", "tcp", "", "", "", "", "");
 
-    /**
-     * Fields as a form posts them, which Spring fills by name: a field left out is empty, the check
-     * TCP.
-     */
+    /** Spring fills the fields by name. A field left out is empty, and the check is TCP. */
     Fields {
       host = orEmpty(host);
       port = orEmpty(port);
@@ -59,7 +45,6 @@ final class InstanceForm {
       return value == null ? "" : value;
     }
 
-    /** The fields holding {@code instance} as it is. */
     static Fields of(Instance instance) {
       HealthCheck check = instance.check();
       return new Fields(
@@ -75,7 +60,7 @@ final class InstanceForm {
               .collect(Collectors.joining("\n")));
     }
 
-    /** The Static Instance the fields ask for. The path counts only for an HTTP check. */
+    /** The path counts only for an HTTP check. */
     StaticInstanceRequest request() {
       boolean http = "http".equals(check);
       return new StaticInstanceRequest(
@@ -89,8 +74,6 @@ final class InstanceForm {
   }
 
   /**
-   * The fields holding {@code fields}, with {@code error}, if any, shown at the field it is about.
-   *
    * @param defaultHost the host an Instance gets when none is typed
    */
   static void fields(
@@ -170,7 +153,6 @@ final class InstanceForm {
                 .__());
   }
 
-  /** A one-line field called {@code name}, holding {@code value}. */
   static void text(
       Form<?> form,
       String name,
@@ -204,9 +186,7 @@ final class InstanceForm {
                 .__());
   }
 
-  /**
-   * A labelled field whose control {@code control} adds, with the error or else the help below it.
-   */
+  /** Shows the error, or else the help, below the control. */
   private static void field(
       Form<?> form,
       String name,

@@ -11,15 +11,11 @@ final class EditInstancePage {
 
   private EditInstancePage() {}
 
-  /** Where the form for {@code instance} of {@code service} is, and where it posts to. */
   static String path(Service service, Instance instance) {
     return ServicePage.path(service) + "/instances/" + instance.id() + "/edit";
   }
 
   /**
-   * The form for {@code instance} of {@code service}, holding {@code fields}, with {@code error},
-   * if any, shown at the field it is about.
-   *
    * @param defaultHost the host the Instance gets when none is typed
    */
   static String render(

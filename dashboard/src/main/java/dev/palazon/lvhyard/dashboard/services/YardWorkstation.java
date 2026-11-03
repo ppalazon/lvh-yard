@@ -4,11 +4,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
 /**
- * Another Workstation of the Yard, whose Services are Remote Services here.
- *
- * @param name its name, which is also its Consul datacenter's
- * @param unreachable whether its datacenter did not answer, so its Services are not known for now
- * @param services its Services, ordered by name; none while it is unreachable
+ * @param name also the name of its Consul datacenter
+ * @param services none while it is unreachable
  */
 public record YardWorkstation(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,

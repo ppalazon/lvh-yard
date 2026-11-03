@@ -6,25 +6,19 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * Why other Workstations may not reach a Service that its Scope gives them a Route to.
- *
- * @param kind what is wrong, for a script to tell warnings apart
- * @param message what is wrong, in words, naming the Instance
+ * @param kind for a script to tell warnings apart
  */
 public record ServiceWarning(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Kind kind,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String message) {
 
-  /** What a {@link ServiceWarning} is about. */
   public enum Kind {
 
-    /** An Instance listens on a loopback address, which only its own Workstation can connect to. */
+    /** Only its own Workstation can connect to a loopback address. */
     LOOPBACK_INSTANCE,
 
-    /** A Bound Instance is on a container port that is not published on the host. */
     UNPUBLISHED_CONTAINER_PORT;
 
-    /** The kind's name in the API, such as {@code loopback-instance}. */
     @JsonValue
     public String value() {
       return name().toLowerCase().replace('_', '-');
@@ -32,10 +26,8 @@ public record ServiceWarning(
   }
 
   /**
-   * The warnings of a Service with {@code publication}, or none, and these {@code instances}, when
-   * it has Yard Scope: one for each Instance on a loopback address, and one for each Bound Instance
-   * on an unpublished container port. A Local Service is reached only from its Home Workstation,
-   * where both work.
+   * Only for Yard Scope: a Local Service is reached only from its Home Workstation, where both
+   * work.
    */
   static List<ServiceWarning> of(Publication publication, List<Instance> instances) {
     if (publication == null || publication.scope() != Scope.YARD) {

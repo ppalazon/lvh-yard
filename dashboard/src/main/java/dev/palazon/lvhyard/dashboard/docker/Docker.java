@@ -27,9 +27,8 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * This Workstation's Docker, through its Engine API. Only the calls LVH Yard makes, with Docker's
- * own names; it knows nothing of the Yard's rules. A Docker that does not answer fails each call
- * with an unchecked exception.
+ * Only the calls LVH Yard makes, with Docker's own names. A Docker that does not answer fails each
+ * call with an unchecked exception.
  */
 @Component
 public class Docker {
@@ -57,20 +56,19 @@ public class Docker {
             .build();
   }
 
-  /** Closes the connections to Docker, once the watcher has stopped following it. */
+  /** Once the watcher has stopped following Docker. */
   @PreDestroy
   void close() throws IOException {
     http.close();
   }
 
-  /** Asks Docker whether it answers; it fails when it does not. */
+  /** Fails when Docker does not answer. */
   public void ping() {
     try (Response response = http.execute(get("/_ping"))) {
       checkOk(response);
     }
   }
 
-  /** Docker's version, as {@code docker version} shows the Engine's. */
   public Version version() {
     try (Response response = http.execute(get("/version"))) {
       checkOk(response);
@@ -80,7 +78,6 @@ public class Docker {
     }
   }
 
-  /** Every running container. */
   public List<Container> runningContainers() {
     try (Response response = http.execute(get("/containers/json"))) {
       checkOk(response);
@@ -91,9 +88,8 @@ public class Docker {
   }
 
   /**
-   * The container events since {@code since} that can change which containers run: those already
-   * past, then each one as it happens. Docker answers only once it has an event to send, so asking,
-   * like reading the next one, waits; closing the events stops the wait.
+   * The events already past, then each one as it happens. Docker answers only once it has an event,
+   * so this call waits, like reading the next one. Closing the events stops the wait.
    */
   public ContainerEvents containerEvents(Instant since) {
     Response response =
@@ -130,10 +126,6 @@ public class Docker {
     }
   }
 
-  /**
-   * Container events as Docker sends them, one at a time, until they are closed or Docker stops
-   * sending.
-   */
   public static final class ContainerEvents implements Iterator<Event>, AutoCloseable {
 
     private final Response response;
@@ -145,7 +137,7 @@ public class Docker {
       this.events = events;
     }
 
-    /** Waits for the next event; {@code false} once Docker stops sending. */
+    /** {@code false} once Docker stops sending. */
     @Override
     public boolean hasNext() {
       return events.hasNext();
@@ -162,32 +154,14 @@ public class Docker {
     }
   }
 
-  /**
-   * The Docker Engine's version.
-   *
-   * @param version its release, such as {@code 28.1.1}
-   * @param apiVersion the newest Engine API it speaks, such as {@code 1.49}
-   */
   public record Version(
       @JsonProperty("Version") String version, @JsonProperty("ApiVersion") String apiVersion) {}
 
-  /**
-   * One event.
-   *
-   * @param type what it is about, such as {@code container}
-   * @param action what happened, such as {@code start} or {@code die}
-   */
   public record Event(@JsonProperty("Type") String type, @JsonProperty("Action") String action) {}
 
   /**
-   * A running container. Docker leaves out what a container does not have, such as a port without a
-   * host port.
-   *
-   * @param id its ID
-   * @param names its names, each with a leading {@code /}
-   * @param ports its ports, each once for every host address it is published on
-   * @param networkSettings the networks it is on
-   * @param labels its labels, such as those Compose gives the containers it starts
+   * Docker leaves out what a container does not have, such as a port without a host port. Each name
+   * has a leading {@code /}.
    */
   public record Container(
       @JsonProperty("Id") String id,
@@ -196,10 +170,8 @@ public class Docker {
       @JsonProperty("NetworkSettings") NetworkSettings networkSettings,
       @JsonProperty("Labels") Map<String, String> labels) {
 
-    /** The label Compose gives each container it starts, with the project's name. */
     private static final String COMPOSE_PROJECT = "com.docker.compose.project";
 
-    /** The label Compose gives each container it starts, with the service's name. */
     private static final String COMPOSE_SERVICE = "com.docker.compose.service";
 
     public Container {
@@ -209,31 +181,21 @@ public class Docker {
       labels = labels == null ? Map.of() : labels;
     }
 
-    /**
-     * Whether {@code name}, as {@code docker run --name} takes it, is one of the container's names.
-     */
     public boolean isNamed(String name) {
       return names.contains("/" + name);
     }
 
-    /** Whether Compose started it for {@code service} of {@code project}, whatever it named it. */
+    /** Whatever the container is named. */
     public boolean isOfComposeService(String project, String service) {
       return project.equals(labels.get(COMPOSE_PROJECT))
           && service.equals(labels.get(COMPOSE_SERVICE));
     }
 
-    /**
-     * Its name, as {@code docker run --name} takes it: the first of its names, or its ID when it
-     * has none.
-     */
+    /** The first of its names, or its ID when it has none. */
     public String name() {
       return names.isEmpty() ? id : names.getFirst().substring(1);
     }
 
-    /**
-     * The TCP ports Docker publishes {@code containerPort} on, each with the host address it
-     * listens on.
-     */
     public List<Port> published(int containerPort) {
       return ports.stream()
           .filter(port ->
@@ -243,10 +205,7 @@ public class Docker {
           .toList();
     }
 
-    /**
-     * The container's own address, on the first of its networks by name that gives it one. A
-     * container on the host's network has none.
-     */
+    /** On the first of its networks, by name, that gives one. None on the host's network. */
     public Optional<String> address() {
       return networkSettings.networks().entrySet().stream()
           .sorted(Map.Entry.comparingByKey(Comparator.naturalOrder()))
@@ -257,13 +216,8 @@ public class Docker {
   }
 
   /**
-   * A container port, and where Docker publishes it.
-   *
-   * @param ip the host address it is published on, {@code 0.0.0.0} or {@code ::} for every one;
-   *     none when it is not published
-   * @param privatePort the port inside the container
-   * @param publicPort the host port; none when it is not published
-   * @param type {@code tcp} or {@code udp}
+   * {@code ip} is {@code 0.0.0.0} or {@code ::} for every host address. {@code ip} and {@code
+   * publicPort} are null when the port is not published.
    */
   public record Port(
       @JsonProperty("IP") String ip,
@@ -271,9 +225,6 @@ public class Docker {
       @JsonProperty("PublicPort") Integer publicPort,
       @JsonProperty("Type") String type) {}
 
-  /**
-   * @param networks the networks a container is on, by name
-   */
   public record NetworkSettings(@JsonProperty("Networks") Map<String, Network> networks) {
 
     public NetworkSettings {
@@ -281,8 +232,6 @@ public class Docker {
     }
   }
 
-  /**
-   * @param ipAddress the container's address on the network; empty on the host's network
-   */
+  /** {@code ipAddress} is empty on the host's network. */
   public record Network(@JsonProperty("IPAddress") String ipAddress) {}
 }

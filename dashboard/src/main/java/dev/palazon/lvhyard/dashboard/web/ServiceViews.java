@@ -4,14 +4,10 @@ import dev.palazon.lvhyard.dashboard.services.Service;
 import dev.palazon.lvhyard.dashboard.services.ServiceState;
 import org.xmlet.htmlapifaster.PhrasingContent;
 
-/** How the pages show a Service's state and hostname. */
 final class ServiceViews {
 
   private ServiceViews() {}
 
-  /**
-   * The state as a badge: plain when published and healthy, red when unhealthy, muted otherwise.
-   */
   static void state(PhrasingContent<?, ?> parent, ServiceState state) {
     String variant =
         switch (state) {
@@ -23,10 +19,6 @@ final class ServiceViews {
     parent.span().attrClass("badge").addAttr("data-variant", variant).text(label(state)).__();
   }
 
-  /**
-   * A muted badge that marks a Core Service, which LVH Yard registers and keeps itself, after a
-   * space; nothing for any other Service.
-   */
   static void core(PhrasingContent<?, ?> parent, Service service) {
     if (service.core()) {
       parent.text(" ");
@@ -40,7 +32,6 @@ final class ServiceViews {
     }
   }
 
-  /** The state as the pages name it, such as {@code Unhealthy}. */
   static String label(ServiceState state) {
     return switch (state) {
       case HEALTHY -> "Healthy";
@@ -50,9 +41,7 @@ final class ServiceViews {
     };
   }
 
-  /**
-   * A link to the Service's hostname, when this Workstation has a Route for it; nothing otherwise.
-   */
+  /** Nothing when this Workstation has no Route for it. */
   static void hostname(PhrasingContent<?, ?> parent, Service service) {
     if (service.hostname() == null) {
       return;

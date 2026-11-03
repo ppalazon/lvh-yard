@@ -18,11 +18,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
-/**
- * Adds, edits and removes this Workstation's Static Instances, after checking the Yard's rules, and
- * keeps its Bound Instances as the Container Bindings want them. The only writer of registrations
- * on the local agent.
- */
+/** Checks the Yard's rules. The only writer of registrations on the local agent. */
 @Component
 public class Registrations {
 
@@ -32,9 +28,7 @@ public class Registrations {
   /** An IP address or a hostname. Nothing that would break a URL, such as /, ?, % or a space. */
   private static final Pattern HOST = Pattern.compile("[A-Za-z0-9.:-]+");
 
-  /**
-   * The start of the meta keys LVH Yard keeps for itself, which an Instance's own meta cannot use.
-   */
+  /** Meta keys that LVH Yard keeps for itself. */
   static final String RESERVED_META = "lvh-yard-";
 
   /** Marks the registrations that are Static Instances, so nothing else is removed as one. */
@@ -48,7 +42,6 @@ public class Registrations {
   private static final Map<String, String> BOUND_INSTANCE =
       Map.of(RESERVED_META + "instance", "bound");
 
-  /** Where a Bound Instance keeps the ID of the Container Binding that made it. */
   static final String CONTAINER_BINDING = RESERVED_META + "container-binding";
 
   /**
@@ -72,25 +65,20 @@ public class Registrations {
   /** Where an HTTP check's path is kept: Consul does not give back a check's URL. */
   static final String HTTP_PATH = RESERVED_META + "http-path";
 
-  /** How often a check runs, unless the Instance says otherwise. */
   private static final Duration CHECK_INTERVAL = Duration.ofSeconds(10);
 
-  /** How long a check waits for an answer, unless the Instance says otherwise. */
   private static final Duration CHECK_TIMEOUT = Duration.ofSeconds(2);
 
   /** The shortest interval Consul runs a check at. */
   private static final Duration SHORTEST_INTERVAL = Duration.ofSeconds(1);
 
-  /** A duration as the API takes it: a whole number and a unit, such as {@code 10s}. */
   private static final Pattern DURATION = Pattern.compile("(\\d{1,9})(ms|s|m|h)");
 
   /** A tag: anything without a space or a comma, so tags can be typed as a comma-separated list. */
   private static final Pattern TAG = Pattern.compile("[^\\s,]{1,255}");
 
-  /** A meta key, as Consul allows them. */
   private static final Pattern META_KEY = Pattern.compile("[A-Za-z0-9_-]{1,128}");
 
-  /** The longest meta value Consul allows. */
   private static final int META_VALUE_LENGTH = 512;
 
   /**
@@ -111,10 +99,9 @@ public class Registrations {
   }
 
   /**
-   * Registers a Static Instance of {@code service} on {@code workstation}, which must be this one.
-   * With no host, it is at this Workstation's LAN address, so other Workstations can reach it. With
-   * no check, it gets a TCP check on its port. Registering the same host and port again replaces
-   * that Instance, which keeps its ID.
+   * {@code workstation} must be this one. With no host, the Instance is at the LAN address, so
+   * other Workstations reach it. With no check, it gets a TCP check on its port. The same host and
+   * port again replaces that Instance, which keeps its ID.
    *
    * @return the new Instance, critical until its check first passes
    */
@@ -129,9 +116,7 @@ public class Registrations {
   }
 
   /**
-   * Changes the Static Instance {@code id} of {@code service} on {@code workstation}, which must be
-   * this one, to what {@code request} says, as {@link #register} would. It stays the same Instance,
-   * with the same ID.
+   * {@code workstation} must be this one. The Instance keeps its ID.
    *
    * @return the edited Instance, critical until its check first passes
    */
@@ -155,7 +140,6 @@ public class Registrations {
     return put(id, service, checked);
   }
 
-  /** {@code request} with its host and check filled in, if it follows the rules. */
   private StaticInstanceRequest checked(StaticInstanceRequest request) {
     checkPort(request.port());
     String host =
@@ -167,10 +151,6 @@ public class Registrations {
     return new StaticInstanceRequest(host, request.port(), check, request.tags(), request.meta());
   }
 
-  /**
-   * Adds or replaces the registration {@code id}, and answers the Instance it is before its check
-   * first runs.
-   */
   private Instance put(String id, String service, StaticInstanceRequest instance) {
     String host = instance.host();
     int port = instance.port();
@@ -199,9 +179,8 @@ public class Registrations {
   }
 
   /**
-   * Makes {@code service}'s Static Instance the one at {@code location}, with an HTTP check on its
-   * path at the default interval and timeout. One that is already there as wanted, check included,
-   * is left alone, so its Health stays. No name rule applies: a Core Service's name is kept for it.
+   * One already there as wanted is left alone, so its Health stays. No name rule applies: the Core
+   * Service's name is kept for it.
    */
   void keepStaticInstance(CoreService service, CoreService.Location location) {
     String id = CORE_ID_PREFIX + service.serviceName();
@@ -229,7 +208,6 @@ public class Registrations {
     }
   }
 
-  /** Whether the registration {@code id} has one check on the agent, and it is {@code wanted}. */
   private boolean hasOnly(String id, Check wanted) {
     List<CheckStatus> checks = consul.agentChecks(id);
     return checks.size() == 1
@@ -238,16 +216,13 @@ public class Registrations {
         && wanted.timeout().equals(checks.getFirst().timeout());
   }
 
-  /** Whether {@code registration} is a Core Service's Static Instance. */
   static boolean isCore(AgentService registration) {
     return "true".equals(registration.meta().get(CORE));
   }
 
   /**
-   * Makes this Workstation's Bound Instances exactly {@code wanted}: registers each one that is
-   * missing or has moved, and removes every other one. One that is already there as wanted is left
-   * alone, so its Health stays. Each gets a TCP check on its port, as a Static Instance registered
-   * without a check does.
+   * Registers each one that is missing or has moved, and removes every other one. One already there
+   * as wanted is left alone, so its Health stays.
    */
   public void keepBoundInstances(List<BoundInstance> wanted) {
     Map<String, AgentService> existing = new HashMap<>();
@@ -281,10 +256,6 @@ public class Registrations {
     existing.keySet().forEach(consul::deregister);
   }
 
-  /**
-   * Removes every Bound Instance of {@code service} that the Container Binding {@code binding}
-   * made.
-   */
   public void removeBoundInstances(String service, String binding) {
     consul.agentServices().values().stream()
         .filter(registration ->
@@ -295,16 +266,8 @@ public class Registrations {
   }
 
   /**
-   * A Bound Instance as a Container Binding wants it.
-   *
-   * @param service the Service it is an Instance of
-   * @param binding the ID of the Container Binding that wants it
-   * @param container the name of the running container it is for
-   * @param containerPort the container port it is for
-   * @param host where it is reached
-   * @param port where it is reached
-   * @param onHostPort whether it is on a port of the host, so other Workstations can reach it: the
-   *     container port is published on the host, or the container is on the host's network
+   * @param onHostPort whether other Workstations can reach it: its port is published on the host,
+   *     or the container is on the host's network
    */
   public record BoundInstance(
       String service,
@@ -327,17 +290,14 @@ public class Registrations {
     }
   }
 
-  /** Where a Static Instance registered without a host is: this Workstation's LAN address. */
   public String defaultHost() {
     return consul.agentAddress();
   }
 
-  /** A port as typed into a form; {@code null} when nothing was typed. */
   public static Integer parsePort(String port) {
     return parsePort("port", port);
   }
 
-  /** A port as typed into the form's {@code field}; {@code null} when nothing was typed. */
   public static Integer parsePort(String field, String port) {
     if (port == null || port.isBlank()) {
       return null;
@@ -349,17 +309,14 @@ public class Registrations {
     }
   }
 
-  /** Tags as typed into a form: separated by commas, with the spaces around them dropped. */
+  /** Separated by commas, with the spaces around them dropped. */
   public static List<String> parseTags(String tags) {
     return tags == null
         ? List.of()
         : Arrays.stream(tags.split(",")).map(String::strip).filter(tag -> !tag.isEmpty()).toList();
   }
 
-  /**
-   * Meta as typed into a form: one {@code key=value} on each line, with the spaces around both
-   * dropped.
-   */
+  /** One {@code key=value} on each line, with the spaces around both dropped. */
   public static Map<String, String> parseMeta(String meta) {
     Map<String, String> values = new LinkedHashMap<>();
     if (meta == null) {
@@ -382,24 +339,19 @@ public class Registrations {
     return values;
   }
 
-  /**
-   * Removes the Static Instance {@code id} of {@code service} on {@code workstation}, which must be
-   * this one.
-   */
+  /** {@code workstation} must be this one. */
   public void remove(String workstation, String service, String id) {
     checkHome(workstation);
     checkNotCore(staticInstance(service, id), "removed");
     consul.deregister(id);
   }
 
-  /** Refuses {@code change} to {@code registration} when it is a Core Service's Static Instance. */
   private static void checkNotCore(AgentService registration, String change) {
     if (isCore(registration)) {
       throw CoreServiceException.cannotBe(registration.name(), change);
     }
   }
 
-  /** The registration of the Static Instance {@code id} of {@code service}, which must be there. */
   private AgentService staticInstance(String service, String id) {
     return consul
         .agentService(id)
@@ -408,10 +360,6 @@ public class Registrations {
         .orElseThrow(() -> new UnknownInstanceException(service, id));
   }
 
-  /**
-   * The ID of the Static Instance of {@code service} at {@code host} and {@code port}, if there is
-   * one.
-   */
   private Optional<String> staticInstanceAt(String service, String host, int port) {
     return consul.agentServices().values().stream()
         .filter(registration ->
@@ -431,10 +379,6 @@ public class Registrations {
     return registration.meta().entrySet().containsAll(BOUND_INSTANCE.entrySet());
   }
 
-  /**
-   * Whether the Bound Instance {@code registration} is on a port of the host, as {@link
-   * BoundInstance} says.
-   */
   private static boolean onHostPort(AgentService registration) {
     return !registration.meta().containsKey(UNPUBLISHED_CONTAINER_PORT);
   }
@@ -445,15 +389,11 @@ public class Registrations {
     }
   }
 
-  /** Refuses a Service name that is not a single DNS label, or is a Core Service's. */
   static void checkName(String service) {
     checkName("Service", service);
   }
 
-  /**
-   * Refuses the name of a {@code kind}, such as an Alias, that is not a single DNS label, or is a
-   * Core Service's: a Service and an Alias both take a hostname's first part.
-   */
+  /** A Service and an Alias both take a hostname's first part. */
   static void checkName(String kind, String name) {
     if (!DNS_LABEL.matcher(name).matches()) {
       throw new InvalidRegistrationException(
@@ -544,10 +484,7 @@ public class Registrations {
     checkPort("port", "A Static Instance", port);
   }
 
-  /**
-   * Refuses a {@code port} that is missing or not a TCP port; {@code what} is what needs it, for
-   * the message.
-   */
+  /** {@code what} names what needs the port, for the message. */
   static void checkPort(String field, String what, Integer port) {
     if (port == null) {
       throw new InvalidRegistrationException(field, what + " needs a port.");
@@ -566,10 +503,7 @@ public class Registrations {
         field, "The port " + port + " is not a TCP port: use 1 to 65535.");
   }
 
-  /**
-   * {@code check} with every part it leaves out filled in, if it follows the rules. With no check
-   * at all, the Instance gets a TCP check on its port.
-   */
+  /** With no check at all, the Instance gets a TCP check on its port. */
   private static HealthCheck checked(HealthCheck check) {
     if (check == null) {
       check = new HealthCheck(null, null, null, null);
@@ -613,7 +547,7 @@ public class Registrations {
     return new HealthCheck(type, path, HealthCheck.format(interval), HealthCheck.format(timeout));
   }
 
-  /** The duration {@code text} is, or {@code otherwise} when it is left out. Zero is refused. */
+  /** Zero is refused. */
   private static Duration duration(String field, String text, Duration otherwise) {
     if (text == null || text.isBlank()) {
       return otherwise;
@@ -638,7 +572,6 @@ public class Registrations {
     };
   }
 
-  /** What Consul runs for {@code check}, named for what it does. */
   private static Check consulCheck(String host, int port, HealthCheck check) {
     String address = Instance.address(host, port);
     return check.http()

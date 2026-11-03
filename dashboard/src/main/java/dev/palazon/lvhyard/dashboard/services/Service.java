@@ -5,21 +5,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
 /**
- * A Service as the Yard sees it.
- *
- * @param workstation its Home Workstation
- * @param name its name, a single DNS label
- * @param state what its Publication and the Health of its Instances add up to
- * @param publication its Publication; {@code null}, and left out of the JSON, when it is
- *     unpublished
- * @param hostname where this Workstation routes it while it has Instances; {@code null}, and left
- *     out of the JSON, when it is unpublished
- * @param instances its registered Instances, ordered by host and port
- * @param containerBindings its Container Bindings, by ID, including those that match no running
- *     container
- * @param warnings why other Workstations may not reach it, though its Scope gives them a Route
- * @param core whether it is a Core Service: the dashboard, Consul or Traefik, which LVH Yard
- *     registers and publishes itself on every Workstation; left out of the JSON when false
+ * {@code publication}, {@code hostname} and {@code core} are left out of the JSON when null or
+ * false. {@code containerBindings} include those that match no running container.
  */
 public record Service(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String workstation,
@@ -32,10 +19,6 @@ public record Service(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ServiceWarning> warnings,
     @JsonInclude(JsonInclude.Include.NON_DEFAULT) boolean core) {
 
-  /**
-   * A Service in the state, and with the warnings, its {@code publication} and {@code instances}
-   * add up to.
-   */
   Service(
       String workstation,
       String name,
@@ -56,21 +39,19 @@ public record Service(
         core);
   }
 
-  /** Whether it is published with Yard Scope, so every Workstation of the Yard routes it. */
   public boolean sharedWithYard() {
     return published() && publication.scope() == Scope.YARD;
   }
 
   /**
-   * Whether this Workstation has a Route to it: it has a hostname here, and an Instance this
-   * Workstation can reach (an Out-of-range Instance is on another Workstation's loopback or Docker
-   * network, so a Route to it would reach this Workstation's own instead).
+   * It needs a hostname here, and an Instance in range: a Route to an Out-of-range Instance would
+   * reach this Workstation's own loopback or containers.
    */
   public boolean routed() {
     return hostname != null && instances.stream().anyMatch(instance -> !instance.outOfRange());
   }
 
-  /** Whether it has a Publication, whatever the Health of its Instances. */
+  /** Whatever the Health of its Instances. */
   public boolean published() {
     return publication != null;
   }

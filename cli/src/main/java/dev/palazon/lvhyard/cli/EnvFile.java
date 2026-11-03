@@ -28,7 +28,6 @@ final class EnvFile {
     return new EnvFile(new ArrayList<>(text.lines().toList()));
   }
 
-  /** The value of {@code key}, when it is set and not commented. */
   Optional<String> get(String key) {
     for (String line : lines) {
       Matcher setting = SETTING.matcher(line);
@@ -51,8 +50,7 @@ final class EnvFile {
   }
 
   /**
-   * The address to reach this Workstation's dashboard at: its bind address and port, with the
-   * wildcard {@code 0.0.0.0} reached through loopback, as the dashboard's own {@code BindAddress}
+   * Reaches the wildcard {@code 0.0.0.0} through loopback, as the dashboard's {@code BindAddress}
    * does.
    */
   URI dashboardUrl() {
@@ -77,7 +75,7 @@ final class EnvFile {
     throw new IllegalStateException(".env has no setting " + key);
   }
 
-  /** Every setting that is not commented, by key, in the file's order. */
+  /** The settings that are not commented, in the file's order. */
   Map<String, String> settings() {
     Map<String, String> settings = new LinkedHashMap<>();
     for (String line : lines) {
@@ -89,14 +87,12 @@ final class EnvFile {
     return settings;
   }
 
-  /** Whether the file has a line for {@code key}, commented or not. */
   boolean has(String key) {
     return lines.stream()
         .map(SETTING::matcher)
         .anyMatch(setting -> setting.matches() && setting.group(2).equals(key));
   }
 
-  /** Adds {@code line} at the end. */
   EnvFile append(String line) {
     lines.add(line);
     return this;

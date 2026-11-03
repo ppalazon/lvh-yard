@@ -21,12 +21,7 @@ import java.util.concurrent.Future;
 import java.util.stream.Stream;
 import org.springframework.stereotype.Component;
 
-/**
- * Tests a Service's Reachability from this Workstation, on request: a TCP connection straight to
- * each Instance, and a request through this Workstation's Traefik for each hostname it routes to
- * the Service: the Service's own and its active Aliases'. Every check runs at once, so one that
- * hangs costs its timeout only once. Nothing is stored.
- */
+/** Every check runs at once, so one that hangs costs its timeout only once. Nothing is stored. */
 @Component
 public class ReachabilityTester {
 
@@ -51,7 +46,6 @@ public class ReachabilityTester {
     this.aliases = aliases;
   }
 
-  /** Tests {@code service} now. */
   public Reachability test(Service service) {
     List<String> hostnames = hostnames(service);
     try (ExecutorService checks = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -71,9 +65,7 @@ public class ReachabilityTester {
   }
 
   /**
-   * Every hostname this Workstation routes to {@code service}: its own, then its active Aliases',
-   * none when it has no Route here. Only a Service with Yard Scope can have an active Alias, so the
-   * Aliases are read only for one.
+   * Only a Service with Yard Scope can have an active Alias, so the Aliases are read only for one.
    */
   private List<String> hostnames(Service service) {
     if (!service.routed()) {
@@ -91,7 +83,6 @@ public class ReachabilityTester {
     return Stream.concat(Stream.of(service.hostname()), aliased).toList();
   }
 
-  /** Why this Workstation has no Route to {@code service}. */
   private static String noRoute(Service service) {
     if (!service.published()) {
       return "Not published: it has no Route, so only its Instances are tested.";
@@ -107,9 +98,8 @@ public class ReachabilityTester {
   }
 
   /**
-   * A TCP connection straight to {@code instance}, closed at once. An Out-of-range Instance is
-   * skipped: its address is on its own Workstation, so a connection here would reach something
-   * else.
+   * Closed at once. An Out-of-range Instance is skipped, because a connection here would reach
+   * something else.
    */
   private static InstanceReachability connect(Instance instance) {
     if (instance.outOfRange()) {
@@ -135,10 +125,8 @@ public class ReachabilityTester {
   }
 
   /**
-   * A {@code GET /} for {@code hostname} through Traefik. It reached the Service when Traefik
-   * passed it on and an Instance answered, whatever the status: not when Traefik has no Route for
-   * the hostname, or could not get an answer from an Instance. Written by hand, as the JDK's HTTP
-   * client does not let a request name its own host.
+   * It reached the Service when an Instance answered, whatever the status. Written by hand, because
+   * the JDK's HTTP client does not let a request set its own Host header.
    */
   private RouteReachability request(String hostname) {
     String answer;
@@ -201,9 +189,8 @@ public class ReachabilityTester {
   }
 
   /**
-   * The start of the answer on {@code in}: its status line and headers, and as much of its body as
-   * has come with them or tells Traefik's own 404 apart. It stops there, so a Service that streams
-   * its answer is not waited on.
+   * Reads the headers, and only enough of the body to tell Traefik's own 404 apart, so a Service
+   * that streams its answer is not waited on.
    */
   private static String read(InputStream in) throws IOException {
     StringBuilder answer = new StringBuilder();
@@ -221,7 +208,7 @@ public class ReachabilityTester {
     return answer.toString();
   }
 
-  /** The status code on {@code answer}'s status line, such as 200, or -1 when it has none. */
+  /** -1 when there is no status line. */
   private static int status(String answer) {
     String[] statusLine = answer.lines().findFirst().orElse("").split(" ", 3);
     if (statusLine.length < 2 || !statusLine[0].startsWith("HTTP/")) {
@@ -234,15 +221,12 @@ public class ReachabilityTester {
     }
   }
 
-  /** What follows {@code answer}'s headers. */
   private static String body(String answer) {
     int end = answer.indexOf("\r\n\r\n");
     return end < 0 ? "" : answer.substring(end + 4);
   }
 
-  /**
-   * {@code error} in words, such as {@code Connection refused}, or its kind when it has no message.
-   */
+  /** Its kind when it has no message. */
   private static String describe(Exception error) {
     return error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage();
   }

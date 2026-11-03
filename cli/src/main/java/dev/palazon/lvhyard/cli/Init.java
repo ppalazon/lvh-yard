@@ -25,11 +25,7 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.ParameterException;
 import picocli.CommandLine.Spec;
 
-/**
- * {@code lvh-yard init}: writes a Workstation's {@code compose.yaml}, {@code .env} and {@code
- * route-profiles.yaml} from the templates inside the CLI ({@link Templates}), fills in every value
- * it can find, and prints the next steps. It never talks to the dashboard.
- */
+/** Writes the files from {@link Templates} and never talks to the dashboard. */
 @Command(
     name = "init",
     mixinStandardHelpOptions = true,
@@ -42,7 +38,6 @@ class Init implements Runnable {
   private static final Pattern DOMAIN =
       Pattern.compile("[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*");
 
-  /** What separates the peers given with {@code --peers} or typed in: commas or spaces. */
   private static final String PEER_SEPARATORS = "[,\\s]+";
 
   @Option(
@@ -86,7 +81,6 @@ class Init implements Runnable {
   @ArgGroup(exclusive = true, multiplicity = "0..1")
   Mode mode = new Mode();
 
-  /** The ways to change files already there; a new one is one more option here. */
   static class Mode {
 
     @Option(names = "--force", description = "Overwrite the files when they exist.")
@@ -112,15 +106,12 @@ class Init implements Runnable {
   @Option(names = "--docker-socket", hidden = true, defaultValue = "/var/run/docker.sock")
   Path dockerSocket;
 
-  /**
-   * Asks as at a terminal, reading the answers from standard input. Hidden: a test types them in.
-   */
+  /** Hidden: a test types the answers in. */
   @Option(names = "--terminal", hidden = true)
   boolean terminal;
 
   @Spec CommandSpec spec;
 
-  /** The answers typed in at the terminal, read once a question is asked. */
   private BufferedReader answers;
 
   @Override
@@ -204,19 +195,17 @@ class Init implements Runnable {
     out.flush();
   }
 
-  /** Sets {@code key} to {@code found}, when found, unless {@code env} already has a value. */
   private static void fillIfEmpty(EnvFile env, String key, Optional<String> found) {
     if (isEmpty(env, key)) {
       found.ifPresent(value -> env.set(key, value));
     }
   }
 
-  /** Whether {@code key} is commented, or set to nothing, in {@code env}. */
+  /** A commented setting counts as empty. */
   private static boolean isEmpty(EnvFile env, String key) {
     return env.get(key).filter(value -> !value.isBlank()).isEmpty();
   }
 
-  /** What to do once the files are written, with the ports and addresses {@code env} sets. */
   private static String nextSteps(Path folder, EnvFile env) {
     return """
     Next steps:
@@ -233,7 +222,7 @@ class Init implements Runnable {
             env.dashboardUrl());
   }
 
-  /** The Workstation name typed in, asked again until it is one. */
+  /** Asks again until the name is valid. */
   private String askWorkstation() {
     PrintWriter out = spec.commandLine().getOut();
     while (true) {
@@ -251,7 +240,6 @@ class Init implements Runnable {
     }
   }
 
-  /** The peers typed in: none for the first Workstation of a Yard. */
   private List<String> askPeers() {
     String typed =
         ask(
@@ -262,8 +250,8 @@ class Init implements Runnable {
   }
 
   /**
-   * The line typed in after {@code question}, stripped. Without a terminal, or once the input ends,
-   * a usage error that names {@code flag}, as no one is there to answer.
+   * Without a terminal, or once the input ends, a usage error that names {@code flag}, because no
+   * one can answer.
    */
   private String ask(String question, String flag) {
     if (!atTerminal()) {
@@ -287,7 +275,7 @@ class Init implements Runnable {
     }
   }
 
-  /** Whether someone is there to answer questions: a terminal, or a test typing in for one. */
+  /** A terminal, or a test that types for one. */
   private boolean atTerminal() {
     Console console = System.console();
     return terminal || (console != null && console.isTerminal());
@@ -319,7 +307,6 @@ class Init implements Runnable {
             + " Workstation's .env.");
   }
 
-  /** The group that owns the Docker socket, when there is one. */
   private Optional<String> dockerGid() {
     try {
       return Optional.of(String.valueOf(Files.getAttribute(dockerSocket, "unix:gid")));
@@ -328,7 +315,6 @@ class Init implements Runnable {
     }
   }
 
-  /** What {@code id <flag>} prints for the user running this command, when it can be run. */
   private static Optional<String> id(String flag) {
     try {
       Process id = new ProcessBuilder("id", flag).redirectErrorStream(true).start();
@@ -343,8 +329,8 @@ class Init implements Runnable {
   }
 
   /**
-   * Writes each of {@code files} to {@code folder}. Without {@code --force}, none is written when
-   * any already exists. {@code .env} is readable by its owner only: it holds the gossip key.
+   * Writes none of them when any exists, unless {@code --force}. {@code .env} is readable by its
+   * owner only, because it holds the gossip key.
    */
   private void write(Path folder, Map<String, String> files) {
     if (!mode.force) {

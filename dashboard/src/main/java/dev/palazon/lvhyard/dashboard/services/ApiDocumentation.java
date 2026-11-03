@@ -15,10 +15,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
 
 /**
- * The OpenAPI document of the REST API. The controller names each error response's status and
- * meaning; every 4xx and 5xx response is then given the Problem Details body (RFC 9457) the API
- * answers errors with. The server is relative, so the committed copy at {@code
- * dashboard/openapi.yaml} does not depend on the port it was generated at.
+ * Every 4xx and 5xx response gets the Problem Details body (RFC 9457). The server is relative, so
+ * the committed {@code dashboard/openapi.yaml} does not depend on the port.
  */
 @Configuration(proxyBeanMethods = false)
 @OpenAPIDefinition(

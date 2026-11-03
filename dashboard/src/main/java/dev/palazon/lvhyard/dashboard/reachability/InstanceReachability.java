@@ -4,16 +4,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
- * Whether this Workstation could connect straight to one Instance.
- *
- * @param id the Instance's registration ID
- * @param address {@code host:port}, where the test connected to
- * @param reached whether a TCP connection was made
- * @param outOfRange whether it is an Out-of-range Instance, at an address only its Home Workstation
- *     can connect to, so it was skipped: a connection from here would reach something else. Not a
- *     failure; left out of the JSON when false
- * @param error why no connection was made, such as {@code Connection refused}; {@code null}, and
- *     left out of the JSON, when it was, or when it was skipped
+ * An Out-of-range Instance is skipped, not failed, because a connection from here would reach
+ * something else. {@code outOfRange} and {@code error} are left out of the JSON when false or null.
  */
 public record InstanceReachability(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String id,
@@ -22,7 +14,7 @@ public record InstanceReachability(
     @JsonInclude(JsonInclude.Include.NON_DEFAULT) boolean outOfRange,
     @JsonInclude(JsonInclude.Include.NON_NULL) String error) {
 
-  /** Whether the check failed: it ran, and no connection was made. */
+  /** A skipped Instance has not failed. */
   public boolean failed() {
     return !reached && !outOfRange;
   }

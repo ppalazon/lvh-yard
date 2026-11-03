@@ -5,10 +5,7 @@ import dev.palazon.lvhyard.dashboard.status.Part;
 import dev.palazon.lvhyard.dashboard.status.Status;
 import org.xmlet.htmlapifaster.Div;
 
-/**
- * How LVH Yard on this Workstation is: the overall state, then each part with its state, its reason
- * and what was found. It refreshes itself, so a fix shows as it takes effect.
- */
+/** It refreshes itself, so a fix shows as it takes effect. */
 final class StatusPage {
 
   static final String PATH = "/status";
@@ -39,7 +36,6 @@ final class StatusPage {
                         .of(content -> status.parts().forEach(part -> part(content, part)))));
   }
 
-  /** One part: its name and state, its reason, and each thing found about it. */
   private static void part(Div<?> content, Part part) {
     content
         .div()

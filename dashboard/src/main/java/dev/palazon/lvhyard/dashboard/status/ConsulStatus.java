@@ -26,9 +26,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
 
 /**
- * Whether this Workstation's Consul answers and has a leader, and which Workstations are in its WAN
- * pool. A Workstation there that is not alive, or a Peer from {@code YARD_PEERS} that is not there
- * at all, is a warning: a teammate's computer may simply be off, so it does not fail the status.
+ * A Workstation in the WAN pool that is not alive, or a missing Peer, is only a warning, because a
+ * teammate's computer may be off.
  */
 @Component
 @Order(StatusOrder.CONSUL)
@@ -42,7 +41,6 @@ class ConsulStatus implements PartReader {
    */
   static final Duration LOOKUP_TIMEOUT = Duration.ofSeconds(1);
 
-  /** Finds the addresses of a Peer's host, as {@link InetAddress#getAllByName} does. */
   @FunctionalInterface
   interface Lookup {
     InetAddress[] addresses(String host) throws UnknownHostException;
@@ -132,10 +130,7 @@ class ConsulStatus implements PartReader {
         + " in its WAN pool.";
   }
 
-  /**
-   * Each Peer from {@code YARD_PEERS} that is not one of {@code members}, with why. Their addresses
-   * are looked up side by side, all within {@link #LOOKUP_TIMEOUT}.
-   */
+  /** The lookups run side by side, all within {@link #LOOKUP_TIMEOUT}. */
   private Map<String, String> missingPeers(List<WanMember> members) {
     Map<String, CompletableFuture<Optional<String>>> checks = new LinkedHashMap<>();
     for (String peer : settings.peerAddresses()) {
@@ -162,10 +157,6 @@ class ConsulStatus implements PartReader {
     }
   }
 
-  /**
-   * Why {@code written}, a Peer as YARD_PEERS writes it, is not one of {@code members}; none if it
-   * is.
-   */
   private Optional<String> whyMissing(String written, List<WanMember> members) {
     Peer peer;
     try {
@@ -187,7 +178,7 @@ class ConsulStatus implements PartReader {
     return inPool ? Optional.empty() : Optional.of("not in the WAN pool");
   }
 
-  /** The member's address, which Consul gives as an IP address, so no lookup is needed. */
+  /** Consul gives an IP address, so no lookup is needed. */
   private static Optional<InetAddress> address(WanMember member) {
     if (member.address() == null) {
       return Optional.empty();

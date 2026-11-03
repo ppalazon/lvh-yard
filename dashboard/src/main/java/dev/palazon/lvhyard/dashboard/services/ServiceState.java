@@ -4,25 +4,20 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.Arrays;
 import java.util.List;
 
-/** What a Service's Publication and the Health of its Instances add up to. */
 public enum ServiceState {
 
-  /** No Publication, by choice; its Instances may be registered and healthy. */
+  /** By choice. Its Instances may still be registered and healthy. */
   UNPUBLISHED,
 
-  /** Published, with no registered Instances. */
+  /** No registered Instances. */
   UNAVAILABLE,
 
-  /** Published, and none of its Instances is passing. */
+  /** No passing Instance. */
   UNHEALTHY,
 
-  /** Published, with at least one passing Instance: published and healthy. */
+  /** At least one passing Instance. */
   HEALTHY;
 
-  /**
-   * The state of a Service with {@code publication}, or none, and these registered {@code
-   * instances}.
-   */
   static ServiceState of(Publication publication, List<Instance> instances) {
     if (publication == null) {
       return UNPUBLISHED;
@@ -35,7 +30,6 @@ public enum ServiceState {
         : UNHEALTHY;
   }
 
-  /** The state whose {@link #value} is {@code value}, such as {@code healthy}. */
   public static ServiceState parse(String value) {
     return Arrays.stream(values())
         .filter(state -> state.value().equals(value))
@@ -43,7 +37,6 @@ public enum ServiceState {
         .orElseThrow(() -> new UnknownStateException(value));
   }
 
-  /** The state's name in the API, such as {@code unhealthy}. */
   @JsonValue
   public String value() {
     return name().toLowerCase();

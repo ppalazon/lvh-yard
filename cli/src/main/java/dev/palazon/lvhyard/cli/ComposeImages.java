@@ -9,8 +9,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * The {@code image:} lines of a {@code compose.yaml}'s services, read and changed by line, so every
- * other line stays byte for byte: the file is never reparsed nor reformatted.
+ * Reads and changes the {@code image:} lines of a {@code compose.yaml} one line at a time, so every
+ * other line stays byte for byte.
  */
 final class ComposeImages {
 
@@ -21,7 +21,7 @@ final class ComposeImages {
 
   private final String[] lines;
 
-  /** The image line of each service, by service name, as its index in {@link #lines}. */
+  /** The index in {@link #lines} of each service's image line. */
   private final Map<String, Integer> images = new LinkedHashMap<>();
 
   private ComposeImages(String text) {
@@ -47,19 +47,17 @@ final class ComposeImages {
     return new ComposeImages(text);
   }
 
-  /** {@code service}'s image, when it has an {@code image:} line. */
   Optional<String> image(String service) {
     return Optional.ofNullable(images.get(service)).map(i -> matcher(i).group(3));
   }
 
-  /** Sets {@code service}'s image, keeping the rest of its line: indent, quotes and comment. */
+  /** Keeps the rest of the line: indent, quotes and comment. */
   void setImage(String service, String image) {
     int i = images.get(service);
     Matcher line = matcher(i);
     lines[i] = line.group(1) + line.group(2) + image + line.group(2) + line.group(4);
   }
 
-  /** The services among {@code services} without an {@code image:} line. */
   List<String> missing(List<String> services) {
     return services.stream().filter(service -> !images.containsKey(service)).toList();
   }

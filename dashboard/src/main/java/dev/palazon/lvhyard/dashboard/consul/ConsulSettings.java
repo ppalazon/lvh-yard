@@ -6,18 +6,14 @@ import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Where this Workstation's Consul agent answers, from {@code YARD_CONSUL_HTTP_PORT}, and the Peers
- * it joins, from {@code YARD_PEERS}.
+ * From {@code YARD_CONSUL_HTTP_PORT} and {@code YARD_PEERS}.
  *
- * @param url the agent's HTTP API, on loopback
- * @param peers the Peers' LAN addresses, separated by spaces or commas, each as {@code <ip>} or
- *     {@code <ip>:<serf-wan-port>} or {@code [<ipv6>]:<serf-wan-port>}; none for the first
- *     Workstation of a Yard
+ * @param peers separated by spaces or commas, each {@code <ip>}, {@code <ip>:<serf-wan-port>} or
+ *     {@code [<ipv6>]:<serf-wan-port>}
  */
 @ConfigurationProperties("lvh-yard.consul")
 public record ConsulSettings(URI url, String peers) {
 
-  /** The Peers, one address each, as {@code YARD_PEERS} lists them. */
   public List<String> peerAddresses() {
     return peers == null
         ? List.of()

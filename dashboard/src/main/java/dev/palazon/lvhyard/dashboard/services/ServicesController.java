@@ -22,9 +22,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * The Yard's Services, as JSON, read only. A Service is addressed by its Home Workstation and its
- * name; this Workstation's own Services are changed through {@link WorkstationServicesController},
- * and a Remote Service only on its Home Workstation.
+ * Read only. This Workstation's own Services are changed through {@link
+ * WorkstationServicesController}, and a Remote Service only on its Home Workstation.
  */
 @RestController
 @RequestMapping(path = "/api/services", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -114,9 +113,8 @@ class ServicesController {
   }
 
   /**
-   * Any change asked of a Service here, such as registering an Instance of a Remote Service, is
-   * refused with the reason: no path here changes a Service. Left out of the OpenAPI document,
-   * which lists only what can be done.
+   * Refuses any change, with the reason. Left out of the OpenAPI document, which lists only what
+   * can be done.
    */
   @Hidden
   @RequestMapping(

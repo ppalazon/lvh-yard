@@ -1,18 +1,14 @@
 package dev.palazon.lvhyard.dashboard.status;
 
 /**
- * Reads one {@link Part} of the status, such as Consul or Docker. Each is a Spring bean; {@link
- * StatusReader} reads every one, side by side, in the order their {@link
- * org.springframework.core.annotation.Order} gives. A new part is a new bean: nothing else changes.
+ * Each one is a Spring bean, read side by side in {@link
+ * org.springframework.core.annotation.Order}. A new part is a new bean, and nothing else changes.
  */
 public interface PartReader {
 
-  /** The part's name, such as {@code Consul}, shown as it is and the same in every answer. */
+  /** Shown as it is, and the same in every answer. */
   String name();
 
-  /**
-   * How the part is now. It may throw, or take too long: the reader then shows the part as failing,
-   * with the reason.
-   */
+  /** It may throw or take too long. The part then shows as failing, with the reason. */
   Part read();
 }

@@ -8,13 +8,11 @@ import java.util.TreeMap;
 import org.springframework.stereotype.Component;
 
 /**
- * This Workstation's Publications, in its Consul KV: one key per published Service, holding its
- * Scope. Publishing never touches an Instance.
+ * One Consul KV key per published Service, holding its Scope. Publishing never touches an Instance.
  */
 @Component
 public class Publications {
 
-  /** Where the Publications live in the KV store, under LVH Yard's own prefix. */
   private static final String PREFIX = "lvh-yard/publications/";
 
   private final Workstation workstation;
@@ -30,9 +28,8 @@ public class Publications {
   }
 
   /**
-   * Publishes {@code service} of {@code workstation}, which must be this one, with {@code scope}.
-   * With no Scope, a new Publication gets Local Scope and one that exists keeps its own, so
-   * publishing again changes nothing. A Core Service keeps Local Scope.
+   * {@code workstation} must be this one. With no Scope, a new Publication gets Local Scope and an
+   * existing one keeps its own. A Core Service keeps Local Scope.
    */
   public void publish(String workstation, String service, Scope scope) {
     checkHome(workstation);
@@ -58,9 +55,8 @@ public class Publications {
   }
 
   /**
-   * Publishes {@code service} with Local Scope, unless it has that already. One with Yard Scope,
-   * from before Yard Scope was refused, is put back to Local. No name rule applies: a Core
-   * Service's name is kept for it.
+   * A Yard Scope from before it was refused for Core Services goes back to Local. No name rule
+   * applies: the Core Service's name is kept for it.
    */
   void keepCorePublication(CoreService service) {
     Publication existing = all().get(service.serviceName());
@@ -69,10 +65,7 @@ public class Publications {
     }
   }
 
-  /**
-   * Removes the Publication of {@code service} of {@code workstation}, which must be this one, if
-   * it has one. A Core Service cannot be unpublished.
-   */
+  /** {@code workstation} must be this one. A Core Service cannot be unpublished. */
   public void unpublish(String workstation, String service) {
     checkHome(workstation);
     if (CoreService.isNamed(service)) {
@@ -82,15 +75,11 @@ public class Publications {
     consul.deleteValue(PREFIX + service);
   }
 
-  /** This Workstation's Publications, by Service name. */
   Map<String, Publication> all() {
     return all(null);
   }
 
-  /**
-   * The Publications in {@code datacenter}'s KV, by Service name: those of the Workstation it
-   * belongs to, or this one's when it is {@code null}.
-   */
+  /** {@code null} reads this Workstation's own. */
   Map<String, Publication> all(String datacenter) {
     Map<String, Publication> publications = new TreeMap<>();
     consul

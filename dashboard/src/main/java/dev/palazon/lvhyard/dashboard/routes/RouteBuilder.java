@@ -12,10 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Turns the Yard's Services and this Workstation's Aliases into Traefik's configuration: which
- * Services and Aliases get a Route, at the hostname each one carries. It reads nothing itself.
- */
+/** Turns the Services and Aliases into Traefik's configuration. It reads nothing itself. */
 final class RouteBuilder {
 
   /** The entry point compose.yaml gives Traefik for plain HTTP. */
@@ -30,14 +27,9 @@ final class RouteBuilder {
   private RouteBuilder() {}
 
   /**
-   * A Route at its hostname to every Instance in range of each Service that is {@linkplain
-   * dev.palazon.lvhyard.dashboard.services.Service#routed routed} here. The dashboard's own, at
-   * {@code yard.<base-domain>}, comes from the {@code yard} Core Service, or straight to {@code
-   * dashboard} while that Service is missing, so the dashboard is always reached. A Service has a
-   * hostname here when it is published on this Workstation, or published with Yard Scope on another
-   * one; the Services of an unreachable Workstation are not among {@code services}, so they get no
-   * Route. Each active Alias gets a Route at its hostname to the backend of the Remote Service it
-   * names, when that Service has one.
+   * The dashboard's own Route comes from the {@code yard} Core Service, or goes straight to {@code
+   * dashboard} while that Service is missing, so the dashboard is always reached. Unreachable
+   * Workstations are not among {@code services}, so their Services get no Route.
    *
    * @param dashboard the URL the dashboard listens on
    */
@@ -78,9 +70,8 @@ final class RouteBuilder {
   }
 
   /**
-   * The Traefik name of {@code service}'s Route and backend: its own name on its Home Workstation,
-   * and {@code <service>.<workstation>} for a Remote Service. A Service name is one DNS label, with
-   * no dot, so a Remote Service never takes the name of an own one, or of the dashboard's.
+   * A Remote Service is named {@code <service>.<workstation>}. A Service name has no dot, so it
+   * never takes the name of an own Service or of the dashboard.
    */
   private static String name(
       Workstation workstation, dev.palazon.lvhyard.dashboard.services.Service service) {
@@ -91,7 +82,6 @@ final class RouteBuilder {
     return workstation.is(home) ? service : service + "." + home;
   }
 
-  /** A Route from {@code hostname} to the Traefik service called {@code name}. */
   private static Router router(String hostname, String name) {
     return new Router("Host(`" + hostname + "`)", List.of(HTTP_ENTRY_POINT), name);
   }

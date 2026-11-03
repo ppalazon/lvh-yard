@@ -1,9 +1,6 @@
 package dev.palazon.lvhyard.cli;
 
-/**
- * A failure {@code lvh-yard} explains to the person at the terminal, and exits with 1 for: the
- * dashboard's refusal, a dashboard that does not answer, or an Instance that cannot be found.
- */
+/** A failure that {@code lvh-yard} prints and exits with 1 for. */
 class YardException extends RuntimeException {
 
   YardException(String message) {

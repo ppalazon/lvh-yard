@@ -7,14 +7,12 @@ import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 /**
- * This Workstation's Aliases, in its own Consul KV: one key per Alias, holding the Remote Service
- * it names as {@code <workstation>/<service>}. No other Workstation reads them, so an Alias never
- * changes what others see.
+ * One Consul KV key per Alias, holding {@code <workstation>/<service>}. No other Workstation reads
+ * them, so an Alias never changes what others see.
  */
 @Component
 public class Aliases {
 
-  /** Where the Aliases live in the KV store, under LVH Yard's own prefix. */
   private static final String PREFIX = "lvh-yard/aliases/";
 
   private final Workstation workstation;
@@ -30,14 +28,8 @@ public class Aliases {
   }
 
   /**
-   * Gives {@code service} of {@code home}, another Workstation, the Alias {@code name}, or points
-   * the Alias there if it exists. The Remote Service needs no Yard Scope yet: until it has one, the
-   * Alias has no Route.
-   *
-   * @throws UnknownWorkstationException when the Yard has no Workstation {@code home}
-   * @throws UnreachableWorkstationException when {@code home} does not answer, so its Services are
-   *     not known
-   * @throws UnknownServiceException when {@code home} has no Service {@code service}
+   * Also points an existing Alias there. The Remote Service needs no Yard Scope yet: until it has
+   * one, the Alias has no Route.
    */
   public Alias add(String name, String home, String service) {
     Registrations.checkName("Alias", name);
@@ -60,11 +52,6 @@ public class Aliases {
         .orElseThrow();
   }
 
-  /**
-   * Removes the Alias {@code name}, and with it its Route.
-   *
-   * @throws UnknownAliasException when this Workstation has no such Alias
-   */
   public void remove(String name) {
     if (!consul.values(null, PREFIX).containsKey(PREFIX + name)) {
       throw new UnknownAliasException(name);
@@ -73,14 +60,12 @@ public class Aliases {
   }
 
   /**
-   * Every Alias of this Workstation, by name, each with its state in the Yard as the Routes see it:
-   * an Alias to a Workstation whose Services fail to read is unreachable, as it has no Route.
+   * An Alias to a Workstation whose Services fail to read is unreachable, because it has no Route.
    */
   public List<Alias> all() {
     return of(yard.routableYard());
   }
 
-  /** Every Alias of this Workstation, by name, each with its state in {@code yard}. */
   public List<Alias> of(Yard yard) {
     return consul.values(null, PREFIX).entrySet().stream()
         .map(entry -> {
@@ -94,10 +79,9 @@ public class Aliases {
   }
 
   /**
-   * The Alias {@code name} of {@code service} of {@code home}, with its state in {@code yard}. A
-   * published Service of this Workstation with the same name wins over it, as its Route has the
-   * same hostname. Otherwise it is active while the Remote Service has Yard Scope and an Instance
-   * in range: the rules that give the Service its own Route here.
+   * A published Service of this Workstation with the same name wins, because its Route has the same
+   * hostname. Otherwise the Alias is active by the same rules that give the Service its own Route
+   * here.
    */
   private Alias alias(String name, String home, String service, Yard yard) {
     Alias.State state;

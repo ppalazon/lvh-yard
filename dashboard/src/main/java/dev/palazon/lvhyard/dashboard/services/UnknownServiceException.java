@@ -1,6 +1,6 @@
 package dev.palazon.lvhyard.dashboard.services;
 
-/** A Workstation has no Service of this name: no Instance and no Publication. */
+/** No Instance and no Publication. */
 public class UnknownServiceException extends RuntimeException {
 
   UnknownServiceException(String service) {

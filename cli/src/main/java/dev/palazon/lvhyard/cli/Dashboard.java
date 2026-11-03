@@ -23,9 +23,8 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * The dashboard on this Workstation, through the REST API that {@code openapi.yaml} describes.
- * Every failure, a refusal or a dashboard that does not answer, is a {@link YardException} whose
- * message is ready to print.
+ * Client for the dashboard's REST API ({@code openapi.yaml}). Every failure is a {@link
+ * YardException} with a message ready to print.
  */
 final class Dashboard {
 
@@ -46,14 +45,7 @@ final class Dashboard {
     this.url = url.toString().endsWith("/") ? url : URI.create(url + "/");
   }
 
-  /**
-   * A Service, with its Home Workstation, its Instances and its state: unpublished, unavailable,
-   * unhealthy or healthy. A Service without a Publication has none, and one without a Route on this
-   * Workstation no hostname. A Service with Yard Scope also has the hostname every other
-   * Workstation routes it at. Its warnings say why other Workstations may not reach it. A Core
-   * Service is one LVH Yard registers and keeps itself; the API leaves {@code core} out when it is
-   * false.
-   */
+  /** The API leaves {@code core} out when it is false. */
   record Service(
       String workstation,
       String name,
@@ -70,11 +62,6 @@ final class Dashboard {
     }
   }
 
-  /**
-   * A link from a Service to a Docker container by its name, or to a Compose project and service,
-   * and a container port, with the IDs of the Bound Instances it gives now: one per matching
-   * container that runs.
-   */
   record ContainerBinding(
       String id,
       String container,
@@ -91,25 +78,19 @@ final class Dashboard {
     }
   }
 
-  /** Why other Workstations may not reach a Service, such as a {@code loopback-instance}. */
   record Warning(String kind, String message) {}
 
-  /** The Yard: this Workstation, then every other one by name. */
+  /** This Workstation, then the others by name. */
   record Yard(HomeWorkstation home, List<YardWorkstation> remotes) {}
 
-  /** This Workstation, with its own Services. */
   record HomeWorkstation(String name, List<Service> services) {}
 
-  /**
-   * Another Workstation of the Yard, with its Remote Services. An unreachable one, whose datacenter
-   * does not answer, has none for now.
-   */
+  /** An unreachable one has no Services for now. */
   record YardWorkstation(String name, boolean unreachable, List<Service> services) {}
 
   /**
-   * A short hostname this Workstation gives to a Remote Service. Its state is active, unavailable,
-   * hidden, not-shared, unreachable or missing; one that is not active has no Route, and a reason
-   * that says why.
+   * {@code state} is active, unavailable, hidden, not-shared, unreachable or missing. Only an
+   * active one has a Route.
    */
   record Alias(
       String name,
@@ -124,29 +105,19 @@ final class Dashboard {
     }
   }
 
-  /** A Service's Publication, with its Scope. */
   record Publication(String scope) {}
 
-  /**
-   * One Instance of a Service, with its Health: passing, warning or critical. One out of range is
-   * at an address only its Home Workstation can connect to, such as loopback or a Docker network,
-   * so this Workstation has no Route to it.
-   */
+  /** {@code health} is passing, warning or critical. */
   record Instance(String id, String host, int port, String health, boolean outOfRange) {
 
-    /** {@code host:port}, where the Instance is reached. */
     String address() {
       return Dashboard.address(host, port);
     }
   }
 
-  /**
-   * How an Instance's Health is checked: its type, http or tcp, the path an HTTP check GETs, its
-   * interval and timeout. A part that is {@code null} is left to the dashboard.
-   */
+  /** A {@code null} part gets the dashboard's default. */
   record Check(String type, String path, String interval, String timeout) {
 
-    /** The parts that are given, by their names in the API. */
     Map<String, String> given() {
       Map<String, String> parts = new LinkedHashMap<>();
       parts.put("type", type);
@@ -158,10 +129,6 @@ final class Dashboard {
     }
   }
 
-  /**
-   * What a Reachability test of a Service found, from this Workstation: each Instance reached
-   * straight, each hostname reached through Traefik, and why it has no Route here when it has none.
-   */
   record Reachability(
       String workstation,
       String service,
@@ -170,11 +137,7 @@ final class Dashboard {
       String noRoute,
       boolean passed) {}
 
-  /**
-   * Whether a connection straight to an Instance was made, or why not. One out of range was
-   * skipped: only its Home Workstation can connect to its address. The API leaves {@code
-   * outOfRange} out when it is false.
-   */
+  /** The API leaves {@code outOfRange} out when it is false. */
   record InstanceReachability(
       String id, String address, boolean reached, Boolean outOfRange, String error) {
 
@@ -183,19 +146,11 @@ final class Dashboard {
     }
   }
 
-  /**
-   * Whether a request for a hostname through Traefik reached the Service, the status it answered,
-   * or why not.
-   */
   record RouteReachability(String hostname, boolean reached, Integer status, String error) {}
 
-  /**
-   * How LVH Yard on this Workstation is: each part, and the worst of them, each ok, warning or
-   * failing.
-   */
+  /** {@code overall} is the state of the worst part. */
   record Status(String overall, List<StatusPart> parts) {}
 
-  /** One part, such as Consul or Docker: its state, why, and what was found. */
   record StatusPart(String name, String state, String reason, List<StatusDetail> details) {}
 
   /** One thing found about a part; {@code state} is null for a plain fact such as a version. */
@@ -206,17 +161,14 @@ final class Dashboard {
     return (host.contains(":") ? "[" + host + "]" : host) + ":" + port;
   }
 
-  /** How LVH Yard on this Workstation is now. */
   Status status() {
     return read(send(get("api/status")), new TypeReference<>() {});
   }
 
-  /** The Yard, with every Workstation's Services. */
   Yard yard() {
     return read(send(get("api/yard")), new TypeReference<>() {});
   }
 
-  /** The Services of {@code workstation}, as the Yard sees them. */
   List<Service> services(String workstation) {
     return read(
         send(
@@ -226,20 +178,17 @@ final class Dashboard {
         new TypeReference<>() {});
   }
 
-  /** This Workstation's {@code service}. */
   Service ownService(String service) {
     return read(
         send(get("api/workstation/services/" + segment(service))), new TypeReference<>() {});
   }
 
-  /** Tests now whether this Workstation reaches its own {@code service}. */
   Reachability testOwn(String service) {
     return read(
         send(get("api/workstation/services/" + segment(service) + "/reachability")),
         new TypeReference<>() {});
   }
 
-  /** Tests now whether this Workstation reaches {@code service} of {@code workstation}. */
   Reachability test(String workstation, String service) {
     return read(
         send(
@@ -248,10 +197,8 @@ final class Dashboard {
   }
 
   /**
-   * Registers a Static Instance of this Workstation's {@code service} at {@code host} and {@code
-   * port}, with {@code check}, {@code tags} and {@code meta}. With no host, the dashboard puts it
-   * at this Workstation's LAN address, and the parts of the check left out get the dashboard's
-   * defaults.
+   * With no host, the dashboard uses this Workstation's LAN address. A part of the check left out
+   * gets the dashboard's default.
    */
   Instance register(
       String service,
@@ -281,18 +228,10 @@ final class Dashboard {
     return read(send(request), new TypeReference<>() {});
   }
 
-  /**
-   * Binds this Workstation's {@code service} to the container called {@code container}, at its
-   * {@code port}.
-   */
   ContainerBinding bind(String service, String container, int port) {
     return bind(service, Map.of("container", container, "port", port));
   }
 
-  /**
-   * Binds this Workstation's {@code service} to every container of {@code composeService} in {@code
-   * project}.
-   */
   ContainerBinding bindCompose(String service, String project, String composeService, int port) {
     return bind(
         service, Map.of("composeProject", project, "composeService", composeService, "port", port));
@@ -306,26 +245,17 @@ final class Dashboard {
     return read(send(request), new TypeReference<>() {});
   }
 
-  /**
-   * Removes the Container Binding {@code id} of this Workstation's {@code service}, and its Bound
-   * Instances.
-   */
   void unbind(String service, String id) {
     send(
         HttpRequest.newBuilder(URI.create(containerBindingsUrl(service) + "/" + segment(id)))
             .DELETE());
   }
 
-  /** Removes the Static Instance {@code id} of this Workstation's {@code service}. */
   void remove(String service, String id) {
     send(HttpRequest.newBuilder(URI.create(instancesUrl(service) + "/" + segment(id))).DELETE());
   }
 
-  /**
-   * Publishes this Workstation's {@code service} with {@code scope}, local or yard, and answers the
-   * published Service. With no Scope, the dashboard gives a new Publication Local Scope and keeps
-   * an existing one's.
-   */
+  /** With no Scope, a new Publication gets Local Scope, and an existing one keeps its Scope. */
   Service publish(String service, String scope) {
     HttpRequest.Builder request = HttpRequest.newBuilder(publicationUrl(service));
     if (scope == null) {
@@ -339,20 +269,14 @@ final class Dashboard {
     return read(send(request), new TypeReference<>() {});
   }
 
-  /** Unpublishes this Workstation's {@code service}, which keeps its Instances. */
   void unpublish(String service) {
     send(HttpRequest.newBuilder(publicationUrl(service)).DELETE());
   }
 
-  /** This Workstation's Aliases, by name. */
   List<Alias> aliases() {
     return read(send(get("api/workstation/aliases")), new TypeReference<>() {});
   }
 
-  /**
-   * Gives {@code service} of {@code workstation} the Alias {@code name}, and answers the Alias with
-   * its state.
-   */
   Alias addAlias(String name, String workstation, String service) {
     HttpRequest.Builder request =
         HttpRequest.newBuilder(aliasUrl(name))
@@ -364,7 +288,6 @@ final class Dashboard {
     return read(send(request), new TypeReference<>() {});
   }
 
-  /** Removes the Alias {@code name}. */
   void removeAlias(String name) {
     send(HttpRequest.newBuilder(aliasUrl(name)).DELETE());
   }
@@ -394,7 +317,7 @@ final class Dashboard {
     return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
   }
 
-  /** The JSON body of {@code response}, which a server that is not the dashboard may not have. */
+  /** A server that is not the dashboard may answer without JSON. */
   private <T> T read(HttpResponse<String> response, TypeReference<T> type) {
     try {
       return JSON.readValue(response.body(), type);
@@ -407,7 +330,6 @@ final class Dashboard {
     }
   }
 
-  /** Sends {@code request}, and answers its response if it is a success. */
   private HttpResponse<String> send(HttpRequest.Builder request) {
     HttpResponse<String> response;
     try {
@@ -441,9 +363,7 @@ final class Dashboard {
     return response;
   }
 
-  /**
-   * Why the dashboard refused: the Problem Details' detail, or else its title, or else the status.
-   */
+  /** The Problem Details' detail, else its title, else the status. */
   private static String reason(HttpResponse<String> response) {
     try {
       JsonNode problem = JSON.readTree(response.body());

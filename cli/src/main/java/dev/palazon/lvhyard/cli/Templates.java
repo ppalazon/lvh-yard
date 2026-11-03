@@ -17,7 +17,6 @@ final class Templates {
   static final String ENV = ".env";
   static final String ROUTE_PROFILES = "route-profiles.yaml";
 
-  /** The dashboard's image in the repository's {@code compose.yaml}, before its tag. */
   private static final String DASHBOARD_IMAGE = "ghcr.io/ppalazon/lvh-yard-dashboard:";
 
   private Templates() {}
@@ -37,12 +36,10 @@ final class Templates {
     return repository.replace(latest, DASHBOARD_IMAGE + dashboardTag() + "}").replace(build, "");
   }
 
-  /** {@code .env.example}, with every setting and its comment, ready to be filled in. */
   static EnvFile env() {
     return EnvFile.parse(read(".env.example"));
   }
 
-  /** {@code route-profiles.yaml}, with commented examples only. */
   static String routeProfiles() {
     return read(ROUTE_PROFILES);
   }

@@ -6,18 +6,10 @@ import dev.palazon.lvhyard.dashboard.services.Service;
 import org.xmlet.htmlapifaster.PhrasingContent;
 import org.xmlet.htmlapifaster.Td;
 
-/**
- * How the pages show an Instance: where it is, its tags, meta and Health, and each check's last
- * output.
- */
 final class InstanceViews {
 
   private InstanceViews() {}
 
-  /**
-   * Where the Instance is, marked when it is out of range here, with what gives a Bound Instance,
-   * and its tags and meta below.
-   */
   static void description(Td<?> cell, Service service, Instance instance) {
     cell.div().text(instance.address()).__();
     service.containerBindings().stream()
@@ -62,7 +54,6 @@ final class InstanceViews {
             cell.div().attrClass("text-muted-foreground text-sm").text(key + ": " + value).__());
   }
 
-  /** Each check's name and Health, with what it last saw below. */
   static void checks(Td<?> cell, Instance instance) {
     instance
         .checks()
@@ -88,7 +79,6 @@ final class InstanceViews {
                 .__());
   }
 
-  /** The Health as a badge: plain when passing, muted when warning, red when critical. */
   static void health(Td<?> cell, Health health) {
     badge(cell, health);
   }

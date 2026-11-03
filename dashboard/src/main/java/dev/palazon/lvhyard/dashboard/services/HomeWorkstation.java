@@ -4,11 +4,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
 /**
- * This Workstation, as the Home Workstation of the Services it can change. Its own datacenter
- * always answers.
+ * Its own datacenter always answers.
  *
- * @param name its name, which is also its Consul datacenter's
- * @param services its Services, ordered by name
+ * @param name also the name of its Consul datacenter
  */
 public record HomeWorkstation(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,

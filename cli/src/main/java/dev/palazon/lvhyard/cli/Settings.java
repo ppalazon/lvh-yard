@@ -1,8 +1,8 @@
 package dev.palazon.lvhyard.cli;
 
 /**
- * The names the CLI reads or writes: the settings of a Workstation's {@code .env}, as {@code
- * .env.example} names them, and the environment variables that point the CLI at a Workstation.
+ * The names of the {@code .env} settings, as {@code .env.example} names them, and of the
+ * environment variables the CLI reads.
  */
 final class Settings {
 

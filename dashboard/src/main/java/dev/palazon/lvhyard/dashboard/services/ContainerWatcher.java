@@ -10,18 +10,14 @@ import org.springframework.context.SmartLifecycle;
 import org.springframework.stereotype.Component;
 
 /**
- * Keeps the Bound Instances in step with Docker while the dashboard runs. It follows Docker's
- * container events, and brings every Container Binding in step on startup, so containers that
- * started or stopped while the dashboard was not running are caught up with. A Docker that does not
- * answer, or stops answering, is tried again every few seconds, and caught up with the same way
- * once it answers.
+ * Syncs on startup and after each container event, so changes while the dashboard was down are
+ * caught up with. A Docker that does not answer is tried again every {@link #RETRY}.
  */
 @Component
 class ContainerWatcher implements SmartLifecycle {
 
   private static final Logger LOG = LoggerFactory.getLogger(ContainerWatcher.class);
 
-  /** How long to wait before trying a Docker that does not answer again. */
   private static final Duration RETRY = Duration.ofSeconds(5);
 
   /**
@@ -115,7 +111,7 @@ class ContainerWatcher implements SmartLifecycle {
     }
   }
 
-  /** Logs the first of a run of failures to follow Docker, and answers that it is failing. */
+  /** Logs only the first of a run of failures. */
   private static boolean failed(boolean failing, RuntimeException e) {
     if (!failing) {
       LOG.warn(
@@ -127,7 +123,7 @@ class ContainerWatcher implements SmartLifecycle {
     return true;
   }
 
-  /** Waits before Docker is tried again; {@code false} when the watcher is stopped meanwhile. */
+  /** {@code false} when the watcher is stopped meanwhile. */
   private boolean pause() {
     try {
       Thread.sleep(RETRY);

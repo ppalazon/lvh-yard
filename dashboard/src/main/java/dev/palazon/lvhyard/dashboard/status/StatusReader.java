@@ -16,11 +16,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * Reads every {@link PartReader} side by side, each for at most {@link #PART_TIMEOUT}, and keeps
- * the status for {@link #KEPT}, so that many open pages cost one round of calls. A part that
- * throws, or does not answer in time, is failing; it never holds up the others for longer. Once
- * kept too long, the status is still answered at once while it is read again in the background:
- * only the very first status waits for its parts.
+ * Keeps the status for {@link #KEPT}, so many open pages cost one round of calls. A part that
+ * throws or takes too long is failing, and never holds up the others. A kept status is answered at
+ * once while it is read again in the background, so only the first status waits.
  */
 @Component
 public class StatusReader {
@@ -38,10 +36,8 @@ public class StatusReader {
   /** Reads run on their own threads, so one that never answers is simply left behind. */
   private final ExecutorService readers = Executors.newVirtualThreadPerTaskExecutor();
 
-  /** The last status read, and when; none before the first. */
   private volatile Read last;
 
-  /** Whether the status is being read again in the background. */
   private final AtomicBoolean rereading = new AtomicBoolean();
 
   @Autowired
@@ -59,11 +55,6 @@ public class StatusReader {
     readers.shutdownNow();
   }
 
-  /**
-   * The status of every part, the last one read. When it is older than {@link #KEPT}, it is read
-   * again in the background, and the next callers get the new one. The first caller, with no status
-   * read yet, waits for it, and so do those who ask meanwhile.
-   */
   public Status status() {
     Read read = last;
     if (read == null) {
@@ -88,7 +79,6 @@ public class StatusReader {
     return last.status();
   }
 
-  /** A status, and when it was read. */
   private record Read(Status status, Instant at) {}
 
   private Status readNow() {
@@ -104,7 +94,6 @@ public class StatusReader {
     return Status.of(read);
   }
 
-  /** What {@code reading} of {@code part} found by {@code deadline}, or why it is failing. */
   private static Part await(PartReader part, Future<Part> reading, long deadline) {
     try {
       return reading.get(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);

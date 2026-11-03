@@ -72,10 +72,6 @@ class PagesController {
     this.reachability = reachability;
   }
 
-  /**
-   * The Catalog, with only the Services of {@code workstation} and in {@code state} when they are
-   * not blank.
-   */
   @GetMapping(path = "/", produces = MediaType.TEXT_HTML_VALUE)
   @ResponseBody
   String catalog(
@@ -109,10 +105,6 @@ class PagesController {
         null);
   }
 
-  /**
-   * Registers the Static Instance or binds the container the form holds, as its kind says, and goes
-   * to its Service's page, or shows the form again with the error.
-   */
   @PostMapping(path = RegisterPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
   ResponseEntity<String> register(
       @RequestParam String name, RegisterPage.Choice choice, InstanceForm.Fields fields) {
@@ -138,7 +130,7 @@ class PagesController {
     return ServicePage.render(workstation, anyService(home, service));
   }
 
-  /** The Service's page with the results of a Reachability test run now, which are not kept. */
+  /** The results are not kept. */
   @GetMapping(
       path = "/services/{workstation}/{service}/reachability",
       produces = MediaType.TEXT_HTML_VALUE)
@@ -148,7 +140,6 @@ class PagesController {
     return ServicePage.render(workstation, found, reachability.test(found));
   }
 
-  /** {@code service} of {@code home}, this Workstation or another one of the Yard. */
   private Service anyService(String home, String service) {
     try {
       return yard.service(home, service)
@@ -179,7 +170,6 @@ class PagesController {
         null);
   }
 
-  /** Edits a Static Instance and shows its Service, or shows the form again with the error. */
   @PostMapping(
       path = "/services/{workstation}/{service}/instances/{id}/edit",
       produces = MediaType.TEXT_HTML_VALUE)
@@ -204,22 +194,17 @@ class PagesController {
     return seeOther(ServicePage.path(found));
   }
 
-  /** A change to a Core Service, refused with its reason. */
   @ExceptionHandler
   void refused(CoreServiceException e, HttpServletResponse response) throws IOException {
     response.sendError(HttpStatus.CONFLICT.value(), e.getMessage());
   }
 
-  /** A change to a Remote Service, which only its Home Workstation can make, forbidden. */
   @ExceptionHandler
   void forbidden(RemoteServiceException e, HttpServletResponse response) throws IOException {
     response.sendError(HttpStatus.FORBIDDEN.value(), e.getMessage());
   }
 
-  /**
-   * This Workstation's {@code service}: a Remote Service's Instances cannot be edited, so it is
-   * forbidden.
-   */
+  /** A Remote Service's Instances cannot be edited, so it is forbidden. */
   private Service ownService(String home, String service) {
     if (!workstation.is(home)) {
       throw new ResponseStatusException(
@@ -236,10 +221,7 @@ class PagesController {
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
   }
 
-  /**
-   * Removes a Static Instance, then shows its Service, or the Catalog when the Service is gone with
-   * it.
-   */
+  /** Shows the Catalog when the Service is gone with it. */
   @PostMapping("/services/{workstation}/{service}/instances/{id}/remove")
   ResponseEntity<String> remove(
       @PathVariable("workstation") String home,
@@ -253,10 +235,7 @@ class PagesController {
     return seeOther(yard.service(home, service).map(ServicePage::path).orElse("/"));
   }
 
-  /**
-   * Removes a Container Binding, then shows its Service, or the Catalog when the Service is gone
-   * with it.
-   */
+  /** Shows the Catalog when the Service is gone with it. */
   @PostMapping("/services/{workstation}/{service}/container-bindings/{id}/remove")
   ResponseEntity<String> removeContainerBinding(
       @PathVariable("workstation") String home,
@@ -270,10 +249,7 @@ class PagesController {
     return seeOther(yard.service(home, service).map(ServicePage::path).orElse("/"));
   }
 
-  /**
-   * Publishes a Service with {@code scope}, local or yard, then shows it. With no Scope, a new
-   * Publication gets Local Scope and one that exists keeps its own.
-   */
+  /** With no Scope, a new Publication gets Local Scope, and an existing one keeps its Scope. */
   @PostMapping("/services/{workstation}/{service}/publish")
   ResponseEntity<String> publish(
       @PathVariable("workstation") String home,
@@ -296,9 +272,7 @@ class PagesController {
     return seeOther(ServicePage.path(home, service));
   }
 
-  /**
-   * Unpublishes a Service, then shows it, or the Catalog when the Service had no Instances left.
-   */
+  /** Shows the Catalog when the Service had no Instances left. */
   @PostMapping("/services/{workstation}/{service}/unpublish")
   ResponseEntity<String> unpublish(
       @PathVariable("workstation") String home, @PathVariable String service) {
@@ -316,10 +290,6 @@ class PagesController {
     return aliasesPage("", "", null);
   }
 
-  /**
-   * Gives the Remote Service {@code target}, {@code <workstation>/<service>}, the Alias {@code
-   * name}, then shows the Aliases, or the form again with the error.
-   */
   @PostMapping(path = AliasesPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
   ResponseEntity<String> addAlias(@RequestParam String name, @RequestParam String target) {
     int slash = target.indexOf('/');

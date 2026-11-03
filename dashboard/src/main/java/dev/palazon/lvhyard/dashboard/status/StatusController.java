@@ -5,7 +5,6 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** The status of LVH Yard on this Workstation, as JSON. */
 @RestController
 class StatusController {
 

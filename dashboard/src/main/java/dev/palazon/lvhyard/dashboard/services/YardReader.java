@@ -28,13 +28,9 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 
 /**
- * Reads the Services of the Yard, with their Instances, Health, Publications and Container
- * Bindings, from every Workstation's Consul datacenter, and gives each published one its hostname:
- * the one rule for hostnames, which the Routes and the pages both follow. A datacenter that does
- * not answer makes its Workstation unreachable; the others still load. This Workstation's own
- * Services are at {@code <service>.<base-domain>}, whatever their Scope. Remote Services with Yard
- * Scope are at {@code <service>.<workstation>.<base-domain>} (ADR-0003), and those with Local Scope
- * get no hostname here.
+ * Gives each published Service its hostname: the one rule for hostnames, which the Routes and the
+ * pages both follow. A datacenter that does not answer makes its Workstation unreachable, and the
+ * others still load. Remote Services with Local Scope get no hostname here (ADR-0003).
  */
 @Component
 public class YardReader {
@@ -79,7 +75,6 @@ public class YardReader {
 
   private final OutOfRange outOfRange;
 
-  /** One circuit breaker per other Workstation, by name. */
   private final CircuitBreakerRegistry breakers = CircuitBreakerRegistry.of(UNREACHABLE);
 
   YardReader(
@@ -96,26 +91,22 @@ public class YardReader {
   }
 
   /**
-   * This Workstation and every other one of the Yard, with their Services. The others are read side
-   * by side, so a Workstation that does not answer delays the rest only once.
+   * The others are read side by side, so a Workstation that does not answer delays the rest only
+   * once.
    */
   public Yard yard() {
     return yard(this::remote);
   }
 
-  /**
-   * Every Service of the Workstations that answer, this Workstation's first, then by Workstation
-   * and name.
-   */
+  /** This Workstation's first, then by Workstation and name. */
   public List<Service> services() {
     return yard().services();
   }
 
   /**
-   * The Yard as the Routes see it: every other Workstation that does not answer, or whose Services
-   * fail to read for any other reason, such as a Publication this dashboard cannot read, is
-   * unreachable here, with no Services, so it never takes the Routes of the others with it. The
-   * fault is logged, as the API still reports it.
+   * Any other Workstation whose Services fail to read, for any reason, is unreachable here, so it
+   * never takes the Routes of the others with it. The fault is logged, because the API still
+   * reports it.
    */
   public Yard routableYard() {
     return yard(remote -> {
@@ -128,7 +119,6 @@ public class YardReader {
     });
   }
 
-  /** This Workstation, and every other one as {@code remote} reads it, side by side. */
   private Yard yard(Function<String, YardWorkstation> remote) {
     try (ExecutorService readers = Executors.newVirtualThreadPerTaskExecutor()) {
       List<CompletableFuture<YardWorkstation>> remotes =
@@ -142,24 +132,12 @@ public class YardReader {
     }
   }
 
-  /**
-   * The Services of {@code workstation}, ordered by name.
-   *
-   * @throws UnknownWorkstationException when the Yard has no such Workstation
-   * @throws UnreachableWorkstationException when its datacenter does not answer
-   */
   public List<Service> services(String workstation) {
     checkInYard(workstation);
     return read(workstation);
   }
 
-  /**
-   * The Service called {@code name} on {@code workstation}, while it has an Instance, a Container
-   * Binding or a Publication.
-   *
-   * @throws UnknownWorkstationException when the Yard has no such Workstation
-   * @throws UnreachableWorkstationException when the Workstation's datacenter does not answer
-   */
+  /** While it has an Instance, a Container Binding or a Publication. */
   public Optional<Service> service(String workstation, String name) {
     checkInYard(workstation);
     return reading(
@@ -187,10 +165,6 @@ public class YardReader {
     }
   }
 
-  /**
-   * Every Service of {@code workstation}, ordered by name. A Service is there while it has an
-   * Instance, a Container Binding or a Publication.
-   */
   private List<Service> read(String workstation) {
     return reading(
         workstation,
@@ -279,10 +253,6 @@ public class YardReader {
         : instances.stream().anyMatch(Instance::core);
   }
 
-  /**
-   * Where this Workstation routes {@code name} of {@code home}, published with {@code publication},
-   * if it does.
-   */
   private String hostname(String home, String name, Publication publication) {
     if (publication == null) {
       return null;

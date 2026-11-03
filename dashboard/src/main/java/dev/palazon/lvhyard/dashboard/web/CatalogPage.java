@@ -17,19 +17,13 @@ import org.xmlet.htmlapifaster.EnumTypeButtonType;
 import org.xmlet.htmlapifaster.Main;
 import org.xmlet.htmlapifaster.Tbody;
 
-/**
- * The Catalog: every Service in the Yard, grouped by Home Workstation, this one first. Each Service
- * has its state and one row per Instance, or one empty row if it has none. A Workstation that does
- * not answer is shown as unreachable. A form above filters the Services by Workstation and by
- * state; the Services refresh themselves, with the filters.
- */
+/** The Services refresh themselves, with the filters. */
 final class CatalogPage {
 
   private CatalogPage() {}
 
   /**
-   * Which Services the Catalog shows: only those of {@code workstation}, and only those in {@code
-   * state}. A {@code null} one does not filter. Both stay in the page's address, as {@code
+   * A {@code null} filter does not filter. Both stay in the page's address, as {@code
    * ?workstation=<name>&state=<state>}.
    */
   record Filters(String workstation, ServiceState state) {
@@ -44,7 +38,6 @@ final class CatalogPage {
           : services.stream().filter(service -> service.state() == state).toList();
     }
 
-    /** The Catalog's address with these filters, such as {@code /?state=healthy}. */
     String path() {
       return UriComponentsBuilder.fromPath("/")
           .queryParamIfPresent("workstation", Optional.ofNullable(workstation))
@@ -97,10 +90,6 @@ final class CatalogPage {
                         region -> workstations(region, yard, filters))));
   }
 
-  /**
-   * Each Workstation the filters show, with its Services, or that the Yard has no Workstation of
-   * that name.
-   */
   private static void workstations(Div<?> region, Yard yard, Filters filters) {
     if (filters.shows(yard.home().name())) {
       home(region, yard.home(), filters);
@@ -113,10 +102,7 @@ final class CatalogPage {
     }
   }
 
-  /**
-   * The form that filters the Catalog by Workstation and by state; it loads the Catalog with them
-   * in its address.
-   */
+  /** It loads the Catalog with the filters in its address. */
   private static void filterForm(Main<?> main, Yard yard, Filters filters) {
     List<String> names =
         Stream.concat(
@@ -184,13 +170,11 @@ final class CatalogPage {
         .__();
   }
 
-  /** This Workstation's heading, and its Services. */
   private static void home(Div<?> region, HomeWorkstation home, Filters filters) {
     heading(region, home.name(), "secondary", "This Workstation");
     services(region, home.services(), filters);
   }
 
-  /** Another Workstation's heading, and its Services, or why they are not known. */
   private static void remote(Div<?> region, YardWorkstation remote, Filters filters) {
     if (remote.unreachable()) {
       heading(region, remote.name(), "destructive", "Workstation unreachable");
@@ -201,7 +185,6 @@ final class CatalogPage {
     services(region, remote.services(), filters);
   }
 
-  /** A Workstation's name as a heading, with a badge beside it when {@code badge} is not null. */
   private static void heading(Div<?> region, String name, String variant, String badge) {
     region
         .div()
@@ -217,7 +200,6 @@ final class CatalogPage {
         .__();
   }
 
-  /** The Services the filters show, or why there are none. */
   private static void services(Div<?> region, List<Service> all, Filters filters) {
     List<Service> services = filters.of(all);
     if (services.isEmpty()) {
@@ -261,10 +243,7 @@ final class CatalogPage {
         .__();
   }
 
-  /**
-   * A row for {@code instance} of {@code service}, or for the Service alone when {@code instance}
-   * is null.
-   */
+  /** For the Service alone when {@code instance} is null. */
   private static void row(Tbody<?> body, Service service, Instance instance) {
     body.tr()
         .td()

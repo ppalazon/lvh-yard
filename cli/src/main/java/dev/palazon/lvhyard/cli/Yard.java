@@ -50,13 +50,11 @@ public class Yard implements Runnable {
 
   @Spec CommandSpec spec;
 
-  /** With no subcommand there is nothing to do but show what the command offers. */
   @Override
   public void run() {
     spec.commandLine().usage(spec.commandLine().getOut());
   }
 
-  /** The dashboard that {@code --dashboard} names, else the first one the defaults find. */
   Dashboard dashboard() {
     return new Dashboard(dashboard != null ? dashboard : defaultDashboard(System.getenv()));
   }
@@ -78,10 +76,7 @@ public class Yard implements Runnable {
     }
   }
 
-  /**
-   * The command line, ready to execute: a failure to talk to the dashboard is printed and exits
-   * with 1.
-   */
+  /** A failure to talk to the dashboard is printed, and exits with 1. */
   static CommandLine commandLine() {
     CommandLine yard =
         new CommandLine(new Yard())
@@ -97,7 +92,6 @@ public class Yard implements Runnable {
     return yard;
   }
 
-  /** {@code command} and each of its subcommands print this build's version for -V. */
   private static void withVersion(CommandLine command) {
     command.getCommandSpec().version("lvh-yard " + Version.VERSION);
     command.getSubcommands().values().forEach(Yard::withVersion);
