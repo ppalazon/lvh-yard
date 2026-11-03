@@ -42,6 +42,10 @@ _Avoid_: Docker registration, container mapping
 An Instance created and removed by a Container Binding, at the matching container's current address and port.
 _Avoid_: Dynamic instance, container instance
 
+**Core Service**:
+A Service that LVH Yard itself keeps registered and published on every Workstation: the dashboard (`yard`), Consul and Traefik. You cannot remove or unpublish it.
+_Avoid_: System service, built-in service
+
 ### Facts about them
 
 **Registration**:
@@ -65,8 +69,16 @@ Who gets a Route for a Publication: **Local** (only the Home Workstation) or **Y
 _Avoid_: Visibility, access, permission
 
 **Alias**:
-A short hostname one Workstation gives to a Remote Service, for its own use only. A Service of that Workstation with the same name wins over it.
+A short hostname one Workstation gives to a Remote Service, for its own use only. When a Service of that Workstation has the same name, the Alias becomes that Service's last fallback under its Instance Priority.
 _Avoid_: Rename, nickname, CNAME
+
+**Instance Priority**:
+The order of Instance kinds a Route prefers: by default Static Instances, then Bound Instances, then the Remote Service of an Alias with the same name. The Route uses only the first kind that has a passing Health.
+_Avoid_: Alias priority, weight, preference
+
+**Route Profile**:
+A named, reusable set of Route options, such as authentication or added headers, that a Publication can use. It is written on the Home Workstation, and every Workstation that routes the Publication applies it, Aliases included.
+_Avoid_: Middleware, Traefik profile, policy
 
 **Route**:
 The proxy rule built from a Publication, which sends a hostname to the Service's Instances.
