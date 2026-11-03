@@ -1,6 +1,6 @@
 # Core Services: the dashboard, Consul and Traefik as Services
 
-Status: ready-for-agent
+Status: done
 
 Words follow `GLOSSARY.md` (Core Service). Decisions follow ADR-0002 (Traefik reads its Routes from LVH Yard).
 

@@ -4,7 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Removing a Core Service's Instance, unpublishing it, and Yard Scope answer a client error with a reason (problem details, as for Remote Services)
 - [ ] Registering another Service named `yard`, `consul` or `traefik` is refused

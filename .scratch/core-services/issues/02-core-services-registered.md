@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] On start the dashboard ensures `yard`, `consul` and `traefik`: a Static Instance with a fixed ID, an HTTP check (actuator health, `/v1/status/leader`, `/ping`; 10s, 2s) and a Local Publication
 - [ ] Anything missing is put back on the next start; a second start changes nothing

@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] `compose.yaml` adds an `admin` entrypoint on `127.0.0.1:${YARD_TRAEFIK_ADMIN_PORT:-8080}` with the API dashboard and `/ping` served there only
 - [ ] `.env.example` documents `YARD_TRAEFIK_ADMIN_PORT`, and the dashboard reads it
