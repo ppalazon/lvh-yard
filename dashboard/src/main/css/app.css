@@ -1,0 +1,17 @@
+/* The pages' stylesheet: Tailwind utilities and Basecoat components, for the classes the web views use. */
+@import "tailwindcss" source(none);
+@import "basecoat-css";
+
+@source "../java/dev/palazon/lvhyard/dashboard/web";
+
+/* Tailwind resets every element, so the page text gets plain styles here, and the views add classes only for layout
+   and Basecoat components. */
+@layer base {
+  h1 {
+    @apply text-3xl font-semibold tracking-tight;
+  }
+
+  h2 {
+    @apply text-xl font-semibold tracking-tight;
+  }
+}

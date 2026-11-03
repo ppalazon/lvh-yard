@@ -17,4 +17,4 @@ target/
 
 # CSS build tools, installed by `mise run css:install`, and the stylesheet they build
 node_modules/
-app.css
+/dashboard/src/main/resources/static/app.css
