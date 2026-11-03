@@ -38,7 +38,7 @@ final class InstanceViews {
           .__()
           .span()
           .attrClass("text-muted-foreground text-sm")
-          .text("Only its own Workstation can reach this address: no Route here.")
+          .text("Only its own Workstation reaches this address.")
           .__()
           .__();
     }

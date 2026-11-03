@@ -108,7 +108,7 @@ final class InstanceForm {
         form,
         "check",
         "Health check",
-        "TCP connects to the port. HTTP GETs the path, and passes on a 2xx answer.",
+        "TCP connects to the port. HTTP passes on a 2xx answer.",
         error,
         field ->
             field

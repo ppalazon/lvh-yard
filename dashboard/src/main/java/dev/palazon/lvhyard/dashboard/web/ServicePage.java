@@ -211,9 +211,7 @@ final class ServicePage {
       content
           .p()
           .attrClass("text-muted-foreground")
-          .text(
-              "Test whether this Workstation connects to each"
-                  + " Instance, and reaches the Service through Traefik. The results are not kept.")
+          .text("Tests whether this Workstation reaches the Service.")
           .__();
       return;
     }
@@ -294,17 +292,13 @@ final class ServicePage {
 
   private static String instanceDetails(Service service, InstanceReachability instance) {
     if (instance.outOfRange()) {
-      return "Only "
-          + service.workstation()
-          + " can connect to this address, so it is not tested from here.";
+      return "Only " + service.workstation() + " reaches this address, so it is not tested.";
     }
-    return instance.reached() ? "Connected straight to it." : instance.error();
+    return instance.reached() ? "Connected directly." : instance.error();
   }
 
   private static String routeDetails(RouteReachability route) {
-    return route.reached()
-        ? "Traefik passed the request on, and it answered " + route.status() + "."
-        : route.error();
+    return route.reached() ? "Answered " + route.status() + " through Traefik." : route.error();
   }
 
   /**
@@ -495,9 +489,7 @@ final class ServicePage {
   private static void publication(
       Div<?> div, Workstation workstation, Service service, boolean own) {
     if (!service.published()) {
-      div.p()
-          .text("Not published: it has no hostname. Its Instances stay registered either way.")
-          .__();
+      div.p().text("Not published.").__();
       return;
     }
     boolean yard = service.publication().scope() == Scope.YARD;
@@ -514,14 +506,12 @@ final class ServicePage {
     }
     String routedBy;
     if (!yard) {
-      routedBy = ": only this Workstation routes it.";
+      routedBy = ".";
     } else if (own) {
       routedBy =
-          ": every other Workstation routes it at "
-              + workstation.yardHostname(service.name())
-              + ", ending with its own Base Domain.";
+          ". The other Workstations route it at " + workstation.yardHostname(service.name()) + ".";
     } else {
-      routedBy = ": every Workstation of the Yard routes it.";
+      routedBy = ".";
     }
     div.p()
         .text("Published at ")

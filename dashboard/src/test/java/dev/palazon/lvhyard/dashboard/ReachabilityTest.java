@@ -243,7 +243,7 @@ class ReachabilityTest extends DashboardTest {
     assertThat(getPage(page).getBody()).contains("action=\"" + page + "/reachability\"");
     assertThat(getPage(page + "/reachability").getBody())
         .contains("Out of range")
-        .contains("Only " + RemoteWorkstation.NAME + " can connect to this address")
+        .contains("Only " + RemoteWorkstation.NAME + " reaches this address")
         .doesNotContain("Not reached");
   }
 

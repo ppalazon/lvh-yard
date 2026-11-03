@@ -56,10 +56,7 @@ final class AliasesPage {
                 .text(
                     "Short hostnames for Remote Services, at <alias>."
                         + workstation.baseDomain()
-                        + ". They exist only on Workstation "
-                        + workstation.name()
-                        + ". A published Service of this"
-                        + " Workstation with the same name wins over an Alias.")
+                        + ".")
                 .__()
                 .of(content -> list(content, aliases))
                 .h2()

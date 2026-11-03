@@ -133,8 +133,7 @@ final class RegisterPage {
                         "Container name",
                         choice.container(),
                         "grafana",
-                        "As docker run --name gives it. Its Bound Instance comes and goes with the"
-                            + " container.",
+                        "As docker run --name gives it.",
                         error))
                 .of(form ->
                     InstanceForm.text(
@@ -143,7 +142,7 @@ final class RegisterPage {
                         "Compose project",
                         choice.composeProject(),
                         "shop",
-                        "Or a Compose project and service, whatever its containers are named.",
+                        null,
                         error))
                 .of(form ->
                     InstanceForm.text(
@@ -152,8 +151,7 @@ final class RegisterPage {
                         "Compose service",
                         choice.composeService(),
                         "web",
-                        "Each of its containers that runs gives a Bound Instance, so scaling it"
-                            + " adds or removes them.",
+                        "Each running container is a Bound Instance.",
                         error))
                 .of(form ->
                     InstanceForm.text(
@@ -162,9 +160,7 @@ final class RegisterPage {
                         "Container port",
                         choice.containerPort(),
                         "3000",
-                        "The port inside the container. Published on the host, the Instance is at"
-                            + " the LAN address and the host port; otherwise at the container's own"
-                            + " address.",
+                        "The port inside the container.",
                         error))
                 .button()
                 .attrType(EnumTypeButtonType.SUBMIT)
@@ -180,25 +176,9 @@ final class RegisterPage {
         .attrClass("flex flex-col gap-3")
         .addAttr("role", "radiogroup")
         .addAttr("aria-label", "What to register")
-        .of(group ->
-            kind(
-                group,
-                STATIC_INSTANCE,
-                "A Static Instance: fill in the host, port and check.",
-                choice.kind()))
-        .of(group ->
-            kind(
-                group,
-                CONTAINER_BINDING,
-                "A Container Binding to a container: fill in its name" + " and port.",
-                choice.kind()))
-        .of(group ->
-            kind(
-                group,
-                COMPOSE_BINDING,
-                "A Container Binding to a Compose service: fill in its"
-                    + " project, service and container port.",
-                choice.kind()))
+        .of(group -> kind(group, STATIC_INSTANCE, "A Static Instance", choice.kind()))
+        .of(group -> kind(group, CONTAINER_BINDING, "A container", choice.kind()))
+        .of(group -> kind(group, COMPOSE_BINDING, "A Compose service", choice.kind()))
         .__();
   }
 

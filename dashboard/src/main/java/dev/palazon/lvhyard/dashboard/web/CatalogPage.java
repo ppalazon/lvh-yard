@@ -194,12 +194,7 @@ final class CatalogPage {
   private static void remote(Div<?> region, YardWorkstation remote, Filters filters) {
     if (remote.unreachable()) {
       heading(region, remote.name(), "destructive", "Workstation unreachable");
-      region
-          .p()
-          .text(
-              "Its Consul datacenter does not answer. Its Services show again by themselves once it"
-                  + " does.")
-          .__();
+      region.p().text("Its Consul does not answer. Its Services show again when it does.").__();
       return;
     }
     heading(region, remote.name(), null, null);
