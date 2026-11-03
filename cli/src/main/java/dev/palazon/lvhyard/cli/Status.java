@@ -49,19 +49,40 @@ class Status implements Callable<Integer> {
       }
     }
     out.flush();
-    return switch (status.overall()) {
-      case "ok" -> 0;
-      case "warning" -> strict ? 1 : 0;
-      default -> 1;
-    };
+    return State.of(status.overall()).fails(strict) ? 1 : 0;
   }
 
   /** The state as a column 6 wide: {@code ok}, {@code WARN} or {@code FAIL}. */
   private static String mark(String state) {
-    return switch (state) {
-      case "ok" -> "ok    ";
-      case "warning" -> "WARN  ";
-      default -> "FAIL  ";
-    };
+    return State.of(state).mark;
+  }
+
+  /**
+   * A state as the dashboard names it, how it is printed, and whether it makes the command fail.
+   */
+  private enum State {
+    OK("ok    "),
+    WARNING("WARN  "),
+    FAILING("FAIL  ");
+
+    final String mark;
+
+    State(String mark) {
+      this.mark = mark;
+    }
+
+    /** The state the dashboard calls {@code name}; failing for one this command does not know. */
+    static State of(String name) {
+      return switch (name) {
+        case "ok" -> OK;
+        case "warning" -> WARNING;
+        default -> FAILING;
+      };
+    }
+
+    /** Whether the command exits with 1 for this state; a warning only with {@code --strict}. */
+    boolean fails(boolean strict) {
+      return this == FAILING || (this == WARNING && strict);
+    }
   }
 }

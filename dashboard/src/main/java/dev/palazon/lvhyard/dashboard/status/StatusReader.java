@@ -14,7 +14,7 @@ import java.util.concurrent.TimeoutException;
 import org.springframework.stereotype.Component;
 
 /**
- * Reads every {@link StatusPart} side by side, each for at most {@link #PART_TIMEOUT}, and keeps
+ * Reads every {@link PartReader} side by side, each for at most {@link #PART_TIMEOUT}, and keeps
  * the status for {@link #KEPT}, so that many open pages cost one round of calls. A part that
  * throws, or does not answer in time, is failing; it never holds up the others for longer.
  */
@@ -27,7 +27,7 @@ public class StatusReader {
   /** How long a status is answered again before the parts are read anew. */
   static final Duration KEPT = Duration.ofSeconds(5);
 
-  private final List<StatusPart> parts;
+  private final List<PartReader> parts;
 
   /** Reads run on their own threads, so one that never answers is simply left behind. */
   private final ExecutorService readers = Executors.newVirtualThreadPerTaskExecutor();
@@ -36,7 +36,7 @@ public class StatusReader {
 
   private Instant lastRead = Instant.MIN;
 
-  StatusReader(List<StatusPart> parts) {
+  StatusReader(List<PartReader> parts) {
     this.parts = List.copyOf(parts);
   }
 
@@ -60,7 +60,7 @@ public class StatusReader {
 
   private Status readNow() {
     List<Future<Part>> reads = new ArrayList<>();
-    for (StatusPart part : parts) {
+    for (PartReader part : parts) {
       reads.add(readers.submit(part::read));
     }
     long deadline = System.nanoTime() + PART_TIMEOUT.toNanos();
@@ -72,7 +72,7 @@ public class StatusReader {
   }
 
   /** What {@code reading} of {@code part} found by {@code deadline}, or why it is failing. */
-  private static Part await(StatusPart part, Future<Part> reading, long deadline) {
+  private static Part await(PartReader part, Future<Part> reading, long deadline) {
     try {
       return reading.get(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);
     } catch (TimeoutException e) {

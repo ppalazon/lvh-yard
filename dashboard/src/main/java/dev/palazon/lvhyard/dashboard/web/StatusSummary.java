@@ -1,7 +1,6 @@
 package dev.palazon.lvhyard.dashboard.web;
 
 import dev.palazon.lvhyard.dashboard.status.Part;
-import dev.palazon.lvhyard.dashboard.status.PartState;
 import dev.palazon.lvhyard.dashboard.status.Status;
 import htmlflow.HtmlFlow;
 import org.xmlet.htmlapifaster.A;
@@ -33,25 +32,17 @@ final class StatusSummary {
 
   /** One part's dot, such as a red cross labelled {@code Docker: Failing. There is no…}. */
   private static void dot(A<?> link, Part part) {
-    String label = part.name() + ": " + StatusViews.label(part.state()) + ". " + part.reason();
+    StatusViews.Look look = StatusViews.look(part.state());
+    String label = part.name() + ": " + look.label() + ". " + part.reason();
     link.span()
-        .attrId("dot-" + StatusViews.partId(part.name()).substring("part-".length()))
+        .attrId("dot-" + StatusViews.slug(part.name()))
         .attrClass(
             "inline-flex size-5 items-center justify-center rounded-full text-xs font-bold "
-                + colour(part.state()))
+                + look.dotColour())
         .addAttr("role", "img")
         .addAttr("aria-label", Layout.attr(label))
         .addAttr("title", Layout.attr(label))
-        .text(StatusViews.symbol(part.state()))
+        .text(look.symbol())
         .__();
-  }
-
-  /** The dot's colours, written out whole so that Tailwind builds them. */
-  private static String colour(PartState state) {
-    return switch (state) {
-      case OK -> "bg-green-600 text-white";
-      case WARNING -> "bg-amber-400 text-black";
-      case FAILING -> "bg-red-600 text-white";
-    };
   }
 }

@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Order(StatusOrder.DOCKER)
-class DockerStatus implements StatusPart {
+class DockerStatus implements PartReader {
 
   static final String NAME = "Docker";
 

@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Order(StatusOrder.TRAEFIK)
-class TraefikStatus implements StatusPart {
+class TraefikStatus implements PartReader {
 
   static final String NAME = "Traefik";
 
@@ -98,8 +98,7 @@ class TraefikStatus implements StatusPart {
           ? Optional.empty()
           : Optional.of("answered " + answer.statusCode());
     } catch (IOException e) {
-      return Optional.of(
-          "no answer: " + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
+      return Optional.of("no answer: " + Failures.message(e));
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return Optional.of("interrupted");

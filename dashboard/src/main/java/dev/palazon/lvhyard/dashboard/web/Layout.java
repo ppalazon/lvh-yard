@@ -100,8 +100,9 @@ final class Layout {
    * The button that switches between the light and dark theme, which {@code theme.js} handles. It
    * shows a moon in the light theme and a sun in the dark one (Lucide's icons).
    */
-  private static void themeToggle(Div<?> nav) {
-    nav.button()
+  private static void themeToggle(Div<?> header) {
+    header
+        .button()
         .attrType(EnumTypeButtonType.BUTTON)
         .attrId("theme-toggle")
         .attrClass("btn")

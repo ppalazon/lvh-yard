@@ -20,7 +20,7 @@ import org.springframework.web.client.RestClientException;
  */
 @Component
 @Order(StatusOrder.CONSUL)
-class ConsulStatus implements StatusPart {
+class ConsulStatus implements PartReader {
 
   static final String NAME = "Consul";
 
@@ -63,7 +63,7 @@ class ConsulStatus implements StatusPart {
             details.add(
                 new Part.Detail(
                     member.datacenter(),
-                    member.state() + " at " + member.address() + ":" + member.port(),
+                    member.status() + " at " + member.address() + ":" + member.port(),
                     member.alive() ? PartState.OK : PartState.WARNING)));
     List<String> missing =
         settings.peerAddresses().stream().filter(peer -> !inPool(peer, members)).toList();

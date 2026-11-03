@@ -1,6 +1,6 @@
 package dev.palazon.lvhyard.dashboard.status;
 
-/** Where each {@link StatusPart} comes in the status, as the spec lists them. */
+/** Where each {@link PartReader} comes in the status, as the spec lists them. */
 final class StatusOrder {
 
   static final int CONSUL = 10;

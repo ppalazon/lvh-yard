@@ -1,5 +1,6 @@
 package dev.palazon.lvhyard.dashboard.consul;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.net.URI;
@@ -220,16 +221,17 @@ public class Consul {
    *
    * @param address its LAN address
    * @param port its serf WAN port
-   * @param status Serf's code: 1 alive, 2 leaving, 3 left, 4 failed
+   * @param status alive, leaving, left or failed, as Serf says
    * @param tags its tags, among them {@code dc}, its datacenter
    */
   public record WanMember(
       @JsonProperty("Addr") String address,
       @JsonProperty("Port") int port,
-      @JsonProperty("Status") int status,
+      @JsonProperty("Status") SerfStatus status,
       @JsonProperty("Tags") Map<String, String> tags) {
 
     public WanMember {
+      status = status == null ? SerfStatus.UNKNOWN : status;
       tags = tags == null ? Map.of() : tags;
     }
 
@@ -239,18 +241,29 @@ public class Consul {
     }
 
     public boolean alive() {
-      return status == 1;
+      return status == SerfStatus.ALIVE;
+    }
+  }
+
+  /** A WAN member's state, which Consul sends as Serf's code. */
+  public enum SerfStatus {
+    UNKNOWN,
+    ALIVE,
+    LEAVING,
+    LEFT,
+    FAILED;
+
+    /** The state of Serf's {@code code}: 1 alive, 2 leaving, 3 left, 4 failed. */
+    @JsonCreator
+    public static SerfStatus of(int code) {
+      SerfStatus[] all = values();
+      return code > 0 && code < all.length ? all[code] : UNKNOWN;
     }
 
-    /** Its state in words: alive, leaving, left or failed. */
-    public String state() {
-      return switch (status) {
-        case 1 -> "alive";
-        case 2 -> "leaving";
-        case 3 -> "left";
-        case 4 -> "failed";
-        default -> "unknown";
-      };
+    /** The state in words: alive, leaving, left, failed or unknown. */
+    @Override
+    public String toString() {
+      return name().toLowerCase();
     }
   }
 

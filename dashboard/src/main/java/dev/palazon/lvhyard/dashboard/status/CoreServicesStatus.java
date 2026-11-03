@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Order(StatusOrder.CORE_SERVICES)
-class CoreServicesStatus implements StatusPart {
+class CoreServicesStatus implements PartReader {
 
   static final String NAME = "Core Services";
 
