@@ -36,6 +36,12 @@ class YardTest {
 
   private final StubDashboard dashboard = new StubDashboard();
 
+  /**
+   * The HOME of every {@link #yardProcess}, empty unless a test writes to it, so no test reads the
+   * real user's {@code ~/.config/lvh-yard/.env}.
+   */
+  @TempDir Path home;
+
   @AfterEach
   void stopDashboard() {
     dashboard.close();
@@ -1234,6 +1240,105 @@ class YardTest {
   }
 
   @Test
+  void dashboardUrlComesFromTheEnvThatInitWrote(@TempDir Path config) throws Exception {
+    answerAnEmptyYard();
+    Path folder = config.resolve("lvh-yard");
+    yardAsTyped("init", "--dir", folder.toString(), "--workstation", "ws-a");
+    setInEnv(folder, "YARD_DASHBOARD_PORT", String.valueOf(dashboard.url().getPort()));
+
+    Run run = yardProcess(Map.of("XDG_CONFIG_HOME", config.toString()), "list");
+
+    assertThat(run.exitCode()).as(run.err()).isZero();
+    assertThat(run.out()).isEqualTo("ws-a (this Workstation): no Services\n");
+  }
+
+  @Test
+  void aWildcardBindAddressInTheEnvIsReachedThroughLoopback(@TempDir Path config) throws Exception {
+    Path folder = config.resolve("lvh-yard");
+    yardAsTyped("init", "--dir", folder.toString(), "--workstation", "ws-a");
+    int port = freePort();
+    setInEnv(folder, "YARD_DASHBOARD_BIND_ADDRESS", "0.0.0.0");
+    setInEnv(folder, "YARD_DASHBOARD_PORT", String.valueOf(port));
+
+    Run run = yardProcess(Map.of("XDG_CONFIG_HOME", config.toString()), "list");
+
+    assertThat(run.exitCode()).isNotZero();
+    assertThat(run.err()).contains("nothing answers at http://127.0.0.1:" + port);
+  }
+
+  @Test
+  void dashboardUrlComesFromTheEnvInYardConfigDir(@TempDir Path folder, @TempDir Path config)
+      throws Exception {
+    answerAnEmptyYard();
+    yardAsTyped("init", "--dir", folder.toString(), "--workstation", "ws-a");
+    setInEnv(folder, "YARD_DASHBOARD_PORT", String.valueOf(dashboard.url().getPort()));
+    Path standard = config.resolve("lvh-yard");
+    yardAsTyped("init", "--dir", standard.toString(), "--workstation", "ws-a");
+    setInEnv(standard, "YARD_DASHBOARD_PORT", String.valueOf(freePort()));
+
+    Run run =
+        yardProcess(
+            Map.of("YARD_CONFIG_DIR", folder.toString(), "XDG_CONFIG_HOME", config.toString()),
+            "list");
+
+    assertThat(run.exitCode()).as(run.err()).isZero();
+  }
+
+  @Test
+  void dashboardUrlFromTheEnvironmentWinsOverTheEnv(@TempDir Path config) throws Exception {
+    answerAnEmptyYard();
+    Path folder = config.resolve("lvh-yard");
+    yardAsTyped("init", "--dir", folder.toString(), "--workstation", "ws-a");
+    setInEnv(folder, "YARD_DASHBOARD_PORT", String.valueOf(freePort()));
+
+    Run run =
+        yardProcess(
+            Map.of(
+                "XDG_CONFIG_HOME",
+                config.toString(),
+                "YARD_DASHBOARD_URL",
+                dashboard.url().toString()),
+            "list");
+
+    assertThat(run.exitCode()).as(run.err()).isZero();
+  }
+
+  @Test
+  void anUnreadableEnvFallsThroughToLoopback(@TempDir Path config) throws Exception {
+    Files.createDirectories(config.resolve("lvh-yard/.env"));
+
+    Run run = yardProcess(Map.of("XDG_CONFIG_HOME", config.toString()), "list");
+
+    // A dashboard of this computer's own may answer at the default; else the error names it.
+    assertThat(run.exitCode() == 0 || run.err().contains("at http://127.0.0.1:7780"))
+        .as(run.err())
+        .isTrue();
+  }
+
+  @Test
+  void withoutAnEnvTheDashboardIsOnLoopback() throws Exception {
+    Run run = yardProcess(Map.of(), "list");
+
+    // A dashboard of this computer's own may answer at the default; else the error names it.
+    assertThat(run.exitCode() == 0 || run.err().contains("at http://127.0.0.1:7780"))
+        .as(run.err())
+        .isTrue();
+  }
+
+  @Test
+  void helpShowsTheOrderTheDashboardIsFoundIn() throws Exception {
+    Run run = yardProcess(Map.of(), "--help");
+
+    assertThat(run.out())
+        .containsSubsequence(
+            "--dashboard=<url>",
+            "YARD_DASHBOARD_URL",
+            "YARD_CONFIG_DIR",
+            "~/.config/lvh-yard",
+            "http://127.0.0.1:7780");
+  }
+
+  @Test
   void initWritesComposeFileAndEnvWithTheWorkstationIntoDir(@TempDir Path dir) throws Exception {
     Run run = yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a");
 
@@ -1695,6 +1800,24 @@ class YardTest {
         .orElseThrow();
   }
 
+  private void answerAnEmptyYard() {
+    dashboard.answer(
+        "GET",
+        "/api/yard",
+        200,
+        """
+        {"home": {"name": "ws-a", "services": []}, "remotes": []}
+        """);
+  }
+
+  /**
+   * Sets {@code key} to {@code value} in the {@code .env} that {@code init} wrote in {@code dir}.
+   */
+  private static void setInEnv(Path dir, String key, String value) throws IOException {
+    Path env = dir.resolve(".env");
+    Files.writeString(env, EnvFile.parse(Files.readString(env)).set(key, value).text());
+  }
+
   /** Whether this computer has {@code docker compose}. */
   private static boolean dockerCompose() {
     try {
@@ -1722,14 +1845,16 @@ class YardTest {
 
   /**
    * Runs {@code lvh-yard} in a process of its own, as a shell does, with {@code environment} in
-   * place of any {@code YARD_*} variables of this one.
+   * place of any {@code YARD_*} variables of this one, and {@link #home} as HOME unless {@code
+   * environment} names another.
    */
-  private static Run yardProcess(Map<String, String> environment, String... args) throws Exception {
+  private Run yardProcess(Map<String, String> environment, String... args) throws Exception {
     ProcessBuilder builder = new ProcessBuilder(command(args));
     builder
         .environment()
         .keySet()
         .removeIf(name -> name.startsWith("YARD_") || name.equals("XDG_CONFIG_HOME"));
+    builder.environment().put("HOME", home.toString());
     builder.environment().putAll(environment);
     return run(builder);
   }

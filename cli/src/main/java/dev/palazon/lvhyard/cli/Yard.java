@@ -1,6 +1,9 @@
 package dev.palazon.lvhyard.cli;
 
+import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
+import java.util.Map;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
@@ -34,10 +37,12 @@ public class Yard implements Runnable {
   @Option(
       names = "--dashboard",
       paramLabel = "<url>",
-      defaultValue = "${env:YARD_DASHBOARD_URL:-" + LOOPBACK_DASHBOARD + "}",
       description = {
         "The dashboard on this Workstation.",
         "Default: YARD_DASHBOARD_URL when set,",
+        "else the bind address and port in the .env",
+        "that init wrote, in YARD_CONFIG_DIR, else",
+        "$XDG_CONFIG_HOME/lvh-yard or ~/.config/lvh-yard,",
         "else " + LOOPBACK_DASHBOARD + "."
       })
   URI dashboard;
@@ -50,9 +55,33 @@ public class Yard implements Runnable {
     spec.commandLine().usage(spec.commandLine().getOut());
   }
 
-  /** The dashboard that {@code --dashboard} names. */
+  /** The dashboard that {@code --dashboard} names, else the first one the defaults find. */
   Dashboard dashboard() {
-    return new Dashboard(dashboard);
+    return new Dashboard(dashboard != null ? dashboard : defaultDashboard(System.getenv()));
+  }
+
+  /**
+   * The dashboard's address when {@code --dashboard} does not name one: {@code YARD_DASHBOARD_URL},
+   * else the {@code .env} in the config folder, else {@link #LOOPBACK_DASHBOARD}.
+   */
+  private static URI defaultDashboard(Map<String, String> environment) {
+    String url = environment.get("YARD_DASHBOARD_URL");
+    if (url != null && !url.isBlank()) {
+      return URI.create(url);
+    }
+    EnvFile env;
+    try {
+      env = EnvFile.parse(Files.readString(ConfigFolder.forReading(environment).resolve(".env")));
+    } catch (IOException missingOrUnreadable) {
+      return URI.create(LOOPBACK_DASHBOARD);
+    }
+    // The wildcard listens on loopback too; the dashboard's own BindAddress reaches it there.
+    String address =
+        env.get("YARD_DASHBOARD_BIND_ADDRESS")
+            .filter(bind -> !bind.isBlank() && !bind.equals("0.0.0.0"))
+            .orElse("127.0.0.1");
+    String port = env.get("YARD_DASHBOARD_PORT").filter(set -> !set.isBlank()).orElse("7780");
+    return URI.create("http://" + address + ":" + port);
   }
 
   /**
