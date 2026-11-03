@@ -36,6 +36,10 @@ hostnames on this computer, as they resolve to `127.0.0.1`. The dashboard has no
 login: whoever reaches it can change this Workstation's Services and, through
 the Docker socket, its containers.
 
+Traefik's own admin page is at `127.0.0.1:8080/dashboard/`, and its ping at
+`127.0.0.1:8080/ping`. They are always on loopback, never on the LAN, whatever
+`YARD_TRAEFIK_BIND_ADDRESS` says. `YARD_TRAEFIK_ADMIN_PORT` changes the port.
+
 ### The dashboard from its image
 
 A Workstation without Java can run the dashboard from its image,

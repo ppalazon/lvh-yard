@@ -36,6 +36,8 @@ lvh-yard:
   traefik:
     bind-address: ${YARD_TRAEFIK_BIND_ADDRESS:127.0.0.1}
     port: ${YARD_HTTP_PORT:80}
+    # Its admin entry point, with its admin page and ping, on loopback only.
+    admin-port: ${YARD_TRAEFIK_ADMIN_PORT:8080}
   # This Workstation's Docker, whose containers the Container Bindings follow: DOCKER_HOST, as the docker command uses it.
   docker:
     host: ${DOCKER_HOST:unix:///var/run/docker.sock}

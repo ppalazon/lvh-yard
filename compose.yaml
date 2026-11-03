@@ -48,6 +48,9 @@ services:
       YARD_DASHBOARD_BIND_ADDRESS: ${YARD_DASHBOARD_BIND_ADDRESS:-127.0.0.1}
     # A shell first, with the dashboard's BindAddress rule: a dashboard on the wildcard 0.0.0.0 is reached through
     # loopback.
+    # Traefik's admin page and its ping are on their own entry point, always on loopback, never on web. Traefik serves
+    # its API without a Route only on the entry point named traefik (--api.insecure), so that entry point is the admin
+    # one: it still answers while the dashboard, which gives the Routes, is down.
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -55,6 +58,9 @@ services:
         [ "$$dashboard" != 0.0.0.0 ] || dashboard=127.0.0.1
         exec traefik \
           --entryPoints.web.address="$${YARD_TRAEFIK_BIND_ADDRESS}:${YARD_HTTP_PORT:-80}" \
+          --entryPoints.traefik.address=127.0.0.1:${YARD_TRAEFIK_ADMIN_PORT:-8080} \
+          --api.dashboard=true --api.insecure=true \
+          --ping=true --ping.entryPoint=traefik \
           --providers.http.endpoint="http://$$dashboard:${YARD_DASHBOARD_PORT:-7780}/traefik/configuration" \
           --providers.http.pollInterval=5s \
           --log.level=INFO
@@ -83,6 +89,7 @@ services:
       YARD_OUT_OF_RANGE: ${YARD_OUT_OF_RANGE-127.0.0.0/8,::1/128,172.17.0.0/16,172.18.0.0/15,172.20.0.0/14,172.24.0.0/13}
       YARD_HTTP_PORT: ${YARD_HTTP_PORT:-80}
       YARD_TRAEFIK_BIND_ADDRESS: ${YARD_TRAEFIK_BIND_ADDRESS:-127.0.0.1}
+      YARD_TRAEFIK_ADMIN_PORT: ${YARD_TRAEFIK_ADMIN_PORT:-8080}
       YARD_DASHBOARD_PORT: ${YARD_DASHBOARD_PORT:-7780}
       YARD_DASHBOARD_BIND_ADDRESS: ${YARD_DASHBOARD_BIND_ADDRESS:-127.0.0.1}
       YARD_CONSUL_HTTP_PORT: ${YARD_CONSUL_HTTP_PORT:-8500}
