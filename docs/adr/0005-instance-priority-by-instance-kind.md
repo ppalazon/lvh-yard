@@ -11,4 +11,5 @@ A Route prefers Instances by kind: by default Static, then Bound, then the Remot
 ## Consequences
 
 - An Alias with the same name as a Service of this Workstation is no longer hidden: it becomes the last fallback.
+- The Publication's KV value holds the default order as the plain Scope text, and any other order as JSON. So older Workstations still read a Publication with the default order, but cannot read one with its own order.
 - Falling back depends on checks. Every Instance has at least a TCP check, so a stopped one turns critical.

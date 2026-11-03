@@ -29,7 +29,7 @@ class Publish implements Runnable {
       description = {
         "local: only this Workstation routes it.",
         "yard: the other Workstations also route it, at <service>.<workstation>.<base-domain>.",
-        "Default: local for a new Publication, else no change."
+        "Default: local for a new Publication. An existing one keeps its Scope."
       })
   String scope;
 
@@ -39,7 +39,7 @@ class Publish implements Runnable {
       split = ",",
       description = {
         "The Instance kinds the Route prefers, in order: static, bound, alias.",
-        "Default: static,bound,alias for a new Publication, else no change."
+        "Default: static,bound,alias for a new Publication. An existing one keeps its order."
       })
   List<String> priority;
 

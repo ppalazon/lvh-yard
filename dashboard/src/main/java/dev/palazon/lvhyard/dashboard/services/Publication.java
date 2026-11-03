@@ -7,7 +7,8 @@ import java.util.List;
 /**
  * It covers every Instance of the Service, including ones registered later.
  *
- * @param priority the Service shows it, as its own {@code priority}
+ * @param priority the Instance Priority. It is left out of the JSON of the Publication, because the
+ *     Service already shows it as its own {@code priority} field.
  */
 public record Publication(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Scope scope,
