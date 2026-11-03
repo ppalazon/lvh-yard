@@ -34,8 +34,8 @@ class WorkstationServicesController {
           + " check is not http or tcp or has a bad path, interval or timeout, or a tag or a meta"
           + " key breaks its rules";
 
-  /** Why a Static Instance cannot be changed or removed. */
-  private static final String CORE_INSTANCE =
+  /** Why changing or removing a Core Service's Static Instance is refused. */
+  private static final String CORE_INSTANCE_REFUSAL =
       "The Instance is a Core Service's, which LVH Yard keeps";
 
   private final Workstation workstation;
@@ -135,7 +135,7 @@ class WorkstationServicesController {
   @ApiResponse(
       responseCode = "404",
       description = "The Service has no Static Instance with this ID")
-  @ApiResponse(responseCode = "409", description = CORE_INSTANCE)
+  @ApiResponse(responseCode = "409", description = CORE_INSTANCE_REFUSAL)
   Instance edit(
       @PathVariable String service,
       @PathVariable String id,
@@ -150,7 +150,7 @@ class WorkstationServicesController {
   @ApiResponse(
       responseCode = "404",
       description = "The Service has no Static Instance with this ID")
-  @ApiResponse(responseCode = "409", description = CORE_INSTANCE)
+  @ApiResponse(responseCode = "409", description = CORE_INSTANCE_REFUSAL)
   void remove(@PathVariable String service, @PathVariable String id) {
     registrations.remove(workstation.name(), service, id);
   }

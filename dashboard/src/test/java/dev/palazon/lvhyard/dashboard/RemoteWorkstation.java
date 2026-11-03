@@ -155,6 +155,11 @@ final class RemoteWorkstation implements AutoCloseable {
         .toBodilessEntity();
   }
 
+  /** The page at {@code path} of this Workstation's dashboard, as HTML. */
+  String page(String path) {
+    return http.get().uri(path).accept(MediaType.TEXT_HTML).retrieve().body(String.class);
+  }
+
   /** What this Workstation's Traefik reads from its dashboard. */
   JsonNode traefikConfiguration() {
     return http.get().uri("/traefik/configuration").retrieve().body(JsonNode.class);
@@ -185,6 +190,19 @@ final class RemoteWorkstation implements AutoCloseable {
    */
   void deregisterInConsul(String id) {
     consulHttp().put().uri("/v1/agent/service/deregister/" + id).retrieve().toBodilessEntity();
+  }
+
+  /**
+   * Removes the check of the registration {@code id} from this Workstation's Consul agent, straight
+   * from Consul, and keeps the registration: Consul names a check given with its registration
+   * {@code service:<id>}.
+   */
+  void deregisterCheckInConsul(String id) {
+    consulHttp()
+        .put()
+        .uri("/v1/agent/check/deregister/service:" + id)
+        .retrieve()
+        .toBodilessEntity();
   }
 
   /** Removes {@code key} from this Workstation's Consul KV, straight from Consul. */

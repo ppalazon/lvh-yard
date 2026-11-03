@@ -7,6 +7,7 @@ import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.Router;
 import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.Server;
 import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.Service;
 import dev.palazon.lvhyard.dashboard.services.Alias;
+import dev.palazon.lvhyard.dashboard.services.CoreService;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,13 +68,11 @@ final class RouteBuilder {
             routers.put(ALIAS_PREFIX + alias.name(), router(alias.hostname(), target));
           }
         });
-    if (!routers.containsKey(Workstation.RESERVED_NAME)) {
+    String yard = CoreService.YARD.serviceName();
+    if (!routers.containsKey(yard)) {
       // The yard Core Service is not there yet, such as while Consul is not ready.
-      routers.put(
-          Workstation.RESERVED_NAME,
-          router(workstation.hostname(Workstation.RESERVED_NAME), Workstation.RESERVED_NAME));
-      backends.put(
-          Workstation.RESERVED_NAME, new Service(new LoadBalancer(List.of(new Server(dashboard)))));
+      routers.put(yard, router(workstation.hostname(yard), yard));
+      backends.put(yard, new Service(new LoadBalancer(List.of(new Server(dashboard)))));
     }
     return new TraefikConfiguration(new Http(routers, backends));
   }

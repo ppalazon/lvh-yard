@@ -12,9 +12,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties("lvh-yard.workstation")
 public record Workstation(String name, String baseDomain) {
 
-  /** The dashboard publishes itself under this name, so no Service can take it. */
-  public static final String RESERVED_NAME = "yard";
-
   /** Whether {@code workstation} names this Workstation, not another one of the Yard. */
   public boolean is(String workstation) {
     return name.equals(workstation);

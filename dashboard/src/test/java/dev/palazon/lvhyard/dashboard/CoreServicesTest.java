@@ -110,6 +110,17 @@ class CoreServicesTest extends DashboardTest {
   }
 
   @Test
+  void startingAgainPutsBackACheckThatWasRemoved() {
+    String consulId = coreInstanceId("consul");
+    remote.whileDashboardIsStopped(() -> remote.deregisterCheckInConsul(consulId));
+
+    JsonNode consul = remote.service("consul").getBody();
+    assertThat(consul.get("instances")).hasSize(1);
+    assertThat(consul.get("instances").get(0).get("id").asString()).isEqualTo(consulId);
+    assertCheck(consul.get("instances").get(0), "/v1/status/leader");
+  }
+
+  @Test
   void startingAgainGivesACoreServiceWithYardScopeLocalScope() {
     remote.whileDashboardIsStopped(
         () -> remote.putConsulValue("lvh-yard/publications/consul", "yard"));
@@ -206,6 +217,44 @@ class CoreServicesTest extends DashboardTest {
   }
 
   @Test
+  void coreServiceWhoseInstanceIsMissingIsStillMarkedWithItsControlsHidden() {
+    String consulId = coreInstanceId("consul");
+    try {
+      remote.deregisterInConsul(consulId);
+
+      JsonNode consul = remote.service("consul").getBody();
+      assertThat(consul.get("instances")).isEmpty();
+      assertThat(consul.get("core").asBoolean()).isTrue();
+      String page = remote.page("/services/" + RemoteWorkstation.NAME + "/consul");
+      assertThat(page.substring(page.indexOf("<main")))
+          .contains("Core Service")
+          .doesNotContain("Unpublish")
+          .doesNotContain("Share with the Yard");
+    } finally {
+      remote.whileDashboardIsStopped(() -> {});
+    }
+  }
+
+  @Test
+  void teammateWithoutCoreServicesShowsNoConsulService() {
+    String consulId = coreInstanceId("consul");
+    try {
+      // As a teammate on a version from before Core Services: only Consul's own entry is there.
+      remote.deregisterInConsul(consulId);
+      remote.deleteConsulValue("lvh-yard/publications/consul");
+
+      assertThat(get("/api/services/" + RemoteWorkstation.NAME + "/consul").getStatusCode())
+          .isEqualTo(HttpStatus.NOT_FOUND);
+      for (JsonNode service :
+          get("/api/services?workstation=" + RemoteWorkstation.NAME).getBody()) {
+        assertThat(service.get("name").asString()).isNotEqualTo("consul");
+      }
+    } finally {
+      remote.whileDashboardIsStopped(() -> {});
+    }
+  }
+
+  @Test
   void catalogMarksCoreServices() {
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
@@ -225,7 +274,7 @@ class CoreServicesTest extends DashboardTest {
   }
 
   @Test
-  void removingACoreInstanceIsRefusedWithAReason() {
+  void removingACoreServicesStaticInstanceIsRefusedWithAReason() {
     String id = get(servicePath("consul")).getBody().get("instances").get(0).get("id").asString();
 
     ResponseEntity<JsonNode> response = delete(instancesPath("consul") + "/" + id);
@@ -235,7 +284,7 @@ class CoreServicesTest extends DashboardTest {
   }
 
   @Test
-  void editingACoreInstanceIsRefusedWithAReason() {
+  void editingACoreServicesStaticInstanceIsRefusedWithAReason() {
     JsonNode before = get(servicePath("traefik")).getBody().get("instances").get(0);
 
     ResponseEntity<JsonNode> response =

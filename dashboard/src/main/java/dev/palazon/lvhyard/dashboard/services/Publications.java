@@ -3,6 +3,7 @@ package dev.palazon.lvhyard.dashboard.services;
 import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.consul.Consul;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import org.springframework.stereotype.Component;
 
@@ -35,14 +36,15 @@ public class Publications {
    */
   public void publish(String workstation, String service, Scope scope) {
     checkHome(workstation);
-    if (CoreServices.NAMES.contains(service)) {
+    Optional<CoreService> core = CoreService.named(service);
+    if (core.isPresent()) {
       if (scope == Scope.YARD) {
-        throw new CoreServiceException(
-            service
-                + " is a Core Service, so it keeps Local Scope: its Instance is on loopback, so"
-                + " other Workstations could not reach it.");
+        throw CoreServiceException.cannotBe(
+            service,
+            "given Yard Scope, as its Instance is on loopback, so other Workstations could not"
+                + " reach it");
       }
-      keepCorePublication(service);
+      keepCorePublication(core.get());
       return;
     }
     Registrations.checkName(service);
@@ -56,14 +58,14 @@ public class Publications {
   }
 
   /**
-   * Publishes the Core Service {@code service} with Local Scope, unless it has that already. One
-   * with Yard Scope, from before Yard Scope was refused, is put back to Local. No name rule
-   * applies: a Core Service's name is kept for it.
+   * Publishes {@code service} with Local Scope, unless it has that already. One with Yard Scope,
+   * from before Yard Scope was refused, is put back to Local. No name rule applies: a Core
+   * Service's name is kept for it.
    */
-  void keepCorePublication(String service) {
-    Publication existing = all().get(service);
+  void keepCorePublication(CoreService service) {
+    Publication existing = all().get(service.serviceName());
     if (existing == null || existing.scope() != Scope.LOCAL) {
-      consul.putValue(PREFIX + service, Scope.LOCAL.value());
+      consul.putValue(PREFIX + service.serviceName(), Scope.LOCAL.value());
     }
   }
 
@@ -73,7 +75,7 @@ public class Publications {
    */
   public void unpublish(String workstation, String service) {
     checkHome(workstation);
-    if (CoreServices.NAMES.contains(service)) {
+    if (CoreService.isNamed(service)) {
       throw CoreServiceException.cannotBe(service, "unpublished");
     }
     checkExists(service);

@@ -22,11 +22,14 @@ import dev.palazon.lvhyard.dashboard.services.UnknownWorkstationException;
 import dev.palazon.lvhyard.dashboard.services.UnreachableWorkstationException;
 import dev.palazon.lvhyard.dashboard.services.Yard;
 import dev.palazon.lvhyard.dashboard.services.YardReader;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.net.URI;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -197,15 +200,20 @@ class PagesController {
                   workstation, found, instance, fields, registrations.defaultHost(), error));
     } catch (UnknownInstanceException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
-    } catch (CoreServiceException e) {
-      throw refused(e);
     }
     return seeOther(ServicePage.path(found));
   }
 
   /** A change to a Core Service, refused with its reason. */
-  private static ResponseStatusException refused(CoreServiceException e) {
-    return new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage(), e);
+  @ExceptionHandler
+  void refused(CoreServiceException e, HttpServletResponse response) throws IOException {
+    response.sendError(HttpStatus.CONFLICT.value(), e.getMessage());
+  }
+
+  /** A change to a Remote Service, which only its Home Workstation can make, forbidden. */
+  @ExceptionHandler
+  void forbidden(RemoteServiceException e, HttpServletResponse response) throws IOException {
+    response.sendError(HttpStatus.FORBIDDEN.value(), e.getMessage());
   }
 
   /**
@@ -241,10 +249,6 @@ class PagesController {
       registrations.remove(home, service, id);
     } catch (UnknownInstanceException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
-    } catch (RemoteServiceException e) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage(), e);
-    } catch (CoreServiceException e) {
-      throw refused(e);
     }
     return seeOther(yard.service(home, service).map(ServicePage::path).orElse("/"));
   }
@@ -262,10 +266,6 @@ class PagesController {
       containerBindings.remove(home, service, id);
     } catch (UnknownContainerBindingException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
-    } catch (RemoteServiceException e) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage(), e);
-    } catch (CoreServiceException e) {
-      throw refused(e);
     }
     return seeOther(yard.service(home, service).map(ServicePage::path).orElse("/"));
   }
@@ -292,10 +292,6 @@ class PagesController {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
     } catch (InvalidRegistrationException e) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
-    } catch (RemoteServiceException e) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage(), e);
-    } catch (CoreServiceException e) {
-      throw refused(e);
     }
     return seeOther(ServicePage.path(home, service));
   }
@@ -310,10 +306,6 @@ class PagesController {
       publications.unpublish(home, service);
     } catch (UnknownServiceException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
-    } catch (RemoteServiceException e) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage(), e);
-    } catch (CoreServiceException e) {
-      throw refused(e);
     }
     return seeOther(yard.service(home, service).map(ServicePage::path).orElse("/"));
   }

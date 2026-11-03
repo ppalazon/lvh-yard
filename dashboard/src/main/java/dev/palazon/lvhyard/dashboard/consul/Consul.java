@@ -94,6 +94,15 @@ public class Consul {
                 : Optional.ofNullable(response.bodyTo(AgentService.class)));
   }
 
+  /** The agent's checks of its registration {@code id}. */
+  public List<CheckStatus> agentChecks(String id) {
+    Map<String, CheckStatus> checks =
+        http.get().uri("/v1/agent/checks").retrieve().body(new ParameterizedTypeReference<>() {});
+    return checks == null
+        ? List.of()
+        : checks.values().stream().filter(check -> id.equals(check.serviceId())).toList();
+  }
+
   public void deregister(String id) {
     http.put().uri("/v1/agent/service/deregister/{id}", id).retrieve().toBodilessEntity();
   }

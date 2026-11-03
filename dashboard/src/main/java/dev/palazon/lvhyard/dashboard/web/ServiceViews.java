@@ -24,11 +24,12 @@ final class ServiceViews {
   }
 
   /**
-   * A muted badge that marks a Core Service, which LVH Yard registers and keeps itself; nothing for
-   * any other Service.
+   * A muted badge that marks a Core Service, which LVH Yard registers and keeps itself, after a
+   * space; nothing for any other Service.
    */
   static void core(PhrasingContent<?, ?> parent, Service service) {
     if (service.core()) {
+      parent.text(" ");
       parent
           .span()
           .attrClass("badge")

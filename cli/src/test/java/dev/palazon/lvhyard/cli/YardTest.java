@@ -1074,7 +1074,7 @@ class YardTest {
   }
 
   @Test
-  void removingACoreInstancePrintsTheReasonAndExitsWith1() {
+  void removingACoreServicesStaticInstancePrintsTheReasonAndExitsWith1() {
     dashboard.answer(
         "DELETE",
         "/api/workstation/services/consul/instances/lvh-yard-core-consul",

@@ -38,7 +38,7 @@ public record Service(
 
   /**
    * A Service in the state, and with the warnings, its {@code publication} and {@code instances}
-   * add up to. It is a Core Service when one of its Instances is a Core Service's.
+   * add up to.
    */
   Service(
       String workstation,
@@ -47,7 +47,8 @@ public record Service(
       String hostname,
       String yardHostname,
       List<Instance> instances,
-      List<ContainerBinding> containerBindings) {
+      List<ContainerBinding> containerBindings,
+      boolean core) {
     this(
         workstation,
         name,
@@ -58,7 +59,7 @@ public record Service(
         instances,
         containerBindings,
         ServiceWarning.of(publication, instances),
-        instances.stream().anyMatch(Instance::core));
+        core);
   }
 
   /** Whether it is published with Yard Scope, so every Workstation of the Yard routes it. */
