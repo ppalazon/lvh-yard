@@ -13,6 +13,9 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -99,6 +102,16 @@ class Init implements Runnable {
             "Move the consul, traefik and dashboard images in the existing compose.yaml to this"
                 + " version's, and change nothing else.")
     boolean upgrade;
+
+    @Option(
+        names = "--reinit",
+        description = {
+          "Rewrite compose.yaml and .env from this CLI's templates, keeping the values of the old"
+              + " .env. The old files are kept as <file>.<yyyyMMdd-HHmmss>.bak; route-profiles.yaml"
+              + " is left as it is.",
+          "A flag given with it replaces the old value."
+        })
+    boolean reinit;
   }
 
   /** The socket whose group the dashboard needs to read Docker. Hidden: a test points it away. */
@@ -126,7 +139,9 @@ class Init implements Runnable {
       upgrade(folder);
       return;
     }
-    String name = workstation != null ? workstation : askWorkstation();
+    Map<String, String> old = mode.reinit ? oldSettings(folder) : Map.of();
+    String oldName = old(old, "YARD_WORKSTATION");
+    String name = workstation != null ? workstation : oldName != null ? oldName : askWorkstation();
     if (!WORKSTATION.matcher(name).matches()) {
       throw usage(
           "--workstation "
@@ -137,32 +152,42 @@ class Init implements Runnable {
     if (baseDomain != null && !DOMAIN.matcher(baseDomain).matches()) {
       throw usage("--base-domain " + baseDomain + " is not a domain name such as lvh.me.");
     }
-    List<String> peerAddresses = peers != null ? peers : atTerminal() ? askPeers() : List.of();
-    String key = gossipKey != null ? checkedGossipKey(gossipKey) : newGossipKey();
+    // --reinit keeps the old peers unless --peers replaces them, so it asks for none.
+    List<String> peerAddresses =
+        peers != null ? peers : mode.reinit ? null : atTerminal() ? askPeers() : List.of();
+    String oldKey = old(old, "YARD_GOSSIP_KEY");
+    String key =
+        gossipKey != null ? checkedGossipKey(gossipKey) : oldKey != null ? oldKey : newGossipKey();
 
     PrintWriter out = spec.commandLine().getOut();
     PrintWriter err = spec.commandLine().getErr();
-    EnvFile env =
-        Templates.env()
-            .set("YARD_WORKSTATION", name)
-            .set("YARD_GOSSIP_KEY", key)
-            .set("YARD_PEERS", String.join(" ", peerAddresses))
-            .set("COMPOSE_PROFILES", "dashboard");
+    EnvFile env = Templates.env().set("COMPOSE_PROFILES", "dashboard");
+    id("-u").ifPresent(uid -> env.set("YARD_UID", uid));
+    id("-g").ifPresent(gid -> env.set("YARD_GID", gid));
+    dockerGid().ifPresent(gid -> env.set("YARD_DOCKER_GID", gid));
+    carryOver(old, env);
+    env.set("YARD_WORKSTATION", name).set("YARD_GOSSIP_KEY", key);
+    if (peerAddresses != null) {
+      env.set("YARD_PEERS", String.join(" ", peerAddresses));
+    }
     if (baseDomain != null) {
       env.set("YARD_BASE_DOMAIN", baseDomain);
     }
-    id("-u").ifPresent(uid -> env.set("YARD_UID", uid));
-    id("-g").ifPresent(gid -> env.set("YARD_GID", gid));
-    Optional<String> dockerGid = dockerGid();
-    dockerGid.ifPresent(gid -> env.set("YARD_DOCKER_GID", gid));
 
     Map<String, String> files = new LinkedHashMap<>();
     files.put(Templates.COMPOSE, Templates.compose());
     files.put(Templates.ENV, env.text());
-    files.put(Templates.ROUTE_PROFILES, Templates.routeProfiles());
+    if (!mode.reinit || !Files.exists(folder.resolve(Templates.ROUTE_PROFILES))) {
+      files.put(Templates.ROUTE_PROFILES, Templates.routeProfiles());
+    }
+    if (mode.reinit) {
+      for (Map.Entry<String, Path> backup : backUp(folder).entrySet()) {
+        out.println("Backed up " + backup.getKey() + " to " + backup.getValue() + ".");
+      }
+    }
     write(folder, files);
 
-    if (dockerGid.isEmpty()) {
+    if (env.get("YARD_DOCKER_GID").orElse("").isEmpty()) {
       err.println(
           "Warning: no Docker socket at "
               + dockerSocket
@@ -229,6 +254,72 @@ class Init implements Runnable {
             + folder
             + " && docker compose up -d");
     out.flush();
+  }
+
+  /** The settings of the {@code .env} in {@code folder}, which {@code --reinit} carries over. */
+  private static Map<String, String> oldSettings(Path folder) {
+    Path file = folder.resolve(Templates.ENV);
+    if (!Files.exists(file)) {
+      throw new YardException(
+          "No "
+              + file
+              + " to carry values from: nothing was written. Run lvh-yard init without --reinit to"
+              + " write new files.");
+    }
+    try {
+      return EnvFile.parse(Files.readString(file)).settings();
+    } catch (IOException e) {
+      throw new YardException("Could not read " + file + ": " + e.getMessage());
+    }
+  }
+
+  /** The old value of {@code key}, when it was set and not empty. */
+  private static String old(Map<String, String> old, String key) {
+    String value = old.get(key);
+    return value == null || value.isEmpty() ? null : value;
+  }
+
+  /**
+   * Sets each of {@code old} that {@code env} has; the others are kept at the end, commented, so
+   * nothing the user wrote is lost.
+   */
+  private static void carryOver(Map<String, String> old, EnvFile env) {
+    List<String> gone = new ArrayList<>();
+    old.forEach((key, value) -> {
+      if (env.has(key)) {
+        env.set(key, value);
+      } else {
+        gone.add("#" + key + "=" + value);
+      }
+    });
+    if (!gone.isEmpty()) {
+      env.append("").append("# No longer settings of lvh-yard, kept from the old .env:");
+      gone.forEach(env::append);
+    }
+  }
+
+  /**
+   * Renames {@code compose.yaml} and {@code .env} in {@code folder}, those that exist, to {@code
+   * <file>.<yyyyMMdd-HHmmss>.bak}.
+   *
+   * @return each file's backup, by the file's name
+   */
+  private static Map<String, Path> backUp(Path folder) {
+    String now = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+    Map<String, Path> backups = new LinkedHashMap<>();
+    for (String name : List.of(Templates.COMPOSE, Templates.ENV)) {
+      Path file = folder.resolve(name);
+      if (Files.exists(file)) {
+        Path backup = folder.resolve(name + "." + now + ".bak");
+        try {
+          Files.move(file, backup);
+        } catch (IOException e) {
+          throw new YardException("Could not back up " + file + " to " + backup + ": " + e);
+        }
+        backups.put(name, backup);
+      }
+    }
+    return backups;
   }
 
   /** What to do once the files are written, with the ports and addresses {@code env} sets. */
