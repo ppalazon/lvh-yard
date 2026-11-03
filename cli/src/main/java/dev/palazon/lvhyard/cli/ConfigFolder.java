@@ -11,6 +11,15 @@ final class ConfigFolder {
 
   private ConfigFolder() {}
 
+  /**
+   * The folder to read a Workstation's files from: {@code YARD_CONFIG_DIR} when set, else the
+   * {@linkplain #standard default folder}.
+   */
+  static Path forReading(Map<String, String> environment) {
+    String dir = environment.get("YARD_CONFIG_DIR");
+    return dir != null && !dir.isBlank() ? Path.of(dir) : standard(environment);
+  }
+
   /** The default folder, as {@code environment} gives it. */
   static Path standard(Map<String, String> environment) {
     String xdg = environment.get("XDG_CONFIG_HOME");
