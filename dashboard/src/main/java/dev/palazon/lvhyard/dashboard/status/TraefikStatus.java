@@ -69,18 +69,18 @@ class TraefikStatus implements PartReader {
 
   private static String reason(URI ping, Optional<String> pingFault, Duration age, boolean fresh) {
     if (pingFault.isPresent()) {
-      return "Traefik does not answer its ping at " + ping + ". Is it running?";
+      return "Traefik does not answer its ping at " + ping + ". Make sure that it runs.";
     }
     if (age == null) {
-      return "Traefik answers, but has not fetched its Routes from this dashboard since it"
-          + " started. Does it read another dashboard?";
+      return "Traefik answers, but has not fetched its Routes since it started. Make sure that it"
+          + " reads this dashboard.";
     }
     if (!fresh) {
-      return "Traefik answers, but last fetched its Routes from this dashboard "
+      return "Traefik answers, but last fetched its Routes "
           + age.toSeconds()
           + " s ago, more than "
           + STALE.toSeconds()
-          + " s. Does it read another dashboard?";
+          + " s. Make sure that it reads this dashboard.";
     }
     return "Traefik answers, and fetched its Routes " + age.toSeconds() + " s ago.";
   }

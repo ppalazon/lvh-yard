@@ -96,38 +96,25 @@ public class Aliases {
     if (yard.home().services().stream()
         .anyMatch(own -> own.name().equals(name) && own.published())) {
       state = Alias.State.HIDDEN;
-      reason =
-          "Hidden: this Workstation's Service "
-              + name
-              + " is published at the same hostname, and wins.";
+      reason = "Hidden by this Workstation's published Service " + name + ".";
     } else if (remote.isEmpty()) {
       state = Alias.State.MISSING;
       reason = "The Yard has no Workstation " + home + ".";
     } else if (remote.get().unreachable()) {
       state = Alias.State.UNREACHABLE;
-      reason =
-          "Workstation "
-              + home
-              + " is unreachable: its Consul datacenter does not answer. The Alias is"
-              + " routed again by itself once it does.";
+      reason = "Workstation " + home + " is unreachable: its Consul does not answer.";
     } else if (target.isEmpty()) {
       state = Alias.State.MISSING;
       reason = "Workstation " + home + " has no Service " + service + ".";
     } else if (!target.get().published()) {
       state = Alias.State.NOT_SHARED;
-      reason =
-          home + " has not published " + service + ", so this Workstation has no Route for it.";
+      reason = home + " has not published " + service + ".";
     } else if (!target.get().sharedWithYard()) {
       state = Alias.State.NOT_SHARED;
-      reason =
-          home + " publishes " + service + " with Local Scope, so only " + home + " routes it.";
+      reason = home + " publishes " + service + " with Local Scope only.";
     } else if (target.get().instances().stream().allMatch(Instance::outOfRange)) {
       state = Alias.State.UNAVAILABLE;
-      reason =
-          service
-              + " has no Instance this Workstation can reach: none is registered, or each is on "
-              + home
-              + "'s own loopback or Docker network.";
+      reason = service + " has no Instance this Workstation can reach.";
     } else {
       state = Alias.State.ACTIVE;
       reason = null;

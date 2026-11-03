@@ -172,7 +172,7 @@ class ReachabilityTest extends DashboardTest {
     assertThat(instance.has("error")).isFalse();
     assertThat(result.get("routes")).isEmpty();
     assertThat(result.get("noRoute").asString())
-        .contains("only " + RemoteWorkstation.NAME + " routes it");
+        .contains("Local Scope on " + RemoteWorkstation.NAME);
     assertThat(result.get("passed").asBoolean()).as("a skipped Instance is no failure").isTrue();
   }
 
@@ -185,8 +185,7 @@ class ReachabilityTest extends DashboardTest {
     JsonNode result = get(reachabilityPath(RemoteWorkstation.NAME, api)).getBody();
 
     assertThat(result.get("routes")).isEmpty();
-    assertThat(result.get("noRoute").asString())
-        .contains("no Instance this Workstation can route to");
+    assertThat(result.get("noRoute").asString()).contains("No Instance in range");
   }
 
   @Test
@@ -231,7 +230,7 @@ class ReachabilityTest extends DashboardTest {
         .contains("Reached")
         .contains(lanAddress() + ":7104")
         .containsIgnoringCase("refused")
-        .contains("Not published: it has no Route");
+        .contains("Not published, so only its Instances are tested");
   }
 
   @Test

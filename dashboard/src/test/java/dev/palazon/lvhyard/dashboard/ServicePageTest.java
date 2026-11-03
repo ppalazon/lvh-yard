@@ -137,7 +137,7 @@ class ServicePageTest extends DashboardTest {
 
     assertThat(getPage(page).getBody())
         .contains("role=\"alert\"")
-        .contains("127.0.0.1:8080 is on a loopback address")
+        .contains("127.0.0.1:8080 is on loopback")
         .as("its Home Workstation reaches it")
         .doesNotContain("Out of range");
   }
@@ -156,7 +156,7 @@ class ServicePageTest extends DashboardTest {
 
     assertThat(getPage(page).getBody())
         .contains("role=\"alert\"")
-        .contains(address + " is on a container port that is not published on the host");
+        .contains(address + " is on a container port that is not published");
   }
 
   @Test

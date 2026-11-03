@@ -24,12 +24,9 @@ import org.springframework.http.MediaType;
         @Info(
             title = "LVH Yard",
             description =
-                "The Workstations and Services of the Yard, read only, the Static Instances and"
-                    + " Publications of this Workstation's Services, and this Workstation's"
-                    + " Aliases. A Remote Service can be changed only on its Home Workstation, so a"
-                    + " change asked under /api/services is refused with 405. A Core Service (yard,"
-                    + " consul or traefik) is kept by LVH Yard, so removing or editing its"
-                    + " Instances, unpublishing it or giving it Yard Scope is refused with 409."),
+                "The Yard's Workstations and Services, and this Workstation's Instances,"
+                    + " Publications and Aliases. A change to a Remote Service is refused with 405."
+                    + " A change that would break a Core Service is refused with 409."),
     servers = @Server(url = "/"))
 class ApiDocumentation {
 

@@ -42,7 +42,7 @@ class DockerStatus implements PartReader {
     }
     return Part.of(
         NAME,
-        "Docker answers, so Container Bindings work.",
+        "Docker answers.",
         List.of(
             new Part.Detail("ping", "OK", PartState.OK),
             Part.Detail.fact("version", version.version()),
@@ -54,9 +54,7 @@ class DockerStatus implements PartReader {
     if ("unix".equals(settings.host().getScheme())) {
       Path socket = Path.of(settings.host().getPath());
       if (!Files.exists(socket)) {
-        return "There is no Docker socket at "
-            + socket
-            + ". Is Docker running, and is DOCKER_HOST right?";
+        return "No Docker socket at " + socket + ". Start Docker, or fix DOCKER_HOST.";
       }
       if (!Files.isReadable(socket) || !Files.isWritable(socket)) {
         return "The dashboard cannot read "
@@ -66,8 +64,7 @@ class DockerStatus implements PartReader {
                 .map(group ->
                     " Add the dashboard's user to the group "
                         + group
-                        + "; for the dashboard's container, set YARD_DOCKER_GID in .env to that"
-                        + " group's ID.")
+                        + ", or set YARD_DOCKER_GID in .env to that group's ID.")
                 .orElse("");
       }
     }

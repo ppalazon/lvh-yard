@@ -85,7 +85,8 @@ class AliasesTest extends DashboardTest {
 
     JsonNode alias = alias(grafana);
     assertThat(alias.get("state").asString()).isEqualTo("hidden");
-    assertThat(alias.get("reason").asString()).contains("this Workstation's Service " + grafana);
+    assertThat(alias.get("reason").asString())
+        .contains("this Workstation's published Service " + grafana);
     assertThat(
             TraefikConfigurationTest.serverUrlsAt(
                 get("/traefik/configuration").getBody().get("http"), grafana + ".lvh.test"))

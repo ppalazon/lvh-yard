@@ -921,7 +921,7 @@ class YardTest {
         {"overall": "failing", "parts": [
           {"name": "Consul", "state": "ok", "reason": "Consul has a leader.", "details": []},
           {"name": "Docker", "state": "failing",
-           "reason": "There is no Docker socket at /var/run/docker.sock.", "details": []}]}
+           "reason": "No Docker socket at /var/run/docker.sock. Start Docker, or fix DOCKER_HOST.", "details": []}]}
         """);
 
     Run run = yard("status");
@@ -931,7 +931,8 @@ class YardTest {
         .containsExactly(
             "LVH Yard on this Workstation: failing",
             "  ok    Consul: Consul has a leader.",
-            "  FAIL  Docker: There is no Docker socket at /var/run/docker.sock.");
+            "  FAIL  Docker: No Docker socket at /var/run/docker.sock. Start Docker, or fix"
+                + " DOCKER_HOST.");
   }
 
   @Test
@@ -1003,7 +1004,7 @@ class YardTest {
                        {"id": "8c2d", "address": "10.1.2.3:8081", "reached": false,
                         "error": "Connection refused"}],
          "routes": [{"hostname": "web.lvh.me", "reached": false, "status": 502,
-                     "error": "Traefik answered 502: it could not get an answer from an Instance."}]}
+                     "error": "Traefik answered 502: no Instance answered."}]}
         """);
 
     Run run = yard("test", "web");
@@ -1014,8 +1015,7 @@ class YardTest {
             "Reachability of web on ws-a, from this Workstation:",
             "  ok    Instance 10.1.2.3:8080",
             "  FAIL  Instance 10.1.2.3:8081: Connection refused",
-            "  FAIL  Route web.lvh.me: Traefik answered 502: it could not get an answer from an"
-                + " Instance.",
+            "  FAIL  Route web.lvh.me: Traefik answered 502: no Instance answered.",
             "2 of 3 checks failed.");
   }
 
@@ -1889,7 +1889,7 @@ class YardTest {
     Run run = yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a");
 
     assertThat(run.out())
-        .contains("TCP port 8300 and on TCP and UDP port 8302")
+        .contains("Open TCP port 8300 and TCP and UDP port 8302 to the other Workstations.")
         .contains("cd " + dir + " && docker compose up -d")
         .contains("http://127.0.0.1:7780")
         .contains("lvh-yard status");

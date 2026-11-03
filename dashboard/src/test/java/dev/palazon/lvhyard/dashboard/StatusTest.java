@@ -75,7 +75,7 @@ class StatusTest extends DashboardTest {
           assertThat(docker.get("state").asString()).isEqualTo("failing");
           assertThat(docker.get("reason").asString())
               .contains("/nowhere/docker.sock")
-              .contains("no Docker socket");
+              .contains("No Docker socket");
           assertThat(status.get("overall").asString()).isEqualTo("failing");
         },
         "--lvh-yard.docker.host=unix:///nowhere/docker.sock");
@@ -167,7 +167,7 @@ class StatusTest extends DashboardTest {
         () ->
             assertThat(remote.page("/status"))
                 .contains("Failing")
-                .contains("There is no Docker socket at /nowhere/docker.sock"),
+                .contains("No Docker socket at /nowhere/docker.sock"),
         "--lvh-yard.docker.host=unix:///nowhere/docker.sock");
   }
 
@@ -215,7 +215,7 @@ class StatusTest extends DashboardTest {
           String summary = remote.page("/status/summary");
           assertThat(summary).contains("href=\"/status\"");
           assertThat(openingTag(summary, "id=\"dot-docker\""))
-              .contains("aria-label=\"Docker: Failing. There is no Docker socket at");
+              .contains("aria-label=\"Docker: Failing. No Docker socket at");
           assertThat(summary).contains("✕");
         },
         "--lvh-yard.docker.host=unix:///nowhere/docker.sock");

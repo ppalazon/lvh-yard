@@ -115,7 +115,7 @@ class ConsulStatus implements PartReader {
       return (missing.size() == 1 ? "A Peer is" : missing.size() + " Peers are")
           + " not in Consul's WAN pool: "
           + String.join(", ", missing)
-          + ". Is that Workstation on, and is its address in YARD_PEERS right?";
+          + ". Make sure that the Workstation is on and that its address in YARD_PEERS is right.";
     }
     if (notAlive > 0) {
       return notAlive

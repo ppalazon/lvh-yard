@@ -26,18 +26,13 @@ class AliasesController {
   }
 
   @GetMapping
-  @Operation(
-      operationId = "aliases",
-      summary = "This Workstation's Aliases, by name, each with its state")
+  @Operation(operationId = "aliases", summary = "Lists this Workstation's Aliases")
   List<Alias> aliases() {
     return aliases.all();
   }
 
   @PutMapping(path = "/{alias}", consumes = MediaType.APPLICATION_JSON_VALUE)
-  @Operation(
-      operationId = "addAlias",
-      summary =
-          "Gives a Remote Service the Alias <alias>.<base-domain>, on this" + " Workstation only")
+  @Operation(operationId = "addAlias", summary = "Adds an Alias for a Remote Service")
   @ApiResponse(
       responseCode = "200",
       description = "The Alias, with its state",
@@ -45,8 +40,8 @@ class AliasesController {
   @ApiResponse(
       responseCode = "400",
       description =
-          "The name is not a single DNS label or is a Core Service's (yard, consul or traefik), or"
-              + " the Workstation is this one")
+          "The name is not a single DNS label or is taken by a Core Service, or the Workstation is"
+              + " this one")
   @ApiResponse(
       responseCode = "404",
       description =
@@ -60,7 +55,7 @@ class AliasesController {
 
   @DeleteMapping("/{alias}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  @Operation(operationId = "removeAlias", summary = "Removes an Alias, and its Route")
+  @Operation(operationId = "removeAlias", summary = "Removes an Alias")
   @ApiResponse(responseCode = "204", description = "Removed")
   @ApiResponse(responseCode = "404", description = "This Workstation has no Alias of this name")
   void remove(@PathVariable String alias) {

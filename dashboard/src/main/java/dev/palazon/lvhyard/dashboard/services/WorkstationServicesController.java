@@ -26,13 +26,9 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping(path = "/api/workstation/services", produces = MediaType.APPLICATION_JSON_VALUE)
 class WorkstationServicesController {
 
-  private static final String INVALID_INSTANCE =
-      "The host is not an IP address or a hostname, the port is missing or not a TCP port, the"
-          + " check is not http or tcp or has a bad path, interval or timeout, or a tag or a meta"
-          + " key breaks its rules";
+  private static final String INVALID_INSTANCE = "The host, port, check, tags or meta break a rule";
 
-  private static final String CORE_INSTANCE_REFUSAL =
-      "The Instance is a Core Service's, which LVH Yard keeps";
+  private static final String CORE_INSTANCE_REFUSAL = "The Instance belongs to a Core Service";
 
   private final Workstation workstation;
 
@@ -62,17 +58,13 @@ class WorkstationServicesController {
   }
 
   @GetMapping
-  @Operation(
-      operationId = "ownServices",
-      summary = "This Workstation's Services, with their Instances and their Health")
+  @Operation(operationId = "ownServices", summary = "Lists this Workstation's Services")
   List<Service> services() {
     return yard.services(workstation.name());
   }
 
   @GetMapping("/{service}")
-  @Operation(
-      operationId = "ownService",
-      summary = "One of this Workstation's Services, with its Instances and their Health")
+  @Operation(operationId = "ownService", summary = "Gets one of this Workstation's Services")
   @ApiResponse(responseCode = "200", description = "OK", useReturnTypeSchema = true)
   @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
   Service service(@PathVariable String service) {
@@ -85,7 +77,7 @@ class WorkstationServicesController {
   @GetMapping("/{service}/reachability")
   @Operation(
       operationId = "testOwnReachability",
-      summary = "Tests whether this Workstation reaches one of its own Services, now",
+      summary = "Tests whether this Workstation reaches one of its own Services",
       description =
           "As /api/services/{workstation}/{service}/reachability does, without naming this"
               + " Workstation.")
@@ -101,17 +93,16 @@ class WorkstationServicesController {
   @PostMapping(path = "/{service}/instances", consumes = MediaType.APPLICATION_JSON_VALUE)
   @ResponseStatus(HttpStatus.CREATED)
   @Operation(
-      summary = "Registers a Static Instance; with no host, at this Workstation's LAN address",
+      summary = "Registers a Static Instance",
       description =
-          "With no check, the Instance gets a TCP check on its port. It is critical until its check"
-              + " first passes. Registering the same host and port again replaces that Instance,"
-              + " which keeps its ID.")
+          "With no host, the Instance is at this Workstation's LAN address. With no check, it gets"
+              + " a TCP check on its port. It is critical until its check first passes. The same"
+              + " host and port again replaces that Instance, which keeps its ID.")
   @ApiResponse(responseCode = "201", description = "Registered", useReturnTypeSchema = true)
   @ApiResponse(
       responseCode = "400",
       description =
-          "The name is not a single DNS label or is a Core Service's (yard, consul or traefik). "
-              + INVALID_INSTANCE)
+          "The name is not a single DNS label or is taken by a Core Service. " + INVALID_INSTANCE)
   Instance register(@PathVariable String service, @RequestBody StaticInstanceRequest request) {
     return registrations.register(workstation.name(), service, request);
   }
@@ -119,10 +110,10 @@ class WorkstationServicesController {
   @PutMapping(path = "/{service}/instances/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
   @Operation(
       operationId = "editInstance",
-      summary = "Edits a Static Instance, which stays the same Instance",
+      summary = "Edits a Static Instance",
       description =
-          "The Instance becomes what the body says, as when it is registered: a part left out gets"
-              + " its default, not its old value. It is critical until its check first passes.")
+          "A part left out gets its default, not its old value. The Instance keeps its ID. It is"
+              + " critical until its check first passes.")
   @ApiResponse(responseCode = "200", description = "Edited", useReturnTypeSchema = true)
   @ApiResponse(
       responseCode = "400",
@@ -141,7 +132,7 @@ class WorkstationServicesController {
 
   @DeleteMapping("/{service}/instances/{id}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  @Operation(summary = "Removes a Static Instance; a Service with nothing left leaves the Catalog")
+  @Operation(summary = "Removes a Static Instance")
   @ApiResponse(responseCode = "204", description = "Removed")
   @ApiResponse(
       responseCode = "404",
@@ -155,23 +146,18 @@ class WorkstationServicesController {
   @ResponseStatus(HttpStatus.CREATED)
   @Operation(
       operationId = "bindContainer",
-      summary =
-          "Binds a Service to a Docker container by its name, or to a"
-              + " Compose project and service, and a container port",
+      summary = "Binds a Service to a container or a Compose service",
       description =
           "Give either container, or composeProject and composeService. Each running container that"
-              + " matches gives the Service a Bound Instance, so a scaled Compose service gives one"
-              + " per container: at this Workstation's LAN address and the host port when the"
-              + " container port is published, else at the container's own address and the"
-              + " container port. It gets a TCP check on its port. Binding the same again changes"
+              + " matches is a Bound Instance with a TCP check. Binding the same again changes"
               + " nothing.")
   @ApiResponse(responseCode = "201", description = "Bound", useReturnTypeSchema = true)
   @ApiResponse(
       responseCode = "400",
       description =
-          "The name is not a single DNS label or is a Core Service's (yard, consul or traefik),"
-              + " neither or both of a container and a Compose service are given, a name is not one"
-              + " Docker or Compose allows, or the port is missing or not a TCP port")
+          "The name is not a single DNS label or is taken by a Core Service, the body names both or"
+              + " neither of a container and a Compose service, a name is not one Docker or Compose"
+              + " allows, or the port is not a TCP port")
   ContainerBinding bind(
       @PathVariable String service, @RequestBody ContainerBindingRequest request) {
     String id = containerBindings.add(workstation.name(), service, request);
@@ -185,7 +171,7 @@ class WorkstationServicesController {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Operation(
       operationId = "unbindContainer",
-      summary = "Removes a Container Binding, and its Bound Instances",
+      summary = "Removes a Container Binding and its Bound Instances",
       description = "A Service with nothing left leaves the Catalog.")
   @ApiResponse(responseCode = "204", description = "Removed")
   @ApiResponse(
@@ -199,13 +185,11 @@ class WorkstationServicesController {
   @PutMapping("/{service}/publication")
   @Operation(
       operationId = "publish",
-      summary = "Publishes a Service at <service>.<base-domain>, or changes its Scope",
+      summary = "Publishes a Service, or changes its Scope",
       description =
-          "The Route covers every Instance of the Service, including ones registered later. With"
-              + " Yard Scope, every other Workstation also routes it, at"
+          "With Yard Scope, the other Workstations also route it, at"
               + " <service>.<workstation>.<base-domain>. With no Scope, a new Publication gets"
-              + " Local Scope and one that exists keeps its own, so publishing again changes"
-              + " nothing.")
+              + " Local Scope and an existing one keeps its own.")
   @ApiResponse(
       responseCode = "200",
       description = "The Service, published",
@@ -213,14 +197,12 @@ class WorkstationServicesController {
   @ApiResponse(
       responseCode = "400",
       description =
-          "The name is not a single DNS label or is a Core Service's (yard, consul or traefik), or"
-              + " the Scope is not local or yard")
+          "The name is not a single DNS label or is taken by a Core Service, or the Scope is not"
+              + " local or yard")
   @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
   @ApiResponse(
       responseCode = "409",
-      description =
-          "The Service is a Core Service and the Scope is yard: its Instance is on loopback, so"
-              + " other Workstations could not reach it")
+      description = "The Service is a Core Service and the Scope is yard")
   Service publish(
       @PathVariable String service, @RequestBody(required = false) PublicationRequest request) {
     publications.publish(workstation.name(), service, request == null ? null : request.scope());
@@ -231,7 +213,7 @@ class WorkstationServicesController {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Operation(
       operationId = "unpublish",
-      summary = "Unpublishes a Service, which keeps every Instance registered",
+      summary = "Unpublishes a Service",
       description = "A Service with no Instances left leaves the Catalog.")
   @ApiResponse(responseCode = "204", description = "Unpublished, or it was not published")
   @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")

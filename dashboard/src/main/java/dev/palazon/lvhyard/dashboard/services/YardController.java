@@ -17,10 +17,10 @@ class YardController {
   @GetMapping(path = "/api/yard", produces = MediaType.APPLICATION_JSON_VALUE)
   @Operation(
       operationId = "yard",
-      summary = "This Workstation and every other one in the Yard, with their Services",
+      summary = "Gets every Workstation of the Yard, with its Services",
       description =
-          "The other Workstations come by name. One whose Consul datacenter does not answer is"
-              + " unreachable, with no Services, and the others still load.")
+          "The other Workstations come by name. An unreachable one has no Services, and the others"
+              + " still load.")
   Yard yard() {
     return yard.yard();
   }

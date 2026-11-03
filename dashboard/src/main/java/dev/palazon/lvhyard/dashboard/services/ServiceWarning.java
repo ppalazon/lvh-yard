@@ -41,8 +41,8 @@ public record ServiceWarning(
                         Kind.LOOPBACK_INSTANCE,
                         "The Instance at "
                             + instance.address()
-                            + " is on a loopback address, so other Workstations cannot"
-                            + " reach it. Register it at its Workstation's LAN address instead.")),
+                            + " is on loopback, so other Workstations cannot reach it. Register it"
+                            + " at the LAN address instead.")),
             instances.stream()
                 .filter(Instance::unpublishedContainerPort)
                 .map(instance ->
@@ -50,12 +50,10 @@ public record ServiceWarning(
                         Kind.UNPUBLISHED_CONTAINER_PORT,
                         "The Bound Instance at "
                             + instance.address()
-                            + " is on a container port that is not published on the host, so other"
-                            + " Workstations cannot reach it. Publish the port, with docker run -p"
-                            + " "
+                            + " is on a container port that is not published, so other Workstations"
+                            + " cannot reach it. Publish port "
                             + instance.port()
-                            + " or a ports: entry in the Compose file, and restart the"
-                            + " container.")))
+                            + " with docker run -p or a ports: entry, and restart the container.")))
         .toList();
   }
 }

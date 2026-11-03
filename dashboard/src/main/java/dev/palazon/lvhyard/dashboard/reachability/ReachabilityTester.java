@@ -85,16 +85,12 @@ public class ReachabilityTester {
 
   private static String noRoute(Service service) {
     if (!service.published()) {
-      return "Not published: it has no Route, so only its Instances are tested.";
+      return "Not published, so only its Instances are tested.";
     }
     if (service.hostname() == null) {
-      return "Published with Local Scope: only "
-          + service.workstation()
-          + " routes it, so only its Instances"
-          + " are tested from here.";
+      return "Local Scope on " + service.workstation() + ", so only its Instances are tested.";
     }
-    return "It has no Instance this Workstation can route to: none is registered, or each is out of"
-        + " range. So only its Instances are tested.";
+    return "No Instance in range, so only its Instances are tested.";
   }
 
   /**
@@ -158,32 +154,23 @@ public class ReachabilityTester {
               + traefik
               + ": "
               + describe(e)
-              + ". Start it with: mise run up");
+              + ". Start it with docker compose up -d in the folder that lvh-yard init wrote.");
     }
     int status = status(answer);
     if (status < 0) {
       return new RouteReachability(
-          hostname,
-          false,
-          null,
-          "What answers at " + traefik + " is not Traefik:" + " its answer is not HTTP.");
+          hostname, false, null, traefik + " is not Traefik: its answer is not HTTP.");
     }
     if (status == 404 && body(answer).strip().equals(NO_ROUTE_BODY)) {
       return new RouteReachability(
           hostname,
           false,
           status,
-          "Traefik has no Route for "
-              + hostname
-              + ": it has not read its Routes since the Service was published, or no Instance is in"
-              + " range.");
+          "Traefik has no Route for " + hostname + " yet, or no Instance is in range.");
     }
     if (status == 502 || status == 503 || status == 504) {
       return new RouteReachability(
-          hostname,
-          false,
-          status,
-          "Traefik answered " + status + ": it could not" + " get an answer from an Instance.");
+          hostname, false, status, "Traefik answered " + status + ": no Instance answered.");
     }
     return new RouteReachability(hostname, true, status, null);
   }

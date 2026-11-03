@@ -41,18 +41,14 @@ class ServicesController {
   @GetMapping
   @Operation(
       operationId = "yardServices",
-      summary = "Every Service in the Yard, with its Instances and their Health",
+      summary = "Lists every Service in the Yard",
       description =
-          "This Workstation's Services first, then the others' by Workstation and name. The"
-              + " Services of an unreachable Workstation are left out; /api/yard shows which ones"
-              + " are.")
+          "This Workstation's Services first, then by Workstation and name. An unreachable"
+              + " Workstation's Services are left out: /api/yard shows which ones.")
   @ApiResponse(responseCode = "200", description = "OK", useReturnTypeSchema = true)
   @ApiResponse(responseCode = "400", description = "No Service state has this name")
   @ApiResponse(responseCode = "404", description = "The Yard has no Workstation of this name")
-  @ApiResponse(
-      responseCode = "503",
-      description =
-          "The Workstation asked for is unreachable: its Consul datacenter" + " does not answer")
+  @ApiResponse(responseCode = "503", description = "The Workstation is unreachable")
   List<Service> services(
       @RequestParam(required = false)
           @Parameter(description = "Only the Services of this Workstation")
@@ -70,17 +66,13 @@ class ServicesController {
   }
 
   @GetMapping("/{workstation}/{service}")
-  @Operation(
-      operationId = "yardService",
-      summary = "One Service, with its Instances and their Health")
+  @Operation(operationId = "yardService", summary = "Gets one Service")
   @ApiResponse(responseCode = "200", description = "OK", useReturnTypeSchema = true)
   @ApiResponse(
       responseCode = "404",
       description =
           "The Yard has no Workstation of this name, or it has no" + " Service of this name")
-  @ApiResponse(
-      responseCode = "503",
-      description = "The Workstation is unreachable: its Consul datacenter does not" + " answer")
+  @ApiResponse(responseCode = "503", description = "The Workstation is unreachable")
   Service service(@PathVariable String workstation, @PathVariable String service) {
     return yard.service(workstation, service)
         .orElseThrow(() ->
@@ -92,11 +84,10 @@ class ServicesController {
   @GetMapping("/{workstation}/{service}/reachability")
   @Operation(
       operationId = "testReachability",
-      summary = "Tests whether this Workstation reaches a Service, now",
+      summary = "Tests whether this Workstation reaches a Service",
       description =
-          "Connects straight to each Instance, and requests each hostname this Workstation routes"
-              + " to the Service through its own Traefik. A Service with no Route here is tested"
-              + " straight to its Instances only. The results are not stored.")
+          "Connects to each Instance, and requests each hostname through this Workstation's"
+              + " Traefik. The results are not stored.")
   @ApiResponse(
       responseCode = "200",
       description = "Tested, whether the checks passed or not",
@@ -105,9 +96,7 @@ class ServicesController {
       responseCode = "404",
       description =
           "The Yard has no Workstation of this name, or it has no" + " Service of this name")
-  @ApiResponse(
-      responseCode = "503",
-      description = "The Workstation is unreachable: its Consul datacenter does not" + " answer")
+  @ApiResponse(responseCode = "503", description = "The Workstation is unreachable")
   Reachability reachability(@PathVariable String workstation, @PathVariable String service) {
     return reachability.test(service(workstation, service));
   }
