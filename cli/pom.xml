@@ -77,6 +77,33 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- lvh-yard init's templates are the repository's own compose.yaml and .env.example, copied in at
+                 each build so they cannot drift. route-profiles.yaml is the CLI's own, in src/main/resources. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>init-templates</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.outputDirectory}/templates</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${project.basedir}/..</directory>
+                                    <includes>
+                                        <include>compose.yaml</include>
+                                        <include>.env.example</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <!-- picocli-codegen lists every command's options for the native image, which cannot find them by reflection. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

@@ -1,6 +1,7 @@
 package dev.palazon.lvhyard.cli;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -10,11 +11,15 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
 
 /**
@@ -1228,6 +1233,257 @@ class YardTest {
     assertThat(run.out()).contains("else http://127.0.0.1:7780.");
   }
 
+  @Test
+  void initWritesComposeFileAndEnvWithTheWorkstationIntoDir(@TempDir Path dir) throws Exception {
+    Run run = yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(dir.resolve("compose.yaml")).exists();
+    assertThat(env(dir)).contains("YARD_WORKSTATION=ws-a");
+  }
+
+  @Test
+  void initWritesToXdgConfigHomeByDefault(@TempDir Path config) throws Exception {
+    Run run =
+        yardProcess(Map.of("XDG_CONFIG_HOME", config.toString()), "init", "--workstation", "ws-a");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(config.resolve("lvh-yard/compose.yaml")).exists();
+    assertThat(config.resolve("lvh-yard/.env")).exists();
+    assertThat(config.resolve("lvh-yard/route-profiles.yaml")).exists();
+  }
+
+  @Test
+  void initWritesToDotConfigInHomeWithoutXdgConfigHome(@TempDir Path home) throws Exception {
+    Run run = yardProcess(Map.of("HOME", home.toString()), "init", "--workstation", "ws-a");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(home.resolve(".config/lvh-yard/compose.yaml")).exists();
+  }
+
+  @Test
+  void initsComposeFileIsTheRepositorysWithTheDashboardImagePinnedAndNothingToBuild(
+      @TempDir Path dir) throws Exception {
+    yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a");
+
+    // A snapshot build has no image of its own; a release pins its version.
+    String tag = Version.VERSION.endsWith("-SNAPSHOT") ? "latest" : Version.VERSION;
+    List<String> repository = Files.readAllLines(Path.of("..", "compose.yaml"));
+    List<String> expected = new ArrayList<>();
+    for (String line : repository) {
+      if (line.equals("    build: .")) {
+        continue;
+      }
+      expected.add(
+          line.equals(
+                  "    image: ${YARD_DASHBOARD_IMAGE:-ghcr.io/ppalazon/lvh-yard-dashboard:latest}")
+              ? "    image: ${YARD_DASHBOARD_IMAGE:-ghcr.io/ppalazon/lvh-yard-dashboard:"
+                  + tag
+                  + "}"
+              : line);
+    }
+    assertThat(expected).hasSize(repository.size() - 1);
+    assertThat(Files.readAllLines(dir.resolve("compose.yaml"))).isEqualTo(expected);
+  }
+
+  @Test
+  void initsEnvIsTheRepositorysEnvExampleLineByLineWithItsCommentsKept(@TempDir Path dir)
+      throws Exception {
+    yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a");
+
+    List<String> example = Files.readAllLines(Path.of("..", ".env.example"));
+    List<String> written = env(dir);
+    assertThat(written).hasSameSizeAs(example);
+    for (int i = 0; i < example.size(); i++) {
+      String line = example.get(i);
+      if (line.matches("#?[A-Z_]+=.*")) {
+        String key = line.replaceFirst("^#?([A-Z_]+)=.*", "$1");
+        assertThat(written.get(i)).as("line %d", i + 1).matches("#?" + key + "=.*");
+      } else {
+        assertThat(written.get(i)).as("line %d", i + 1).isEqualTo(line);
+      }
+    }
+  }
+
+  @Test
+  void initFillsEnvFromItsFlags(@TempDir Path dir) throws Exception {
+    String key = "pUqJrVyVRj5jsiYEkM/tFQYfWyJIv4s3XkvDwy7Cu5s=";
+    Run run =
+        yardAsTyped(
+            "init",
+            "--dir",
+            dir.toString(),
+            "--workstation",
+            "ws-b",
+            "--peers",
+            "192.168.1.10,192.168.1.11:8302",
+            "--gossip-key",
+            key,
+            "--base-domain",
+            "localhost");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(env(dir))
+        .contains(
+            "YARD_WORKSTATION=ws-b",
+            "YARD_PEERS=192.168.1.10 192.168.1.11:8302",
+            "YARD_GOSSIP_KEY=" + key,
+            "YARD_BASE_DOMAIN=localhost",
+            "COMPOSE_PROFILES=dashboard");
+  }
+
+  @Test
+  void initWithoutPeersLeavesThemEmptyForTheFirstWorkstation(@TempDir Path dir) throws Exception {
+    yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a");
+
+    assertThat(env(dir)).contains("YARD_PEERS=", "YARD_BASE_DOMAIN=lvh.me");
+  }
+
+  @Test
+  void initRefusesAWorkstationNameTheDashboardWouldNot(@TempDir Path dir) {
+    Run run = yardAsTyped("init", "--dir", dir.toString(), "--workstation", "WS_A");
+
+    assertThat(run.exitCode()).isEqualTo(2);
+    assertThat(run.err()).contains("--workstation WS_A is not a Workstation name");
+    assertThat(dir).isEmptyDirectory();
+  }
+
+  @Test
+  void initWithoutAWorkstationAndNoTerminalNamesTheFlag(@TempDir Path dir) throws Exception {
+    Run run = yardProcess(Map.of(), "init", "--dir", dir.toString());
+
+    assertThat(run.exitCode()).isEqualTo(2);
+    assertThat(run.err()).contains("Missing --workstation");
+    assertThat(dir).isEmptyDirectory();
+  }
+
+  @Test
+  void initMakesANewGossipKeyAndSaysToShareIt(@TempDir Path dir) throws Exception {
+    Run run = yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a");
+
+    String key = setting(dir, "YARD_GOSSIP_KEY");
+    assertThat(Base64.getDecoder().decode(key)).hasSize(32);
+    assertThat(run.out())
+        .contains("The Yard's gossip key: " + key)
+        .contains("Every Workstation of the Yard needs this same key");
+    yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a", "--force");
+    assertThat(setting(dir, "YARD_GOSSIP_KEY")).isNotEqualTo(key);
+  }
+
+  @Test
+  void initRefusesAGossipKeyConsulWouldNot(@TempDir Path dir) {
+    Run run =
+        yardAsTyped(
+            "init", "--dir", dir.toString(), "--workstation", "ws-a", "--gossip-key", "secret");
+
+    assertThat(run.exitCode()).isEqualTo(2);
+    assertThat(run.err()).contains("--gossip-key is not a gossip key");
+  }
+
+  @Test
+  void initFillsTheUserGroupAndDockerGroupFromThisComputer(@TempDir Path dir) throws Exception {
+    Path socket = Files.createFile(dir.resolve("docker.sock"));
+    Path folder = dir.resolve("yard");
+
+    Run run =
+        yardAsTyped(
+            "init",
+            "--dir",
+            folder.toString(),
+            "--workstation",
+            "ws-a",
+            "--docker-socket",
+            socket.toString());
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.err()).isEmpty();
+    assertThat(env(folder))
+        .contains(
+            "YARD_UID=" + Files.getAttribute(socket, "unix:uid"),
+            "YARD_GID=" + Files.getAttribute(socket, "unix:gid"),
+            "YARD_DOCKER_GID=" + Files.getAttribute(socket, "unix:gid"));
+  }
+
+  @Test
+  void initWithoutADockerSocketWarnsAndStillWritesTheFiles(@TempDir Path dir) throws Exception {
+    Run run =
+        yardAsTyped(
+            "init",
+            "--dir",
+            dir.toString(),
+            "--workstation",
+            "ws-a",
+            "--docker-socket",
+            dir.resolve("no-docker.sock").toString());
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.err()).contains("Warning: no Docker socket at").contains("YARD_DOCKER_GID");
+    assertThat(env(dir)).contains("#YARD_DOCKER_GID=");
+  }
+
+  @Test
+  void initWritesRouteProfilesWithCommentedExamplesOnly(@TempDir Path dir) throws Exception {
+    yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a");
+
+    List<String> profiles = Files.readAllLines(dir.resolve("route-profiles.yaml"));
+    assertThat(profiles).contains("#  middlewares:", "#      basicAuth:");
+    assertThat(profiles).allMatch(line -> line.isEmpty() || line.startsWith("#"));
+  }
+
+  @Test
+  void initNeverOverwritesAFileWithoutForce(@TempDir Path dir) throws Exception {
+    Files.writeString(dir.resolve(".env"), "YARD_WORKSTATION=mine\n");
+
+    Run run = yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a");
+
+    assertThat(run.exitCode()).isEqualTo(1);
+    assertThat(run.err()).contains(dir.resolve(".env") + " already exists").contains("--force");
+    assertThat(dir.resolve(".env")).hasContent("YARD_WORKSTATION=mine");
+    assertThat(dir.resolve("compose.yaml")).doesNotExist();
+  }
+
+  @Test
+  void initWithForceOverwritesTheFiles(@TempDir Path dir) throws Exception {
+    Files.writeString(dir.resolve(".env"), "YARD_WORKSTATION=mine\n");
+
+    Run run = yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a", "--force");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(env(dir)).contains("YARD_WORKSTATION=ws-a");
+  }
+
+  @Test
+  void initPrintsTheNextSteps(@TempDir Path dir) {
+    Run run = yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a");
+
+    assertThat(run.out())
+        .contains("TCP port 8300 and on TCP and UDP port 8302")
+        .contains("cd " + dir + " && docker compose up -d")
+        .contains("http://127.0.0.1:7780")
+        .contains("lvh-yard status");
+  }
+
+  @Test
+  void initsFolderIsAValidComposeProject(@TempDir Path dir) throws Exception {
+    assumeTrue(dockerCompose(), "docker compose is not installed");
+    yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a", "--peers", "10.0.0.2");
+
+    ProcessBuilder config =
+        new ProcessBuilder("docker", "compose", "config", "--format", "json")
+            .directory(dir.toFile());
+    config
+        .environment()
+        .keySet()
+        .removeIf(name -> name.startsWith("YARD_") || name.startsWith("COMPOSE_"));
+    Run run = run(config);
+
+    assertThat(run.exitCode()).as(run.err()).isZero();
+    assertThat(run.out())
+        .contains("\"YARD_WORKSTATION\": \"ws-a\"")
+        .contains("\"YARD_PEERS\": \"10.0.0.2\"")
+        .contains("\"dashboard\": {");
+  }
+
   private void answerWebWithBindings(String bindings) {
     dashboard.answer(
         "GET",
@@ -1248,6 +1504,29 @@ class YardTest {
             + " [], \"containerBindings\": [], \"instances\": ["
             + instances
             + "]}");
+  }
+
+  /** The lines of the {@code .env} that {@code init} wrote in {@code dir}. */
+  private static List<String> env(Path dir) throws IOException {
+    return Files.readAllLines(dir.resolve(".env"));
+  }
+
+  /** The value of {@code key} in the {@code .env} that {@code init} wrote in {@code dir}. */
+  private static String setting(Path dir, String key) throws IOException {
+    return env(dir).stream()
+        .filter(line -> line.startsWith(key + "="))
+        .map(line -> line.substring(key.length() + 1))
+        .findFirst()
+        .orElseThrow();
+  }
+
+  /** Whether this computer has {@code docker compose}. */
+  private static boolean dockerCompose() {
+    try {
+      return run(new ProcessBuilder("docker", "compose", "version")).exitCode() == 0;
+    } catch (IOException | InterruptedException e) {
+      return false;
+    }
   }
 
   /** The output of one run of {@code lvh-yard}. */
@@ -1272,7 +1551,10 @@ class YardTest {
    */
   private static Run yardProcess(Map<String, String> environment, String... args) throws Exception {
     ProcessBuilder builder = new ProcessBuilder(command(args));
-    builder.environment().keySet().removeIf(name -> name.startsWith("YARD_"));
+    builder
+        .environment()
+        .keySet()
+        .removeIf(name -> name.startsWith("YARD_") || name.equals("XDG_CONFIG_HOME"));
     builder.environment().putAll(environment);
     return run(builder);
   }

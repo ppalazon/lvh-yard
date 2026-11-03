@@ -9,12 +9,14 @@ import picocli.CommandLine.Spec;
 
 /**
  * The {@code lvh-yard} command. It talks only to the dashboard on its own Workstation, through the
- * REST API that {@code openapi.yaml} describes; it never talks to Consul.
+ * REST API that {@code openapi.yaml} describes; it never talks to Consul. {@code init} talks to
+ * neither: it writes the Workstation's files.
  */
 @Command(
     name = "lvh-yard",
     mixinStandardHelpOptions = true,
     subcommands = {
+      Init.class,
       ListServices.class,
       Register.class,
       Remove.class,
