@@ -2,6 +2,7 @@ package dev.palazon.lvhyard.dashboard;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +43,9 @@ abstract class DashboardTest {
 
   private static final AtomicInteger SERVICE_NAMES = new AtomicInteger();
 
+  /** Whether this Workstation's dashboard has kept its Core Services since the tests started. */
+  private static volatile boolean coreServicesKept;
+
   @LocalServerPort int port;
 
   @Autowired GenericContainer<?> consulContainer;
@@ -61,6 +65,17 @@ abstract class DashboardTest {
             .baseUrl("http://127.0.0.1:" + port)
             .defaultStatusHandler(status -> true, (request, response) -> {})
             .build();
+    if (!coreServicesKept) {
+      // The dashboard keeps its Core Services in the background, after it has started.
+      RemoteWorkstation.awaitCoreServicesKept(
+          RestClient.create(
+              "http://"
+                  + consulContainer.getHost()
+                  + ":"
+                  + consulContainer.getMappedPort(TestcontainersConfiguration.CONSUL_HTTP_PORT)),
+          Instant.EPOCH);
+      coreServicesKept = true;
+    }
   }
 
   @AfterEach

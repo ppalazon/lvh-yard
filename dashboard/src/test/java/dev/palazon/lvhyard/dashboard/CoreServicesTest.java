@@ -8,6 +8,7 @@ import static org.awaitility.Awaitility.await;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -152,17 +153,35 @@ class CoreServicesTest extends DashboardTest {
   }
 
   @Test
-  void consulThatDoesNotAnswerAtStartIsTriedAgain() {
-    String consulId = coreInstanceId("consul");
+  void startingWritesThatTheCoreServicesAreKept() {
+    Instant beforeStart = Instant.now();
 
+    remote.whileDashboardIsStopped(() -> {});
+
+    String initialized = remote.consulValue(RemoteWorkstation.CORE_SERVICES_INITIALIZED);
+    assertThat(initialized).isNotNull();
+    assertThat(Instant.parse(initialized)).isAfterOrEqualTo(beforeStart);
+  }
+
+  @Test
+  void consulThatDoesNotAnswerAtStartIsTriedAgainWithoutHoldingUpTheStart() {
+    String consulId = coreInstanceId("consul");
+    Instant[] starting = new Instant[1];
+
+    Duration start;
     try {
       remote.whileDashboardIsStopped(() -> {
         remote.deregisterInConsul(consulId);
         remote.stopAnswering();
+        starting[0] = Instant.now();
       });
+      start = Duration.between(starting[0], Instant.now());
     } finally {
       remote.answerAgain();
     }
+
+    // A Consul call that gets no answer waits 3 s; the start must not wait for one.
+    assertThat(start).isLessThan(Duration.ofSeconds(3));
 
     JsonNode consul =
         await()

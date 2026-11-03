@@ -1,5 +1,9 @@
 package dev.palazon.lvhyard.dashboard;
 
+import static org.awaitility.Awaitility.await;
+
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Map;
 import org.springframework.boot.builder.SpringApplicationBuilder;
@@ -8,6 +12,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.type.classreading.MetadataReader;
 import org.springframework.core.type.classreading.MetadataReaderFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestClient;
@@ -25,11 +30,20 @@ final class RemoteWorkstation implements AutoCloseable {
 
   static final String NAME = "ws-remote";
 
+  /** Where a dashboard writes when it has kept its Core Services after it started. */
+  static final String CORE_SERVICES_INITIALIZED = "lvh-yard/core-services/initialized";
+
+  /** How long a dashboard may take to keep its Core Services after it started. */
+  private static final Duration CORE_SERVICES_WAIT = Duration.ofSeconds(30);
+
   private final GenericContainer<?> consul;
 
   private ConfigurableApplicationContext dashboard;
 
   private RestClient http;
+
+  /** Whether this Workstation's Consul answers, as {@link #stopAnswering} leaves it. */
+  private boolean answering = true;
 
   /**
    * Starts the Workstation's Consul, joined to the Consul at {@code peer} on {@code network}, and
@@ -42,10 +56,15 @@ final class RemoteWorkstation implements AutoCloseable {
             .withCommand(
                 TestcontainersConfiguration.consulCommand(NAME, "-retry-join-wan=" + peer));
     consul.start();
+    Instant starting = Instant.now();
     startDashboard();
+    awaitCoreServicesKept(consulHttp(), starting);
   }
 
-  /** Stops this Workstation's dashboard, does {@code meanwhile}, and starts the dashboard again. */
+  /**
+   * Stops this Workstation's dashboard, does {@code meanwhile}, and starts the dashboard again.
+   * When its Consul answers, it waits until the dashboard has kept its Core Services.
+   */
   void whileDashboardIsStopped(Runnable meanwhile) {
     whileDashboardIsStopped(meanwhile, new String[0]);
   }
@@ -53,14 +72,47 @@ final class RemoteWorkstation implements AutoCloseable {
   /**
    * Stops this Workstation's dashboard, does {@code meanwhile}, and starts the dashboard again with
    * {@code settings} too, such as {@code --server.address=0.0.0.0}, which win over the usual ones.
+   * When its Consul answers, it waits until the dashboard has kept its Core Services.
    */
   void whileDashboardIsStopped(Runnable meanwhile, String... settings) {
     dashboard.close();
     try {
       meanwhile.run();
     } finally {
+      Instant starting = Instant.now();
       startDashboard(settings);
+      if (answering) {
+        awaitCoreServicesKept(consulHttp(), starting);
+      }
     }
+  }
+
+  /**
+   * Waits until the dashboard whose Consul {@code consul} reaches has written that it kept its Core
+   * Services at {@code since} or later.
+   */
+  static void awaitCoreServicesKept(RestClient consul, Instant since) {
+    await()
+        .atMost(CORE_SERVICES_WAIT)
+        .ignoreExceptions()
+        .until(
+            () -> consulValue(consul, CORE_SERVICES_INITIALIZED),
+            value -> value != null && !Instant.parse(value).isBefore(since));
+  }
+
+  /** The value at {@code key} in this Workstation's Consul KV, straight from Consul, or null. */
+  String consulValue(String key) {
+    return consulValue(consulHttp(), key);
+  }
+
+  private static String consulValue(RestClient consul, String key) {
+    return consul
+        .get()
+        .uri("/v1/kv/" + key + "?raw")
+        .exchange((request, response) ->
+            response.getStatusCode() == HttpStatus.NOT_FOUND
+                ? null
+                : response.bodyTo(String.class));
   }
 
   /** The port this Workstation's dashboard listens on now. */
@@ -225,12 +277,14 @@ final class RemoteWorkstation implements AutoCloseable {
    * answered.
    */
   void stopAnswering() {
+    answering = false;
     DockerClientFactory.instance().client().pauseContainerCmd(consul.getContainerId()).exec();
   }
 
   /** Lets this Workstation's Consul answer again, where {@link #stopAnswering} left it. */
   void answerAgain() {
     DockerClientFactory.instance().client().unpauseContainerCmd(consul.getContainerId()).exec();
+    answering = true;
   }
 
   @Override
