@@ -31,11 +31,21 @@ class TestcontainersConfiguration {
   /** The version compose.yaml runs. */
   private static final DockerImageName TRAEFIK_IMAGE = DockerImageName.parse("traefik:v3.7.16");
 
+  /** Two free ports, taken together: one by one, the system may give the same port twice. */
+  private static final int[] TRAEFIK_PORTS = freePorts(2);
+
   /**
    * The loopback port {@link #traefik} listens on, which the dashboard is told before it starts, as
    * compose.yaml and {@code YARD_HTTP_PORT} tell it.
    */
-  static final int TRAEFIK_PORT = freePort();
+  static final int TRAEFIK_PORT = TRAEFIK_PORTS[0];
+
+  /**
+   * The loopback port of {@link #traefik}'s admin entry point, with its ping, which the dashboard
+   * is told before it starts, as compose.yaml and {@code YARD_TRAEFIK_ADMIN_PORT} tell it. Not
+   * 8080, where a developer's own Traefik may answer.
+   */
+  static final int TRAEFIK_ADMIN_PORT = TRAEFIK_PORTS[1];
 
   /**
    * Where the {@link RemoteWorkstation} finds the test Workstation's Consul on the network, at its
@@ -78,6 +88,7 @@ class TestcontainersConfiguration {
                   + consulContainer.getMappedPort(CONSUL_HTTP_PORT));
       registry.add("lvh-yard.docker.host", TestcontainersConfiguration::dockerHost);
       registry.add("lvh-yard.traefik.port", () -> TRAEFIK_PORT);
+      registry.add("lvh-yard.traefik.admin-port", () -> TRAEFIK_ADMIN_PORT);
     };
   }
 
@@ -104,28 +115,53 @@ class TestcontainersConfiguration {
 
   /**
    * Traefik as compose.yaml runs it, on the host's network and on loopback at {@link
-   * #TRAEFIK_PORT}, reading its Routes from the dashboard at {@code dashboardPort}. It polls every
-   * second, so tests wait less for a new Route. It is started only once the dashboard's port is
-   * known, by the tests that need it.
+   * #TRAEFIK_PORT}, with its ping at {@link #TRAEFIK_ADMIN_PORT}, reading its Routes from the
+   * dashboard at {@code dashboardPort}. It polls every second, so tests wait less for a new Route.
+   * It is started only once the dashboard's port is known, by the tests that need it.
    */
   static GenericContainer<?> traefik(int dashboardPort) {
+    return traefik(
+        TRAEFIK_PORT,
+        TRAEFIK_ADMIN_PORT,
+        "http://127.0.0.1:" + dashboardPort + "/traefik/configuration");
+  }
+
+  /**
+   * Traefik on the host's network, on loopback at {@code port}, with its ping on its admin entry
+   * point at {@code adminPort}, reading its Routes from {@code configuration} every second.
+   */
+  static GenericContainer<?> traefik(int port, int adminPort, String configuration) {
     return new GenericContainer<>(TRAEFIK_IMAGE)
         .withNetworkMode("host")
         .withCommand(
-            "--entryPoints.web.address=127.0.0.1:" + TRAEFIK_PORT,
-            "--providers.http.endpoint=http://127.0.0.1:"
-                + dashboardPort
-                + "/traefik/configuration",
+            "--entryPoints.web.address=127.0.0.1:" + port,
+            "--entryPoints.traefik.address=127.0.0.1:" + adminPort,
+            "--ping=true",
+            "--ping.entryPoint=traefik",
+            "--providers.http.endpoint=" + configuration,
             "--providers.http.pollInterval=1s",
             "--log.level=INFO")
         .waitingFor(Wait.forLogMessage(".*Starting provider \\*http\\.Provider.*", 1));
   }
 
-  private static int freePort() {
-    try (ServerSocket free = new ServerSocket(0)) {
-      return free.getLocalPort();
+  /** {@code count} free ports, taken together, so that no two are the same. */
+  static int[] freePorts(int count) {
+    List<ServerSocket> sockets = new ArrayList<>();
+    try {
+      for (int i = 0; i < count; i++) {
+        sockets.add(new ServerSocket(0));
+      }
+      return sockets.stream().mapToInt(ServerSocket::getLocalPort).toArray();
     } catch (IOException e) {
       throw new UncheckedIOException(e);
+    } finally {
+      for (ServerSocket socket : sockets) {
+        try {
+          socket.close();
+        } catch (IOException e) {
+          throw new UncheckedIOException(e);
+        }
+      }
     }
   }
 

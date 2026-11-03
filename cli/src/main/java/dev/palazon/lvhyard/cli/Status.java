@@ -17,8 +17,8 @@ import picocli.CommandLine.Spec;
     name = "status",
     mixinStandardHelpOptions = true,
     description = {
-      "Shows how LVH Yard works on this Workstation: Consul, Docker and the other parts, each ok,"
-          + " warning or failing, with the reason.",
+      "Shows how LVH Yard works on this Workstation: Consul, Traefik, Docker and the Core"
+          + " Services, each ok, warning or failing, with the reason.",
       "Exits with 1 when any part is failing, or has a warning with --strict."
     })
 class Status implements Callable<Integer> {

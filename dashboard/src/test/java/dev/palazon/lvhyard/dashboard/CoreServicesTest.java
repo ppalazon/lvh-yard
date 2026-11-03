@@ -60,8 +60,8 @@ class CoreServicesTest extends DashboardTest {
     JsonNode traefikInstance = traefik.get("instances").get(0);
     assertThat(traefikInstance.get("host").asString()).isEqualTo("127.0.0.1");
     assertThat(traefikInstance.get("port").asInt())
-        .as("YARD_TRAEFIK_ADMIN_PORT's default")
-        .isEqualTo(8080);
+        .as("YARD_TRAEFIK_ADMIN_PORT")
+        .isEqualTo(TestcontainersConfiguration.TRAEFIK_ADMIN_PORT);
     assertCheck(traefikInstance, "/ping");
   }
 
@@ -202,7 +202,8 @@ class CoreServicesTest extends DashboardTest {
         .containsExactly(
             "http://127.0.0.1:"
                 + consulContainer.getMappedPort(TestcontainersConfiguration.CONSUL_HTTP_PORT));
-    assertThat(serverUrlsAt(http, "traefik.lvh.test")).containsExactly("http://127.0.0.1:8080");
+    assertThat(serverUrlsAt(http, "traefik.lvh.test"))
+        .containsExactly("http://127.0.0.1:" + TestcontainersConfiguration.TRAEFIK_ADMIN_PORT);
   }
 
   @Test

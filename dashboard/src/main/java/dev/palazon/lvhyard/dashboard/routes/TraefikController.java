@@ -32,12 +32,19 @@ class TraefikController {
 
   private final Environment environment;
 
+  private final TraefikFetches fetches;
+
   TraefikController(
-      Workstation workstation, YardReader yard, Aliases aliases, Environment environment) {
+      Workstation workstation,
+      YardReader yard,
+      Aliases aliases,
+      Environment environment,
+      TraefikFetches fetches) {
     this.workstation = workstation;
     this.yard = yard;
     this.aliases = aliases;
     this.environment = environment;
+    this.fetches = fetches;
   }
 
   @GetMapping(path = PATH, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -49,6 +56,9 @@ class TraefikController {
             + ":"
             + environment.getRequiredProperty("local.server.port");
     Yard routable = yard.routableYard();
-    return RouteBuilder.build(workstation, dashboard, routable.services(), aliases.of(routable));
+    TraefikConfiguration configuration =
+        RouteBuilder.build(workstation, dashboard, routable.services(), aliases.of(routable));
+    fetches.fetched();
+    return configuration;
   }
 }

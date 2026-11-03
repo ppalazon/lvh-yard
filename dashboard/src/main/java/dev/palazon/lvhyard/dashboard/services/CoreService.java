@@ -54,7 +54,7 @@ public enum CoreService {
   }
 
   /** What it is, in words: "the dashboard" for {@code yard}. */
-  String what() {
+  public String what() {
     return what;
   }
 
