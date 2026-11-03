@@ -299,6 +299,9 @@ final class ServicePage {
 
   private static String routingNow(Reachability reachability) {
     InstanceKind kind = reachability.routing().kind();
+    if (reachability.routing().offWithPassingInstances()) {
+      return "The Route uses every passing Instance, as the Instance Priority is off.";
+    }
     if (kind == null) {
       return "No Instance passes, so the Route uses every Instance in range.";
     }
@@ -444,10 +447,31 @@ final class ServicePage {
 
   /**
    * Each button posts the whole new order, so the page needs no script. The last kind has no Remove
-   * button, as an order needs at least one kind.
+   * button, as the empty order means off, which has its own button.
    */
   private static void instancePriority(Div<?> content, Service service) {
     List<InstanceKind> order = service.priority();
+    if (order.isEmpty()) {
+      content
+          .div()
+          .attrClass("flex flex-col gap-2")
+          .h2()
+          .attrClass("text-lg font-semibold")
+          .text("Instance Priority")
+          .__()
+          .p()
+          .attrClass("text-muted-foreground")
+          .text("Off: the passing Static and Bound Instances share the Route.")
+          .__()
+          .div()
+          .attrClass("flex flex-wrap gap-2")
+          .of(buttons ->
+              priorityForm(
+                  buttons, service, InstanceKind.DEFAULT_PRIORITY, "Use an order", "Use an order"))
+          .__()
+          .__();
+      return;
+    }
     content
         .div()
         .attrClass("flex flex-col gap-2")
@@ -507,6 +531,7 @@ final class ServicePage {
               priorityForm(buttons, service, with, add, add);
             }
           }
+          priorityForm(buttons, service, List.of(), "Turn off", "Turn off");
         })
         .__()
         .__();
@@ -633,6 +658,9 @@ final class ServicePage {
 
   /** Such as {@code Routing to: Static (Bound waiting)}. */
   private static String routing(Service service) {
+    if (service.routing().offWithPassingInstances()) {
+      return "Routing to: every passing Instance (Instance Priority off)";
+    }
     if (service.routing().kind() == null) {
       return "Routing to: every Instance, as none is passing.";
     }

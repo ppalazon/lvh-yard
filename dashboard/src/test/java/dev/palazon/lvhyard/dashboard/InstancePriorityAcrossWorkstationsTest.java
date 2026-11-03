@@ -36,6 +36,21 @@ class InstancePriorityAcrossWorkstationsTest extends InstancePriorityTestSupport
   }
 
   @Test
+  void yardScopedServiceWhoseInstancePriorityIsOffIsOffOnEveryWorkstationWithoutOutOfRangeOnes() {
+    String web = newServiceName("web");
+    String terminal = staticInstance(web);
+    String bound = boundInstance(web);
+    int port = newLanPort();
+    listenOnLanAddress(port);
+    register(web, Map.of("host", "127.0.0.1", "port", port, "check", Map.of("interval", "1s")));
+
+    put(publicationPath(web), Map.of("scope", "yard", "priority", List.of()));
+
+    awaitRoutedTo(web, terminal, bound, "127.0.0.1:" + port);
+    onRemoteThatReachesContainers(() -> awaitRoutedOnRemote(web, terminal, bound));
+  }
+
+  @Test
   void otherWorkstationsSkipAnOutOfRangeInstanceBeforeChoosingAKind() {
     String web = newServiceName("web");
     int port = newLanPort();

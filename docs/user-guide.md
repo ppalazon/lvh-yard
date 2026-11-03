@@ -135,6 +135,7 @@ lvh-yard remove web --compose-project shop --compose-service web
 lvh-yard publish web                        # http://web.<base-domain> (Local Scope)
 lvh-yard publish web --scope yard           # also on every other Workstation (Yard Scope)
 lvh-yard publish web --priority bound,static  # prefer Bound Instances (Instance Priority)
+lvh-yard publish web --priority off           # Static and Bound Instances share the Route
 lvh-yard unpublish web
 lvh-yard alias add grafana --workstation ws-b                 # http://grafana.<base-domain> for grafana of ws-b
 lvh-yard alias add db --workstation ws-b --service postgres   # a name that differs from the Service
@@ -208,14 +209,29 @@ kind goes away. Every Workstation that routes the Service uses the order of its
 Home Workstation. A Publication with no order of its own uses the default
 order, `static,bound,alias`.
 
+You can also turn the Instance Priority off for one Service:
+
+```sh
+lvh-yard publish web --priority off
+```
+
+While it is off, the passing Static and Bound Instances share the Route. An
+Instance whose check turns critical leaves the Route. If no Instance passes,
+the Route uses every Instance in range. An Alias with the same name is never
+used, and it shows as `hidden`. If you publish again without `--priority`, it
+stays off. To turn it on again, give an order with `--priority`.
+
 On the page of the Service, the Instance Priority section changes the order
-with the Up, Down, Remove and Add buttons. The API takes the order as
-`priority` in the body of `PUT /api/workstation/services/{service}/publication`.
-A Core Service always uses the default order.
+with the Up, Down, Remove and Add buttons. The Turn off button turns it off,
+and the Use an order button turns it on again with the default order. The API
+takes the order as `priority` in the body of
+`PUT /api/workstation/services/{service}/publication`. An empty `priority`,
+`[]`, turns it off. A Core Service always uses the default order.
 
 The page of the Service shows the kind in use, for example
-`Routing to: Static (Bound waiting)`. `lvh-yard list` marks each Instance that
-the Route uses with `routed`. The API shows the order in `priority` and the
+`Routing to: Static (Bound waiting)`. While the Instance Priority is off, it
+shows `Routing to: every passing Instance (Instance Priority off)`.
+`lvh-yard list` marks each Instance that the Route uses with `routed`. The API shows the order in `priority` and the
 Instances in use in `routing`.
 
 ### Out-of-range Instances
@@ -270,7 +286,7 @@ gets a Route. These are the states of an Alias:
   Route uses the Alias only when none of its own Instances passes. The reason
   says if the Alias is in use now.
 - `hidden`: a published Service of this Workstation has the same name, and its
-  Instance Priority leaves out the Alias
+  Instance Priority leaves out the Alias or is off
 - `not-shared`: the Remote Service is unpublished or has Local Scope
 - `unreachable`: its Workstation does not answer
 - `missing`: the Remote Service or its Workstation is gone

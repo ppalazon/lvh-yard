@@ -27,8 +27,4 @@ class InstancePriorityReplicasTest extends InstancePriorityTestSupport {
 
     awaitRoutedTo(web, firstStatic);
   }
-
-  private static int port(String address) {
-    return Integer.parseInt(address.substring(address.lastIndexOf(':') + 1));
-  }
 }

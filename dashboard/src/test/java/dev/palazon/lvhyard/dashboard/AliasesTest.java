@@ -114,6 +114,27 @@ class AliasesTest extends DashboardTest {
   }
 
   @Test
+  void aliasIsHiddenWhileTheSameNamedServicesInstancePriorityIsOff() {
+    String grafana = sharedRemoteService("grafana");
+    put(aliasPath(grafana), Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
+    register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
+
+    put(publicationPath(grafana), Map.of("priority", List.of()));
+
+    JsonNode alias = alias(grafana);
+    assertThat(alias.get("state").asString()).isEqualTo("hidden");
+    assertThat(alias.get("reason").asString())
+        .isEqualTo(
+            "Hidden by this Workstation's published Service "
+                + grafana
+                + ", whose Instance Priority is off.");
+    assertThat(
+            TraefikConfigurationTest.serverUrlsAt(
+                get("/traefik/configuration").getBody().get("http"), grafana + ".lvh.test"))
+        .containsExactly("http://10.1.2.3:3000");
+  }
+
+  @Test
   void ownUnpublishedServiceWithTheSameNameLeavesTheAliasActive() {
     String grafana = sharedRemoteService("grafana");
     register(grafana, Map.of("host", "10.1.2.3", "port", 3000));

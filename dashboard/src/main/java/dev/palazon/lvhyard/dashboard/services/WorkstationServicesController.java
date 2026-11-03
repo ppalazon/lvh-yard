@@ -190,7 +190,9 @@ class WorkstationServicesController {
           "With Yard Scope, the other Workstations also route it, at"
               + " <service>.<workstation>.<base-domain>. With no Scope, a new Publication gets"
               + " Local Scope and an existing one keeps its own. With no priority, a new"
-              + " Publication gets static, bound, alias and an existing one keeps its own.")
+              + " Publication gets static, bound, alias and an existing one keeps its own. An empty"
+              + " priority turns the Instance Priority off: the passing Static and Bound Instances"
+              + " share the Route.")
   @ApiResponse(
       responseCode = "200",
       description = "The Service, published",
@@ -199,8 +201,7 @@ class WorkstationServicesController {
       responseCode = "400",
       description =
           "The name is not a single DNS label or is taken by a Core Service, the Scope is not"
-              + " local or yard, or the priority is empty, repeats a kind or names an unknown"
-              + " one")
+              + " local or yard, or the priority repeats a kind or names an unknown one")
   @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
   @ApiResponse(
       responseCode = "409",

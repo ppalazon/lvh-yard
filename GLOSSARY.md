@@ -103,7 +103,7 @@ A short hostname one Workstation gives to a Remote Service, for its own use only
 _Avoid_: Rename, nickname, CNAME
 
 **Instance Priority**:
-The order of Instance kinds a Route prefers: by default Static Instances, then Bound Instances, then the Remote Service of an Alias with the same name. The Route uses only the first kind that has a passing Health.
+The order of Instance kinds a Route prefers: by default Static Instances, then Bound Instances, then the Remote Service of an Alias with the same name. The Route uses only the first kind that has a passing Health. An empty order turns it off: the passing Static and Bound Instances then share the Route, and an Alias is never used.
 _Avoid_: Alias priority, weight, preference
 
 **Route Profile**:

@@ -38,7 +38,8 @@ class Publish implements Runnable {
       paramLabel = "<kinds>",
       split = ",",
       description = {
-        "The Instance kinds the Route prefers, in order: static, bound, alias.",
+        "The Instance kinds the Route prefers, in order: static, bound, alias. Or off.",
+        "off: the passing Static and Bound Instances share the Route.",
         "Default: static,bound,alias for a new Publication. An existing one keeps its order."
       })
   List<String> priority;
@@ -52,7 +53,8 @@ class Publish implements Runnable {
           spec.commandLine(),
           "Invalid value for option '--scope': " + scope + " is not local or yard.");
     }
-    Dashboard.Service published = yard.dashboard().publish(service, scope, priority);
+    List<String> kinds = List.of("off").equals(priority) ? List.of() : priority;
+    Dashboard.Service published = yard.dashboard().publish(service, scope, kinds);
     String chosen = published.publication().scope();
     PrintWriter out = spec.commandLine().getOut();
     out.println(

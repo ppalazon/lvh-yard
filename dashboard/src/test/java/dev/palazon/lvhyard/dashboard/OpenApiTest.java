@@ -153,6 +153,15 @@ class OpenApiTest extends DashboardTest {
     assertThat(request.get("priority").get("items").get("enum").valueStream())
         .map(JsonNode::asString)
         .containsExactly("static", "bound", "alias");
+    assertThat(
+            get("/v3/api-docs")
+                .getBody()
+                .get("paths")
+                .get("/api/workstation/services/{service}/publication")
+                .get("put")
+                .get("description")
+                .asString())
+        .contains("An empty priority turns the Instance Priority off");
   }
 
   @Test

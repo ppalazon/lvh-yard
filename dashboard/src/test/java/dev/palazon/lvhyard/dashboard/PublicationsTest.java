@@ -274,7 +274,7 @@ class PublicationsTest extends DashboardTest {
   }
 
   @Test
-  void instancePriorityWithAnUnknownOrRepeatedKindOrNoKindIsRefused() {
+  void instancePriorityWithAnUnknownOrRepeatedKindIsRefused() {
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
     put(publicationPath(web), Map.of("priority", List.of("bound", "static")));
@@ -283,7 +283,6 @@ class PublicationsTest extends DashboardTest {
         put(publicationPath(web), Map.of("priority", List.of("static", "docker")));
     ResponseEntity<JsonNode> repeated =
         put(publicationPath(web), Map.of("priority", List.of("bound", "static", "bound")));
-    ResponseEntity<JsonNode> empty = put(publicationPath(web), Map.of("priority", List.of()));
 
     assertThat(unknown.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(unknown.getBody().get("detail").asString())
@@ -293,9 +292,23 @@ class PublicationsTest extends DashboardTest {
     assertThat(repeated.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(repeated.getBody().get("detail").asString())
         .isEqualTo("The Instance Priority has the kind bound more than once.");
-    assertThat(empty.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(empty.getBody().get("detail").asString())
-        .isEqualTo("An Instance Priority needs at least one kind: static, bound or alias.");
+    assertThat(priority(get(servicePath(web)).getBody())).containsExactly("bound", "static");
+  }
+
+  @Test
+  void emptyInstancePriorityTurnsItOffAndPublishingAgainKeepsItOffUntilAnOrderIsGiven() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+
+    ResponseEntity<JsonNode> off = put(publicationPath(web), Map.of("priority", List.of()));
+    put(publicationPath(web));
+    put(publicationPath(web), Map.of("scope", "yard"));
+
+    assertThat(off.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(priority(get(servicePath(web)).getBody())).isEmpty();
+
+    put(publicationPath(web), Map.of("priority", List.of("bound", "static")));
+
     assertThat(priority(get(servicePath(web)).getBody())).containsExactly("bound", "static");
   }
 

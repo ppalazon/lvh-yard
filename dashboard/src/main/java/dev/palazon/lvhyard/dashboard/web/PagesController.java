@@ -256,7 +256,7 @@ class PagesController {
    * With no Scope or no priority, a new Publication gets Local Scope or the default order, and an
    * existing one keeps its own.
    *
-   * @param priority the kinds in order, separated by commas
+   * @param priority the kinds in order, separated by commas. Blank turns the Instance Priority off.
    */
   @PostMapping("/services/{workstation}/{service}/publish")
   ResponseEntity<String> publish(
@@ -281,7 +281,7 @@ class PagesController {
     return seeOther(ServicePage.path(home, service));
   }
 
-  /** Blank text names no kind, so it is refused as an empty order, not as an unknown kind. */
+  /** Blank text names no kind, so it turns the Instance Priority off. It is not an unknown kind. */
   private static List<String> kinds(String priority) {
     if (priority == null) {
       return null;

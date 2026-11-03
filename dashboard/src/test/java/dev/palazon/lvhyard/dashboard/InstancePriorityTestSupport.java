@@ -77,6 +77,11 @@ abstract class InstancePriorityTestSupport extends DashboardTest {
                         .toArray(String[]::new)));
   }
 
+  /** The port of an address that {@link #staticInstance} answers. */
+  static int port(String address) {
+    return Integer.parseInt(address.substring(address.lastIndexOf(':') + 1));
+  }
+
   static List<String> texts(JsonNode array) {
     return array.valueStream().map(JsonNode::asString).toList();
   }

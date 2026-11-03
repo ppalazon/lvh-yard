@@ -7,8 +7,8 @@ import java.util.List;
 /**
  * @param scope when left out, a new Publication gets Local Scope and an existing one keeps its
  *     Scope
- * @param priority the Instance Priority, each kind at most once. When left out, a new Publication
- *     gets static, bound, alias and an existing one keeps its order.
+ * @param priority the Instance Priority, each kind at most once. Empty turns it off. When left out,
+ *     a new Publication gets static, bound, alias and an existing one keeps its order.
  */
 public record PublicationRequest(
     Scope scope,

@@ -20,12 +20,11 @@ public enum InstanceKind {
     return instance.bound() ? BOUND : STATIC;
   }
 
-  /** The message of a refusal says what is wrong, for the person who gave {@code values}. */
+  /**
+   * The message of a refusal says what is wrong, for the person who gave {@code values}. No kind
+   * means the Instance Priority is off.
+   */
   static List<InstanceKind> priority(List<String> values) {
-    if (values.isEmpty()) {
-      throw invalidPriority(
-          "An Instance Priority needs at least one kind: static, bound or alias.");
-    }
     List<InstanceKind> kinds = new ArrayList<>();
     for (String value : values) {
       InstanceKind kind =

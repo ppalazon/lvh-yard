@@ -158,15 +158,31 @@ class ServicePageTest extends DashboardTest {
   }
 
   @Test
-  void emptyInstancePriorityIsRefused() {
+  void instancePriorityIsTurnedOffAndBackToTheDefaultOrder() {
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
     publish(web);
+    String page = "/services/ws-test/" + web;
+    assertThat(getPage(page).getBody())
+        .contains(">Turn off</button>")
+        .doesNotContain("Use an order");
 
-    ResponseEntity<String> response =
-        postForm("/services/ws-test/" + web + "/publish", Map.of("priority", " "));
+    ResponseEntity<String> response = postForm(page + "/publish", Map.of("priority", ""));
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    assertThat(get(servicePath(web)).getBody().get("priority").valueStream()).isEmpty();
+    assertThat(getPage(page).getBody())
+        .contains("Off: the passing Static and Bound Instances share the Route.")
+        .contains("name=\"priority\" value=\"static,bound,alias\"")
+        .contains(">Use an order</button>")
+        .doesNotContain("Turn off")
+        .doesNotContain("Add Static");
+
+    postForm(page + "/publish", Map.of("priority", "static,bound,alias"));
+
+    assertThat(get(servicePath(web)).getBody().get("priority").valueStream())
+        .extracting(JsonNode::asString)
+        .containsExactly("static", "bound", "alias");
   }
 
   @Test

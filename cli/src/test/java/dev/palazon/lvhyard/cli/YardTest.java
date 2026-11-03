@@ -842,6 +842,30 @@ class YardTest {
   }
 
   @Test
+  void publishWithPriorityOffSendsAnEmptyOrder() {
+    dashboard.answer(
+        "PUT",
+        "/api/workstation/services/web/publication",
+        200,
+        """
+        {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "local"},
+         "hostname": "web.lvh.me", "containerBindings": [], "warnings": [],
+         "priority": [], "instances": []}
+        """);
+
+    Run run = yard("publish", "web", "--priority", "off");
+
+    assertThat(run.exitCode()).isZero();
+    dashboard.verifyCalled(
+        "PUT",
+        "/api/workstation/services/web/publication",
+        """
+        {"priority": []}
+        """);
+    assertThat(yard("publish", "--help").out()).contains("off:");
+  }
+
+  @Test
   void publishWithARefusedPriorityShowsWhyAndExitsWithOne() {
     dashboard.answer(
         "PUT",

@@ -87,7 +87,9 @@ public class Aliases {
       reason =
           "Hidden by this Workstation's published Service "
               + name
-              + ", whose Instance Priority leaves out the Alias.";
+              + (own.get().priority().isEmpty()
+                  ? ", whose Instance Priority is off."
+                  : ", whose Instance Priority leaves out the Alias.");
     } else if (remote.isEmpty()) {
       state = Alias.State.MISSING;
       reason = "The Yard has no Workstation " + home + ".";
