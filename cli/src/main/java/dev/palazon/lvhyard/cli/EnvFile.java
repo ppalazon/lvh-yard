@@ -1,5 +1,6 @@
 package dev.palazon.lvhyard.cli;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,6 +37,28 @@ final class EnvFile {
       }
     }
     return Optional.empty();
+  }
+
+  /**
+   * The value of {@code key} when it is set and not blank, else the built-in {@code .env}'s: as
+   * {@code compose.yaml} reads an empty setting, with {@code ${KEY:-default}}.
+   */
+  String valueOrDefault(String key) {
+    return get(key)
+        .filter(value -> !value.isBlank())
+        .or(() -> Templates.env().get(key))
+        .orElseThrow(() -> new IllegalStateException(".env.example has no default for " + key));
+  }
+
+  /**
+   * The address to reach this Workstation's dashboard at: its bind address and port, with the
+   * wildcard {@code 0.0.0.0} reached through loopback, as the dashboard's own {@code BindAddress}
+   * does.
+   */
+  URI dashboardUrl() {
+    String bind = valueOrDefault(Settings.DASHBOARD_BIND_ADDRESS);
+    String host = bind.equals("0.0.0.0") ? "127.0.0.1" : bind;
+    return URI.create("http://" + host + ":" + valueOrDefault(Settings.DASHBOARD_PORT));
   }
 
   /**

@@ -3,6 +3,7 @@ package dev.palazon.lvhyard.cli;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -65,23 +66,16 @@ public class Yard implements Runnable {
    * else the {@code .env} in the config folder, else {@link #LOOPBACK_DASHBOARD}.
    */
   private static URI defaultDashboard(Map<String, String> environment) {
-    String url = environment.get("YARD_DASHBOARD_URL");
+    String url = environment.get(Settings.DASHBOARD_URL);
     if (url != null && !url.isBlank()) {
       return URI.create(url);
     }
-    EnvFile env;
     try {
-      env = EnvFile.parse(Files.readString(ConfigFolder.forReading(environment).resolve(".env")));
+      Path env = ConfigFolder.forReading(environment).resolve(Templates.ENV);
+      return EnvFile.parse(Files.readString(env)).dashboardUrl();
     } catch (IOException missingOrUnreadable) {
       return URI.create(LOOPBACK_DASHBOARD);
     }
-    // The wildcard listens on loopback too; the dashboard's own BindAddress reaches it there.
-    String address =
-        env.get("YARD_DASHBOARD_BIND_ADDRESS")
-            .filter(bind -> !bind.isBlank() && !bind.equals("0.0.0.0"))
-            .orElse("127.0.0.1");
-    String port = env.get("YARD_DASHBOARD_PORT").filter(set -> !set.isBlank()).orElse("7780");
-    return URI.create("http://" + address + ":" + port);
   }
 
   /**

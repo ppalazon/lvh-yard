@@ -16,7 +16,7 @@ final class ConfigFolder {
    * {@linkplain #standard default folder}.
    */
   static Path forReading(Map<String, String> environment) {
-    String dir = environment.get("YARD_CONFIG_DIR");
+    String dir = environment.get(Settings.CONFIG_DIR);
     return dir != null && !dir.isBlank() ? Path.of(dir) : standard(environment);
   }
 

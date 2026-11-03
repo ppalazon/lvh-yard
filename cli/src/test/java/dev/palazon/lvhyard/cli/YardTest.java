@@ -1671,6 +1671,44 @@ class YardTest {
   }
 
   @Test
+  void initWithReinitKeepsWhatItFindsOverAnOldEmptyValue(@TempDir Path dir) throws Exception {
+    Path socket = Files.createFile(dir.resolve("docker.sock"));
+    Path folder = Files.createDirectory(dir.resolve("yard"));
+    Files.writeString(
+        folder.resolve(".env"), "YARD_WORKSTATION=ws-a\nYARD_UID=\nYARD_GID=\nYARD_DOCKER_GID=\n");
+
+    Run run =
+        yardAsTyped(
+            "init", "--dir", folder.toString(), "--reinit", "--docker-socket", socket.toString());
+
+    assertThat(run.exitCode()).as(run.err()).isZero();
+    assertThat(run.err()).isEmpty();
+    assertThat(env(folder))
+        .contains(
+            "YARD_UID=" + Files.getAttribute(socket, "unix:uid"),
+            "YARD_GID=" + Files.getAttribute(socket, "unix:gid"),
+            "YARD_DOCKER_GID=" + Files.getAttribute(socket, "unix:gid"));
+  }
+
+  @Test
+  void initsNextStepsAndListAgreeOnTheDashboardForABlankBindAddressAndPort(@TempDir Path config)
+      throws Exception {
+    Path folder = Files.createDirectories(config.resolve("lvh-yard"));
+    Files.writeString(
+        folder.resolve(".env"),
+        "YARD_WORKSTATION=ws-a\nYARD_DASHBOARD_BIND_ADDRESS= \nYARD_DASHBOARD_PORT= \n");
+
+    Run init = yardAsTyped("init", "--dir", folder.toString(), "--reinit");
+    Run list = yardProcess(Map.of("XDG_CONFIG_HOME", config.toString()), "list");
+
+    assertThat(init.out()).contains("Open the dashboard: http://127.0.0.1:7780\n");
+    // A dashboard of this computer's own may answer at the default; else the error names it.
+    assertThat(list.exitCode() == 0 || list.err().contains("at http://127.0.0.1:7780"))
+        .as(list.err())
+        .isTrue();
+  }
+
+  @Test
   void initWithReinitKeepsOldKeysThatNoLongerExistCommentedAtTheEnd(@TempDir Path dir)
       throws Exception {
     Files.writeString(

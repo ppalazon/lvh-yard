@@ -8,14 +8,10 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.security.SecureRandom;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -48,6 +44,9 @@ class Init implements Runnable {
   private static final Pattern DOMAIN =
       Pattern.compile("[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*");
 
+  /** What separates the peers given with {@code --peers} or typed in: commas or spaces. */
+  private static final String PEER_SEPARATORS = "[,\\s]+";
+
   @Option(
       names = "--dir",
       paramLabel = "<path>",
@@ -66,7 +65,7 @@ class Init implements Runnable {
   @Option(
       names = "--peers",
       paramLabel = "<address>",
-      split = "[,\\s]+",
+      split = PEER_SEPARATORS,
       description =
           "The other Workstations' LAN addresses, each <ip> or <ip>:<serf-wan-port>. None for the"
               + " first Workstation of a Yard.")
@@ -126,22 +125,25 @@ class Init implements Runnable {
 
   @Spec CommandSpec spec;
 
-  /** The services whose images {@code --upgrade} moves to this version's. */
-  private static final List<String> UPGRADED = List.of("consul", "traefik", "dashboard");
-
   /** The answers typed in at the terminal, read once a question is asked. */
   private BufferedReader answers;
 
   @Override
   public void run() {
     Path folder = dir != null ? dir : ConfigFolder.standard(System.getenv());
+    PrintWriter out = spec.commandLine().getOut();
+    PrintWriter err = spec.commandLine().getErr();
     if (mode.upgrade) {
-      upgrade(folder);
+      Upgrade.run(folder, out);
       return;
     }
-    Map<String, String> old = mode.reinit ? oldSettings(folder) : Map.of();
-    String oldName = old(old, "YARD_WORKSTATION");
-    String name = workstation != null ? workstation : oldName != null ? oldName : askWorkstation();
+    Optional<Reinit> reinit = mode.reinit ? Optional.of(Reinit.of(folder)) : Optional.empty();
+    String name =
+        workstation != null
+            ? workstation
+            : reinit
+                .flatMap(old -> old.oldValue(Settings.WORKSTATION))
+                .orElseGet(this::askWorkstation);
     if (!WORKSTATION.matcher(name).matches()) {
       throw usage(
           "--workstation "
@@ -155,23 +157,26 @@ class Init implements Runnable {
     // --reinit keeps the old peers unless --peers replaces them, so it asks for none.
     List<String> peerAddresses =
         peers != null ? peers : mode.reinit ? null : atTerminal() ? askPeers() : List.of();
-    String oldKey = old(old, "YARD_GOSSIP_KEY");
     String key =
-        gossipKey != null ? checkedGossipKey(gossipKey) : oldKey != null ? oldKey : newGossipKey();
+        gossipKey != null
+            ? checkedGossipKey(gossipKey)
+            : reinit
+                .flatMap(old -> old.oldValue(Settings.GOSSIP_KEY))
+                .orElseGet(Init::newGossipKey);
 
-    PrintWriter out = spec.commandLine().getOut();
-    PrintWriter err = spec.commandLine().getErr();
-    EnvFile env = Templates.env().set("COMPOSE_PROFILES", "dashboard");
-    id("-u").ifPresent(uid -> env.set("YARD_UID", uid));
-    id("-g").ifPresent(gid -> env.set("YARD_GID", gid));
-    dockerGid().ifPresent(gid -> env.set("YARD_DOCKER_GID", gid));
-    carryOver(old, env);
-    env.set("YARD_WORKSTATION", name).set("YARD_GOSSIP_KEY", key);
+    // The old values first; what init finds fills only those left empty; then the flags.
+    EnvFile env = Templates.env();
+    reinit.ifPresent(old -> old.carryOver(env));
+    fillIfEmpty(env, Settings.COMPOSE_PROFILES, Optional.of("dashboard"));
+    fillIfEmpty(env, Settings.UID, id("-u"));
+    fillIfEmpty(env, Settings.GID, id("-g"));
+    fillIfEmpty(env, Settings.DOCKER_GID, dockerGid());
+    env.set(Settings.WORKSTATION, name).set(Settings.GOSSIP_KEY, key);
     if (peerAddresses != null) {
-      env.set("YARD_PEERS", String.join(" ", peerAddresses));
+      env.set(Settings.PEERS, String.join(" ", peerAddresses));
     }
     if (baseDomain != null) {
-      env.set("YARD_BASE_DOMAIN", baseDomain);
+      env.set(Settings.BASE_DOMAIN, baseDomain);
     }
 
     Map<String, String> files = new LinkedHashMap<>();
@@ -180,14 +185,12 @@ class Init implements Runnable {
     if (!mode.reinit || !Files.exists(folder.resolve(Templates.ROUTE_PROFILES))) {
       files.put(Templates.ROUTE_PROFILES, Templates.routeProfiles());
     }
-    if (mode.reinit) {
-      for (Map.Entry<String, Path> backup : backUp(folder).entrySet()) {
-        out.println("Backed up " + backup.getKey() + " to " + backup.getValue() + ".");
-      }
-    }
+    reinit.ifPresent(old ->
+        old.backUp()
+            .forEach((file, backup) -> out.println("Backed up " + file + " to " + backup + ".")));
     write(folder, files);
 
-    if (env.get("YARD_DOCKER_GID").orElse("").isEmpty()) {
+    if (isEmpty(env, Settings.DOCKER_GID)) {
       err.println(
           "Warning: no Docker socket at "
               + dockerSocket
@@ -206,138 +209,33 @@ class Init implements Runnable {
     out.flush();
   }
 
-  /**
-   * Moves the images of {@link #UPGRADED} in {@code folder}'s {@code compose.yaml} to the
-   * template's, by line. When one has no {@code image:} line, the file is left as it is.
-   */
-  private void upgrade(Path folder) {
-    Path file = folder.resolve(Templates.COMPOSE);
-    String text;
-    try {
-      text = Files.readString(file);
-    } catch (NoSuchFileException e) {
-      throw new YardException(
-          file + " does not exist: nothing to upgrade. Write it first with lvh-yard init.");
-    } catch (IOException e) {
-      throw new YardException("Could not read " + file + ": " + e.getMessage());
-    }
-    ComposeImages compose = ComposeImages.parse(text);
-    List<String> missing = compose.missing(UPGRADED);
-    if (!missing.isEmpty()) {
-      throw new YardException(
-          file
-              + " has no image: line for "
-              + String.join(", ", missing)
-              + ": nothing was changed. Change its images by hand.");
-    }
-    ComposeImages template = ComposeImages.parse(Templates.compose());
-    PrintWriter out = spec.commandLine().getOut();
-    for (String service : UPGRADED) {
-      String from = compose.image(service).orElseThrow();
-      String to = template.image(service).orElseThrow();
-      if (from.equals(to)) {
-        out.println(service + ": " + to + ", already this version's");
-      } else {
-        compose.setImage(service, to);
-        out.println(service + ": " + from + " -> " + to);
-      }
-    }
-    try {
-      Files.writeString(file, compose.text());
-    } catch (IOException e) {
-      throw new YardException("Could not write " + file + ": " + e.getMessage());
-    }
-    out.println(
-        "Upgraded "
-            + file
-            + "; .env and route-profiles.yaml are untouched. Start the new images: cd "
-            + folder
-            + " && docker compose up -d");
-    out.flush();
-  }
-
-  /** The settings of the {@code .env} in {@code folder}, which {@code --reinit} carries over. */
-  private static Map<String, String> oldSettings(Path folder) {
-    Path file = folder.resolve(Templates.ENV);
-    if (!Files.exists(file)) {
-      throw new YardException(
-          "No "
-              + file
-              + " to carry values from: nothing was written. Run lvh-yard init without --reinit to"
-              + " write new files.");
-    }
-    try {
-      return EnvFile.parse(Files.readString(file)).settings();
-    } catch (IOException e) {
-      throw new YardException("Could not read " + file + ": " + e.getMessage());
+  /** Sets {@code key} to {@code found}, when found, unless {@code env} already has a value. */
+  private static void fillIfEmpty(EnvFile env, String key, Optional<String> found) {
+    if (isEmpty(env, key)) {
+      found.ifPresent(value -> env.set(key, value));
     }
   }
 
-  /** The old value of {@code key}, when it was set and not empty. */
-  private static String old(Map<String, String> old, String key) {
-    String value = old.get(key);
-    return value == null || value.isEmpty() ? null : value;
-  }
-
-  /**
-   * Sets each of {@code old} that {@code env} has; the others are kept at the end, commented, so
-   * nothing the user wrote is lost.
-   */
-  private static void carryOver(Map<String, String> old, EnvFile env) {
-    List<String> gone = new ArrayList<>();
-    old.forEach((key, value) -> {
-      if (env.has(key)) {
-        env.set(key, value);
-      } else {
-        gone.add("#" + key + "=" + value);
-      }
-    });
-    if (!gone.isEmpty()) {
-      env.append("").append("# No longer settings of lvh-yard, kept from the old .env:");
-      gone.forEach(env::append);
-    }
-  }
-
-  /**
-   * Renames {@code compose.yaml} and {@code .env} in {@code folder}, those that exist, to {@code
-   * <file>.<yyyyMMdd-HHmmss>.bak}.
-   *
-   * @return each file's backup, by the file's name
-   */
-  private static Map<String, Path> backUp(Path folder) {
-    String now = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
-    Map<String, Path> backups = new LinkedHashMap<>();
-    for (String name : List.of(Templates.COMPOSE, Templates.ENV)) {
-      Path file = folder.resolve(name);
-      if (Files.exists(file)) {
-        Path backup = folder.resolve(name + "." + now + ".bak");
-        try {
-          Files.move(file, backup);
-        } catch (IOException e) {
-          throw new YardException("Could not back up " + file + " to " + backup + ": " + e);
-        }
-        backups.put(name, backup);
-      }
-    }
-    return backups;
+  /** Whether {@code key} is commented, or set to nothing, in {@code env}. */
+  private static boolean isEmpty(EnvFile env, String key) {
+    return env.get(key).filter(value -> !value.isBlank()).isEmpty();
   }
 
   /** What to do once the files are written, with the ports and addresses {@code env} sets. */
   private static String nextSteps(Path folder, EnvFile env) {
-    String server = env.get("YARD_CONSUL_SERVER_PORT").orElse("8300");
-    String wan = env.get("YARD_CONSUL_SERF_WAN_PORT").orElse("8302");
-    String bind = env.get("YARD_DASHBOARD_BIND_ADDRESS").orElse("127.0.0.1");
-    String host = bind.isEmpty() || bind.equals("0.0.0.0") ? "127.0.0.1" : bind;
-    String port = env.get("YARD_DASHBOARD_PORT").orElse("7780");
     return """
     Next steps:
       1. Let the other Workstations reach this one on TCP port %s and on TCP and UDP port %s
          (Consul's server and WAN ports).
       2. Start this Workstation: cd %s && docker compose up -d
-      3. Open the dashboard: http://%s:%s
+      3. Open the dashboard: %s
       4. Check that everything runs: lvh-yard status
     """
-        .formatted(server, wan, folder, host, port);
+        .formatted(
+            env.valueOrDefault(Settings.CONSUL_SERVER_PORT),
+            env.valueOrDefault(Settings.CONSUL_SERF_WAN_PORT),
+            folder,
+            env.dashboardUrl());
   }
 
   /** The Workstation name typed in, asked again until it is one. */
@@ -365,7 +263,7 @@ class Init implements Runnable {
             "Peers: the other Workstations' LAN addresses, each <ip> or <ip>:<serf-wan-port>,"
                 + " separated by spaces (none for the first Workstation of a Yard): ",
             "--peers");
-    return typed.isEmpty() ? List.of() : List.of(typed.split("[,\\s]+"));
+    return typed.isEmpty() ? List.of() : List.of(typed.split(PEER_SEPARATORS));
   }
 
   /**
@@ -396,13 +294,8 @@ class Init implements Runnable {
 
   /** Whether someone is there to answer questions: a terminal, or a test typing in for one. */
   private boolean atTerminal() {
-    return terminal || interactive();
-  }
-
-  /** Whether a person is at a terminal to answer questions. */
-  static boolean interactive() {
     Console console = System.console();
-    return console != null && console.isTerminal();
+    return terminal || (console != null && console.isTerminal());
   }
 
   private ParameterException usage(String message) {
