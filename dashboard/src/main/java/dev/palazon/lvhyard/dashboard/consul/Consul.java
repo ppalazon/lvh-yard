@@ -27,8 +27,11 @@ import org.springframework.web.util.UriBuilder;
 @Component
 public class Consul {
 
-  /** The Consul server's own entry in its catalog, which is no Service of the Yard. */
-  public static final String CONSUL_SERVICE = "consul";
+  /**
+   * The name and ID of the Consul server's own entry in its catalog, which is no Instance of the
+   * Yard: the {@code consul} Core Service has other Instances under the same name.
+   */
+  private static final String CONSUL_SERVICE = "consul";
 
   /**
    * How long an answer may take. A datacenter on a computer that is switched off never answers, and
@@ -158,6 +161,11 @@ public class Consul {
         .uri(builder -> builder.path("/v1/kv/" + key).build())
         .retrieve()
         .toBodilessEntity();
+  }
+
+  /** Whether {@code registration} is the Consul server's own entry in its catalog. */
+  public static boolean isServerItself(AgentService registration) {
+    return registration.name().equals(CONSUL_SERVICE) && registration.id().equals(CONSUL_SERVICE);
   }
 
   /**

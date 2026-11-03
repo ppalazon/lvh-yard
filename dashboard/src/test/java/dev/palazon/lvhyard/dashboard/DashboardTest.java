@@ -44,7 +44,7 @@ abstract class DashboardTest {
 
   @LocalServerPort int port;
 
-  @Autowired private GenericContainer<?> consulContainer;
+  @Autowired GenericContainer<?> consulContainer;
 
   /** The test Yard's other Workstation, whose Services are Remote Services here. */
   @Autowired RemoteWorkstation remote;

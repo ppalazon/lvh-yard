@@ -30,12 +30,13 @@ final class RouteBuilder {
 
   /**
    * A Route at its hostname to every Instance in range of each Service that is {@linkplain
-   * dev.palazon.lvhyard.dashboard.services.Service#routed routed} here, and the dashboard's own at
-   * {@code yard.<base-domain>}, which no Service can replace. A Service has a hostname here when it
-   * is published on this Workstation, or published with Yard Scope on another one; the Services of
-   * an unreachable Workstation are not among {@code services}, so they get no Route. Each active
-   * Alias gets a Route at its hostname to the backend of the Remote Service it names, when that
-   * Service has one.
+   * dev.palazon.lvhyard.dashboard.services.Service#routed routed} here. The dashboard's own, at
+   * {@code yard.<base-domain>}, comes from the {@code yard} Core Service, or straight to {@code
+   * dashboard} while that Service is missing, so the dashboard is always reached. A Service has a
+   * hostname here when it is published on this Workstation, or published with Yard Scope on another
+   * one; the Services of an unreachable Workstation are not among {@code services}, so they get no
+   * Route. Each active Alias gets a Route at its hostname to the backend of the Remote Service it
+   * names, when that Service has one.
    *
    * @param dashboard the URL the dashboard listens on
    */
@@ -66,12 +67,14 @@ final class RouteBuilder {
             routers.put(ALIAS_PREFIX + alias.name(), router(alias.hostname(), target));
           }
         });
-    // Last, so it wins over anything above with its name.
-    routers.put(
-        Workstation.RESERVED_NAME,
-        router(workstation.hostname(Workstation.RESERVED_NAME), Workstation.RESERVED_NAME));
-    backends.put(
-        Workstation.RESERVED_NAME, new Service(new LoadBalancer(List.of(new Server(dashboard)))));
+    if (!routers.containsKey(Workstation.RESERVED_NAME)) {
+      // The yard Core Service is not there yet, such as while Consul is not ready.
+      routers.put(
+          Workstation.RESERVED_NAME,
+          router(workstation.hostname(Workstation.RESERVED_NAME), Workstation.RESERVED_NAME));
+      backends.put(
+          Workstation.RESERVED_NAME, new Service(new LoadBalancer(List.of(new Server(dashboard)))));
+    }
     return new TraefikConfiguration(new Http(routers, backends));
   }
 

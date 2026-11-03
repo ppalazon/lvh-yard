@@ -24,6 +24,10 @@ on `127.0.0.1:80`, and the dashboard, which gives Traefik its Routes
 2. `mise run up` starts Consul and Traefik.
 3. `mise run dashboard` starts the dashboard. Open
    [yard.lvh.me](http://yard.lvh.me), or `127.0.0.1:7780` when Traefik is down.
+   The catalog lists the Core Services, with their Health: `yard` (the
+   dashboard), `consul` ([consul.lvh.me](http://consul.lvh.me)) and `traefik`
+   ([traefik.lvh.me](http://traefik.lvh.me)). The dashboard registers them on
+   every start.
 
 The other Workstations must reach this one's Consul server and serf WAN ports
 (8300, and 8302 over TCP and UDP).

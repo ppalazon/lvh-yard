@@ -78,6 +78,17 @@ class OpenApiTest extends DashboardTest {
   }
 
   @Test
+  void servicesAndInstancesSayWhetherTheyAreCore() {
+    JsonNode schemas = get("/v3/api-docs").getBody().get("components").get("schemas");
+
+    for (String schema : new String[] {"Service", "Instance"}) {
+      JsonNode core = schemas.get(schema).get("properties").get("core");
+      assertThat(core).as("%s has a core flag", schema).isNotNull();
+      assertThat(core.get("type").asString()).isEqualTo("boolean");
+    }
+  }
+
+  @Test
   void committedCopyIsCurrent() throws IOException {
     ResponseEntity<String> response = getPage("/v3/api-docs.yaml");
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);

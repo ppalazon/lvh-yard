@@ -157,6 +157,32 @@ class YardTest {
   }
 
   @Test
+  void listMarksACoreService() {
+    dashboard.answer(
+        "GET",
+        "/api/services?workstation=ws-b",
+        200,
+        """
+        [{"workstation": "ws-b", "name": "consul", "state": "healthy", "publication": {"scope": "local"},
+          "hostname": "consul.lvh.me", "containerBindings": [], "warnings": [], "core": true,
+          "instances": [
+            {"id": "lvh-yard-core-consul", "host": "127.0.0.1", "port": 8500, "health": "passing",
+             "tags": [], "meta": {}, "checks": [], "outOfRange": false, "core": true}]},
+         {"workstation": "ws-b", "name": "web", "state": "unpublished", "containerBindings": [],
+          "warnings": [], "instances": []}]
+        """);
+
+    Run run = yard("list", "--workstation", "ws-b");
+
+    assertThat(run.lines())
+        .containsExactly(
+            "ws-b",
+            "  consul: healthy at consul.lvh.me  (Core Service)",
+            "    127.0.0.1:8500  passing   lvh-yard-core-consul",
+            "  web: unpublished");
+  }
+
+  @Test
   void listWithoutServicesSaysSo() {
     dashboard.answer(
         "GET",

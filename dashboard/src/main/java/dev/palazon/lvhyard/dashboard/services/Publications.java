@@ -46,6 +46,16 @@ public class Publications {
   }
 
   /**
+   * Publishes the Core Service {@code service} with Local Scope, unless it has a Publication
+   * already. No name rule applies: a Core Service's name is kept for it.
+   */
+  void keepCorePublication(String service) {
+    if (!all().containsKey(service)) {
+      consul.putValue(PREFIX + service, Scope.LOCAL.value());
+    }
+  }
+
+  /**
    * Removes the Publication of {@code service} of {@code workstation}, which must be this one, if
    * it has one.
    */

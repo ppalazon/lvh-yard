@@ -29,7 +29,7 @@ touches:
 
 ## Watch out
 - Traefik on an address without loopback breaks the lvh.me hostnames on that computer: they resolve to 127.0.0.1. A Reachability test still passes, because it sends each hostname to Traefik's address with a Host header.
-- The three connections: Traefik's HTTP provider to the dashboard (compose.yaml), the dashboard's Reachability tests to Traefik (TraefikSettings.url()), and the yard Route's server (TraefikController). A new one needs BindAddress too.
+- The four connections: Traefik's HTTP provider to the dashboard (compose.yaml), the dashboard's Reachability tests to Traefik (TraefikSettings.url()), the fallback yard Route's server (TraefikController), and the yard Core Service's Instance (CoreServices). A new one needs BindAddress too.
 
 In the code:
 - dashboard BindAddress.host(); TraefikSettings(bindAddress, port); application.yaml server.address and lvh-yard.traefik.bind-address

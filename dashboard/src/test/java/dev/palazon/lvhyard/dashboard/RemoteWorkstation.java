@@ -1,5 +1,6 @@
 package dev.palazon.lvhyard.dashboard;
 
+import java.util.Arrays;
 import java.util.Map;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.TypeExcludeFilter;
@@ -46,15 +47,43 @@ final class RemoteWorkstation implements AutoCloseable {
 
   /** Stops this Workstation's dashboard, does {@code meanwhile}, and starts the dashboard again. */
   void whileDashboardIsStopped(Runnable meanwhile) {
+    whileDashboardIsStopped(meanwhile, new String[0]);
+  }
+
+  /**
+   * Stops this Workstation's dashboard, does {@code meanwhile}, and starts the dashboard again with
+   * {@code settings} too, such as {@code --server.address=0.0.0.0}, which win over the usual ones.
+   */
+  void whileDashboardIsStopped(Runnable meanwhile, String... settings) {
     dashboard.close();
     try {
       meanwhile.run();
     } finally {
-      startDashboard();
+      startDashboard(settings);
     }
   }
 
-  private void startDashboard() {
+  /** The port this Workstation's dashboard listens on now. */
+  int dashboardPort() {
+    return Integer.parseInt(dashboard.getEnvironment().getRequiredProperty("local.server.port"));
+  }
+
+  /** The port this Workstation's Consul answers on, as its dashboard reaches it. */
+  int consulPort() {
+    return consul.getMappedPort(TestcontainersConfiguration.CONSUL_HTTP_PORT);
+  }
+
+  private void startDashboard(String... settings) {
+    String[] usual = {
+      "--server.port=0",
+      "--spring.main.banner-mode=off",
+      "--lvh-yard.workstation.name=" + NAME,
+      "--lvh-yard.workstation.base-domain=" + DashboardTest.BASE_DOMAIN,
+      "--lvh-yard.docker.host=" + TestcontainersConfiguration.dockerHost(),
+      "--lvh-yard.consul.url=http://" + consul.getHost() + ":" + consulPort()
+    };
+    String[] arguments = Arrays.copyOf(usual, usual.length + settings.length);
+    System.arraycopy(settings, 0, arguments, usual.length, settings.length);
     dashboard =
         new SpringApplicationBuilder(DashboardApplication.class)
             .initializers(context ->
@@ -63,16 +92,7 @@ final class RemoteWorkstation implements AutoCloseable {
                     .registerSingleton(
                         SkipTestConfigurations.class.getName(), new SkipTestConfigurations()))
             // Arguments, which win over the .env a developer may have at the repository root.
-            .run(
-                "--server.port=0",
-                "--spring.main.banner-mode=off",
-                "--lvh-yard.workstation.name=" + NAME,
-                "--lvh-yard.workstation.base-domain=" + DashboardTest.BASE_DOMAIN,
-                "--lvh-yard.docker.host=" + TestcontainersConfiguration.dockerHost(),
-                "--lvh-yard.consul.url=http://"
-                    + consul.getHost()
-                    + ":"
-                    + consul.getMappedPort(TestcontainersConfiguration.CONSUL_HTTP_PORT));
+            .run(arguments);
     http =
         RestClient.builder()
             .baseUrl(
@@ -157,6 +177,14 @@ final class RemoteWorkstation implements AutoCloseable {
         .body(value)
         .retrieve()
         .toBodilessEntity();
+  }
+
+  /**
+   * Removes the registration {@code id} from this Workstation's Consul agent, straight from Consul,
+   * so the test can remove what its dashboard would keep.
+   */
+  void deregisterInConsul(String id) {
+    consulHttp().put().uri("/v1/agent/service/deregister/" + id).retrieve().toBodilessEntity();
   }
 
   /** Removes {@code key} from this Workstation's Consul KV, straight from Consul. */

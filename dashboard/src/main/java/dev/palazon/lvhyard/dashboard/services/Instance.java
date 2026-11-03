@@ -26,6 +26,8 @@ import java.util.Map;
  * @param unpublishedContainerPort whether it is a Bound Instance at its container's own address, on
  *     a container port that is not published on the host, so no other Workstation can reach it;
  *     left out of the JSON when false
+ * @param core whether it is the Instance of a Core Service, which LVH Yard registers and keeps
+ *     itself; left out of the JSON when false
  */
 public record Instance(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String id,
@@ -38,7 +40,8 @@ public record Instance(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<CheckResult> checks,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean outOfRange,
     @JsonInclude(JsonInclude.Include.NON_NULL) String containerBinding,
-    @JsonInclude(JsonInclude.Include.NON_DEFAULT) boolean unpublishedContainerPort) {
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT) boolean unpublishedContainerPort,
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT) boolean core) {
 
   /**
    * Whether a Container Binding made it, so it comes and goes with its container and cannot be

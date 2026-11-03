@@ -56,6 +56,12 @@ public class Registrations {
    */
   static final String UNPUBLISHED_CONTAINER_PORT = RESERVED_META + "unpublished-container-port";
 
+  /**
+   * Marks the Static Instance of a Core Service, which only {@link CoreServices} registers. It is
+   * in the catalog, so every Workstation reading it knows a Core Service.
+   */
+  static final String CORE = RESERVED_META + "core";
+
   /** Where an HTTP check's path is kept: Consul does not give back a check's URL. */
   static final String HTTP_PATH = RESERVED_META + "http-path";
 
@@ -181,7 +187,36 @@ public class Registrations {
         List.of(new CheckResult(consulCheck.name(), Health.CRITICAL, "")),
         false,
         null,
+        false,
         false);
+  }
+
+  /**
+   * Makes {@code id} the Static Instance of the Core Service {@code service} at {@code host} and
+   * {@code port}, with an HTTP check on {@code path} at the default interval and timeout. One that
+   * is already there as wanted is left alone, so its Health stays. No name rule applies: a Core
+   * Service's name is kept for it.
+   */
+  void keepCoreInstance(String id, String service, String host, int port, String path) {
+    HealthCheck check = checked(new HealthCheck(HealthCheck.HTTP, path, null, null));
+    Map<String, String> meta = new HashMap<>(STATIC_INSTANCE);
+    meta.put(CORE, "true");
+    meta.put(HTTP_PATH, path);
+    boolean kept =
+        consul
+            .agentService(id)
+            .filter(found ->
+                found.name().equals(service)
+                    && found.address().equals(host)
+                    && found.port() == port
+                    && found.tags().isEmpty()
+                    && found.meta().equals(meta))
+            .isPresent();
+    if (!kept) {
+      consul.register(
+          new Registration(
+              id, service, host, port, List.of(), meta, consulCheck(host, port, check)));
+    }
   }
 
   /**

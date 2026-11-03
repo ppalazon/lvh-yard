@@ -21,6 +21,8 @@ import java.util.List;
  * @param containerBindings its Container Bindings, by ID, including those that match no running
  *     container
  * @param warnings why other Workstations may not reach it, though its Scope gives them a Route
+ * @param core whether it is a Core Service: the dashboard, Consul or Traefik, which LVH Yard
+ *     registers and publishes itself on every Workstation; left out of the JSON when false
  */
 public record Service(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String workstation,
@@ -31,11 +33,12 @@ public record Service(
     @JsonInclude(JsonInclude.Include.NON_NULL) String yardHostname,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<Instance> instances,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ContainerBinding> containerBindings,
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ServiceWarning> warnings) {
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ServiceWarning> warnings,
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT) boolean core) {
 
   /**
    * A Service in the state, and with the warnings, its {@code publication} and {@code instances}
-   * add up to.
+   * add up to. It is a Core Service when one of its Instances is a Core Service's.
    */
   Service(
       String workstation,
@@ -54,7 +57,8 @@ public record Service(
         yardHostname,
         instances,
         containerBindings,
-        ServiceWarning.of(publication, instances));
+        ServiceWarning.of(publication, instances),
+        instances.stream().anyMatch(Instance::core));
   }
 
   /** Whether it is published with Yard Scope, so every Workstation of the Yard routes it. */

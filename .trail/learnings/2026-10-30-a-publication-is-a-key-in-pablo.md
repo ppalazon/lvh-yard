@@ -17,7 +17,7 @@ src: agent
 - Each Service in the API has a `state`: unpublished, unavailable, unhealthy or healthy. The last one is `healthy`, not `published`: an Unhealthy or Unavailable Service is published too, and Service.published() means "has a Publication".
 - The hostname rule lives in one place: YardReader gives each published Service its `hostname`, and RouteBuilder routes to that hostname. When the API and Traefik each built the hostname, they could drift apart once Remote Services and Aliases arrive. This bends the spec's line "the Route builder holds all the hostname rules".
 - A published Service with no Instances (Unavailable) gets no Route, but it keeps its hostname in the API and pages, so you still see where it will answer.
-- The `yard` Route is written last in Traefik's configuration, so no Service can replace it.
+- The `yard` Route comes from the `yard` Core Service. RouteBuilder adds a fixed one to the dashboard only while that Service has no Route, so the dashboard is always reached and no other Service can take the name (it is reserved).
 
 ## Watch out
 - Publications.checkExists counts only Instances and Publications. The spec says a Service also exists while it has a Container Binding, so the check must count Bindings once they exist.

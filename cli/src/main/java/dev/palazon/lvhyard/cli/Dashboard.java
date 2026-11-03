@@ -50,7 +50,9 @@ final class Dashboard {
    * A Service, with its Home Workstation, its Instances and its state: unpublished, unavailable,
    * unhealthy or healthy. A Service without a Publication has none, and one without a Route on this
    * Workstation no hostname. A Service with Yard Scope also has the hostname every other
-   * Workstation routes it at. Its warnings say why other Workstations may not reach it.
+   * Workstation routes it at. Its warnings say why other Workstations may not reach it. A Core
+   * Service is one LVH Yard registers and keeps itself; the API leaves {@code core} out when it is
+   * false.
    */
   record Service(
       String workstation,
@@ -61,7 +63,13 @@ final class Dashboard {
       String yardHostname,
       List<Instance> instances,
       List<ContainerBinding> containerBindings,
-      List<Warning> warnings) {}
+      List<Warning> warnings,
+      Boolean core) {
+
+    boolean isCore() {
+      return Boolean.TRUE.equals(core);
+    }
+  }
 
   /**
    * A link from a Service to a Docker container by its name, or to a Compose project and service,

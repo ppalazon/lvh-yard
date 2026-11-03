@@ -84,6 +84,7 @@ final class ServicePage {
                                 .text(service.name())
                                 .__()
                                 .of(heading -> ServiceViews.state(heading, service.state()))
+                                .of(heading -> ServiceViews.core(heading, service))
                                 .__()
                                 .p()
                                 .text(

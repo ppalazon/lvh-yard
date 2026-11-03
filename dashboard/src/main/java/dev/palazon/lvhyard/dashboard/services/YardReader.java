@@ -199,7 +199,6 @@ public class YardReader {
           Map<String, Map<String, ContainerBindingRequest>> bindings =
               containerBindings.all(datacenter);
           TreeSet<String> names = new TreeSet<>(consul.serviceNames(datacenter));
-          names.remove(Consul.CONSUL_SERVICE);
           names.addAll(published.keySet());
           names.addAll(bindings.keySet());
           return names.stream()
@@ -240,6 +239,7 @@ public class YardReader {
       Map<String, ContainerBindingRequest> bindings) {
     List<Instance> instances =
         consul.health(datacenter, name).stream()
+            .filter(entry -> !Consul.isServerItself(entry.service()))
             .map(entry -> instance(entry, !workstation.is(home)))
             .sorted(BY_ADDRESS)
             .toList();
@@ -330,7 +330,8 @@ public class YardReader {
         checks,
         remote && outOfRange.contains(registration.address()),
         registration.meta().get(Registrations.CONTAINER_BINDING),
-        registration.meta().containsKey(Registrations.UNPUBLISHED_CONTAINER_PORT));
+        registration.meta().containsKey(Registrations.UNPUBLISHED_CONTAINER_PORT),
+        registration.meta().containsKey(Registrations.CORE));
   }
 
   /** A duration as Consul writes it, in Go's way, such as {@code 1m30s} or {@code 1.5s}. */
