@@ -1,8 +1,11 @@
 package dev.palazon.lvhyard.cli;
 
+import java.io.BufferedReader;
 import java.io.Console;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -65,7 +68,7 @@ class Init implements Runnable {
       description =
           "The other Workstations' LAN addresses, each <ip> or <ip>:<serf-wan-port>. None for the"
               + " first Workstation of a Yard.")
-  List<String> peers = new ArrayList<>();
+  List<String> peers;
 
   @Option(
       names = "--gossip-key",
@@ -98,14 +101,23 @@ class Init implements Runnable {
   @Option(names = "--docker-socket", hidden = true, defaultValue = "/var/run/docker.sock")
   Path dockerSocket;
 
+  /**
+   * Asks as at a terminal, reading the answers from standard input. Hidden: a test types them in.
+   */
+  @Option(names = "--terminal", hidden = true)
+  boolean terminal;
+
   @Spec CommandSpec spec;
+
+  /** The answers typed in at the terminal, read once a question is asked. */
+  private BufferedReader answers;
 
   @Override
   public void run() {
     Path folder = dir != null ? dir : ConfigFolder.standard(System.getenv());
     Map<String, String> old = reinit ? oldSettings(folder) : Map.of();
-    String name =
-        required(workstation != null ? workstation : old(old, "YARD_WORKSTATION"), "--workstation");
+    String oldName = old(old, "YARD_WORKSTATION");
+    String name = workstation != null ? workstation : oldName != null ? oldName : askWorkstation();
     if (!WORKSTATION.matcher(name).matches()) {
       throw usage(
           "--workstation "
@@ -116,6 +128,9 @@ class Init implements Runnable {
     if (baseDomain != null && !DOMAIN.matcher(baseDomain).matches()) {
       throw usage("--base-domain " + baseDomain + " is not a domain name such as lvh.me.");
     }
+    // --reinit keeps the old peers unless --peers replaces them, so it asks for none.
+    List<String> peerAddresses =
+        peers != null ? peers : reinit ? null : atTerminal() ? askPeers() : List.of();
     String oldKey = old(old, "YARD_GOSSIP_KEY");
     String key =
         gossipKey != null ? checkedGossipKey(gossipKey) : oldKey != null ? oldKey : newGossipKey();
@@ -128,8 +143,8 @@ class Init implements Runnable {
     dockerGid().ifPresent(gid -> env.set("YARD_DOCKER_GID", gid));
     carryOver(old, env);
     env.set("YARD_WORKSTATION", name).set("YARD_GOSSIP_KEY", key);
-    if (!reinit || !peers.isEmpty()) {
-      env.set("YARD_PEERS", String.join(" ", peers));
+    if (peerAddresses != null) {
+      env.set("YARD_PEERS", String.join(" ", peerAddresses));
     }
     if (baseDomain != null) {
       env.set("YARD_BASE_DOMAIN", baseDomain);
@@ -251,15 +266,63 @@ class Init implements Runnable {
         .formatted(server, wan, folder, host, port);
   }
 
-  /**
-   * {@code value}, given by {@code flag}; without it, a usage error that names the flag, as no
-   * terminal is there to ask.
-   */
-  private String required(String value, String flag) {
-    if (value != null) {
-      return value;
+  /** The Workstation name typed in, asked again until it is one. */
+  private String askWorkstation() {
+    PrintWriter out = spec.commandLine().getOut();
+    while (true) {
+      String name =
+          ask(
+              "Workstation name, unique in the Yard (lowercase letters, digits and -): ",
+              "--workstation");
+      if (WORKSTATION.matcher(name).matches()) {
+        return name;
+      }
+      out.println(
+          (name.isEmpty() ? "A Workstation needs a name" : name + " is not a Workstation name")
+              + ": use lowercase letters, digits and -, at most 63, not starting or ending with"
+              + " -.");
     }
-    throw usage("Missing " + flag + ": no terminal to ask for it, so give it as " + flag + ".");
+  }
+
+  /** The peers typed in: none for the first Workstation of a Yard. */
+  private List<String> askPeers() {
+    String typed =
+        ask(
+            "Peers: the other Workstations' LAN addresses, each <ip> or <ip>:<serf-wan-port>,"
+                + " separated by spaces (none for the first Workstation of a Yard): ",
+            "--peers");
+    return typed.isEmpty() ? List.of() : List.of(typed.split("[,\\s]+"));
+  }
+
+  /**
+   * The line typed in after {@code question}, stripped. Without a terminal, or once the input ends,
+   * a usage error that names {@code flag}, as no one is there to answer.
+   */
+  private String ask(String question, String flag) {
+    if (!atTerminal()) {
+      throw usage("Missing " + flag + ": no terminal to ask for it, so give it as " + flag + ".");
+    }
+    PrintWriter out = spec.commandLine().getOut();
+    out.print(question);
+    out.flush();
+    try {
+      if (answers == null) {
+        answers = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
+      }
+      String line = answers.readLine();
+      if (line == null) {
+        out.println();
+        throw usage("Missing " + flag + ": the input ended before it was given.");
+      }
+      return line.strip();
+    } catch (IOException e) {
+      throw usage("Missing " + flag + ": could not read it: " + e.getMessage());
+    }
+  }
+
+  /** Whether someone is there to answer questions: a terminal, or a test typing in for one. */
+  private boolean atTerminal() {
+    return terminal || interactive();
   }
 
   /** Whether a person is at a terminal to answer questions. */
