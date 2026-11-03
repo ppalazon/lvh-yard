@@ -1,6 +1,6 @@
 # Instance Priority: prefer the copy you are working on
 
-Status: ready-for-agent
+Status: done
 
 Words follow `GLOSSARY.md` (Instance Priority, Static Instance, Bound Instance, Alias, Out-of-range Instance). Decisions follow ADR-0005 (Instance Priority, by Instance kind, chosen from Health) and ADR-0002.
 
