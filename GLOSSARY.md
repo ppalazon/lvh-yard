@@ -46,6 +46,24 @@ _Avoid_: Dynamic instance, container instance
 A Service that LVH Yard itself keeps registered and published on every Workstation: the dashboard (`yard`), Consul and Traefik. You cannot remove or unpublish it.
 _Avoid_: System service, built-in service
 
+### Setting up a Workstation
+
+**Workstation Folder**:
+The folder that holds one Workstation's setup files. There is one per Workstation.
+_Avoid_: Config folder, config dir, install dir
+
+**Peer**:
+The LAN address of another Workstation that this Workstation joins to find the Yard. One is enough, and the first Workstation of a Yard has none.
+_Avoid_: Seed, neighbour, node
+
+**Gossip Key**:
+The Yard's shared secret. Every Workstation in the Yard needs the same one to join it.
+_Avoid_: Yard key, encryption key, secret
+
+**Base Domain**:
+The domain that every hostname on one Workstation ends with, such as `lvh.me`. Each Workstation picks its own, and it may be a public domain.
+_Avoid_: Yard domain, TLD, suffix, zone
+
 ### Facts about them
 
 **Registration**:
