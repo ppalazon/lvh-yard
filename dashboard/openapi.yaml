@@ -145,6 +145,22 @@ paths:
       summary: "Tests whether this Workstation reaches a Service, now"
       tags:
       - services-controller
+  /api/status:
+    get:
+      description: "Each part is ok, warning or failing, with a reason and what was\
+        \ found. The parts are read side by side with a short timeout, and the answer\
+        \ is kept for about 5 s."
+      operationId: status
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Status"
+          description: OK
+      summary: "How LVH Yard on this Workstation is: each part, and the worst of them"
+      tags:
+      - status-controller
   /api/workstation/aliases:
     get:
       operationId: aliases
@@ -912,6 +928,60 @@ components:
             type: string
       required:
       - port
+    Status:
+      type: object
+      properties:
+        overall:
+          type: string
+          enum:
+          - ok
+          - warning
+          - failing
+        parts:
+          type: array
+          items:
+            $ref: "#/components/schemas/StatusPart"
+      required:
+      - overall
+      - parts
+    StatusDetail:
+      type: object
+      properties:
+        name:
+          type: string
+        state:
+          type: string
+          enum:
+          - ok
+          - warning
+          - failing
+        value:
+          type: string
+      required:
+      - name
+      - value
+    StatusPart:
+      type: object
+      properties:
+        details:
+          type: array
+          items:
+            $ref: "#/components/schemas/StatusDetail"
+        name:
+          type: string
+        reason:
+          type: string
+        state:
+          type: string
+          enum:
+          - ok
+          - warning
+          - failing
+      required:
+      - details
+      - name
+      - reason
+      - state
     Yard:
       type: object
       properties:

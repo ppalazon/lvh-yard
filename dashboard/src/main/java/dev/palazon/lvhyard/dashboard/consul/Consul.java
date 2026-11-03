@@ -62,6 +62,25 @@ public class Consul {
     return datacenters == null ? List.of() : datacenters;
   }
 
+  /**
+   * The address of the datacenter's leader, as {@code <ip>:<server-port>}, or empty while it has
+   * none.
+   */
+  public String leader() {
+    String leader = http.get().uri("/v1/status/leader").retrieve().body(String.class);
+    return leader == null ? "" : leader.strip().replace("\"", "");
+  }
+
+  /** The members of the agent's WAN pool: one server for each federated datacenter. */
+  public List<WanMember> wanMembers() {
+    List<WanMember> members =
+        http.get()
+            .uri("/v1/agent/members?wan=1")
+            .retrieve()
+            .body(new ParameterizedTypeReference<>() {});
+    return members == null ? List.of() : members;
+  }
+
   /** The address the agent binds to, which compose.yaml sets to the Workstation's LAN address. */
   public String agentAddress() {
     return http.get().uri("/v1/agent/self").retrieve().body(AgentSelf.class).member().address();
@@ -193,6 +212,45 @@ public class Consul {
       return base64 == null
           ? ""
           : new String(Base64.getDecoder().decode(base64), StandardCharsets.UTF_8);
+    }
+  }
+
+  /**
+   * A server in the WAN pool.
+   *
+   * @param address its LAN address
+   * @param port its serf WAN port
+   * @param status Serf's code: 1 alive, 2 leaving, 3 left, 4 failed
+   * @param tags its tags, among them {@code dc}, its datacenter
+   */
+  public record WanMember(
+      @JsonProperty("Addr") String address,
+      @JsonProperty("Port") int port,
+      @JsonProperty("Status") int status,
+      @JsonProperty("Tags") Map<String, String> tags) {
+
+    public WanMember {
+      tags = tags == null ? Map.of() : tags;
+    }
+
+    /** Its datacenter, which is its Workstation's name. */
+    public String datacenter() {
+      return tags.getOrDefault("dc", "");
+    }
+
+    public boolean alive() {
+      return status == 1;
+    }
+
+    /** Its state in words: alive, leaving, left or failed. */
+    public String state() {
+      return switch (status) {
+        case 1 -> "alive";
+        case 2 -> "leaving";
+        case 3 -> "left";
+        case 4 -> "failed";
+        default -> "unknown";
+      };
     }
   }
 

@@ -32,7 +32,10 @@ import tools.jackson.databind.JsonNode;
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
       "lvh-yard.workstation.name=" + DashboardTest.WORKSTATION,
-      "lvh-yard.workstation.base-domain=" + DashboardTest.BASE_DOMAIN
+      "lvh-yard.workstation.base-domain=" + DashboardTest.BASE_DOMAIN,
+      // The test Workstation joins no Peer: ws-remote joins it. Not the Peers of a developer's
+      // .env.
+      "lvh-yard.consul.peers="
     })
 @Import(TestcontainersConfiguration.class)
 abstract class DashboardTest {

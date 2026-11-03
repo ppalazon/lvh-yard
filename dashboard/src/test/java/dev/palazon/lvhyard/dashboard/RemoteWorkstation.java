@@ -6,6 +6,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.TypeExcludeFilter;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -88,6 +89,20 @@ final class RemoteWorkstation implements AutoCloseable {
   }
 
   /**
+   * Starts this Workstation's dashboard again with {@code settings} too, such as {@code
+   * --lvh-yard.docker.host=unix:///missing.sock}, does {@code meanwhile}, and starts it again with
+   * the usual settings.
+   */
+  void whileDashboardRunsWith(Runnable meanwhile, String... settings) {
+    whileDashboardIsStopped(() -> {}, settings);
+    try {
+      meanwhile.run();
+    } finally {
+      whileDashboardIsStopped(() -> {});
+    }
+  }
+
+  /**
    * Waits until the dashboard whose Consul {@code consul} reaches has written that it kept its Core
    * Services at {@code since} or later.
    */
@@ -132,10 +147,21 @@ final class RemoteWorkstation implements AutoCloseable {
       "--lvh-yard.workstation.name=" + NAME,
       "--lvh-yard.workstation.base-domain=" + DashboardTest.BASE_DOMAIN,
       "--lvh-yard.docker.host=" + TestcontainersConfiguration.dockerHost(),
-      "--lvh-yard.consul.url=http://" + consul.getHost() + ":" + consulPort()
+      "--lvh-yard.consul.url=http://" + consul.getHost() + ":" + consulPort(),
+      // Its real Peer is a name only the Docker network resolves. Not the Peers of a developer's
+      // .env.
+      "--lvh-yard.consul.peers="
     };
-    String[] arguments = Arrays.copyOf(usual, usual.length + settings.length);
-    System.arraycopy(settings, 0, arguments, usual.length, settings.length);
+    // A setting given twice would be read as both values, joined by a comma: settings replace.
+    String[] arguments =
+        Stream.concat(
+                Arrays.stream(usual)
+                    .filter(argument ->
+                        Arrays.stream(settings)
+                            .noneMatch(
+                                setting -> setting.startsWith(argument.split("=")[0] + "="))),
+                Arrays.stream(settings))
+            .toArray(String[]::new);
     dashboard =
         new SpringApplicationBuilder(DashboardApplication.class)
             .initializers(context ->
@@ -210,6 +236,11 @@ final class RemoteWorkstation implements AutoCloseable {
   /** The page at {@code path} of this Workstation's dashboard, as HTML. */
   String page(String path) {
     return http.get().uri(path).accept(MediaType.TEXT_HTML).retrieve().body(String.class);
+  }
+
+  /** The status of LVH Yard on this Workstation, from its dashboard's API. */
+  JsonNode status() {
+    return http.get().uri("/api/status").retrieve().body(JsonNode.class);
   }
 
   /** What this Workstation's Traefik reads from its dashboard. */

@@ -166,7 +166,11 @@ lvh-yard alias list                         # each Alias, its Remote Service and
 lvh-yard alias remove grafana
 lvh-yard test web                           # can this Workstation reach web: each Instance, and each hostname through Traefik
 lvh-yard test grafana --workstation ws-b    # a Remote Service
+lvh-yard status                             # Consul, Docker and the other parts: ok, warning or failing, and why
+lvh-yard status --strict                    # exits with 1 on a warning too, not only when a part is failing
 ```
+
+The dashboard's `/status` page and `GET /api/status` show the same parts.
 
 Each Service is `unpublished`, `unavailable` (published, no Instances),
 `unhealthy` (published, no passing Instance) or `healthy` (published, with a

@@ -93,6 +93,7 @@ services:
       YARD_DASHBOARD_PORT: ${YARD_DASHBOARD_PORT:-7780}
       YARD_DASHBOARD_BIND_ADDRESS: ${YARD_DASHBOARD_BIND_ADDRESS:-127.0.0.1}
       YARD_CONSUL_HTTP_PORT: ${YARD_CONSUL_HTTP_PORT:-8500}
+      YARD_PEERS: ${YARD_PEERS:-}
     # The Container Bindings follow this Workstation's containers.
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

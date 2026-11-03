@@ -31,6 +31,7 @@ class OpenApiTest extends DashboardTest {
             "/api/services",
             "/api/services/{workstation}/{service}",
             "/api/services/{workstation}/{service}/reachability",
+            "/api/status",
             "/api/yard",
             "/api/workstation/aliases",
             "/api/workstation/aliases/{alias}",

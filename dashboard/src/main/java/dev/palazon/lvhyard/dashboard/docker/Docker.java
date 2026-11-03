@@ -63,6 +63,16 @@ public class Docker {
     http.close();
   }
 
+  /** Docker's version, as {@code docker version} shows the Engine's. */
+  public Version version() {
+    try (Response response = http.execute(get("/version"))) {
+      checkOk(response);
+      return JSON.readValue(response.getBody(), Version.class);
+    } catch (JacksonException e) {
+      throw new IllegalStateException("Docker answered a version that cannot be read", e);
+    }
+  }
+
   /** Every running container. */
   public List<Container> runningContainers() {
     try (Response response = http.execute(get("/containers/json"))) {
@@ -144,6 +154,15 @@ public class Docker {
       response.close();
     }
   }
+
+  /**
+   * The Docker Engine's version.
+   *
+   * @param version its release, such as {@code 28.1.1}
+   * @param apiVersion the newest Engine API it speaks, such as {@code 1.49}
+   */
+  public record Version(
+      @JsonProperty("Version") String version, @JsonProperty("ApiVersion") String apiVersion) {}
 
   /**
    * One event.

@@ -27,7 +27,8 @@ import picocli.CommandLine.Spec;
       Publish.class,
       Unpublish.class,
       Alias.class,
-      TestReachability.class
+      TestReachability.class,
+      Status.class
     },
     description = "Registers, publishes and tests Services on this Workstation's LVH Yard.")
 public class Yard implements Runnable {

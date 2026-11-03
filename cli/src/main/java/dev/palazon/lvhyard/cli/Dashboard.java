@@ -189,9 +189,26 @@ final class Dashboard {
    */
   record RouteReachability(String hostname, boolean reached, Integer status, String error) {}
 
+  /**
+   * How LVH Yard on this Workstation is: each part, and the worst of them, each ok, warning or
+   * failing.
+   */
+  record Status(String overall, List<StatusPart> parts) {}
+
+  /** One part, such as Consul or Docker: its state, why, and what was found. */
+  record StatusPart(String name, String state, String reason, List<StatusDetail> details) {}
+
+  /** One thing found about a part; {@code state} is null for a plain fact such as a version. */
+  record StatusDetail(String name, String value, String state) {}
+
   /** {@code host:port}, with an IPv6 host in brackets so its colons are not read as the port's. */
   static String address(String host, int port) {
     return (host.contains(":") ? "[" + host + "]" : host) + ":" + port;
+  }
+
+  /** How LVH Yard on this Workstation is now. */
+  Status status() {
+    return read(send(get("api/status")), new TypeReference<>() {});
   }
 
   /** The Yard, with every Workstation's Services. */
