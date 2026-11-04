@@ -56,8 +56,7 @@ class ListServices implements Runnable {
               + service.name()
               + ": "
               + service.state()
-              + (service.hostname() == null ? "" : " at " + service.hostname())
-              + (service.isCore() ? "  (Core Service)" : ""));
+              + (service.hostname() == null ? "" : " at " + service.hostname()));
       for (Dashboard.Instance instance : service.instances()) {
         out.printf(
             "    %-13s  %-8s  %s%s%s%n",

@@ -45,10 +45,7 @@ final class Dashboard {
     this.url = url.toString().endsWith("/") ? url : URI.create(url + "/");
   }
 
-  /**
-   * The API leaves {@code core} out when it is false, and {@code routing} when this Workstation
-   * does not route the Service.
-   */
+  /** The API leaves {@code routing} out when this Workstation does not route the Service. */
   record Service(
       String workstation,
       String name,
@@ -59,12 +56,7 @@ final class Dashboard {
       List<ContainerBinding> containerBindings,
       List<Warning> warnings,
       List<String> profiles,
-      Routing routing,
-      Boolean core) {
-
-    boolean isCore() {
-      return Boolean.TRUE.equals(core);
-    }
+      Routing routing) {
 
     boolean routes(Instance instance) {
       return routing != null && routing.instances().contains(instance.id());

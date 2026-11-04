@@ -225,19 +225,27 @@ class YardTest {
   }
 
   @Test
-  void listMarksACoreService() {
+  void listShowsTheServicesOfTheFirstSetupAsOrdinaryServices() {
     dashboard.answer(
         "GET",
         "/api/services?workstation=ws-b",
         200,
         """
-        [{"workstation": "ws-b", "name": "consul", "state": "healthy", "publication": {"scope": "local"},
-          "hostname": "consul.lvh.me", "containerBindings": [], "warnings": [], "core": true,
-          "instances": [
-            {"id": "lvh-yard-core-consul", "host": "127.0.0.1", "port": 8500, "health": "passing",
+        [{"workstation": "ws-b", "name": "consul-ui", "state": "healthy",
+          "publication": {"scope": "local"}, "hostname": "consul-ui.lvh.me", "containerBindings": [],
+          "warnings": [], "core": true, "instances": [
+            {"id": "consul-ui", "host": "127.0.0.1", "port": 8500, "health": "passing",
              "tags": [], "meta": {}, "checks": [], "outOfRange": false, "core": true}]},
-         {"workstation": "ws-b", "name": "web", "state": "unpublished", "containerBindings": [],
-          "warnings": [], "instances": []}]
+         {"workstation": "ws-b", "name": "traefik-admin", "state": "healthy",
+          "publication": {"scope": "local"}, "hostname": "traefik-admin.lvh.me", "containerBindings": [],
+          "warnings": [], "instances": [
+            {"id": "traefik-admin", "host": "127.0.0.1", "port": 8080, "health": "passing",
+             "tags": [], "meta": {}, "checks": [], "outOfRange": false}]},
+         {"workstation": "ws-b", "name": "yard", "state": "healthy",
+          "publication": {"scope": "local"}, "hostname": "yard.lvh.me", "containerBindings": [],
+          "warnings": [], "instances": [
+            {"id": "yard", "host": "127.0.0.1", "port": 7780, "health": "passing",
+             "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}]
         """);
 
     Run run = yard("list", "--workstation", "ws-b");
@@ -245,9 +253,12 @@ class YardTest {
     assertThat(run.lines())
         .containsExactly(
             "ws-b",
-            "  consul: healthy at consul.lvh.me  (Core Service)",
-            "    127.0.0.1:8500  passing   lvh-yard-core-consul",
-            "  web: unpublished");
+            "  consul-ui: healthy at consul-ui.lvh.me",
+            "    127.0.0.1:8500  passing   consul-ui",
+            "  traefik-admin: healthy at traefik-admin.lvh.me",
+            "    127.0.0.1:8080  passing   traefik-admin",
+            "  yard: healthy at yard.lvh.me",
+            "    127.0.0.1:7780  passing   yard");
   }
 
   @Test

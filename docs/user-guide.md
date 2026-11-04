@@ -42,10 +42,18 @@ Java or a copy of this repository.
    folder, `cd` to that folder.
 5. Make sure that LVH Yard works: `lvh-yard status`.
 
-If Traefik works, open [yard.lvh.me](http://yard.lvh.me). If Traefik is down,
-open `127.0.0.1:7780`. The Catalog shows the Core Services: `yard` (the
-dashboard), `consul` ([consul.lvh.me](http://consul.lvh.me)) and `traefik`
-([traefik.lvh.me](http://traefik.lvh.me)).
+On its first start, the dashboard sets up three Services with Local Scope:
+
+- `yard`, the dashboard, at [yard.lvh.me](http://yard.lvh.me)
+- `consul-ui`, the web page of Consul, at
+  [consul-ui.lvh.me](http://consul-ui.lvh.me)
+- `traefik-admin`, the admin page of Traefik, at
+  [traefik-admin.lvh.me](http://traefik-admin.lvh.me)
+
+The dashboard does this setup only once. After that, they are ordinary
+Services. You can change, unpublish or remove them, and they do not come back.
+The dashboard is always at `127.0.0.1:7780` too, also when Traefik is down or
+`yard` is unpublished.
 
 Run the other `docker compose` commands in the same folder. For example,
 `docker compose logs -f consul` shows the logs of Consul.
