@@ -8,8 +8,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 /**
- * Every error is a Problem Details document (RFC 9457). Before the advice for every controller,
- * which matches every exception.
+ * Every error is a Problem Details document (RFC 9457). It comes before {@code Problems}, because
+ * {@code Problems} matches every exception.
  */
 @Order(0)
 @RestControllerAdvice(

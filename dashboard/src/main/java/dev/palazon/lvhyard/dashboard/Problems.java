@@ -20,12 +20,12 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.util.DisconnectedClientHelper;
 
 /**
- * The exceptions that no controller and no other advice handles. Each one logs one line, with its
- * stack trace only when {@code YARD_STACK_TRACES} is true. The REST API answers with Problem
- * Details (RFC 9457), and the pages with the error page.
+ * The exceptions that no controller and no other advice handles. Each one logs one line. The line
+ * has the stack trace only when {@code YARD_STACK_TRACES} is true. The REST API answers with
+ * Problem Details (RFC 9457). The pages answer with the error page.
  *
- * <p>Last in order, because its handler for {@link Exception} matches every exception, and would
- * otherwise take the exceptions of {@code ApiProblems}.
+ * <p>It must come last. Its handler for {@link Exception} matches every exception, so it can take
+ * the exceptions of {@code ApiProblems}.
  */
 @ControllerAdvice
 @Order(Ordered.LOWEST_PRECEDENCE)
@@ -43,9 +43,8 @@ class Problems {
   }
 
   /**
-   * Only {@code Consul} uses a RestClient, so this exception always means that Consul of this
-   * Workstation did not answer in time, or not at all. It is expected while Consul starts or is
-   * busy.
+   * Only {@code Consul} uses a RestClient. So this exception always means that Consul of this
+   * Workstation did not answer in time. This is normal while Consul starts or is busy.
    */
   @ExceptionHandler
   @ResponseBody
@@ -63,9 +62,8 @@ class Problems {
   }
 
   /**
-   * An exception that has its own status, such as a missing page, and a client that went away, keep
-   * the default handling of Spring: an exception handler that throws its own exception again passes
-   * it on.
+   * An exception with its own status, such as a missing page, keeps the default handling of Spring.
+   * So does a client that went away. The handler throws these again, and Spring passes them on.
    */
   @ExceptionHandler
   @ResponseBody
