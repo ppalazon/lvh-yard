@@ -6,8 +6,6 @@ import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import java.util.List;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
-import org.xmlet.htmlapifaster.EnumTypeInputType;
-import org.xmlet.htmlapifaster.Form;
 import org.xmlet.htmlapifaster.Main;
 
 final class StaticInstancesPage {
@@ -61,7 +59,7 @@ final class StaticInstancesPage {
                         "Lowercase letters, digits and -.",
                         error))
                 .of(form -> InstanceForm.fields(form, fields, defaultHost, error))
-                .of(form -> publish(form, publish))
+                .of(form -> InstanceForm.publish(form, publish))
                 .button()
                 .attrType(EnumTypeButtonType.SUBMIT)
                 .attrClass("btn w-fit")
@@ -136,24 +134,6 @@ final class StaticInstancesPage {
                     .__()))
         .__()
         .__()
-        .__();
-  }
-
-  /** A cleared checkbox sends nothing, so the form sends {@code publish} only when it is on. */
-  static void publish(Form<?> form, boolean checked) {
-    form.label()
-        .attrClass("label gap-3")
-        .input()
-        .attrType(EnumTypeInputType.CHECKBOX)
-        .attrClass("input")
-        .attrName("publish")
-        .of(input -> {
-          if (checked) {
-            input.attrChecked(true);
-          }
-        })
-        .__()
-        .text("Publish a new Service")
         .__();
   }
 }

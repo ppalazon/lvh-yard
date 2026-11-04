@@ -24,7 +24,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Client for the dashboard's REST API ({@code openapi.yaml}). Every failure is a {@link
- * YardException} with a message ready to print.
+ * YardException} with a message ready to print. A {@code publish} argument of {@code false} leaves
+ * a new Service Unpublished, and {@code null} lets the dashboard publish it.
  */
 final class Dashboard {
 
@@ -241,9 +242,6 @@ final class Dashboard {
   /**
    * With no host, the dashboard uses this Workstation's LAN address. A part of the check left out
    * gets the dashboard's default.
-   *
-   * @param publish {@code false} leaves a new Service unpublished; {@code null} lets the dashboard
-   *     publish it
    */
   Instance register(
       String service,
@@ -277,10 +275,6 @@ final class Dashboard {
     return read(send(request), new TypeReference<>() {});
   }
 
-  /**
-   * @param publish {@code false} leaves a new Service unpublished; {@code null} lets the dashboard
-   *     publish it
-   */
   ContainerBinding bindCompose(
       String service, String project, String composeService, int port, Boolean publish) {
     Map<String, Object> binding = new LinkedHashMap<>();

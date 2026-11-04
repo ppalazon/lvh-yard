@@ -149,7 +149,8 @@ class WorkstationServicesController {
       description =
           "Give either container, or composeProject and composeService. Each running container that"
               + " matches is a Bound Instance with a TCP check. A new Service gets a Publication"
-              + " with Local Scope, unless publish is false.")
+              + " with Local Scope, unless publish is false. Binding the same target again, even"
+              + " with the same port, answers 409.")
   @ApiResponse(responseCode = "201", description = "Bound", useReturnTypeSchema = true)
   @ApiResponse(
       responseCode = "400",

@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,14 +77,12 @@ public class ContainerBindings {
     checkHome(workstation);
     Registrations.checkName(service);
     ContainerBindingRequest binding = checked(request);
-    all(null)
-        .forEach((following, bindings) -> {
-          if (bindings.values().stream().anyMatch(other -> sameTarget(binding, other))) {
-            throw new FollowedContainerException(
-                new ContainerBinding(null, binding, List.of()).follows(),
-                following,
-                binding.followsCompose() ? "composeService" : "container");
-          }
+    following(all(null), other -> sameTarget(binding, other))
+        .ifPresent(following -> {
+          throw new FollowedContainerException(
+              binding.follows(),
+              following,
+              binding.followsCompose() ? "composeService" : "container");
         });
     String id = ContainerBinding.id(binding);
     consul.putValue(PREFIX + service + "/" + id, JSON.writeValueAsString(binding));
@@ -151,6 +150,16 @@ public class ContainerBindings {
         ? one.composeProject().equals(other.composeProject())
             && one.composeService().equals(other.composeService())
         : one.container().equals(other.container());
+  }
+
+  /** The Service of the first Binding in {@code followed} that {@code test} accepts. */
+  static Optional<String> following(
+      Map<String, Map<String, ContainerBindingRequest>> followed,
+      Predicate<ContainerBindingRequest> test) {
+    return followed.entrySet().stream()
+        .filter(byService -> byService.getValue().values().stream().anyMatch(test))
+        .map(Map.Entry::getKey)
+        .findFirst();
   }
 
   private static String stripped(String name) {

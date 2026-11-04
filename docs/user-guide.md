@@ -167,7 +167,7 @@ lvh-yard register static web --port 8080    # at this Workstation's LAN address,
 lvh-yard register static web --host 127.0.0.1 --port 8080
 lvh-yard register static web --port 8080 --path /health --interval 5s --timeout 1s   # an HTTP check (default: TCP, 10s, 2s)
 lvh-yard register static web --port 8080 --tag backend --meta owner=pablo           # repeat --tag and --meta for more
-lvh-yard register static web --port 8080 --no-publish                               # a new Service stays unpublished
+lvh-yard register static web --port 8080 --no-publish                               # a new Service stays Unpublished
 lvh-yard containers                         # running containers that no Container Binding follows
 lvh-yard register container shop-web-1     # bind a container to a Service, and publish a new Service
 lvh-yard register container shop-web-1 --port 9000 --service shop --no-publish
@@ -436,9 +436,9 @@ this page.
 
 Register a Static Instance with the form on that page, or with
 `lvh-yard register static`. If the Service is new, it gets a Publication with
-Local Scope. To keep a new Service unpublished, clear "Publish a new Service" in
+Local Scope. To keep a new Service Unpublished, clear "Publish a new Service" in
 the form, or add `--no-publish`. A Service that exists keeps its Publication, or
-stays unpublished.
+stays Unpublished.
 
 ### Container Bindings
 
@@ -484,15 +484,15 @@ case, with `_`, `.` and other characters changed to `-`. If the cleaned
 Compose service name is empty, LVH Yard uses the cleaned container name. If
 the Service is new, LVH Yard publishes it with Local Scope. If the Service
 already exists on this Workstation, it keeps its Publication and Scope, or
-stays unpublished. After the register, the list says which Service got the
-container, with a link to the page of the Service. If the register fails, for
-example because the name is `consul`, the page shows why next to the
+stays Unpublished. After the registration, the list says which Service got
+the container, with a link to the page of the Service. If the registration
+fails, for example because the name is `consul`, the page shows why next to the
 container.
 
 To choose another Service name, click Choose name. If a container has several
 ports or none, click Choose port. A form opens with the proposed name and the
 ports of the container. Change them, and click Register. The page of the
-Service then opens. If the register fails, the form shows why next to the
+Service then opens. If the registration fails, the form shows why next to the
 field.
 
 If the Service has Yard Scope and the container port is not published, the
@@ -504,19 +504,21 @@ The body can give `port`, `service` (another Service name) and
 `publish: false` (to bind without publishing a new Service). Give `port` when
 the container does not have exactly one TCP port. If you do not, the error
 lists the ports of the container. If a Container Binding already follows the
-container, the register is refused with 409, and names the Service of that
+container, the registration is refused with 409, and names the Service of that
 Container Binding.
 
-If no container of that name runs, the register binds the name, so you can
-set up the Container Binding before the container starts. Then `port` is
-needed: without it, the register is refused with 400, and the `field` of the
+If no container of that name runs, LVH Yard binds the name, so you can set up
+the Container Binding before the container starts. Then `port` is needed:
+without it, the registration is refused with 400, and the `field` of the
 error is `port`. The Service gets the cleaned container name. The Service gets
 its Bound Instance when the container starts.
 
-Below the list, a form binds a container name or a Compose service that does
-not need to run. Choose "Container name" or "Compose service", and fill in its
-names, the container port and the Service name. If the Service is new, LVH Yard
-publishes it with Local Scope. To keep it unpublished, clear "Publish a new
+Below the list, a form binds a container name or a Compose service. The
+container or Compose service does not need to run. Choose "Container name" or
+"Compose service", and fill in its names and the container port. If you leave
+the Service name empty, LVH Yard uses the cleaned container name or the cleaned
+Compose service name. If the Service is new, LVH Yard
+publishes it with Local Scope. To keep it Unpublished, clear "Publish a new
 Service". Then click Bind. The page of the Service opens. If the binding
 fails, the form shows why next to the field.
 
@@ -525,7 +527,7 @@ The body gives `container`, or `composeProject` and `composeService`, and
 `port`. It can give `publish: false`. If a Container Binding of this
 Workstation already follows the same container name, or the same Compose
 project and service, the binding is refused with 409, and names the Service of
-that Container Binding.
+that Container Binding. This is also true for the same target and port again.
 
 From the terminal:
 

@@ -20,4 +20,15 @@ class Register implements Runnable {
   public void run() {
     spec.commandLine().usage(spec.commandLine().getOut());
   }
+
+  Dashboard dashboard() {
+    return yard.dashboard();
+  }
+
+  /**
+   * What {@code --no-publish} asks of the dashboard: {@code null} lets it publish a new Service.
+   */
+  static Boolean publish(boolean noPublish) {
+    return noPublish ? false : null;
+  }
 }

@@ -262,7 +262,7 @@ paths:
         \ cleaned to follow the Service name rule, unless service is given. The port\
         \ is needed when the container does not run, or does not have exactly one\
         \ TCP port. A new Service is published with Local Scope, unless publish is\
-        \ false. A Service that exists keeps its Publication, or stays unpublished.\
+        \ false. A Service that exists keeps its Publication, or stays Unpublished.\
         \ The body can be left out."
       operationId: registerContainer
       parameters:
@@ -362,7 +362,8 @@ paths:
     post:
       description: "Give either container, or composeProject and composeService. Each\
         \ running container that matches is a Bound Instance with a TCP check. A new\
-        \ Service gets a Publication with Local Scope, unless publish is false."
+        \ Service gets a Publication with Local Scope, unless publish is false. Binding\
+        \ the same target again, even with the same port, answers 409."
       operationId: bindContainer
       parameters:
       - in: path

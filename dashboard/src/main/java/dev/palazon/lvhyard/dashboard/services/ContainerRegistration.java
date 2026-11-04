@@ -50,7 +50,10 @@ public class ContainerRegistration {
     List<Docker.Container> running = running();
     Map<String, Map<String, ContainerBindingRequest>> followed = bindings.all(null);
     return running.stream()
-        .filter(container -> followingService(followed, container).isEmpty())
+        .filter(container ->
+            ContainerBindings.following(
+                    followed, binding -> ContainerBindings.matches(binding, container))
+                .isEmpty())
         .map(UnfollowedContainer::of)
         .sorted(
             Comparator.comparing(
@@ -64,7 +67,7 @@ public class ContainerRegistration {
    * Binds the container {@code name} to a Service. A running container is bound by its Compose
    * project and service when it has them, so the Binding outlives {@code docker compose up}, else
    * by its name. A container that does not run is bound by its name, so the Binding can come before
-   * the container. A Service that already exists keeps its Publication, or stays unpublished. The
+   * the container. A Service that already exists keeps its Publication, or stays Unpublished. The
    * Service name is by default the proposed one, the Compose service or container name cleaned.
    *
    * @return the Service, with the container bound
@@ -76,9 +79,12 @@ public class ContainerRegistration {
     Optional<Docker.Container> running =
         running().stream().filter(container -> container.isNamed(name)).findFirst();
     Map<String, Map<String, ContainerBindingRequest>> followed = bindings.all(null);
-    running
-        .map(container -> followingService(followed, container))
-        .orElseGet(() -> followingByName(followed, name))
+    ContainerBindings.following(
+            followed,
+            binding ->
+                running
+                    .map(container -> ContainerBindings.matches(binding, container))
+                    .orElseGet(() -> name.equals(binding.container())))
         .ifPresent(following -> {
           throw new FollowedContainerException(name, following);
         });
@@ -108,28 +114,6 @@ public class ContainerRegistration {
     publications.addPublishingNew(
         service, request.publish(), () -> bindings.add(workstation.name(), service, binding));
     return yard.service(workstation.name(), service).orElseThrow();
-  }
-
-  /** The Service of the first Binding in {@code followed} that names {@code container}. */
-  private static Optional<String> followingByName(
-      Map<String, Map<String, ContainerBindingRequest>> followed, String container) {
-    return followed.entrySet().stream()
-        .filter(byService ->
-            byService.getValue().values().stream()
-                .anyMatch(binding -> container.equals(binding.container())))
-        .map(Map.Entry::getKey)
-        .findFirst();
-  }
-
-  /** The Service of the first Binding in {@code followed} that matches {@code container}. */
-  private static Optional<String> followingService(
-      Map<String, Map<String, ContainerBindingRequest>> followed, Docker.Container container) {
-    return followed.entrySet().stream()
-        .filter(byService ->
-            byService.getValue().values().stream()
-                .anyMatch(binding -> ContainerBindings.matches(binding, container)))
-        .map(Map.Entry::getKey)
-        .findFirst();
   }
 
   private static int onlyPort(UnfollowedContainer container) {

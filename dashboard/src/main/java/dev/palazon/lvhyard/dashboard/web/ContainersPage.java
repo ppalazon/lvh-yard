@@ -8,6 +8,7 @@ import dev.palazon.lvhyard.dashboard.services.Service;
 import dev.palazon.lvhyard.dashboard.services.UnfollowedContainer;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.xmlet.htmlapifaster.Div;
@@ -24,9 +25,11 @@ final class ContainersPage {
 
   static final String BIND_PATH = PATH + "/bind";
 
-  static final String CONTAINER = "container";
-
-  static final String COMPOSE = "compose";
+  /** What the binding form binds. The form sends its name, as Spring binds an enum by name. */
+  enum Kind {
+    CONTAINER,
+    COMPOSE
+  }
 
   record RegisterFailure(String container, String reason) {}
 
@@ -34,21 +37,21 @@ final class ContainersPage {
    * What the binding form sends, besides {@code publish}. Spring fills the fields by name. A field
    * left out is empty.
    *
-   * @param kind {@value #CONTAINER} or {@value #COMPOSE}, by default {@value #CONTAINER}
-   * @param name the Service name
+   * @param kind by default {@link Kind#CONTAINER}
+   * @param name the Service name, or empty to use the proposed one
    */
   record Binding(
-      String kind,
+      Kind kind,
       String container,
       String composeProject,
       String composeService,
       String containerPort,
       String name) {
 
-    static final Binding EMPTY = new Binding(CONTAINER, "", "", "", "", "");
+    static final Binding EMPTY = new Binding(Kind.CONTAINER, "", "", "", "", "");
 
     Binding {
-      kind = COMPOSE.equals(kind) ? COMPOSE : CONTAINER;
+      kind = kind == null ? Kind.CONTAINER : kind;
       container = container == null ? "" : container;
       composeProject = composeProject == null ? "" : composeProject;
       composeService = composeService == null ? "" : composeService;
@@ -59,7 +62,7 @@ final class ContainersPage {
     /** The other kind's fields are left out. */
     ContainerBindingRequest request(boolean publish) {
       Integer port = Registrations.parsePort("containerPort", containerPort);
-      return kind.equals(COMPOSE)
+      return kind == Kind.COMPOSE
           ? new ContainerBindingRequest(null, composeProject, composeService, port, publish)
           : new ContainerBindingRequest(container, null, null, port, publish);
     }
@@ -86,7 +89,7 @@ final class ContainersPage {
    * @param dockerProblem why Docker cannot be read, or {@code null} when it answered
    * @param registered the Service that the one-click Register just gave a container, or {@code
    *     null}. It is said outside the refreshed list, so the refresh keeps it.
-   * @param failure the register that failed, or {@code null}
+   * @param failure the registration that failed, or {@code null}
    */
   static String render(
       Workstation workstation,
@@ -167,8 +170,8 @@ final class ContainersPage {
         .attrClass("flex flex-col gap-3")
         .addAttr("role", "radiogroup")
         .addAttr("aria-label", "What to bind")
-        .of(group -> kind(group, CONTAINER, "Container name", binding.kind()))
-        .of(group -> kind(group, COMPOSE, "Compose service", binding.kind()))
+        .of(group -> kind(group, Kind.CONTAINER, "Container name", binding.kind()))
+        .of(group -> kind(group, Kind.COMPOSE, "Compose service", binding.kind()))
         .__()
         .of(form ->
             InstanceForm.text(
@@ -213,9 +216,9 @@ final class ContainersPage {
                 "Service name",
                 binding.name(),
                 "web",
-                "Lowercase letters, digits and -.",
+                "Lowercase letters, digits and -. If empty, the container or Compose service name.",
                 error))
-        .of(form -> StaticInstancesPage.publish(form, bind.publish()))
+        .of(form -> InstanceForm.publish(form, bind.publish()))
         .button()
         .attrType(EnumTypeButtonType.SUBMIT)
         .attrClass("btn w-fit")
@@ -224,18 +227,18 @@ final class ContainersPage {
         .__();
   }
 
-  private static void kind(Div<?> group, String value, String label, String chosen) {
+  private static void kind(Div<?> group, Kind kind, String label, Kind chosen) {
     group
         .label()
         .attrClass("label gap-3")
         .input()
         .attrType(EnumTypeInputType.RADIO)
         .attrClass("input")
-        .attrId("kind-" + value)
+        .attrId("kind-" + kind.name().toLowerCase(Locale.ROOT))
         .attrName("kind")
-        .attrValue(value)
+        .attrValue(kind.name())
         .of(input -> {
-          if (value.equals(chosen)) {
+          if (kind == chosen) {
             input.attrChecked(true);
           }
         })
@@ -399,7 +402,7 @@ final class ContainersPage {
   /**
    * @param name the Service name as typed
    * @param port the container port as typed
-   * @param error why the last register failed, shown at its field, or {@code null}
+   * @param error why the last registration failed, shown at its field, or {@code null}
    */
   static String renderRegister(
       Workstation workstation,

@@ -12,8 +12,7 @@ import picocli.CommandLine.Spec;
 @Command(
     name = "container",
     mixinStandardHelpOptions = true,
-    description =
-        "Binds a Service to a container or a Compose service, and publishes a new Service.")
+    description = "Binds a container or a Compose service to a Service.")
 class RegisterContainer implements Runnable {
 
   /** The longest DNS label, as the dashboard's Service name rule allows. */
@@ -33,7 +32,7 @@ class RegisterContainer implements Runnable {
       paramLabel = "<project>/<service>",
       description =
           "Binds a Compose service instead of a container, such as shop/web. Each of its running"
-              + " containers is an Instance. It does not need to run.")
+              + " containers is an Instance. The Compose service does not need to run.")
   String compose;
 
   @Option(
@@ -69,9 +68,8 @@ class RegisterContainer implements Runnable {
     }
     Dashboard.Service registered =
         register
-            .yard
             .dashboard()
-            .registerContainer(container, port, service, noPublish ? false : null);
+            .registerContainer(container, port, service, Register.publish(noPublish));
     PrintWriter out = spec.commandLine().getOut();
     out.println(
         "Registered "
@@ -107,10 +105,9 @@ class RegisterContainer implements Runnable {
     String name = service != null ? service : cleaned(composeService);
     Dashboard.ContainerBinding binding =
         register
-            .yard
             .dashboard()
             .bindCompose(
-                name, projectAndService[0], composeService, port, noPublish ? false : null);
+                name, projectAndService[0], composeService, port, Register.publish(noPublish));
     PrintWriter out = spec.commandLine().getOut();
     out.println(
         "Bound "

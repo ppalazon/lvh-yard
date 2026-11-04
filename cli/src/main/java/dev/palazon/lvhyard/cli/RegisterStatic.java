@@ -37,7 +37,6 @@ class RegisterStatic implements Runnable {
   public void run() {
     Dashboard.Instance instance =
         register
-            .yard
             .dashboard()
             .register(
                 service,
@@ -46,7 +45,7 @@ class RegisterStatic implements Runnable {
                 options.healthCheck(),
                 options.tags,
                 options.meta,
-                noPublish ? false : null);
+                Register.publish(noPublish));
     spec.commandLine()
         .getOut()
         .println(

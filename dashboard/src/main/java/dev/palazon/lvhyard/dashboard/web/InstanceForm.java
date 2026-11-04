@@ -11,7 +11,7 @@ import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeInputType;
 import org.xmlet.htmlapifaster.Form;
 
-/** Shared by the Static Instances form and the edit form. */
+/** Fields shared by the Static Instances form, the edit form and the binding form. */
 final class InstanceForm {
 
   private InstanceForm() {}
@@ -225,5 +225,23 @@ final class InstanceForm {
 
   private static boolean isAbout(InvalidRegistrationException error, String name) {
     return error != null && error.field().equals(name);
+  }
+
+  /** A cleared checkbox sends nothing, so the form sends {@code publish} only when it is on. */
+  static void publish(Form<?> form, boolean checked) {
+    form.label()
+        .attrClass("label gap-3")
+        .input()
+        .attrType(EnumTypeInputType.CHECKBOX)
+        .attrClass("input")
+        .attrName("publish")
+        .of(input -> {
+          if (checked) {
+            input.attrChecked(true);
+          }
+        })
+        .__()
+        .text("Publish a new Service")
+        .__();
   }
 }

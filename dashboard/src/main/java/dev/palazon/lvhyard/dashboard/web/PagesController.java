@@ -371,17 +371,20 @@ class PagesController {
 
   /**
    * The binding form of the Containers page. A followed target is shown at its field, as the other
-   * failures are.
+   * failures are. With no Service name, the Service name is the one the register endpoint proposes.
    *
    * @param publish sent only when the "Publish a new Service" checkbox is on
    */
   @PostMapping(path = ContainersPage.BIND_PATH, produces = MediaType.TEXT_HTML_VALUE)
   ResponseEntity<String> bindContainer(
       ContainersPage.Binding binding, @RequestParam(required = false) String publish) {
-    String service = binding.name().strip();
     InvalidRegistrationException error;
     try {
       ContainerBindingRequest request = binding.request(publish != null);
+      String service =
+          binding.name().isBlank() && request.proposedService() != null
+              ? request.proposedService()
+              : binding.name().strip();
       publications.addPublishingNew(
           service,
           request.publish(),

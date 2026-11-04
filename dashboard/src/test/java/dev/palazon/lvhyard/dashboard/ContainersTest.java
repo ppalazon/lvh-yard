@@ -565,8 +565,8 @@ class ContainersTest extends DashboardTest {
 
     assertThat(page.indexOf("action=\"/containers/bind\""))
         .isGreaterThan(page.indexOf("id=\"containers\""));
-    assertThat(openingTag(page, "value=\"container\"")).contains("type=\"radio\"");
-    assertThat(openingTag(page, "value=\"compose\"")).contains("type=\"radio\"");
+    assertThat(openingTag(page, "value=\"CONTAINER\"")).contains("type=\"radio\"");
+    assertThat(openingTag(page, "value=\"COMPOSE\"")).contains("type=\"radio\"");
     assertThat(page)
         .contains("Container name")
         .contains("Compose service")
@@ -585,7 +585,7 @@ class ContainersTest extends DashboardTest {
             "/containers/bind",
             Map.of(
                 "kind",
-                "container",
+                "CONTAINER",
                 "container",
                 name,
                 "containerPort",
@@ -613,7 +613,7 @@ class ContainersTest extends DashboardTest {
             "/containers/bind",
             Map.of(
                 "kind",
-                "compose",
+                "COMPOSE",
                 "composeProject",
                 project,
                 "composeService",
@@ -637,7 +637,7 @@ class ContainersTest extends DashboardTest {
     ResponseEntity<String> response =
         postForm(
             "/containers/bind",
-            Map.of("kind", "container", "container", name, "containerPort", "", "name", "web"));
+            Map.of("kind", "CONTAINER", "container", name, "containerPort", "", "name", "web"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(openingTag(response.getBody(), "name=\"containerPort\""))
@@ -654,7 +654,7 @@ class ContainersTest extends DashboardTest {
             "/containers/bind",
             Map.of(
                 "kind",
-                "compose",
+                "COMPOSE",
                 "composeProject",
                 "Shop",
                 "composeService",
@@ -663,20 +663,52 @@ class ContainersTest extends DashboardTest {
                 "web"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(openingTag(response.getBody(), "value=\"compose\"")).contains("checked");
+    assertThat(openingTag(response.getBody(), "value=\"COMPOSE\"")).contains("checked");
     assertThat(openingTag(response.getBody(), "name=\"composeProject\""))
         .contains("aria-invalid=\"true\"");
   }
 
   @Test
-  void bindingFormWithoutAServiceNameShowsTheErrorAtTheNameField() {
+  void bindingFormWithoutAServiceNameBindsIntoAServiceOfTheCleanedContainerName() {
+    String id = newContainerName().substring("yard-test-".length());
+    String name = "Yard_Test." + id;
+
     ResponseEntity<String> response =
         postForm(
             "/containers/bind",
-            Map.of("kind", "container", "container", newContainerName(), "containerPort", "80"));
+            Map.of("kind", "CONTAINER", "container", name, "containerPort", "80", "name", " "));
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(openingTag(response.getBody(), "name=\"name\"")).contains("aria-invalid=\"true\"");
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    assertThat(response.getHeaders().getLocation()).hasPath("/services/ws-test/yard-test-" + id);
+    JsonNode service = get(servicePath("yard-test-" + id)).getBody();
+    assertThat(service.get("containerBindings").get(0).get("id").asString())
+        .isEqualTo(name + ":80");
+  }
+
+  @Test
+  void bindingFormWithoutAServiceNameBindsAComposeServiceIntoAServiceOfItsCleanedName() {
+    String project = newComposeProject();
+    String composeService = "Web_" + project.substring("yard-test-".length());
+    String web = "web-" + project.substring("yard-test-".length());
+
+    ResponseEntity<String> response =
+        postForm(
+            "/containers/bind",
+            Map.of(
+                "kind",
+                "COMPOSE",
+                "composeProject",
+                project,
+                "composeService",
+                composeService,
+                "containerPort",
+                "80"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    assertThat(response.getHeaders().getLocation()).hasPath("/services/ws-test/" + web);
+    JsonNode service = get(servicePath(web)).getBody();
+    assertThat(service.get("containerBindings").get(0).get("id").asString())
+        .isEqualTo("compose:" + project + ":" + composeService + ":80");
   }
 
   @Test
@@ -688,7 +720,7 @@ class ContainersTest extends DashboardTest {
     ResponseEntity<String> response =
         postForm(
             "/containers/bind",
-            Map.of("kind", "container", "container", name, "containerPort", "9000", "name", "api"));
+            Map.of("kind", "CONTAINER", "container", name, "containerPort", "9000", "name", "api"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(openingTag(response.getBody(), "name=\"container\""))

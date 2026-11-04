@@ -41,8 +41,6 @@ public record ContainerBinding(
    * As the pages say it: {@code container web-1}, or {@code Compose service web of project shop}.
    */
   public String follows() {
-    return container != null
-        ? "container " + container
-        : "Compose service " + composeService + " of project " + composeProject;
+    return ContainerBindingRequest.follows(container, composeProject, composeService);
   }
 }
