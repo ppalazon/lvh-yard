@@ -71,7 +71,13 @@ final class Dashboard {
   }
 
   /** {@code kind} is left out when no Instance passes, and the Route then uses every one. */
-  record Routing(String kind, List<String> instances) {}
+  /** The API leaves {@code off} out when it is false. */
+  record Routing(String kind, Boolean off, List<String> instances) {
+
+    boolean isOff() {
+      return Boolean.TRUE.equals(off);
+    }
+  }
 
   record ContainerBinding(
       String id,

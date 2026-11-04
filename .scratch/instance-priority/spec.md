@@ -1,6 +1,6 @@
 # Instance Priority: prefer the copy you are working on
 
-Status: ready-for-agent
+Status: done
 
 Words follow `GLOSSARY.md` (Instance Priority, Static Instance, Bound Instance, Alias, Out-of-range Instance). Decisions follow ADR-0005 (Instance Priority, by Instance kind, chosen from Health) and ADR-0002.
 
@@ -58,7 +58,7 @@ A user can also turn the Instance Priority off for a Service. Then the Route use
 - API: `PublicationRequest` gains `priority` (array of kinds, optional; absent keeps the current one). The Service model gains `priority` and `routing` (the kind in use, or none, and the Instance IDs it routes to). Documented in `openapi.yaml`.
 - CLI: `publish --priority <kinds>`; `list` marks routed Instances.
 - Page: the Service page shows the order with move up/down and remove controls, and the routing line.
-- Off is an empty order: `priority: []` in the API and in the stored Publication. The CLI word `off` sends `[]`. An empty order means "no preference", so the API no longer refuses it. With an empty order, the Static and Bound Instances form one group. The same Health rule picks from that group. The `alias` kind is never used. The Service model's `routing` has no `kind` while off. Off is stored as JSON, like any order other than the default. So older Workstations cannot read it.
+- Off is an empty order: `priority: []` in the API and in the stored Publication. The CLI word `off` sends `[]`. An empty order means "no preference", so the API no longer refuses it. With an empty order, the Static and Bound Instances form one group. The same Health rule picks from that group. The `alias` kind is never used. The Service model's `routing` has no `kind` while off, and has `off: true`. `lvh-yard test` reads `off` to say that the Instance Priority is off. Off is stored as JSON, like any order other than the default. So older Workstations cannot read it.
 - To turn it on again, the user gives an order. The page's "Use an order" control sends the default order. The CLI takes `--priority` with kinds.
 
 ## Testing Decisions

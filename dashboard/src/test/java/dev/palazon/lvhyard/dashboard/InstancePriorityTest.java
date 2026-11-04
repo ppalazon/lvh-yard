@@ -61,6 +61,7 @@ class InstancePriorityTest extends InstancePriorityTestSupport {
     awaitRoutedTo(web, "10.1.2.3:8080", containerAddress(container) + ":81");
     JsonNode routing = get(servicePath(web)).getBody().get("routing");
     assertThat(routing.has("kind")).isFalse();
+    assertThat(routing.has("off")).isFalse();
     assertThat(routing.get("instances")).hasSize(2);
     assertThat(getPage("/services/ws-test/" + web).getBody())
         .contains("Routing to: every Instance, as none is passing");

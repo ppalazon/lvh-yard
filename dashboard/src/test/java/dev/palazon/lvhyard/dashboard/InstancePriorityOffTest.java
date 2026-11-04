@@ -21,6 +21,7 @@ class InstancePriorityOffTest extends InstancePriorityTestSupport {
     awaitRoutedTo(web, terminal, bound);
     JsonNode routing = get(servicePath(web)).getBody().get("routing");
     assertThat(routing.has("kind")).isFalse();
+    assertThat(routing.get("off").asBoolean()).isTrue();
     assertThat(getPage("/services/ws-test/" + web).getBody())
         .contains("Routing to: every passing Instance (Instance Priority off)");
 

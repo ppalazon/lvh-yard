@@ -865,6 +865,8 @@ components:
           - static
           - bound
           - alias
+        "off":
+          type: boolean
       required:
       - instances
     Service:

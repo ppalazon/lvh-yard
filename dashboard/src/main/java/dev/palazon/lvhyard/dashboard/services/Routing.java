@@ -17,13 +17,13 @@ import java.util.Optional;
  *     they are Instances of the Alias's Remote Service.
  * @param waiting the other kinds of the order that have an Instance in range
  * @param off whether the Instance Priority is off. Then the Static and Bound Instances form one
- *     group, with no kind.
+ *     group, with no kind. It is left out when false.
  */
 public record Routing(
     @JsonInclude(JsonInclude.Include.NON_NULL) InstanceKind kind,
     @JsonIgnore @Schema(hidden = true) List<Instance> routedInstances,
     @JsonIgnore @Schema(hidden = true) List<InstanceKind> waiting,
-    @JsonIgnore @Schema(hidden = true) boolean off) {
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT) boolean off) {
 
   /** The IDs of {@link #routedInstances}. */
   @JsonProperty("instances")

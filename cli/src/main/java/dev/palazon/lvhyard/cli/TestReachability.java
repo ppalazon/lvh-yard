@@ -87,6 +87,11 @@ class TestReachability implements Callable<Integer> {
 
   private static String routingNow(Dashboard.Reachability tested) {
     String kind = tested.routing().kind();
+    // Health is not in the answer, so off cannot tell passing Instances from none passing.
+    if (tested.routing().isOff()) {
+      return "The Instance Priority is off, so the Route uses every passing Instance,"
+          + " or every Instance in range if none passes.";
+    }
     if (kind == null) {
       return "No Instance passes, so the Route uses every Instance in range.";
     }

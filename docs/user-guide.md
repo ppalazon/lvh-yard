@@ -232,7 +232,8 @@ The page of the Service shows the kind in use, for example
 `Routing to: Static (Bound waiting)`. While the Instance Priority is off, it
 shows `Routing to: every passing Instance (Instance Priority off)`.
 `lvh-yard list` marks each Instance that the Route uses with `routed`. The API shows the order in `priority` and the
-Instances in use in `routing`.
+Instances in use in `routing`. While the Instance Priority is off, `routing`
+has `"off": true`.
 
 ### Out-of-range Instances
 
@@ -262,7 +263,8 @@ says why. An Out-of-range Instance is skipped, and that is not a failure.
 The result also says which Instances the Route uses now, under the Instance
 Priority. So an Instance that is reached but not in the Route is left out by
 the order, not broken. When the Route falls back to an Alias, the result names
-the Remote Service that gets the requests.
+the Remote Service that gets the requests. While the Instance Priority is off, the result
+says so.
 
 If Traefik has no Route for the hostname, or answers 502, 503 or 504, the
 request through Traefik fails. Any other answer means that the request reached
