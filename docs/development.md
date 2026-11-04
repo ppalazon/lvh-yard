@@ -94,6 +94,13 @@ mise run native:copy user@host --dir bin         # to ~/bin/lvh-yard
 The other computer must have the same OS and CPU type as this one. Neither
 task builds the executable, so run `mise run native` first.
 
+To build the dashboard image and the executable, and copy the executable to
+`~/.local/bin/lvh-yard`, run one task:
+
+```sh
+mise run install
+```
+
 ## Tests
 
 `mise run check` builds the stylesheet, builds both modules from scratch and

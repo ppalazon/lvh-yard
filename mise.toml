@@ -77,6 +77,10 @@ mv "$dir/lvh-yard.new" "$dir/lvh-yard"
 echo "Installed lvh-yard to $dir/lvh-yard"
 """
 
+[tasks.install]
+description = "Build the dashboard image and lvh-yard, and copy lvh-yard to ~/.local/bin"
+run = [{ task = "dashboard:image" }, { task = "native" }, { task = "native:install" }]
+
 [tasks.openapi]
 description = "Rewrite dashboard/openapi.yaml from the running dashboard's OpenAPI document"
 run = "./mvnw -q -pl dashboard test -Dtest=OpenApiTest#committedCopyIsCurrent -Dopenapi.update=true -Dsurefire.failIfNoSpecifiedTests=false"
