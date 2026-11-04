@@ -21,7 +21,6 @@ import picocli.CommandLine.Spec;
     mixinStandardHelpOptions = true,
     subcommands = {
       Init.class,
-      Compose.class,
       ListServices.class,
       Register.class,
       Containers.class,
@@ -92,7 +91,6 @@ public class Yard implements Runnable {
               command.getErr().flush();
               return 1;
             });
-    yard.getSubcommands().get("compose").setStopAtUnmatched(true);
     withVersion(yard);
     return yard;
   }

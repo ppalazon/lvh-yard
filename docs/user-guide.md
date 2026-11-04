@@ -37,8 +37,9 @@ Java or a copy of this repository.
    Yard of its own. To join a Yard, see [Joining a Yard](#joining-a-yard).
 
 3. Open TCP port 8300 and TCP and UDP port 8302 to the other Workstations.
-4. Start this Workstation: `lvh-yard compose up -d`. This starts Consul,
-   Traefik and the dashboard.
+4. Start this Workstation: `cd ~/.config/lvh-yard && docker compose up -d`.
+   This starts Consul, Traefik and the dashboard. If you gave `init` another
+   folder, `cd` to that folder.
 5. Make sure that the Core Services work: `lvh-yard status`.
 
 If Traefik works, open [yard.lvh.me](http://yard.lvh.me). If Traefik is down,
@@ -46,10 +47,13 @@ open `127.0.0.1:7780`. The Catalog shows the Core Services: `yard` (the
 dashboard), `consul` ([consul.lvh.me](http://consul.lvh.me)) and `traefik`
 ([traefik.lvh.me](http://traefik.lvh.me)).
 
-`lvh-yard compose <arguments>` runs `docker compose <arguments>` in the folder
-of this Workstation, from any directory. For example, `lvh-yard compose logs -f
-consul` shows the logs of Consul. If you gave `init` a `--dir` folder, set
-`YARD_CONFIG_DIR` to that folder first.
+Run the other `docker compose` commands in the same folder. For example,
+`docker compose logs -f consul` shows the logs of Consul.
+
+The files that `init` writes are a reference setup, and they are yours. You
+can change `compose.yaml`, or run Consul, Traefik and the dashboard another
+way. The comments in `compose.yaml` and `.env` explain each value. `lvh-yard`
+only talks to the dashboard. It does not start or stop anything.
 
 ### Joining a Yard
 
@@ -60,7 +64,7 @@ these commands on the new Workstation:
 
 ```sh
 lvh-yard init --reinit --peers 192.168.1.10 --gossip-key <key>
-lvh-yard compose up -d
+cd ~/.config/lvh-yard && docker compose up -d
 ```
 
 You can also give `--peers` and `--gossip-key` to the first `lvh-yard init`.
@@ -71,7 +75,8 @@ You can also give `--peers` and `--gossip-key` to the first `lvh-yard init`.
 install a new `lvh-yard`, use one of these flags:
 
 - `lvh-yard init --upgrade` changes only the consul, traefik and dashboard
-  images in `compose.yaml`. Then run `lvh-yard compose up -d` again.
+  images in `compose.yaml`. Then run `docker compose up -d` again in the
+  folder of this Workstation.
 - `lvh-yard init --reinit` writes `compose.yaml` and `.env` again from the new
   templates, with the values of the old `.env`. A flag that you give with it
   replaces the old value. The old files stay as

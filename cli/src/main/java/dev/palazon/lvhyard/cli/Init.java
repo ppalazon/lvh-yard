@@ -215,23 +215,17 @@ class Init implements Runnable {
   }
 
   private static String nextSteps(Path folder, EnvFile env) {
-    // lvh-yard compose finds the standard folder by itself, but not a --dir one.
-    boolean found =
-        folder
-            .toAbsolutePath()
-            .normalize()
-            .equals(ConfigFolder.forReading(System.getenv()).toAbsolutePath().normalize());
     return """
     Next steps:
       1. Open TCP port %s and TCP and UDP port %s to the other Workstations.
-      2. Start this Workstation: %slvh-yard compose up -d
+      2. Start this Workstation: cd %s && docker compose up -d
       3. Open the dashboard: %s
       4. Make sure that the Core Services work: lvh-yard status
     """
         .formatted(
             env.valueOrDefault(Settings.CONSUL_SERVER_PORT),
             env.valueOrDefault(Settings.CONSUL_SERF_WAN_PORT),
-            found ? "" : Settings.CONFIG_DIR + "=" + folder + " ",
+            folder,
             env.dashboardUrl());
   }
 

@@ -2410,47 +2410,10 @@ class YardTest {
 
     assertThat(run.out())
         .contains("Open TCP port 8300 and TCP and UDP port 8302 to the other Workstations.")
-        .contains("Start this Workstation: YARD_CONFIG_DIR=" + dir + " lvh-yard compose up -d")
+        .contains("Start this Workstation: cd " + dir + " && docker compose up -d")
         .contains("http://127.0.0.1:7780")
         .contains("lvh-yard status")
         .contains("lvh-yard init --reinit --peers <ip> --gossip-key <key>");
-  }
-
-  @Test
-  void initsNextStepsNeedNoFolderForTheStandardOne(@TempDir Path config) throws Exception {
-    Run run =
-        yardProcess(Map.of("XDG_CONFIG_HOME", config.toString()), "init", "--workstation", "ws-a");
-
-    assertThat(run.out()).contains("Start this Workstation: lvh-yard compose up -d\n");
-  }
-
-  @Test
-  void composeRunsDockerComposeInTheWorkstationFolder(@TempDir Path config, @TempDir Path bin)
-      throws Exception {
-    Path folder = config.resolve("lvh-yard");
-    yardAsTyped("init", "--dir", folder.toString(), "--workstation", "ws-a");
-    Path docker = bin.resolve("docker");
-    Files.writeString(docker, "#!/bin/sh\necho \"$(pwd) $*\"\nexit 3\n");
-    docker.toFile().setExecutable(true);
-
-    Run run =
-        yardProcess(
-            Map.of("XDG_CONFIG_HOME", config.toString(), "PATH", bin + ":" + System.getenv("PATH")),
-            "compose",
-            "logs",
-            "--help",
-            "-f");
-
-    assertThat(run.exitCode()).isEqualTo(3);
-    assertThat(run.out()).isEqualTo(folder.toRealPath() + " compose logs --help -f\n");
-  }
-
-  @Test
-  void composeWithoutAComposeFileSaysToRunInit(@TempDir Path config) throws Exception {
-    Run run = yardProcess(Map.of("YARD_CONFIG_DIR", config.toString()), "compose", "ps");
-
-    assertThat(run.exitCode()).isEqualTo(1);
-    assertThat(run.err()).contains("No compose.yaml in " + config + ": run lvh-yard init first.");
   }
 
   @Test
