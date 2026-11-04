@@ -70,6 +70,7 @@ final class RegisterPage {
     return Layout.page(
         "Register",
         workstation.name(),
+        Layout.Section.STATIC_INSTANCES,
         main ->
             main.h1()
                 .text("Register a Service")

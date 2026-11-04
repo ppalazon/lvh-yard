@@ -112,6 +112,14 @@ class PagesController {
     return value == null || value.isBlank();
   }
 
+  /** The navigation bar links here. Until this page exists, the Register page stands in. */
+  @GetMapping(Layout.STATIC_INSTANCES_PATH)
+  ResponseEntity<Void> staticInstances() {
+    return ResponseEntity.status(HttpStatus.MOVED_PERMANENTLY)
+        .location(URI.create(RegisterPage.PATH))
+        .build();
+  }
+
   @GetMapping(path = RegisterPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
   @ResponseBody
   String registerForm() {

@@ -13,6 +13,10 @@ Each Workstation runs three things:
 - the dashboard, which gives Traefik its Routes
   ([ADR-0002](adr/0002-traefik-reads-routes-from-lvh-yard.md))
 
+Each page of the dashboard has a navigation bar at the top. It links to the
+Catalog, Containers, Aliases and Static Instances pages, and it highlights the
+current page.
+
 ## Running on a Workstation
 
 You need Docker with Compose and the `lvh-yard` executable. You do not need
@@ -441,7 +445,7 @@ The dashboard follows the Docker events at `DOCKER_HOST`. If that is not set,
 it uses `unix:///var/run/docker.sock`. When it starts, or when Docker answers
 again, it updates each Binding to the containers that run then.
 
-The Containers page (`/containers`, linked from the Catalog) lists the running
+The Containers page (`/containers`) lists the running
 containers that no Container Binding follows yet. It groups Compose containers
 by Compose project, and lists the other containers apart. For each container,
 it shows the TCP ports, with the host port when the port is published, and the

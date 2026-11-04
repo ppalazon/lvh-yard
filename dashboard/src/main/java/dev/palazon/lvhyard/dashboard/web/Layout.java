@@ -24,7 +24,31 @@ final class Layout {
 
   private Layout() {}
 
+  /** Ticket 03 of navigation-and-register gives this path a page of its own. */
+  static final String STATIC_INSTANCES_PATH = "/static-instances";
+
+  /** A link of the navigation bar in the header. */
+  enum Section {
+    CATALOG("Catalog", "/"),
+    CONTAINERS("Containers", ContainersPage.PATH),
+    ALIASES("Aliases", AliasesPage.PATH),
+    STATIC_INSTANCES("Static Instances", STATIC_INSTANCES_PATH);
+
+    final String label;
+    final String path;
+
+    Section(String label, String path) {
+      this.label = label;
+      this.path = path;
+    }
+  }
+
+  /** A page that is none of the {@link Section}s, so no link of the navigation bar is current. */
   static String page(String title, String workstation, Consumer<Main<?>> content) {
+    return page(title, workstation, null, content);
+  }
+
+  static String page(String title, String workstation, Section current, Consumer<Main<?>> content) {
     StringBuilder out = new StringBuilder();
     HtmlFlow.doc(out)
         .setIndented(false)
@@ -55,18 +79,21 @@ final class Layout {
         .body()
         .header()
         .attrClass("border-b")
-        .nav()
-        .attrClass("mx-auto flex max-w-6xl items-center justify-between px-4 py-3")
+        .div()
+        .attrClass(
+            "mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4"
+                + " py-3")
         .a()
         .attrHref("/")
         .attrClass("font-semibold")
         .text("LVH Yard · " + workstation)
         .__()
         .div()
-        .attrClass("flex items-center gap-3")
+        .attrClass("flex items-center gap-3 sm:order-last")
         .of(Layout::statusDots)
         .of(Layout::themeToggle)
         .__()
+        .of(bar -> navigation(bar, current))
         .__()
         .__()
         .main()
@@ -76,6 +103,35 @@ final class Layout {
         .__()
         .__();
     return out.toString();
+  }
+
+  /** On a phone, the links take a row of their own below the title. */
+  private static void navigation(Div<?> bar, Section current) {
+    bar.nav()
+        .addAttr("aria-label", "Main")
+        .attrClass("w-full sm:w-auto sm:flex-1")
+        .ul()
+        .attrClass("flex flex-wrap gap-1")
+        .of(list -> {
+          for (Section section : Section.values()) {
+            list.li()
+                .a()
+                .attrHref(section.path)
+                .attrClass("btn")
+                .addAttr("data-size", "sm")
+                .addAttr("data-variant", section == current ? "secondary" : "ghost")
+                .of(link -> {
+                  if (section == current) {
+                    link.addAttr("aria-current", "page");
+                  }
+                })
+                .text(section.label)
+                .__()
+                .__();
+          }
+        })
+        .__()
+        .__();
   }
 
   /**

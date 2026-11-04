@@ -39,6 +39,7 @@ final class AliasesPage {
     return Layout.page(
         "Aliases",
         workstation.name(),
+        Layout.Section.ALIASES,
         main ->
             main.h1()
                 .text("Aliases")
