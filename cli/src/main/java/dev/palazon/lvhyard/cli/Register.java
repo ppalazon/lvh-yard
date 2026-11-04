@@ -1,40 +1,40 @@
 package dev.palazon.lvhyard.cli;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
+import picocli.CommandLine.ParameterException;
 import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
+/**
+ * Without a subcommand, it still takes a Service name and the options of a Static Instance or a
+ * Container Binding, until {@code register container} replaces that form.
+ */
 @Command(
     name = "register",
     mixinStandardHelpOptions = true,
+    subcommands = RegisterStatic.class,
     description = "Registers an Instance of a Service, or binds it to a container.")
 class Register implements Runnable {
 
   @ParentCommand Yard yard;
 
-  @Parameters(paramLabel = "<service>", description = "The Service's name, a single DNS label.")
+  // Optional here, so that picocli lets a subcommand through. run() asks for them.
+  @Parameters(
+      arity = "0..1",
+      paramLabel = "<service>",
+      description = "The Service's name, a single DNS label.")
   String service;
-
-  @Option(
-      names = "--host",
-      paramLabel = "<host>",
-      description =
-          "The address the Instance listens on (default: this Workstation's LAN address).")
-  String host;
 
   @Option(
       names = "--port",
       paramLabel = "<port>",
-      required = true,
       description = "The port the Instance listens on. For a container, the port inside it.")
-  int port;
+  Integer port;
 
   @Option(
       names = "--container",
@@ -58,48 +58,19 @@ class Register implements Runnable {
       description = "The Compose service to bind to, in --compose-project.")
   String composeService;
 
-  @Option(
-      names = "--check",
-      paramLabel = "<type>",
-      description =
-          "The Health check: tcp connects to the port, http GETs --path (default: http with --path,"
-              + " else tcp).")
-  String check;
-
-  @Option(
-      names = "--path",
-      paramLabel = "<path>",
-      description = "The path an HTTP check GETs (default: /).")
-  String path;
-
-  @Option(
-      names = "--interval",
-      paramLabel = "<duration>",
-      description = "Time between checks, 1s or more, such as 5s or 1m (default: 10s).")
-  String interval;
-
-  @Option(
-      names = "--timeout",
-      paramLabel = "<duration>",
-      description = "How long the check waits for an answer, such as 500ms (default: 2s).")
-  String timeout;
-
-  @Option(
-      names = "--tag",
-      paramLabel = "<tag>",
-      description = "A word that labels the Instance. Repeat for more.")
-  List<String> tags = new ArrayList<>();
-
-  @Option(
-      names = "--meta",
-      paramLabel = "<key=value>",
-      description = "A note about the Instance. Repeat for more.")
-  Map<String, String> meta = new LinkedHashMap<>();
+  @Mixin StaticInstanceOptions options;
 
   @Spec CommandSpec spec;
 
   @Override
   public void run() {
+    if (service == null || port == null) {
+      throw new ParameterException(
+          spec.commandLine(),
+          service == null
+              ? "Missing required parameter: '<service>'"
+              : "Missing required option: '--port=<port>'");
+    }
     if (container != null || composeProject != null || composeService != null) {
       bind();
       return;
@@ -108,11 +79,12 @@ class Register implements Runnable {
         yard.dashboard()
             .register(
                 service,
-                host,
+                options.host,
                 port,
-                new Dashboard.Check(check, path, interval, timeout),
-                tags,
-                meta);
+                options.healthCheck(),
+                options.tags,
+                options.meta,
+                null);
     spec.commandLine()
         .getOut()
         .println(
@@ -136,24 +108,7 @@ class Register implements Runnable {
       throw new YardException(
           "A Compose service needs both --compose-project and --compose-service.");
     }
-    List<String> staticOnly = new ArrayList<>();
-    if (host != null) {
-      staticOnly.add("--host");
-    }
-    for (String[] option :
-        new String[][] {
-          {"--check", check}, {"--path", path}, {"--interval", interval}, {"--timeout", timeout}
-        }) {
-      if (option[1] != null) {
-        staticOnly.add(option[0]);
-      }
-    }
-    if (!tags.isEmpty()) {
-      staticOnly.add("--tag");
-    }
-    if (!meta.isEmpty()) {
-      staticOnly.add("--meta");
-    }
+    List<String> staticOnly = options.given();
     if (!staticOnly.isEmpty()) {
       String last = staticOnly.removeLast();
       throw new YardException(

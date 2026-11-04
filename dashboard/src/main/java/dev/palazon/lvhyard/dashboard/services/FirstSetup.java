@@ -174,7 +174,8 @@ public class FirstSetup implements SmartLifecycle {
               service.port(),
               new HealthCheck(HealthCheck.HTTP, service.path(), null, null),
               List.of(),
-              null));
+              null,
+              false));
       failIfPast(deadline);
       publications.publish(
           workstation.name(), service.name(), new PublicationRequest(Scope.LOCAL, null, null));

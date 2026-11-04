@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
@@ -147,6 +148,24 @@ public class Publications {
     if (!exists(service)) {
       throw new UnknownServiceException(service);
     }
+  }
+
+  /**
+   * Runs {@code add}, which gives {@code service} something on this Workstation. If the Service did
+   * not exist before, it then gets a Publication with Local Scope, unless {@code publish} is false.
+   * An existing Service keeps its Publication, or stays Unpublished.
+   *
+   * @return what {@code add} returns
+   */
+  public <T> T addPublishingNew(String service, Boolean publish, Supplier<T> add) {
+    // Before add, which makes the Service exist. Only this Workstation's Instances, Publication
+    // and Bindings count, so a Service with any of them but no Publication stays Unpublished.
+    boolean isNew = !exists(service);
+    T added = add.get();
+    if (isNew && !Boolean.FALSE.equals(publish)) {
+      publish(workstation.name(), service, PublicationRequest.KEEP_ALL);
+    }
+    return added;
   }
 
   /** It has an Instance, a Publication or a Container Binding on this Workstation. */

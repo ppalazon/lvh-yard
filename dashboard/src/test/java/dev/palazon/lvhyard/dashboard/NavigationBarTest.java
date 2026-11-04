@@ -4,8 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Map;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 
 /** The navigation bar in the header of every page. */
 class NavigationBarTest extends DashboardTest {
@@ -28,7 +26,7 @@ class NavigationBarTest extends DashboardTest {
     assertThat(currentLinkOf("/")).isEqualTo("/");
     assertThat(currentLinkOf("/containers")).isEqualTo("/containers");
     assertThat(currentLinkOf("/aliases")).isEqualTo("/aliases");
-    assertThat(currentLinkOf("/register")).isEqualTo("/static-instances");
+    assertThat(currentLinkOf("/static-instances")).isEqualTo("/static-instances");
   }
 
   @Test
@@ -40,14 +38,6 @@ class NavigationBarTest extends DashboardTest {
     assertThat(navOf(getPage("/services/ws-test/" + web + "/instances/" + id + "/edit").getBody()))
         .doesNotContain("aria-current");
     assertThat(navOf(getPage("/status").getBody())).doesNotContain("aria-current");
-  }
-
-  @Test
-  void staticInstancesRedirectsToTheRegisterForm() {
-    ResponseEntity<String> response = getPage("/static-instances");
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.MOVED_PERMANENTLY);
-    assertThat(response.getHeaders().getLocation()).hasPath("/register");
   }
 
   /** The address of the one link that has {@code aria-current="page"}. */

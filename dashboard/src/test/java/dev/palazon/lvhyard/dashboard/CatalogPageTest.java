@@ -28,7 +28,7 @@ class CatalogPageTest extends DashboardTest {
     assertThat(main)
         .doesNotContain("href=\"/containers\"")
         .doesNotContain("href=\"/aliases\"")
-        .doesNotContain("href=\"/register\"");
+        .doesNotContain("href=\"/static-instances\"");
   }
 
   @Test

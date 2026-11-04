@@ -195,7 +195,7 @@ class StatusTest extends DashboardTest {
 
   @Test
   void everyPageHeaderLoadsTheDotsEveryFiveSecondsAndKeepsThemOnAnError() {
-    for (String path : new String[] {"/", "/status", "/register"}) {
+    for (String path : new String[] {"/", "/status", "/static-instances"}) {
       assertThat(openingTag(getPage(path).getBody(), "id=\"status-dots\""))
           .as(path)
           .contains("hx-get=\"/status/summary\"")

@@ -8,6 +8,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -395,10 +396,13 @@ abstract class DashboardTest {
 
   /**
    * Registers a Static Instance of {@code service} on this Workstation through the REST API, and
-   * checks it took.
+   * checks it took. A new Service stays Unpublished unless {@code instance} has {@code publish}, so
+   * a test publishes it only when it needs to.
    */
   JsonNode register(String service, Map<String, Object> instance) {
-    ResponseEntity<JsonNode> response = post(instancesPath(service), instance);
+    Map<String, Object> body = new HashMap<>(instance);
+    body.putIfAbsent("publish", false);
+    ResponseEntity<JsonNode> response = post(instancesPath(service), body);
     if (!response.getStatusCode().is2xxSuccessful()) {
       throw new AssertionError("Registering " + service + " answered " + response);
     }

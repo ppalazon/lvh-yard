@@ -147,7 +147,8 @@ public class Registrations {
     HealthCheck check = checked(request.check());
     checkTags(request.tags());
     checkMeta(request.meta());
-    return new StaticInstanceRequest(host, request.port(), check, request.tags(), request.meta());
+    return new StaticInstanceRequest(
+        host, request.port(), check, request.tags(), request.meta(), request.publish());
   }
 
   private Instance put(String id, String service, StaticInstanceRequest instance) {

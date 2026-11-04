@@ -11,7 +11,7 @@ import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeInputType;
 import org.xmlet.htmlapifaster.Form;
 
-/** Shared by the Register form and the edit form. */
+/** Shared by the Static Instances form and the edit form. */
 final class InstanceForm {
 
   private InstanceForm() {}
@@ -69,7 +69,8 @@ final class InstanceForm {
           new HealthCheck(
               check.strip(), http ? path.strip() : null, interval.strip(), timeout.strip()),
           Registrations.parseTags(tags),
-          Registrations.parseMeta(meta));
+          Registrations.parseMeta(meta),
+          null);
     }
   }
 

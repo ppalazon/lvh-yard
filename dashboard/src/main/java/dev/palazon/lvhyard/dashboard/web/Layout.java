@@ -24,15 +24,12 @@ final class Layout {
 
   private Layout() {}
 
-  /** Ticket 03 of navigation-and-register gives this path a page of its own. */
-  static final String STATIC_INSTANCES_PATH = "/static-instances";
-
   /** A link of the navigation bar in the header. */
   enum Section {
     CATALOG("Catalog", "/"),
     CONTAINERS("Containers", ContainersPage.PATH),
     ALIASES("Aliases", AliasesPage.PATH),
-    STATIC_INSTANCES("Static Instances", STATIC_INSTANCES_PATH);
+    STATIC_INSTANCES("Static Instances", StaticInstancesPage.PATH);
 
     final String label;
     final String path;

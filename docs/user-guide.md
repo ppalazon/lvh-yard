@@ -163,10 +163,11 @@ It shows the whole Yard, but it changes only the Services of this Workstation:
 ```sh
 lvh-yard list                               # every Service, by Workstation
 lvh-yard list --workstation ws-b            # the Services of ws-b
-lvh-yard register web --port 8080           # at this Workstation's LAN address
-lvh-yard register web --host 127.0.0.1 --port 8080
-lvh-yard register web --port 8080 --path /health --interval 5s --timeout 1s   # an HTTP check (default: TCP, 10s, 2s)
-lvh-yard register web --port 8080 --tag backend --meta owner=pablo           # repeat --tag and --meta for more
+lvh-yard register static web --port 8080    # at this Workstation's LAN address, and publish a new Service
+lvh-yard register static web --host 127.0.0.1 --port 8080
+lvh-yard register static web --port 8080 --path /health --interval 5s --timeout 1s   # an HTTP check (default: TCP, 10s, 2s)
+lvh-yard register static web --port 8080 --tag backend --meta owner=pablo           # repeat --tag and --meta for more
+lvh-yard register static web --port 8080 --no-publish                               # a new Service stays unpublished
 lvh-yard register web --container web-1 --port 80                            # bind to the container web-1
 lvh-yard register web --compose-project shop --compose-service web --port 80 # bind to the Compose service web
 lvh-yard containers                         # running containers that no Container Binding follows
@@ -426,11 +427,25 @@ answer and a missing auth profile never opens the Service. The Service page,
 the API and `lvh-yard list` show an "unknown Route Profile" warning. Add the
 profile again, or remove it from the Publication.
 
+### Static Instances
+
+A Static Instance is at a fixed host and port. It stays registered until you
+remove it. The Static Instances page, at `/static-instances`, lists the Static
+Instances of this Workstation, with their Service, address and Health. Each row
+links to the form that edits the Instance. The old address `/register` leads to
+this page.
+
+Register a Static Instance with the form on that page, or with
+`lvh-yard register static`. If the Service is new, it gets a Publication with
+Local Scope. To keep a new Service unpublished, clear "Publish a new Service" in
+the form, or add `--no-publish`. A Service that exists keeps its Publication, or
+stays unpublished.
+
 ### Container Bindings
 
 A Container Binding binds a Service to a Docker container by its name, or to
-each container of a Compose project and service. Add one on the Register page
-or with `lvh-yard register --container` (or `--compose-project` and
+each container of a Compose project and service. Add one with
+`lvh-yard register --container` (or `--compose-project` and
 `--compose-service`). Remove it on the page of the Service or with
 `lvh-yard remove` and the same options. The Bindings are in the Consul KV of
 this Workstation, under `lvh-yard/container-bindings/`.

@@ -88,19 +88,17 @@ public class ContainerImport {
             ? unfollowed.service()
             : request.service().strip();
     int port = request.port() == null ? onlyPort(unfollowed) : request.port();
-    // Before add, which makes the Service exist. Only this Workstation's Instances, Publication
-    // and Bindings count, so a Service with any of them but no Publication stays unpublished.
-    boolean isNew = !publications.exists(service);
-    bindings.add(
-        workstation.name(),
+    publications.addPublishingNew(
         service,
-        unfollowed.composeProject() == null
-            ? ContainerBindingRequest.container(name, port)
-            : ContainerBindingRequest.compose(
-                unfollowed.composeProject(), unfollowed.composeService(), port));
-    if (isNew && !Boolean.FALSE.equals(request.publish())) {
-      publications.publish(workstation.name(), service, PublicationRequest.KEEP_ALL);
-    }
+        request.publish(),
+        () ->
+            bindings.add(
+                workstation.name(),
+                service,
+                unfollowed.composeProject() == null
+                    ? ContainerBindingRequest.container(name, port)
+                    : ContainerBindingRequest.compose(
+                        unfollowed.composeProject(), unfollowed.composeService(), port)));
     return yard.service(workstation.name(), service).orElseThrow();
   }
 

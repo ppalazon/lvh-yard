@@ -311,7 +311,7 @@ class YardTest {
   }
 
   @Test
-  void registerAddsStaticInstanceAtHostAndPort() {
+  void registerStaticAddsStaticInstanceAtHostAndPort() {
     dashboard.answer(
         "POST",
         "/api/workstation/services/web/instances",
@@ -321,7 +321,7 @@ class YardTest {
          "tags": [], "meta": {}, "checks": [], "outOfRange": false}
         """);
 
-    Run run = yard("register", "web", "--host", "10.1.2.3", "--port", "8080");
+    Run run = yard("register", "static", "web", "--host", "10.1.2.3", "--port", "8080");
 
     assertThat(run.exitCode()).isZero();
     assertThat(run.out()).isEqualTo("Registered web at 10.1.2.3:8080, Instance 7b1c.\n");
@@ -334,7 +334,7 @@ class YardTest {
   }
 
   @Test
-  void registerWithoutHostLeavesItToTheDashboard() {
+  void registerStaticWithoutHostLeavesItToTheDashboard() {
     dashboard.answer(
         "POST",
         "/api/workstation/services/web/instances",
@@ -344,7 +344,7 @@ class YardTest {
          "tags": [], "meta": {}, "checks": [], "outOfRange": false}
         """);
 
-    Run run = yard("register", "web", "--port", "8080");
+    Run run = yard("register", "static", "web", "--port", "8080");
 
     assertThat(run.exitCode()).isZero();
     assertThat(run.out()).contains("at 192.168.1.20:8080");
@@ -357,7 +357,7 @@ class YardTest {
   }
 
   @Test
-  void registerTakesTheCheckItsIntervalAndTimeoutTagsAndMeta() {
+  void registerStaticTakesTheCheckItsIntervalAndTimeoutTagsAndMeta() {
     dashboard.answer(
         "POST",
         "/api/workstation/services/web/instances",
@@ -373,6 +373,7 @@ class YardTest {
     Run run =
         yard(
             "register",
+            "static",
             "web",
             "--port",
             "8080",
@@ -405,7 +406,7 @@ class YardTest {
   }
 
   @Test
-  void registerWithOnlyAPathLeavesTheRestOfTheCheckToTheDashboard() {
+  void registerStaticWithOnlyAPathLeavesTheRestOfTheCheckToTheDashboard() {
     dashboard.answer(
         "POST",
         "/api/workstation/services/web/instances",
@@ -416,7 +417,7 @@ class YardTest {
          "tags": [], "meta": {}, "checks": [], "outOfRange": false}
         """);
 
-    Run run = yard("register", "web", "--port", "8080", "--path", "/health");
+    Run run = yard("register", "static", "web", "--port", "8080", "--path", "/health");
 
     assertThat(run.exitCode()).isZero();
     dashboard.verifyCalled(
@@ -428,7 +429,37 @@ class YardTest {
   }
 
   @Test
-  void registerWithAScriptCheckShowsWhyTheDashboardRefused() {
+  void registerStaticWithNoPublishAsksToLeaveANewServiceUnpublished() {
+    dashboard.answer(
+        "POST",
+        "/api/workstation/services/web/instances",
+        201,
+        """
+        {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical",
+         "tags": [], "meta": {}, "checks": [], "outOfRange": false}
+        """);
+
+    Run run = yard("register", "static", "web", "--port", "8080", "--no-publish");
+
+    assertThat(run.exitCode()).isZero();
+    dashboard.verifyCalled(
+        "POST",
+        "/api/workstation/services/web/instances",
+        """
+        {"port": 8080, "publish": false}
+        """);
+  }
+
+  @Test
+  void registerStaticTakesNoContainerOption() {
+    Run run = yard("register", "static", "web", "--port", "8080", "--container", "web-1");
+
+    assertThat(run.exitCode()).isNotZero();
+    assertThat(run.err()).contains("--container");
+  }
+
+  @Test
+  void registerStaticWithAScriptCheckShowsWhyTheDashboardRefused() {
     dashboard.answer(
         "POST",
         "/api/workstation/services/web/instances",
@@ -437,7 +468,7 @@ class YardTest {
         {"status": 400, "detail": "Script checks are not offered: use an http or a tcp check."}
         """);
 
-    Run run = yard("register", "web", "--port", "8080", "--check", "script");
+    Run run = yard("register", "static", "web", "--port", "8080", "--check", "script");
 
     assertThat(run.exitCode()).isNotZero();
     assertThat(run.err()).contains("Script checks are not offered");
@@ -1694,7 +1725,7 @@ class YardTest {
          "detail": "The Service name Web is not a single DNS label."}
         """);
 
-    Run run = yard("register", "Web", "--port", "8080");
+    Run run = yard("register", "static", "Web", "--port", "8080");
 
     assertThat(run.exitCode()).isNotZero();
     assertThat(run.out()).isEmpty();

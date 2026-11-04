@@ -95,13 +95,17 @@ class WorkstationServicesController {
       description =
           "With no host, the Instance is at this Workstation's LAN address. With no check, it gets"
               + " a TCP check on its port. It is critical until its check first passes. The same"
-              + " host and port again replaces that Instance, which keeps its ID.")
+              + " host and port again replaces that Instance, which keeps its ID. A new Service"
+              + " gets a Publication with Local Scope, unless publish is false.")
   @ApiResponse(responseCode = "201", description = "Registered", useReturnTypeSchema = true)
   @ApiResponse(
       responseCode = "400",
       description = Registrations.INVALID_NAME + ". " + INVALID_INSTANCE)
   Instance register(@PathVariable String service, @RequestBody StaticInstanceRequest request) {
-    return registrations.register(workstation.name(), service, request);
+    return publications.addPublishingNew(
+        service,
+        request.publish(),
+        () -> registrations.register(workstation.name(), service, request));
   }
 
   @PutMapping(path = "/{service}/instances/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)

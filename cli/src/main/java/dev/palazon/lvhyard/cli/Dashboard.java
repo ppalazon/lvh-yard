@@ -241,6 +241,9 @@ final class Dashboard {
   /**
    * With no host, the dashboard uses this Workstation's LAN address. A part of the check left out
    * gets the dashboard's default.
+   *
+   * @param publish {@code false} leaves a new Service unpublished; {@code null} lets the dashboard
+   *     publish it
    */
   Instance register(
       String service,
@@ -248,7 +251,8 @@ final class Dashboard {
       int port,
       Check check,
       List<String> tags,
-      Map<String, String> meta) {
+      Map<String, String> meta,
+      Boolean publish) {
     Map<String, Object> instance = new LinkedHashMap<>();
     if (host != null) {
       instance.put("host", host);
@@ -262,6 +266,9 @@ final class Dashboard {
     }
     if (!meta.isEmpty()) {
       instance.put("meta", meta);
+    }
+    if (publish != null) {
+      instance.put("publish", publish);
     }
     HttpRequest.Builder request =
         HttpRequest.newBuilder(instancesUrl(service))

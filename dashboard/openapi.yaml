@@ -431,7 +431,8 @@ paths:
       description: "With no host, the Instance is at this Workstation's LAN address.\
         \ With no check, it gets a TCP check on its port. It is critical until its\
         \ check first passes. The same host and port again replaces that Instance,\
-        \ which keeps its ID."
+        \ which keeps its ID. A new Service gets a Publication with Local Scope, unless\
+        \ publish is false."
       operationId: register
       parameters:
       - in: path
@@ -1067,6 +1068,11 @@ components:
         port:
           type: integer
           format: int32
+        publish:
+          type: boolean
+          description: "If the Service is new, false leaves it Unpublished. Otherwise\
+            \ it gets a Publication with Local Scope. An existing Service keeps its\
+            \ Publication, or stays Unpublished. An edit ignores this field."
         tags:
           type: array
           items:

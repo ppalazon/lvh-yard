@@ -5,6 +5,7 @@ import static org.awaitility.Awaitility.await;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.springframework.boot.builder.SpringApplicationBuilder;
@@ -185,12 +186,17 @@ final class RemoteWorkstation implements AutoCloseable {
             .build();
   }
 
-  /** Registers a Static Instance of {@code service} on this Workstation, through its dashboard. */
+  /**
+   * Registers a Static Instance of {@code service} on this Workstation, through its dashboard. A
+   * new Service stays Unpublished unless {@code instance} has {@code publish}.
+   */
   JsonNode register(String service, Map<String, Object> instance) {
+    Map<String, Object> body = new HashMap<>(instance);
+    body.putIfAbsent("publish", false);
     return http.post()
         .uri(DashboardTest.instancesPath(service))
         .contentType(MediaType.APPLICATION_JSON)
-        .body(instance)
+        .body(body)
         .retrieve()
         .body(JsonNode.class);
   }

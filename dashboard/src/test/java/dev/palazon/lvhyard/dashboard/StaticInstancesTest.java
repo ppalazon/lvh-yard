@@ -38,6 +38,58 @@ class StaticInstancesTest extends DashboardTest {
   }
 
   @Test
+  void registeringANewServicePublishesItWithLocalScope() {
+    String web = newServiceName("web");
+
+    post(instancesPath(web), Map.of("port", 8080));
+
+    JsonNode service = get(servicePath(web)).getBody();
+    assertThat(service.get("publication").get("scope").asString()).isEqualTo("local");
+  }
+
+  @Test
+  void registeringANewServiceWithPublishFalseLeavesItUnpublished() {
+    String web = newServiceName("web");
+
+    ResponseEntity<JsonNode> response =
+        post(instancesPath(web), Map.of("port", 8080, "publish", false));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(get(servicePath(web)).getBody().has("publication")).isFalse();
+  }
+
+  @Test
+  void registeringIntoAnUnpublishedServiceKeepsItUnpublished() {
+    String web = newServiceName("web");
+    register(web, Map.of("port", 8080));
+
+    post(instancesPath(web), Map.of("port", 8081, "publish", true));
+
+    assertThat(get(servicePath(web)).getBody().has("publication")).isFalse();
+  }
+
+  @Test
+  void registeringIntoAPublishedServiceKeepsItsScope() {
+    String web = newServiceName("web");
+    register(web, Map.of("port", 8080));
+    put(publicationPath(web), Map.of("scope", "yard"));
+
+    post(instancesPath(web), Map.of("port", 8081));
+
+    JsonNode service = get(servicePath(web)).getBody();
+    assertThat(service.get("publication").get("scope").asString()).isEqualTo("yard");
+  }
+
+  @Test
+  void refusedRegistrationPublishesNothing() {
+    String web = newServiceName("web");
+
+    post(instancesPath(web), Map.of("port", 0));
+
+    assertThat(get(servicePath(web)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+  }
+
+  @Test
   void serviceCanHaveMoreThanOneInstance() {
     String web = newServiceName("web");
 

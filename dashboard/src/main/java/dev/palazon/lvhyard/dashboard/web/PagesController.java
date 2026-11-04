@@ -112,43 +112,55 @@ class PagesController {
     return value == null || value.isBlank();
   }
 
-  /** The navigation bar links here. Until this page exists, the Register page stands in. */
-  @GetMapping(Layout.STATIC_INSTANCES_PATH)
-  ResponseEntity<Void> staticInstances() {
+  /** Keeps old bookmarks working. */
+  @GetMapping(StaticInstancesPage.OLD_PATH)
+  ResponseEntity<Void> register() {
     return ResponseEntity.status(HttpStatus.MOVED_PERMANENTLY)
-        .location(URI.create(RegisterPage.PATH))
+        .location(URI.create(StaticInstancesPage.PATH))
         .build();
   }
 
-  @GetMapping(path = RegisterPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
+  @GetMapping(path = StaticInstancesPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
   @ResponseBody
-  String registerForm() {
-    return RegisterPage.render(
-        workstation,
-        "",
-        RegisterPage.Choice.EMPTY,
-        InstanceForm.Fields.EMPTY,
-        registrations.defaultHost(),
-        null);
+  String staticInstances() {
+    return staticInstancesPage("", InstanceForm.Fields.EMPTY, true, null);
   }
 
-  @PostMapping(path = RegisterPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
-  ResponseEntity<String> register(
-      @RequestParam String name, RegisterPage.Choice choice, InstanceForm.Fields fields) {
+  /**
+   * @param publish sent only when the "Publish a new Service" checkbox is on
+   */
+  @PostMapping(path = StaticInstancesPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
+  ResponseEntity<String> registerStaticInstance(
+      @RequestParam String name,
+      InstanceForm.Fields fields,
+      @RequestParam(required = false) String publish) {
+    String service = name.strip();
     try {
-      if (choice.containerBinding()) {
-        containerBindings.add(workstation.name(), name.strip(), choice.request());
-      } else {
-        registrations.register(workstation.name(), name.strip(), fields.request());
-      }
+      publications.addPublishingNew(
+          service,
+          publish != null,
+          () -> registrations.register(workstation.name(), service, fields.request()));
     } catch (InvalidRegistrationException error) {
       return ResponseEntity.badRequest()
           .contentType(Layout.HTML)
-          .body(
-              RegisterPage.render(
-                  workstation, name, choice, fields, registrations.defaultHost(), error));
+          .body(staticInstancesPage(name, fields, publish != null, error));
     }
-    return seeOther(ServicePage.path(workstation.name(), name.strip()));
+    return seeOther(ServicePage.path(workstation.name(), service));
+  }
+
+  private String staticInstancesPage(
+      String name,
+      InstanceForm.Fields fields,
+      boolean publish,
+      InvalidRegistrationException error) {
+    return StaticInstancesPage.render(
+        workstation,
+        yard.services(workstation.name()),
+        name,
+        fields,
+        publish,
+        registrations.defaultHost(),
+        error);
   }
 
   @GetMapping(path = "/services/{workstation}/{service}", produces = MediaType.TEXT_HTML_VALUE)
