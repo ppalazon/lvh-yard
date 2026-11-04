@@ -37,7 +37,7 @@ class AliasesTest extends DashboardTest {
   void aliasNameFollowsTheServiceNameRules() {
     String grafana = sharedRemoteService("grafana");
 
-    for (String name : List.of("Grafana", "-grafana", "graf.ana", "yard")) {
+    for (String name : List.of("Grafana", "-grafana", "graf.ana", "consul")) {
       ResponseEntity<JsonNode> response =
           put(aliasPath(name), Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
 
@@ -46,7 +46,7 @@ class AliasesTest extends DashboardTest {
     }
     assertThat(
             get(aliasesPath()).getBody().valueStream().map(alias -> alias.get("name").asString()))
-        .doesNotContain("yard", "Grafana");
+        .doesNotContain("consul", "Grafana");
   }
 
   @Test

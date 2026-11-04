@@ -313,14 +313,6 @@ class PublicationsTest extends DashboardTest {
   }
 
   @Test
-  void coreServiceRefusesAnInstancePriority() {
-    ResponseEntity<JsonNode> response =
-        put(publicationPath("consul"), Map.of("priority", List.of("bound")));
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-  }
-
-  @Test
   void publicationWrittenBeforeInstancePriorityUsesTheDefaultOrder() {
     String api = newServiceName("api");
     remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));

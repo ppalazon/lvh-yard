@@ -7,7 +7,6 @@ import dev.palazon.lvhyard.dashboard.services.Aliases;
 import dev.palazon.lvhyard.dashboard.services.ContainerBindings;
 import dev.palazon.lvhyard.dashboard.services.ContainerImport;
 import dev.palazon.lvhyard.dashboard.services.ContainerImportRequest;
-import dev.palazon.lvhyard.dashboard.services.CoreServiceException;
 import dev.palazon.lvhyard.dashboard.services.FollowedContainerException;
 import dev.palazon.lvhyard.dashboard.services.Instance;
 import dev.palazon.lvhyard.dashboard.services.InvalidPriorityException;
@@ -212,11 +211,6 @@ class PagesController {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
     }
     return seeOther(ServicePage.path(found));
-  }
-
-  @ExceptionHandler
-  void refused(CoreServiceException e, HttpServletResponse response) throws IOException {
-    response.sendError(HttpStatus.CONFLICT.value(), e.getMessage());
   }
 
   @ExceptionHandler

@@ -68,11 +68,12 @@ class StaticInstancesTest extends DashboardTest {
   }
 
   @Test
-  void serviceNameYardIsRefused() {
-    ResponseEntity<JsonNode> response = post(instancesPath("yard"), Map.of("port", 8080));
+  void serviceNameConsulIsRefusedWithTheReason() {
+    ResponseEntity<JsonNode> response = post(instancesPath("consul"), Map.of("port", 8080));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(response.getBody().get("detail").asString()).contains("yard").contains("dashboard");
+    assertThat(response.getBody().get("detail").asString())
+        .isEqualTo("consul is Consul's own entry in its catalog.");
   }
 
   @ParameterizedTest

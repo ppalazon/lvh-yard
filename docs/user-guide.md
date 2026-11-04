@@ -195,6 +195,10 @@ Instance). A Publication covers every Instance of the Service, also the ones
 that you register later. The Publications are in the Consul KV of this
 Workstation, under `lvh-yard/publications/`.
 
+A Service name is the first part of its hostname, so it is a single DNS label:
+1 to 63 lowercase letters, digits and `-`. The name `consul` is refused,
+because Consul keeps its own entry in its catalog under that name.
+
 A new Publication has Local Scope: only this Workstation routes it, at
 `<service>.<base-domain>`. With Yard Scope, the other Workstations also route
 it, at `<service>.<workstation>.<base-domain>`. If you publish again without
@@ -260,7 +264,7 @@ with the Up, Down, Remove and Add buttons. The Turn off button turns it off,
 and the Use an order button turns it on again with the default order. The API
 takes the order as `priority` in the body of
 `PUT /api/workstation/services/{service}/publication`. An empty `priority`,
-`[]`, turns it off. A Core Service always uses the default order.
+`[]`, turns it off.
 
 The page of the Service shows the kind in use, for example
 `Routing to: Static (Bound waiting)`. While the Instance Priority is off, it
@@ -312,9 +316,9 @@ example `grafana.<base-domain>` for `grafana.ws-b.<base-domain>`. Add and
 remove Aliases on the Aliases page or with `lvh-yard alias`. The Aliases are in
 the Consul KV of this Workstation, under `lvh-yard/aliases/`.
 
-The name of an Alias follows the rules for a Service name. It cannot be the
-name of a Core Service. The Remote Service needs Yard Scope before the Alias
-gets a Route. These are the states of an Alias:
+The name of an Alias follows the rules for a Service name, so it cannot be
+`consul`. The Remote Service needs Yard Scope before the Alias gets a Route.
+These are the states of an Alias:
 
 - `active`: routed to the Instances of the Remote Service
 - `unavailable`: the Remote Service has no Instance in range here
@@ -379,8 +383,7 @@ lvh-yard publish admin --no-profiles                    # removes them all
 ```
 
 Without `--profile`, a Publication keeps its profiles. A name that is not a
-valid profile of the file is refused, with the names that exist. A Core
-Service, such as `consul`, can have profiles too.
+valid profile of the file is refused, with the names that exist.
 
 The Route gets each profile as a Traefik middleware named
 `<workstation>_<profile>`, such as `ws-a_basic-auth`, in the order of the
@@ -451,8 +454,7 @@ the Service is new, the import publishes it with Local Scope. If the Service
 already exists on this Workstation, it keeps its Publication and Scope, or
 stays unpublished. After the import, the list says which Service it imported
 into, with a link to the page of the Service. If the import fails, for example
-because the name is the name of a Core Service, the page shows why next to the
-container.
+because the name is `consul`, the page shows why next to the container.
 
 To choose another Service name, click Choose name. If a container has several
 ports or none, click Choose port. A form opens with the proposed name and the

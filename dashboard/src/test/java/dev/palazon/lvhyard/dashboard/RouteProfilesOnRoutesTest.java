@@ -215,29 +215,6 @@ class RouteProfilesOnRoutesTest extends DashboardTest {
   }
 
   @Test
-  void coreServiceTakesProfiles() throws Exception {
-    writeProfiles(PROFILES);
-    try {
-      ResponseEntity<JsonNode> published =
-          put(publicationPath("consul"), Map.of("profiles", List.of("team-login")));
-
-      assertThat(published.getStatusCode()).isEqualTo(HttpStatus.OK);
-      assertThat(published.getBody().get("profiles").toString()).isEqualTo("[\"team-login\"]");
-      assertThat(
-              get("/traefik/configuration")
-                  .getBody()
-                  .get("http")
-                  .get("routers")
-                  .get("consul")
-                  .get("middlewares")
-                  .toString())
-          .isEqualTo("[\"ws-test_team-login\"]");
-    } finally {
-      put(publicationPath("consul"), Map.of("profiles", List.of()));
-    }
-  }
-
-  @Test
   void servicePagePicksProfilesFromTheFileAndShowsTheAuthWarning() throws Exception {
     writeProfiles(PROFILES);
     String web = newServiceName("web");
@@ -263,14 +240,6 @@ class RouteProfilesOnRoutesTest extends DashboardTest {
         .contains("name=\"profiles\" value=\"team-login\"")
         .doesNotContain("aria-label=\"Add team-login\"")
         .contains("asks who the user is only on the hostname");
-  }
-
-  @Test
-  void corePageOffersProfilesToo() throws Exception {
-    writeProfiles(PROFILES);
-
-    assertThat(getPage("/services/ws-test/consul").getBody())
-        .contains("aria-label=\"Add team-login\"");
   }
 
   @Test

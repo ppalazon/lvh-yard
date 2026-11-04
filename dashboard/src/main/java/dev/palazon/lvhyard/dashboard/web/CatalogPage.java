@@ -257,7 +257,6 @@ final class CatalogPage {
         .attrHref(Layout.attr(ServicePage.path(service)))
         .text(service.name())
         .__()
-        .of(cell -> ServiceViews.core(cell, service))
         .__()
         .td()
         .of(cell -> ServiceViews.state(cell, service.state()))

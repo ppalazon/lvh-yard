@@ -87,28 +87,31 @@ class OpenApiTest extends DashboardTest {
   }
 
   @Test
-  void changesToACoreServiceAreRefusedWithProblemDetails() {
+  void changesToAServiceAreNeverRefusedWith409() {
     JsonNode paths = get("/v3/api-docs").getBody().get("paths");
     String instance = "/api/workstation/services/{service}/instances/{id}";
     String binding = "/api/workstation/services/{service}/container-bindings/{id}";
     String publication = "/api/workstation/services/{service}/publication";
 
-    assertThat(answersWithProblem(paths, instance, "delete", "409")).isTrue();
-    assertThat(answersWithProblem(paths, instance, "put", "409")).isTrue();
-    assertThat(answersWithProblem(paths, binding, "delete", "409")).isTrue();
-    assertThat(answersWithProblem(paths, publication, "put", "409")).isTrue();
-    assertThat(answersWithProblem(paths, publication, "delete", "409")).isTrue();
+    assertThat(paths.path(instance).path("delete").path("responses").has("409")).isFalse();
+    assertThat(paths.path(instance).path("put").path("responses").has("409")).isFalse();
+    assertThat(paths.path(binding).path("delete").path("responses").has("409")).isFalse();
+    assertThat(paths.path(publication).path("put").path("responses").has("409")).isFalse();
+    assertThat(paths.path(publication).path("delete").path("responses").has("409")).isFalse();
   }
 
   @Test
-  void servicesAndInstancesSayWhetherTheyAreCore() {
+  void servicesAndInstancesHaveNoCoreField() {
     JsonNode schemas = get("/v3/api-docs").getBody().get("components").get("schemas");
 
     for (String schema : new String[] {"Service", "Instance"}) {
-      JsonNode core = schemas.get(schema).get("properties").get("core");
-      assertThat(core).as("%s has a core flag", schema).isNotNull();
-      assertThat(core.get("type").asString()).isEqualTo("boolean");
+      assertThat(schemas.get(schema).get("properties").has("core")).as(schema).isFalse();
     }
+  }
+
+  @Test
+  void documentationSaysNothingAboutCoreServices() {
+    assertThat(getPage("/v3/api-docs.yaml").getBody()).doesNotContainIgnoringCase("core service");
   }
 
   @Test

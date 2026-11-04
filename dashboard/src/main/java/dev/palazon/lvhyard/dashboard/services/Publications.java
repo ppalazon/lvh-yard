@@ -6,7 +6,6 @@ import dev.palazon.lvhyard.dashboard.consul.Consul;
 import dev.palazon.lvhyard.dashboard.profiles.RouteProfiles;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.TreeMap;
 import java.util.function.Function;
 import org.springframework.stereotype.Component;
@@ -46,7 +45,7 @@ public class Publications {
   /**
    * {@code workstation} must be this one. With no Scope, no priority or no profiles, a new
    * Publication gets Local Scope, the default order or no profiles, and an existing one keeps its
-   * own. A Core Service keeps Local Scope and the default order.
+   * own.
    *
    * @param change its {@code profiles} are names of this Workstation's valid Route Profiles
    */
@@ -57,21 +56,6 @@ public class Publications {
     List<String> profiles = change.profiles();
     if (profiles != null) {
       checkProfiles(profiles);
-    }
-    Optional<CoreService> core = CoreService.named(service);
-    if (core.isPresent()) {
-      if (scope == Scope.YARD) {
-        throw CoreServiceException.cannotBe(
-            service,
-            "given Yard Scope, as its Instance is on loopback, so other Workstations could not"
-                + " reach it");
-      }
-      if (priority != null) {
-        throw CoreServiceException.cannotBe(
-            service, "given an Instance Priority, as it has only its own Instance");
-      }
-      keepCorePublication(core.get(), profiles);
-      return;
     }
     Registrations.checkName(service);
     List<InstanceKind> kinds = priority == null ? null : InstanceKind.priority(priority);
@@ -138,33 +122,9 @@ public class Publications {
   @JsonInclude(JsonInclude.Include.NON_NULL)
   private record StoredPublication(String scope, List<String> priority, List<String> profiles) {}
 
-  /**
-   * A Yard Scope from before it was refused for Core Services goes back to Local. No name rule
-   * applies: the Core Service's name is kept for it.
-   */
-  void keepCorePublication(CoreService service) {
-    keepCorePublication(service, null);
-  }
-
-  /** With no {@code profiles}, the Core Service keeps its own. */
-  private void keepCorePublication(CoreService service, List<String> profiles) {
-    Publication existing = all().get(service.serviceName());
-    Publication kept =
-        new Publication(
-            Scope.LOCAL,
-            InstanceKind.DEFAULT_PRIORITY,
-            given(profiles, existing, Publication::profiles, List.of()));
-    if (!kept.equals(existing)) {
-      consul.putValue(PREFIX + service.serviceName(), value(kept));
-    }
-  }
-
-  /** {@code workstation} must be this one. A Core Service cannot be unpublished. */
+  /** {@code workstation} must be this one. */
   public void unpublish(String workstation, String service) {
     checkHome(workstation);
-    if (CoreService.isNamed(service)) {
-      throw CoreServiceException.cannotBe(service, "unpublished");
-    }
     checkExists(service);
     consul.deleteValue(PREFIX + service);
   }

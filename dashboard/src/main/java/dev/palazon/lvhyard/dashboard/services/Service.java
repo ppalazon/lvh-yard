@@ -10,9 +10,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * {@code publication}, {@code hostname}, {@code priority}, {@code profiles}, {@code routing} and
- * {@code core} are left out of the JSON when null, empty or false. {@code containerBindings}
- * include those that match no running container.
+ * {@code publication}, {@code hostname}, {@code priority}, {@code profiles} and {@code routing} are
+ * left out of the JSON when null or empty. {@code containerBindings} include those that match no
+ * running container.
  *
  * @param priority the Instance Priority of its Publication
  * @param profiles the Route Profiles of its Publication, in the order its Route applies them
@@ -38,8 +38,7 @@ public record Service(
                         "The names of its Route Profiles, in the order its Route applies them"))
         List<String> profiles,
     @JsonIgnore @Schema(hidden = true) Map<String, RouteProfileDefinition> profileDefinitions,
-    @JsonInclude(JsonInclude.Include.NON_NULL) Routing routing,
-    @JsonInclude(JsonInclude.Include.NON_DEFAULT) boolean core) {
+    @JsonInclude(JsonInclude.Include.NON_NULL) Routing routing) {
 
   /**
    * @param stored the Route Profiles its Home Workstation's Consul KV holds, by name
@@ -51,8 +50,7 @@ public record Service(
       String hostname,
       List<Instance> instances,
       List<ContainerBinding> containerBindings,
-      Map<String, RouteProfileDefinition> stored,
-      boolean core) {
+      Map<String, RouteProfileDefinition> stored) {
     this(
         workstation,
         name,
@@ -65,8 +63,7 @@ public record Service(
         publication == null ? null : publication.priority(),
         publication == null ? List.of() : publication.profiles(),
         publication == null ? Map.of() : definitions(publication.profiles(), stored),
-        routing(publication, hostname, instances, List.of()),
-        core);
+        routing(publication, hostname, instances, List.of()));
   }
 
   private static Map<String, RouteProfileDefinition> definitions(
@@ -93,8 +90,7 @@ public record Service(
         priority,
         profiles,
         profileDefinitions,
-        routing(publication, hostname, instances, aliased),
-        core);
+        routing(publication, hostname, instances, aliased));
   }
 
   private static Routing routing(

@@ -312,19 +312,7 @@ public class YardReader {
             hostname(home, name, publication),
             instances,
             containerBindings,
-            profiles,
-            core(home, name, instances)));
-  }
-
-  /**
-   * Whether {@code name} of {@code home} is a Core Service. This Workstation knows its own by name,
-   * even while their Static Instances are missing; another Workstation's is one while it has a Core
-   * Service's Static Instance, as a teammate on a version from before Core Services has none.
-   */
-  private boolean core(String home, String name, List<Instance> instances) {
-    return workstation.is(home)
-        ? CoreService.isNamed(name)
-        : instances.stream().anyMatch(Instance::core);
+            profiles));
   }
 
   private String hostname(String home, String name, Publication publication) {
@@ -375,8 +363,7 @@ public class YardReader {
         checks,
         remote && outOfRange.contains(registration.address()),
         registration.meta().get(Registrations.CONTAINER_BINDING),
-        registration.meta().containsKey(Registrations.UNPUBLISHED_CONTAINER_PORT),
-        Registrations.isCore(registration));
+        registration.meta().containsKey(Registrations.UNPUBLISHED_CONTAINER_PORT));
   }
 
   /** A duration as Consul writes it, in Go's way, such as {@code 1m30s} or {@code 1.5s}. */

@@ -61,10 +61,10 @@ class RegisterPageTest extends DashboardTest {
   @Test
   void reservedNameIsShownInTheForm() {
     ResponseEntity<String> response =
-        postForm("/register", Map.of("name", "yard", "host", "", "port", "8080"));
+        postForm("/register", Map.of("name", "consul", "host", "", "port", "8080"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(response.getBody()).contains("taken by a Core Service");
+    assertThat(response.getBody()).contains("own entry in its catalog");
   }
 
   @Test

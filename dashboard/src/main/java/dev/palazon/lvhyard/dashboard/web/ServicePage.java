@@ -79,7 +79,6 @@ final class ServicePage {
                                 .text(service.name())
                                 .__()
                                 .of(heading -> ServiceViews.state(heading, service.state()))
-                                .of(heading -> ServiceViews.core(heading, service))
                                 .__()
                                 .p()
                                 .text(
@@ -96,7 +95,7 @@ final class ServicePage {
                                 .attrClass("flex flex-wrap items-center justify-between gap-4")
                                 .of(div -> publication(div, workstation, service, own))
                                 .of(div -> {
-                                  if (own && !service.core()) {
+                                  if (own) {
                                     publicationForms(div, service);
                                   }
                                 })
@@ -107,7 +106,7 @@ final class ServicePage {
                                   }
                                 })
                                 .of(content -> {
-                                  if (own && !service.core() && service.published()) {
+                                  if (own && service.published()) {
                                     instancePriority(content, service);
                                   }
                                 })
@@ -168,8 +167,7 @@ final class ServicePage {
                                                 .of(cell -> InstanceViews.checks(cell, instance))
                                                 .__()
                                                 .of(row -> {
-                                                  if (own
-                                                      && (instance.bound() || instance.core())) {
+                                                  if (own && instance.bound()) {
                                                     row.td().__();
                                                   } else if (own) {
                                                     actions(row, service, instance);

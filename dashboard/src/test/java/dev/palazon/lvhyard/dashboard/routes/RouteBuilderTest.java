@@ -22,11 +22,7 @@ class RouteBuilderTest {
     Service second = serviceWithProfile("a-b", "second", "c", "bob");
 
     TraefikConfiguration configuration =
-        RouteBuilder.build(
-            new Workstation("a", "a.lvh.me"),
-            "http://dashboard:8080",
-            List.of(first, second),
-            List.of());
+        RouteBuilder.build(new Workstation("a", "a.lvh.me"), List.of(first, second), List.of());
 
     var middlewares = configuration.http().middlewares();
     assertThat(middlewares).hasSize(2);
@@ -51,7 +47,6 @@ class RouteBuilderTest {
             List.of(),
             false,
             null,
-            false,
             false);
     Map<String, Map<String, Object>> middlewares =
         Map.of(profile, Map.of("basicAuth", Map.of("users", List.of(user + ":hash"))));
@@ -67,7 +62,6 @@ class RouteBuilderTest {
         null,
         List.of(profile),
         Map.of(profile, new RouteProfileDefinition(profile, middlewares)),
-        new Routing(null, List.of(instance), List.of(), true),
-        false);
+        new Routing(null, List.of(instance), List.of(), true));
   }
 }

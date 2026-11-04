@@ -28,8 +28,6 @@ class WorkstationServicesController {
 
   private static final String INVALID_INSTANCE = "The host, port, check, tags or meta break a rule";
 
-  private static final String CORE_INSTANCE_REFUSAL = "The Instance belongs to a Core Service";
-
   private final Workstation workstation;
 
   private final YardReader yard;
@@ -101,8 +99,7 @@ class WorkstationServicesController {
   @ApiResponse(responseCode = "201", description = "Registered", useReturnTypeSchema = true)
   @ApiResponse(
       responseCode = "400",
-      description =
-          "The name is not a single DNS label or is taken by a Core Service. " + INVALID_INSTANCE)
+      description = "The name is not a single DNS label or is consul. " + INVALID_INSTANCE)
   Instance register(@PathVariable String service, @RequestBody StaticInstanceRequest request) {
     return registrations.register(workstation.name(), service, request);
   }
@@ -122,7 +119,6 @@ class WorkstationServicesController {
   @ApiResponse(
       responseCode = "404",
       description = "The Service has no Static Instance with this ID")
-  @ApiResponse(responseCode = "409", description = CORE_INSTANCE_REFUSAL)
   Instance edit(
       @PathVariable String service,
       @PathVariable String id,
@@ -137,7 +133,6 @@ class WorkstationServicesController {
   @ApiResponse(
       responseCode = "404",
       description = "The Service has no Static Instance with this ID")
-  @ApiResponse(responseCode = "409", description = CORE_INSTANCE_REFUSAL)
   void remove(@PathVariable String service, @PathVariable String id) {
     registrations.remove(workstation.name(), service, id);
   }
@@ -155,9 +150,9 @@ class WorkstationServicesController {
   @ApiResponse(
       responseCode = "400",
       description =
-          "The name is not a single DNS label or is taken by a Core Service, the body names both or"
-              + " neither of a container and a Compose service, a name is not one Docker or Compose"
-              + " allows, or the port is not a TCP port")
+          "The name is not a single DNS label or is consul, the body names both or neither of a"
+              + " container and a Compose service, a name is not one Docker or Compose allows, or"
+              + " the port is not a TCP port")
   ContainerBinding bind(
       @PathVariable String service, @RequestBody ContainerBindingRequest request) {
     String id = containerBindings.add(workstation.name(), service, request);
@@ -177,7 +172,6 @@ class WorkstationServicesController {
   @ApiResponse(
       responseCode = "404",
       description = "The Service has no Container Binding with this ID")
-  @ApiResponse(responseCode = "409", description = "The Service is a Core Service")
   void unbind(@PathVariable String service, @PathVariable String id) {
     containerBindings.remove(workstation.name(), service, id);
   }
@@ -194,7 +188,7 @@ class WorkstationServicesController {
               + " priority turns the Instance Priority off: the passing Static and Bound Instances"
               + " share the Route. The Route applies the Route Profiles in order, as Traefik"
               + " middlewares named <workstation>_<profile>. With no profiles, a Publication keeps"
-              + " its own. Empty profiles remove them all. A Core Service takes profiles too.")
+              + " its own. Empty profiles remove them all.")
   @ApiResponse(
       responseCode = "200",
       description = "The Service, published",
@@ -202,13 +196,10 @@ class WorkstationServicesController {
   @ApiResponse(
       responseCode = "400",
       description =
-          "The name is not a single DNS label or is taken by a Core Service, the Scope is not"
-              + " local or yard, the priority repeats a kind or names an unknown one, or a Route"
-              + " Profile is not among this Workstation's valid profiles")
+          "The name is not a single DNS label or is consul, the Scope is not local or yard, the"
+              + " priority repeats a kind or names an unknown one, or a Route Profile is not among"
+              + " this Workstation's valid profiles")
   @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
-  @ApiResponse(
-      responseCode = "409",
-      description = "The Service is a Core Service, and the Scope is yard or a priority is given")
   Service publish(
       @PathVariable String service, @RequestBody(required = false) PublicationRequest request) {
     publications.publish(
@@ -224,7 +215,6 @@ class WorkstationServicesController {
       description = "A Service with no Instances left leaves the Catalog.")
   @ApiResponse(responseCode = "204", description = "Unpublished, or it was not published")
   @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
-  @ApiResponse(responseCode = "409", description = "The Service is a Core Service")
   void unpublish(@PathVariable String service) {
     publications.unpublish(workstation.name(), service);
   }

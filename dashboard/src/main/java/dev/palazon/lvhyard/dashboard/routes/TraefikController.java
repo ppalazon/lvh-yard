@@ -1,11 +1,9 @@
 package dev.palazon.lvhyard.dashboard.routes;
 
-import dev.palazon.lvhyard.dashboard.BindAddress;
 import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.services.Aliases;
 import dev.palazon.lvhyard.dashboard.services.Yard;
 import dev.palazon.lvhyard.dashboard.services.YardReader;
-import org.springframework.core.env.Environment;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,34 +24,21 @@ class TraefikController {
 
   private final Aliases aliases;
 
-  private final Environment environment;
-
   private final TraefikFetches fetches;
 
   TraefikController(
-      Workstation workstation,
-      YardReader yard,
-      Aliases aliases,
-      Environment environment,
-      TraefikFetches fetches) {
+      Workstation workstation, YardReader yard, Aliases aliases, TraefikFetches fetches) {
     this.workstation = workstation;
     this.yard = yard;
     this.aliases = aliases;
-    this.environment = environment;
     this.fetches = fetches;
   }
 
   @GetMapping(path = PATH, produces = MediaType.APPLICATION_JSON_VALUE)
   TraefikConfiguration configuration() {
-    // The port the server actually listens on, which is only known once it has started.
-    String dashboard =
-        "http://"
-            + BindAddress.host(environment.getRequiredProperty("server.address"))
-            + ":"
-            + environment.getRequiredProperty("local.server.port");
     Yard routable = yard.routableYard();
     TraefikConfiguration configuration =
-        RouteBuilder.build(workstation, dashboard, routable.services(), aliases.of(routable));
+        RouteBuilder.build(workstation, routable.services(), aliases.of(routable));
     fetches.fetched();
     return configuration;
   }

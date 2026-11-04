@@ -7,7 +7,6 @@ import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.LoadBalancer;
 import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.Router;
 import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.Server;
 import dev.palazon.lvhyard.dashboard.services.Alias;
-import dev.palazon.lvhyard.dashboard.services.CoreService;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,15 +26,9 @@ final class RouteBuilder {
 
   private RouteBuilder() {}
 
-  /**
-   * The dashboard's own Route comes from the {@code yard} Core Service, or goes straight to {@code
-   * dashboard} while that Service is missing, so the dashboard is always reached. Unreachable
-   * Workstations are not among {@code services}, so their Services get no Route.
-   *
-   * @param dashboard the URL the dashboard listens on
-   */
+  /** Unreachable Workstations are not among {@code services}, so their Services get no Route. */
   static TraefikConfiguration build(
-      Workstation workstation, String dashboard, List<Service> services, List<Alias> aliases) {
+      Workstation workstation, List<Service> services, List<Alias> aliases) {
     Map<String, Router> routers = new LinkedHashMap<>();
     Map<String, TraefikConfiguration.Service> backends = new LinkedHashMap<>();
     Map<String, Map<String, Object>> middlewares = new LinkedHashMap<>();
@@ -62,13 +55,6 @@ final class RouteBuilder {
                 ALIAS_PREFIX + alias.name(), router(alias.hostname(), target, applied.get(target)));
           }
         });
-    String yard = CoreService.YARD.serviceName();
-    if (!routers.containsKey(yard)) {
-      // The yard Core Service is not there yet, such as while Consul is not ready.
-      routers.put(yard, router(workstation.hostname(yard), yard, List.of()));
-      backends.put(
-          yard, new TraefikConfiguration.Service(new LoadBalancer(List.of(new Server(dashboard)))));
-    }
     return new TraefikConfiguration(new Http(routers, backends, middlewares));
   }
 

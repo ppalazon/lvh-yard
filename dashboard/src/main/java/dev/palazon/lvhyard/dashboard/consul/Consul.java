@@ -28,7 +28,7 @@ public class Consul {
 
   /**
    * The name and ID of the Consul server's own entry in its catalog, which is no Instance of the
-   * Yard: the {@code consul} Core Service has other Instances under the same name.
+   * Yard.
    */
   private static final String CONSUL_SERVICE = "consul";
 
@@ -97,14 +97,6 @@ public class Consul {
             response.getStatusCode() == HttpStatus.NOT_FOUND
                 ? Optional.empty()
                 : Optional.ofNullable(response.bodyTo(AgentService.class)));
-  }
-
-  public List<CheckStatus> agentChecks(String id) {
-    Map<String, CheckStatus> checks =
-        http.get().uri("/v1/agent/checks").retrieve().body(new ParameterizedTypeReference<>() {});
-    return checks == null
-        ? List.of()
-        : checks.values().stream().filter(check -> id.equals(check.serviceId())).toList();
   }
 
   public void deregister(String id) {

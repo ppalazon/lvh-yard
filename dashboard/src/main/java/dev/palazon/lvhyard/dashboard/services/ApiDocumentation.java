@@ -25,8 +25,8 @@ import org.springframework.http.MediaType;
             title = "LVH Yard",
             description =
                 "The Yard's Workstations and Services, and this Workstation's Instances,"
-                    + " Publications and Aliases. A change to a Remote Service is refused with 405."
-                    + " A change that would break a Core Service is refused with 409."),
+                    + " Publications and Aliases. A change to a Remote Service is refused with"
+                    + " 405."),
     servers = @Server(url = "/"))
 class ApiDocumentation {
 

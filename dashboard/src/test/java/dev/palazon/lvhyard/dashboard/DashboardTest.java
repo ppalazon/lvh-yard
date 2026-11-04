@@ -7,7 +7,6 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -60,8 +59,8 @@ abstract class DashboardTest {
   /** Every port {@link #newLanPort} has given out, as the Consul container keeps its listeners. */
   private static final Set<Integer> LAN_PORTS = ConcurrentHashMap.newKeySet();
 
-  /** Whether this Workstation's dashboard has kept its Core Services since the tests started. */
-  private static volatile boolean coreServicesKept;
+  /** Whether this Workstation's dashboard has done its first setup. */
+  private static volatile boolean firstSetupDone;
 
   @LocalServerPort int port;
 
@@ -84,16 +83,15 @@ abstract class DashboardTest {
             .baseUrl("http://127.0.0.1:" + port)
             .defaultStatusHandler(status -> true, (request, response) -> {})
             .build();
-    if (!coreServicesKept) {
-      // The dashboard keeps its Core Services in the background, after it has started.
-      RemoteWorkstation.awaitCoreServicesKept(
+    if (!firstSetupDone) {
+      // The dashboard does its first setup in the background, after it has started.
+      RemoteWorkstation.awaitFirstSetup(
           RestClient.create(
               "http://"
                   + consulContainer.getHost()
                   + ":"
-                  + consulContainer.getMappedPort(TestcontainersConfiguration.CONSUL_HTTP_PORT)),
-          Instant.EPOCH);
-      coreServicesKept = true;
+                  + consulContainer.getMappedPort(TestcontainersConfiguration.CONSUL_HTTP_PORT)));
+      firstSetupDone = true;
     }
   }
 

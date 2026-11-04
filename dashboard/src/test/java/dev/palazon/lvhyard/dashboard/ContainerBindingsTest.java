@@ -309,10 +309,10 @@ class ContainerBindingsTest extends DashboardTest {
   @Test
   void serviceNameIsCheckedAsForAStaticInstance() {
     ResponseEntity<JsonNode> response =
-        post(containerBindingsPath("yard"), Map.of("container", "web", "port", 80));
+        post(containerBindingsPath("consul"), Map.of("container", "web", "port", 80));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(response.getBody().get("detail").asString()).contains("dashboard");
+    assertThat(response.getBody().get("detail").asString()).contains("Consul's own entry");
   }
 
   @Test

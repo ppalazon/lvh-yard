@@ -19,19 +19,6 @@ final class ServiceViews {
     parent.span().attrClass("badge").addAttr("data-variant", variant).text(label(state)).__();
   }
 
-  static void core(PhrasingContent<?, ?> parent, Service service) {
-    if (service.core()) {
-      parent.text(" ");
-      parent
-          .span()
-          .attrClass("badge")
-          .addAttr("data-variant", "outline")
-          .attrTitle("LVH Yard registers and keeps it on every Workstation.")
-          .text("Core Service")
-          .__();
-    }
-  }
-
   static String label(ServiceState state) {
     return switch (state) {
       case HEALTHY -> "Healthy";

@@ -328,14 +328,14 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void importWithACoreServiceNameIsRefused() {
+  void importWithTheNameConsulIsRefused() {
     String name = newContainerName();
     start(onePort(name));
 
-    ResponseEntity<JsonNode> response = post(importPath(name), Map.of("service", "traefik"));
+    ResponseEntity<JsonNode> response = post(importPath(name), Map.of("service", "consul"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(response.getBody().get("detail").asString()).contains("Core Service");
+    assertThat(response.getBody().get("detail").asString()).contains("Consul's own entry");
   }
 
   @Test
@@ -407,12 +407,14 @@ class ContainersTest extends DashboardTest {
     start(
         onePort(name)
             .withLabel("com.docker.compose.project", newComposeProject())
-            .withLabel("com.docker.compose.service", "traefik"));
+            .withLabel("com.docker.compose.service", "consul"));
 
     ResponseEntity<String> response = postForm("/containers/" + name + "/import", Map.of());
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(row(response.getBody(), name)).contains("role=\"alert\"").contains("Core Service");
+    assertThat(row(response.getBody(), name))
+        .contains("role=\"alert\"")
+        .contains("own entry in its catalog");
   }
 
   @Test

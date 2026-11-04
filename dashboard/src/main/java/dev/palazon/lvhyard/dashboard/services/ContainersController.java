@@ -56,8 +56,8 @@ class ContainersController {
   @ApiResponse(
       responseCode = "400",
       description =
-          "The Service name is not a single DNS label or is taken by a Core Service, or the port"
-              + " is missing or not a TCP port")
+          "The Service name is not a single DNS label or is consul, or the port is missing or not"
+              + " a TCP port")
   @ApiResponse(responseCode = "404", description = "No running container has this name")
   @ApiResponse(
       responseCode = "409",

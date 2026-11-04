@@ -4,7 +4,6 @@ import static org.awaitility.Awaitility.await;
 
 import java.nio.file.Path;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -32,8 +31,8 @@ final class RemoteWorkstation implements AutoCloseable {
 
   static final String NAME = "ws-remote";
 
-  /** Where a dashboard writes when it has kept its Core Services after it started. */
-  static final String CORE_SERVICES_INITIALIZED = "lvh-yard/core-services/initialized";
+  /** Where a dashboard writes the time when its first setup is done. */
+  static final String FIRST_SETUP = "lvh-yard/first-setup";
 
   /**
    * This Workstation's {@code route-profiles.yaml}, in a folder of this JVM's own, so its dashboard
@@ -41,8 +40,8 @@ final class RemoteWorkstation implements AutoCloseable {
    */
   static final Path ROUTE_PROFILES = TestcontainersConfiguration.routeProfilesPath();
 
-  /** How long a dashboard may take to keep its Core Services after it started. */
-  private static final Duration CORE_SERVICES_WAIT = Duration.ofSeconds(30);
+  /** How long a dashboard may take to do its first setup after it started. */
+  private static final Duration FIRST_SETUP_WAIT = Duration.ofSeconds(30);
 
   private final GenericContainer<?> consul;
 
@@ -64,14 +63,13 @@ final class RemoteWorkstation implements AutoCloseable {
             .withCommand(
                 TestcontainersConfiguration.consulCommand(NAME, "-retry-join-wan=" + peer));
     consul.start();
-    Instant starting = Instant.now();
     startDashboard();
-    awaitCoreServicesKept(consulHttp(), starting);
+    awaitFirstSetup(consulHttp());
   }
 
   /**
    * Stops this Workstation's dashboard, does {@code meanwhile}, and starts the dashboard again.
-   * When its Consul answers, it waits until the dashboard has kept its Core Services.
+   * When its Consul answers, it waits until the first setup is done.
    */
   void whileDashboardIsStopped(Runnable meanwhile) {
     whileDashboardIsStopped(meanwhile, new String[0]);
@@ -80,17 +78,16 @@ final class RemoteWorkstation implements AutoCloseable {
   /**
    * Stops this Workstation's dashboard, does {@code meanwhile}, and starts the dashboard again with
    * {@code settings} too, such as {@code --server.address=0.0.0.0}, which win over the usual ones.
-   * When its Consul answers, it waits until the dashboard has kept its Core Services.
+   * When its Consul answers, it waits until the first setup is done.
    */
   void whileDashboardIsStopped(Runnable meanwhile, String... settings) {
     dashboard.close();
     try {
       meanwhile.run();
     } finally {
-      Instant starting = Instant.now();
       startDashboard(settings);
       if (answering) {
-        awaitCoreServicesKept(consulHttp(), starting);
+        awaitFirstSetup(consulHttp());
       }
     }
   }
@@ -110,16 +107,14 @@ final class RemoteWorkstation implements AutoCloseable {
   }
 
   /**
-   * Waits until the dashboard whose Consul {@code consul} reaches has written that it kept its Core
-   * Services at {@code since} or later.
+   * Waits until the Consul that {@code consul} reaches holds the marker of the first setup. When
+   * the marker is there at the start, the dashboard writes nothing, so this waits for nothing.
    */
-  static void awaitCoreServicesKept(RestClient consul, Instant since) {
+  static void awaitFirstSetup(RestClient consul) {
     await()
-        .atMost(CORE_SERVICES_WAIT)
+        .atMost(FIRST_SETUP_WAIT)
         .ignoreExceptions()
-        .until(
-            () -> consulValue(consul, CORE_SERVICES_INITIALIZED),
-            value -> value != null && !Instant.parse(value).isBefore(since));
+        .until(() -> consulValue(consul, FIRST_SETUP), value -> value != null);
   }
 
   /** The value at {@code key} in this Workstation's Consul KV, straight from Consul, or null. */
@@ -295,8 +290,22 @@ final class RemoteWorkstation implements AutoCloseable {
   }
 
   /**
+   * Registers {@code id} of {@code service} at {@code host} and {@code port} on this Workstation's
+   * Consul agent, straight to Consul, so the test can write it while the dashboard is stopped.
+   */
+  void registerInConsul(String id, String service, String host, int port) {
+    consulHttp()
+        .put()
+        .uri("/v1/agent/service/register")
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(Map.of("ID", id, "Name", service, "Address", host, "Port", port))
+        .retrieve()
+        .toBodilessEntity();
+  }
+
+  /**
    * Removes the registration {@code id} from this Workstation's Consul agent, straight from Consul,
-   * so the test can remove what its dashboard would keep.
+   * so the test can remove it while the dashboard is stopped.
    */
   void deregisterInConsul(String id) {
     consulHttp().put().uri("/v1/agent/service/deregister/" + id).retrieve().toBodilessEntity();

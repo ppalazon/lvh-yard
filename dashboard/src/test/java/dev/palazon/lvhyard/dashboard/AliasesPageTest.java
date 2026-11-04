@@ -58,13 +58,13 @@ class AliasesPageTest extends DashboardTest {
 
     ResponseEntity<String> response =
         postForm(
-            "/aliases", Map.of("name", "yard", "target", RemoteWorkstation.NAME + "/" + grafana));
+            "/aliases", Map.of("name", "consul", "target", RemoteWorkstation.NAME + "/" + grafana));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody())
-        .contains("taken by a Core Service")
+        .contains("own entry in its catalog")
         .contains("aria-invalid=\"true\"")
-        .contains("value=\"yard\"");
+        .contains("value=\"consul\"");
   }
 
   @Test

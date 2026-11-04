@@ -1,8 +1,7 @@
 openapi: 3.1.0
 info:
   description: "The Yard's Workstations and Services, and this Workstation's Instances,\
-    \ Publications and Aliases. A change to a Remote Service is refused with 405.\
-    \ A change that would break a Core Service is refused with 409."
+    \ Publications and Aliases. A change to a Remote Service is refused with 405."
   title: LVH Yard
 servers:
 - url: /
@@ -214,8 +213,8 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: "The name is not a single DNS label or is taken by a Core Service,\
-            \ or the Workstation is this one"
+          description: "The name is not a single DNS label or is consul, or the Workstation\
+            \ is this one"
         "404":
           content:
             application/problem+json:
@@ -288,8 +287,8 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: "The Service name is not a single DNS label or is taken by\
-            \ a Core Service, or the port is missing or not a TCP port"
+          description: "The Service name is not a single DNS label or is consul, or\
+            \ the port is missing or not a TCP port"
         "404":
           content:
             application/problem+json:
@@ -394,10 +393,9 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: "The name is not a single DNS label or is taken by a Core Service,\
-            \ the body names both or neither of a container and a Compose service,\
-            \ a name is not one Docker or Compose allows, or the port is not a TCP\
-            \ port"
+          description: "The name is not a single DNS label or is consul, the body\
+            \ names both or neither of a container and a Compose service, a name is\
+            \ not one Docker or Compose allows, or the port is not a TCP port"
       summary: Binds a Service to a container or a Compose service
       tags:
       - workstation-services-controller
@@ -425,12 +423,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: The Service has no Container Binding with this ID
-        "409":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-          description: The Service is a Core Service
       summary: Removes a Container Binding and its Bound Instances
       tags:
       - workstation-services-controller
@@ -465,8 +457,8 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: "The name is not a single DNS label or is taken by a Core Service.\
-            \ The host, port, check, tags or meta break a rule"
+          description: "The name is not a single DNS label or is consul. The host,\
+            \ port, check, tags or meta break a rule"
       summary: Registers a Static Instance
       tags:
       - workstation-services-controller
@@ -493,12 +485,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: The Service has no Static Instance with this ID
-        "409":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-          description: The Instance belongs to a Core Service
       summary: Removes a Static Instance
       tags:
       - workstation-services-controller
@@ -543,12 +529,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: The Service has no Static Instance with this ID
-        "409":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-          description: The Instance belongs to a Core Service
       summary: Edits a Static Instance
       tags:
       - workstation-services-controller
@@ -571,12 +551,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: This Workstation has no Service of this name
-        "409":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-          description: The Service is a Core Service
       summary: Unpublishes a Service
       tags:
       - workstation-services-controller
@@ -588,7 +562,7 @@ paths:
         \ off: the passing Static and Bound Instances share the Route. The Route applies\
         \ the Route Profiles in order, as Traefik middlewares named <workstation>_<profile>.\
         \ With no profiles, a Publication keeps its own. Empty profiles remove them\
-        \ all. A Core Service takes profiles too."
+        \ all."
       operationId: publish
       parameters:
       - in: path
@@ -613,23 +587,15 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: "The name is not a single DNS label or is taken by a Core Service,\
-            \ the Scope is not local or yard, the priority repeats a kind or names\
-            \ an unknown one, or a Route Profile is not among this Workstation's valid\
-            \ profiles"
+          description: "The name is not a single DNS label or is consul, the Scope\
+            \ is not local or yard, the priority repeats a kind or names an unknown\
+            \ one, or a Route Profile is not among this Workstation's valid profiles"
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: This Workstation has no Service of this name
-        "409":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-          description: "The Service is a Core Service, and the Scope is yard or a\
-            \ priority is given"
       summary: "Publishes a Service, or changes its Scope, Instance Priority or Route\
         \ Profiles"
       tags:
@@ -828,8 +794,6 @@ components:
             $ref: "#/components/schemas/CheckResult"
         containerBinding:
           type: string
-        core:
-          type: boolean
         health:
           type: string
           enum:
@@ -1028,8 +992,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ContainerBinding"
-        core:
-          type: boolean
         hostname:
           type: string
         instances:

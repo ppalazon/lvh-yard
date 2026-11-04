@@ -4,7 +4,6 @@ import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.consul.Consul;
 import dev.palazon.lvhyard.dashboard.consul.Consul.AgentService;
 import dev.palazon.lvhyard.dashboard.consul.Consul.Check;
-import dev.palazon.lvhyard.dashboard.consul.Consul.CheckStatus;
 import dev.palazon.lvhyard.dashboard.consul.Consul.Registration;
 import java.time.Duration;
 import java.util.Arrays;
@@ -54,17 +53,10 @@ public class Registrations {
    */
   static final String UNPUBLISHED_CONTAINER_PORT = RESERVED_META + "unpublished-container-port";
 
-  /**
-   * Marks a Core Service's Static Instance, which only {@link CoreServices} registers. It is in the
-   * catalog, so every Workstation reading it knows a Core Service.
-   */
-  private static final String CORE = RESERVED_META + "core";
+  /** Consul keeps its own server entry in its catalog under this name. */
+  private static final String CONSUL = "consul";
 
-  /**
-   * The start of a Core Service's Static Instance ID, which is fixed, so the next start finds it:
-   * {@code lvh-yard-core-<service>}.
-   */
-  private static final String CORE_ID_PREFIX = CORE + "-";
+  private static final String CONSUL_REFUSAL = "consul is Consul's own entry in its catalog.";
 
   /** Where an HTTP check's path is kept: Consul does not give back a check's URL. */
   static final String HTTP_PATH = RESERVED_META + "http-path";
@@ -127,7 +119,7 @@ public class Registrations {
   public Instance edit(
       String workstation, String service, String id, StaticInstanceRequest request) {
     checkHome(workstation);
-    checkNotCore(staticInstance(service, id), "edited");
+    checkStaticInstance(service, id);
     StaticInstanceRequest checked = checked(request);
     Optional<String> other =
         staticInstanceAt(service, checked.host(), checked.port())
@@ -178,50 +170,7 @@ public class Registrations {
         List.of(new CheckResult(consulCheck.name(), Health.CRITICAL, "")),
         false,
         null,
-        false,
         false);
-  }
-
-  /**
-   * One already there as wanted is left alone, so its Health stays. No name rule applies: the Core
-   * Service's name is kept for it.
-   */
-  void keepStaticInstance(CoreService service, CoreService.Location location) {
-    String id = CORE_ID_PREFIX + service.serviceName();
-    String host = location.host();
-    int port = location.port();
-    HealthCheck check = checked(new HealthCheck(HealthCheck.HTTP, service.path(), null, null));
-    Check consulCheck = consulCheck(host, port, check);
-    Map<String, String> meta = new HashMap<>(STATIC_INSTANCE);
-    meta.put(CORE, "true");
-    meta.put(HTTP_PATH, service.path());
-    boolean kept =
-        consul
-                .agentService(id)
-                .filter(found ->
-                    found.name().equals(service.serviceName())
-                        && found.address().equals(host)
-                        && found.port() == port
-                        && found.tags().isEmpty()
-                        && found.meta().equals(meta))
-                .isPresent()
-            && hasOnly(id, consulCheck);
-    if (!kept) {
-      consul.register(
-          new Registration(id, service.serviceName(), host, port, List.of(), meta, consulCheck));
-    }
-  }
-
-  private boolean hasOnly(String id, Check wanted) {
-    List<CheckStatus> checks = consul.agentChecks(id);
-    return checks.size() == 1
-        && checks.getFirst().name().equals(wanted.name())
-        && wanted.interval().equals(checks.getFirst().interval())
-        && wanted.timeout().equals(checks.getFirst().timeout());
-  }
-
-  static boolean isCore(AgentService registration) {
-    return "true".equals(registration.meta().get(CORE));
   }
 
   /**
@@ -346,18 +295,12 @@ public class Registrations {
   /** {@code workstation} must be this one. */
   public void remove(String workstation, String service, String id) {
     checkHome(workstation);
-    checkNotCore(staticInstance(service, id), "removed");
+    checkStaticInstance(service, id);
     consul.deregister(id);
   }
 
-  private static void checkNotCore(AgentService registration, String change) {
-    if (isCore(registration)) {
-      throw CoreServiceException.cannotBe(registration.name(), change);
-    }
-  }
-
-  private AgentService staticInstance(String service, String id) {
-    return consul
+  private void checkStaticInstance(String service, String id) {
+    consul
         .agentService(id)
         .filter(
             registration -> registration.name().equals(service) && isStaticInstance(registration))
@@ -397,7 +340,7 @@ public class Registrations {
     checkName("Service", service);
   }
 
-  /** The DNS label rule only. A Core Service name passes it. */
+  /** The DNS label rule only. The name {@value #CONSUL} passes it. */
   static boolean isDnsLabel(String name) {
     return DNS_LABEL.matcher(name).matches();
   }
@@ -414,19 +357,8 @@ public class Registrations {
               + " is not a single DNS label: use 1 to 63 lowercase letters, digits and -, not"
               + " starting or ending with -.");
     }
-    Optional<CoreService> core = CoreService.named(name);
-    if (core.isPresent()) {
-      throw new InvalidRegistrationException(
-          "name",
-          "The "
-              + kind
-              + " name "
-              + name
-              + " is taken by a Core Service: LVH Yard keeps "
-              + core.get().what()
-              + " at "
-              + name
-              + ".<base-domain>.");
+    if (name.equals(CONSUL)) {
+      throw new InvalidRegistrationException("name", CONSUL_REFUSAL);
     }
   }
 
