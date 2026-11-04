@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] `GET /api/workstation/containers` lists name, Compose project and service, ports (container and host) and HEALTHCHECK state, in `openapi.yaml`
 - [ ] Containers matched by any Container Binding of this Workstation are left out

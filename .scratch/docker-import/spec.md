@@ -1,6 +1,6 @@
 # Import Docker containers as Services
 
-Status: ready-for-agent
+Status: done
 
 Words follow `GLOSSARY.md` (Container Binding, Bound Instance, Instance Priority). Builds on the MVP's Container Bindings.
 

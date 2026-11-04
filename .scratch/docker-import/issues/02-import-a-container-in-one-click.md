@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] `POST /api/workstation/containers/{container}/import` binds by Compose project and service when present, else by container name
 - [ ] The Service is named after the Compose service or the container

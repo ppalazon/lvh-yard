@@ -4,7 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] The page asks for the port when a container has several or none; the API answers a client error listing the ports when it is missing
 - [ ] The proposed Service name can be edited before import
