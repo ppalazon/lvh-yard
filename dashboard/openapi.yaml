@@ -311,6 +311,19 @@ paths:
       summary: Gives a running container a Service
       tags:
       - containers-controller
+  /api/workstation/route-profiles:
+    get:
+      operationId: routeProfiles
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouteProfilesFile"
+          description: OK
+      summary: "Lists this Workstation's Route Profiles, with their types and errors"
+      tags:
+      - route-profiles-controller
   /api/workstation/services:
     get:
       operationId: ownServices
@@ -937,6 +950,33 @@ components:
       - routes
       - service
       - workstation
+    RouteProfile:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Why it is refused. A refused profile does not reach Consul.
+        name:
+          type: string
+        type:
+          type: string
+          description: "Its Traefik middleware type, such as headers or basicAuth.\
+            \ Missing when it has more or none."
+      required:
+      - name
+    RouteProfilesFile:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Why the whole file cannot be read. The profiles are then the
+            ones read before.
+        profiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/RouteProfile"
+      required:
+      - profiles
     RouteReachability:
       type: object
       properties:

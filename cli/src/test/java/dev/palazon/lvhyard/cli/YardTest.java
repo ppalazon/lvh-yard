@@ -21,6 +21,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The {@code lvh-yard} command as a shell runs it: arguments in, exit code and output out. Behind
@@ -440,6 +442,43 @@ class YardTest {
 
     assertThat(run.exitCode()).isZero();
     assertThat(run.out()).isEqualTo("Every running container is followed.\n");
+  }
+
+  @Test
+  void profilesListsTheRouteProfilesWithTheirTypesAndWhyOnesAreRefused() {
+    dashboard.answer(
+        "GET",
+        "/api/workstation/route-profiles",
+        200,
+        """
+        {"profiles": [
+          {"name": "behind-https", "type": "headers"},
+          {"name": "team-login", "type": "basicAuth",
+           "error": "team-login reads its users from usersFile."},
+          {"name": "two-types", "error": "two-types must have exactly one middleware type."}]}
+        """);
+
+    Run run = yard("profiles");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out())
+        .isEqualTo(
+            """
+            behind-https: headers
+            team-login: basicAuth, refused. team-login reads its users from usersFile.
+            two-types: refused. two-types must have exactly one middleware type.
+            """);
+  }
+
+  @Test
+  void profilesSaysWhereToWriteThemWhenThereAreNone() {
+    dashboard.answer("GET", "/api/workstation/route-profiles", 200, "{\"profiles\": []}");
+
+    Run run = yard("profiles");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out())
+        .isEqualTo("No Route Profiles. Write them in route-profiles.yaml, next to compose.yaml.\n");
   }
 
   @Test
@@ -2229,6 +2268,32 @@ class YardTest {
         .contains("\"YARD_WORKSTATION\": \"ws-a\"")
         .contains("\"YARD_PEERS\": \"10.0.0.2\"")
         .contains("\"dashboard\": {");
+  }
+
+  @Test
+  void initsDashboardReadsTheRouteProfilesOfItsFolder(@TempDir Path dir) throws Exception {
+    assumeTrue(dockerCompose(), "docker compose is not installed");
+    yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a");
+
+    ProcessBuilder config =
+        new ProcessBuilder(
+                "docker", "compose", "--profile", "dashboard", "config", "--format", "json")
+            .directory(dir.toFile());
+    config
+        .environment()
+        .keySet()
+        .removeIf(name -> name.startsWith("YARD_") || name.startsWith("COMPOSE_"));
+    Run run = run(config);
+
+    assertThat(run.exitCode()).as(run.err()).isZero();
+    JsonNode dashboard = new JsonMapper().readTree(run.out()).at("/services/dashboard");
+    String path = dashboard.at("/environment/YARD_ROUTE_PROFILES").asString();
+    assertThat(dashboard.get("volumes").valueStream())
+        .anySatisfy(volume -> {
+          assertThat(volume.get("source").asString()).isEqualTo(dir.toRealPath().toString());
+          assertThat(volume.get("read_only").asBoolean()).isTrue();
+          assertThat(path).isEqualTo(volume.get("target").asString() + "/route-profiles.yaml");
+        });
   }
 
   @Test

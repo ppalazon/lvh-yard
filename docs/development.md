@@ -36,6 +36,10 @@ mise run dev:dashboard ws-b     # http://yard.localhost:8081
 mise run dev:down
 ```
 
+Each one reads its Route Profiles from its own file,
+`dev/ws-a.route-profiles.yaml` or `dev/ws-b.route-profiles.yaml`. Git ignores
+these files.
+
 ## Building the CLI
 
 To build the CLI as a jar or as the executable:

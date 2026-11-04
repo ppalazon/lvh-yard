@@ -25,7 +25,7 @@ public record OutOfRange(List<String> ranges) {
    * {@code localhost} and names under it count as loopback. Any other hostname is not looked up, so
    * it is never out of range.
    */
-  boolean contains(String host) {
+  public boolean contains(String host) {
     List<InetAddress> addresses;
     try {
       addresses = List.of(InetAddress.ofLiteral(host));

@@ -112,6 +112,12 @@ final class Dashboard {
   /** {@code hostPort} is null when the container port is not published. */
   record ContainerPort(int containerPort, Integer hostPort) {}
 
+  /** {@code error} is set when the whole file cannot be read. */
+  record RouteProfiles(String error, List<RouteProfile> profiles) {}
+
+  /** {@code type} is null unless it has exactly one; {@code error} is set when it is refused. */
+  record RouteProfile(String name, String type, String error) {}
+
   /** This Workstation, then the others by name. */
   record Yard(HomeWorkstation home, List<YardWorkstation> remotes) {}
 
@@ -291,6 +297,10 @@ final class Dashboard {
   /** Compose projects first, then the other containers. */
   List<UnfollowedContainer> containers() {
     return read(send(get("api/workstation/containers")), new TypeReference<>() {});
+  }
+
+  RouteProfiles routeProfiles() {
+    return read(send(get("api/workstation/route-profiles")), new TypeReference<>() {});
   }
 
   /** A {@code null} argument gets the dashboard's default. */

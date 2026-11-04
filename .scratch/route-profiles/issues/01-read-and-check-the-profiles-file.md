@@ -6,9 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] The dashboard reads the file from `YARD_ROUTE_PROFILES` (default: `init`'s folder); no file means no profiles
-- [ ] The `init` template writes a commented example file, and `compose.yaml` mounts it read-only into the dashboard
-- [ ] Changes are picked up without a restart
-- [ ] Refused: unknown middleware types, `usersFile`, `forwardAuth` to an out-of-range address or `localhost`, plugins, chains naming middlewares outside the file; other profiles still apply
-- [ ] Valid profiles are copied to this Workstation's Consul KV; removed ones are deleted
-- [ ] `GET /api/workstation/route-profiles` lists names, types and errors, in `openapi.yaml`; `lvh-yard profiles` prints them
+- [x] The dashboard reads the file from `YARD_ROUTE_PROFILES` (default: `init`'s folder); no file means no profiles
+- [x] The `init` template writes a commented example file, and `compose.yaml` mounts it read-only into the dashboard
+- [x] Changes are picked up without a restart
+- [x] Refused: unknown middleware types, `usersFile`, `forwardAuth` to an out-of-range address or `localhost`, plugins, chains naming middlewares outside the file; other profiles still apply
+- [x] Valid profiles are copied to this Workstation's Consul KV; removed ones are deleted
+- [x] `GET /api/workstation/route-profiles` lists names, types and errors, in `openapi.yaml`; `lvh-yard profiles` prints them

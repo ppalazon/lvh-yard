@@ -3,6 +3,8 @@ package dev.palazon.lvhyard.dashboard;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.ServerSocket;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -53,6 +55,12 @@ class TestcontainersConfiguration {
    */
   private static final String CONSUL_HOSTNAME = "consul-" + DashboardTest.WORKSTATION;
 
+  /**
+   * The test Workstation's {@code route-profiles.yaml}, in a folder of this JVM's own. Tests write
+   * it; it does not exist at first.
+   */
+  static final Path ROUTE_PROFILES = routeProfilesPath();
+
   @Bean(destroyMethod = "close")
   Network yardNetwork() {
     return Network.newNetwork();
@@ -89,7 +97,16 @@ class TestcontainersConfiguration {
       registry.add("lvh-yard.docker.host", TestcontainersConfiguration::dockerHost);
       registry.add("lvh-yard.traefik.port", () -> TRAEFIK_PORT);
       registry.add("lvh-yard.traefik.admin-port", () -> TRAEFIK_ADMIN_PORT);
+      registry.add("lvh-yard.route-profiles.path", ROUTE_PROFILES::toString);
     };
+  }
+
+  private static Path routeProfilesPath() {
+    try {
+      return Files.createTempDirectory("lvh-yard-test").resolve("route-profiles.yaml");
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
   }
 
   /** The Docker the tests start their containers on, which the dashboards follow too. */

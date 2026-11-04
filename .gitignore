@@ -7,6 +7,10 @@ target/
 # Each Workstation's settings and the Yard's gossip key
 .env
 
+# The Route Profiles of a Workstation that runs from the sources
+/route-profiles.yaml
+/dev/*.route-profiles.yaml
+
 # IDE files
 .classpath
 .project

@@ -144,6 +144,7 @@ lvh-yard alias add grafana --workstation ws-b                 # http://grafana.<
 lvh-yard alias add db --workstation ws-b --service postgres   # a name that differs from the Service
 lvh-yard alias list
 lvh-yard alias remove grafana
+lvh-yard profiles                           # the Route Profiles of route-profiles.yaml, with their errors
 lvh-yard test web                           # tests whether this Workstation reaches web
 lvh-yard test grafana --workstation ws-b    # a Remote Service
 lvh-yard status                             # whether the Core Services work
@@ -295,6 +296,36 @@ gets a Route. These are the states of an Alias:
 - `not-shared`: the Remote Service is unpublished or has Local Scope
 - `unreachable`: its Workstation does not answer
 - `missing`: the Remote Service or its Workstation is gone
+
+### Route Profiles
+
+A Route Profile is a Traefik middleware, such as basic auth or added headers.
+Write your Route Profiles in `route-profiles.yaml`, in the format of Traefik:
+each middleware under `http.middlewares` is one profile. `init` writes this
+file with commented examples. The dashboard reads it from `YARD_ROUTE_PROFILES`.
+The default is `route-profiles.yaml` in the folder that `init` uses. With no
+file, there are no Route Profiles.
+
+The dashboard reads the file again within a second of a change, so you do not
+restart it. It copies each valid profile into the Consul KV of this
+Workstation, under `lvh-yard/route-profiles/<name>`. Other Workstations read
+the profiles there. When you remove a profile from the file, the dashboard
+deletes it from the KV.
+
+A profile must work on every Workstation, so the dashboard refuses a profile
+that:
+
+- has a type that is not a Traefik middleware, or is a plugin
+- reads its users from a file (`usersFile`). Write them under `users`, as
+  hashes from `htpasswd -nbB <user> <password>`.
+- sends `forwardAuth` to `localhost` or to an out-of-range address
+- is a chain that names a middleware that is not in the file, or that is
+  refused
+
+The other profiles still work. `lvh-yard profiles` and
+`GET /api/workstation/route-profiles` list each profile with its type and the
+reason it is refused. If the whole file cannot be read, for example because it
+is not valid YAML, the dashboard keeps the profiles that it read before.
 
 ### Container Bindings
 
