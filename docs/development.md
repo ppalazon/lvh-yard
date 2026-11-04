@@ -61,7 +61,31 @@ To build the CLI as a jar or as the executable:
 ./mvnw -q -pl cli package
 java -jar cli/target/cli-0.0.1-SNAPSHOT.jar --help
 mise run native                 # builds cli/target/lvh-yard with GraalVM and tests it
+mise run native:optimize        # the same, built for speed (-O3)
+mise run native:optimize --for size   # the same, built for size (-Os)
 ```
+
+On this computer, the three builds compare like this:
+
+| Build              | Size  | Size in tar.gz | `lvh-yard --help` |
+| ------------------ | ----- | -------------- | ----------------- |
+| `native` (-O2)     | 51 MB | 17 MB          | 7.9 ms            |
+| `native:optimize`  | 49 MB | 16 MB          | 7.3 ms            |
+| `--for size` (-Os) | 40 MB | 14 MB          | 9.7 ms            |
+
+The release workflow builds with the default -O2. To set another level, use
+`-Dnative.optimization`. Do not use `-DbuildArgs`, because it replaces the
+build arguments of `cli/pom.xml`.
+
+To copy the executable to another computer through ssh:
+
+```sh
+mise run native:copy user@host                   # to ~/.local/bin/lvh-yard
+mise run native:copy user@host --dir bin         # to ~/bin/lvh-yard
+```
+
+The other computer must have the same OS and CPU type as this one. The task
+does not build the executable, so run `mise run native` first.
 
 ## Tests
 

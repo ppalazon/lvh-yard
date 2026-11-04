@@ -39,6 +39,31 @@ description = "Build the lvh-yard executable with GraalVM, and run the CLI's tes
 tools = { java = "graalvm-community-25.0.2" }
 run = 'GRAALVM_HOME="$JAVA_HOME" ./mvnw -q -Pnative -pl cli clean verify'
 
+[tasks."native:optimize"]
+description = "Build lvh-yard for speed (-O3) or size (-Os), and run the CLI's tests on it: mise run native:optimize [--for size]"
+# -O3 starts faster and is smaller than the default -O2. -Os is 20% smaller again, but each command starts about 2 ms slower.
+# -Dnative.optimization, not -DbuildArgs: -DbuildArgs replaces the pom's buildArgs and drops the NativeRecords Feature.
+usage = 'flag "--for <goal>" default="speed" help="speed or size" { choices "speed" "size" }'
+tools = { java = "graalvm-community-25.0.2" }
+run = """
+level=3; [ "$usage_for" = size ] && level=s
+GRAALVM_HOME="$JAVA_HOME" ./mvnw -q -Pnative -pl cli clean verify -Dnative.optimization="$level"
+"""
+
+[tasks."native:copy"]
+description = "Copy cli/target/lvh-yard to another computer through ssh: mise run native:copy user@host [--dir .local/bin]"
+# The other computer needs the same OS and CPU type as this one.
+# A new file, then mv: a running lvh-yard cannot be overwritten in place ("Text file busy").
+usage = """
+arg "<host>" help="The ssh destination, for example user@host"
+flag "--dir <dir>" default=".local/bin" help="The folder for lvh-yard on that computer, relative to its home folder"
+"""
+run = """
+[ -x cli/target/lvh-yard ] || { echo "cli/target/lvh-yard is missing. Build it first with mise run native." >&2; exit 1; }
+ssh -C "$usage_host" "mkdir -p '$usage_dir' && cat > '$usage_dir/lvh-yard.new' && chmod +x '$usage_dir/lvh-yard.new' && mv '$usage_dir/lvh-yard.new' '$usage_dir/lvh-yard'" < cli/target/lvh-yard
+echo "Copied lvh-yard to $usage_host:$usage_dir/lvh-yard"
+"""
+
 [tasks.openapi]
 description = "Rewrite dashboard/openapi.yaml from the running dashboard's OpenAPI document"
 run = "./mvnw -q -pl dashboard test -Dtest=OpenApiTest#committedCopyIsCurrent -Dopenapi.update=true -Dsurefire.failIfNoSpecifiedTests=false"

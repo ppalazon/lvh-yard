@@ -17,6 +17,8 @@
         <nativeimage.version>25.0.2</nativeimage.version>
         <templating-maven-plugin.version>3.1.1</templating-maven-plugin.version>
         <main.class>dev.palazon.lvhyard.cli.Yard</main.class>
+        <!-- The -O level of native-image: 2 is its default. -->
+        <native.optimization>2</native.optimization>
     </properties>
 
     <!-- No Spring: a command starts in a fraction of a second. The parent only manages versions. -->
@@ -174,6 +176,7 @@
                             <mainClass>${main.class}</mainClass>
                             <buildArgs>
                                 <buildArg>--features=dev.palazon.lvhyard.cli.NativeRecords</buildArg>
+                                <buildArg>-O${native.optimization}</buildArg>
                             </buildArgs>
                         </configuration>
                     </plugin>
