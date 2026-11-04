@@ -109,6 +109,14 @@ datacenters with Testcontainers, so they need Docker. The second Workstation,
 `ws-remote`, runs its own dashboard in the same JVM. The test classes run in
 four JVMs at the same time, and each JVM starts its own test Yard.
 
+If no source file changed after the last `mise run check` that passed, mise
+skips the task. The source files are the `pom.xml` files, `.mvn/`,
+`package-lock.json`, `dashboard/openapi.yaml` and the `src/` folders of both
+modules. mise compares change times, not contents, so a `git checkout` also
+starts a new run. A change outside these files does not start a new run, for
+example a new Java version. To run every test anyway, use
+`mise run --force check`.
+
 `dashboard/openapi.yaml` describes the REST API that the CLI uses. If it
 differs from the API that the dashboard serves, a test fails. After you change
 the API, run `mise run openapi` to write it again.

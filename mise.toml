@@ -30,7 +30,13 @@ run = "prek run --all-files"
 description = "Build app.css, build both modules from scratch and run every test"
 # clean: compiled classes of moved or deleted sources otherwise linger in target/ and fail as phantom tests.
 # -T 2: the cli module does not depend on the dashboard, so both build at the same time.
-run = [{ task = "css" }, "./mvnw -q -T 2 clean verify"]
+# sources and auto outputs: mise skips the task if no source changed after the last run that passed.
+sources = [
+  "pom.xml", "cli/pom.xml", "dashboard/pom.xml", ".mvn/**/*", "package-lock.json",
+  "cli/src/**/*", "dashboard/src/**/*", "dashboard/openapi.yaml",
+]
+outputs = { auto = true }
+run =[{ task = "css" }, "./mvnw -q -T 2 clean verify"]
 
 [tasks.native]
 description = "Build the lvh-yard executable with GraalVM, and run the CLI's tests on it: cli/target/lvh-yard"
