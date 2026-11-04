@@ -36,6 +36,7 @@ class OpenApiTest extends DashboardTest {
             "/api/workstation/aliases",
             "/api/workstation/aliases/{alias}",
             "/api/workstation/containers",
+            "/api/workstation/containers/{container}/import",
             "/api/workstation/services",
             "/api/workstation/services/{service}",
             "/api/workstation/services/{service}/container-bindings",
@@ -78,6 +79,10 @@ class OpenApiTest extends DashboardTest {
     assertThat(answersWithProblem(paths, "/api/workstation/aliases/{alias}", "delete", "404"))
         .isTrue();
     assertThat(answersWithProblem(paths, "/api/workstation/containers", "get", "503")).isTrue();
+    String importPath = "/api/workstation/containers/{container}/import";
+    assertThat(answersWithProblem(paths, importPath, "post", "400")).isTrue();
+    assertThat(answersWithProblem(paths, importPath, "post", "404")).isTrue();
+    assertThat(answersWithProblem(paths, importPath, "post", "503")).isTrue();
   }
 
   @Test

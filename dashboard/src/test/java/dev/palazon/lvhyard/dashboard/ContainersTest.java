@@ -9,6 +9,7 @@ import com.github.dockerjava.api.model.HealthCheck;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -172,12 +173,153 @@ class ContainersTest extends DashboardTest {
         "--lvh-yard.docker.host=unix:///nowhere/docker.sock");
   }
 
+  @Test
+  void importGivesAPlainContainerAServiceOfItsNameBoundByNameAndPublishedLocally() {
+    String name = newContainerName();
+    start(onePort(name));
+
+    ResponseEntity<JsonNode> response = post(importPath(name), Map.of());
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    JsonNode service = response.getBody();
+    assertThat(service.get("name").asString()).isEqualTo(name);
+    assertThat(service.get("publication").get("scope").asString()).isEqualTo("local");
+    assertThat(service.get("containerBindings").get(0).get("id").asString())
+        .isEqualTo(name + ":80");
+    assertThat(listed(get(PATH).getBody(), name)).isEmpty();
+  }
+
+  @Test
+  void importBindsAComposeContainerByProjectAndServiceIntoAServiceOfTheComposeServiceName() {
+    String name = newContainerName();
+    String project = newComposeProject();
+    String web = newServiceName("web");
+    start(
+        onePort(name)
+            .withLabel("com.docker.compose.project", project)
+            .withLabel("com.docker.compose.service", web));
+
+    JsonNode service = post(importPath(name), Map.of()).getBody();
+
+    assertThat(service.get("name").asString()).isEqualTo(web);
+    assertThat(service.get("containerBindings").get(0).get("id").asString())
+        .isEqualTo("compose:" + project + ":" + web + ":80");
+    assertThat(listed(get(PATH).getBody(), name)).isEmpty();
+  }
+
+  @Test
+  void importIntoAnUnpublishedServiceKeepsItUnpublished() {
+    String name = newContainerName();
+    String web = newServiceName("web");
+    start(onePort(name));
+    register(web, Map.of("port", 8080));
+
+    JsonNode service = post(importPath(name), Map.of("service", web)).getBody();
+
+    assertThat(service.has("publication")).isFalse();
+    assertThat(service.get("containerBindings").get(0).get("id").asString())
+        .isEqualTo(name + ":80");
+  }
+
+  @Test
+  void importIntoAPublishedServiceKeepsItsScope() {
+    String name = newContainerName();
+    String web = newServiceName("web");
+    start(onePort(name));
+    register(web, Map.of("port", 8080));
+    put(publicationPath(web), Map.of("scope", "yard"));
+
+    JsonNode service = post(importPath(name), Map.of("service", web)).getBody();
+
+    assertThat(service.get("publication").get("scope").asString()).isEqualTo("yard");
+  }
+
+  @Test
+  void importWithANameThatIsNotADnsLabelIsRefused() {
+    String name = newContainerName();
+    start(
+        onePort(name)
+            .withLabel("com.docker.compose.project", newComposeProject())
+            .withLabel("com.docker.compose.service", "my_app"));
+
+    ResponseEntity<JsonNode> response = post(importPath(name), Map.of());
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getBody().get("detail").asString()).contains("my_app");
+    assertThat(listed(get(PATH).getBody(), name)).isPresent();
+  }
+
+  @Test
+  void importWithACoreServiceNameIsRefused() {
+    String name = newContainerName();
+    start(onePort(name));
+
+    ResponseEntity<JsonNode> response = post(importPath(name), Map.of("service", "traefik"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getBody().get("detail").asString()).contains("Core Service");
+  }
+
+  @Test
+  void importOfAContainerThatDoesNotRunIsNotFound() {
+    ResponseEntity<JsonNode> response = post(importPath(newContainerName()), Map.of());
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+  }
+
+  @Test
+  void pageImportsAOnePortContainerInOneClickAndShowsItsService() {
+    String name = newContainerName();
+    start(onePort(name));
+    assertThat(row(getPage("/containers").getBody(), name))
+        .contains("action=\"/containers/" + name + "/import\"");
+
+    ResponseEntity<String> response = postForm("/containers/" + name + "/import", Map.of());
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    assertThat(response.getHeaders().getLocation()).hasPath("/services/ws-test/" + name);
+    assertThat(getPage("/containers").getBody()).doesNotContain(name);
+  }
+
+  @Test
+  void pageShowsWhyAnImportFailsNextToTheContainer() {
+    String name = newContainerName();
+    start(
+        onePort(name)
+            .withLabel("com.docker.compose.project", newComposeProject())
+            .withLabel("com.docker.compose.service", "my_app"));
+
+    ResponseEntity<String> response = postForm("/containers/" + name + "/import", Map.of());
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(row(response.getBody(), name))
+        .contains("role=\"alert\"")
+        .contains("The Service name my_app is not a single DNS label");
+  }
+
+  /** The table row of {@code container} on the Containers page. */
+  private static String row(String page, String container) {
+    int at = page.indexOf("data-container=\"" + container + "\"");
+    assertThat(at).as("row of " + container).isNotNegative();
+    int start = page.lastIndexOf("<tr", at);
+    return page.substring(start, page.indexOf("</tr>", at) + "</tr>".length());
+  }
+
   /** {@code name} in the list, if it is there. */
   private static Optional<JsonNode> listed(JsonNode containers, String name) {
     return containers
         .valueStream()
         .filter(container -> container.get("name").asString().equals(name))
         .findFirst();
+  }
+
+  private static String importPath(String container) {
+    return PATH + "/" + container + "/import";
+  }
+
+  /** A container called {@code name} whose one port is 80. */
+  private static GenericContainer<?> onePort(String name) {
+    return listener(name, command -> command.withExposedPorts(ExposedPort.tcp(80)));
   }
 
   /**

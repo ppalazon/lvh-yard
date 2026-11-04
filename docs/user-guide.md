@@ -321,6 +321,22 @@ Binding matches is not listed, whatever the port of the Binding. The list
 refreshes every 5 seconds. If the dashboard cannot read Docker, the page says
 why. `GET /api/workstation/containers` gives the same list.
 
+To give a container with one port a hostname, click Import in its row. The
+import adds a Container Binding on that port. A Compose container is bound by
+its Compose project and service, so the Binding still works after
+`docker compose up` makes a new container. Another container is bound by its
+name. The Service gets the name of the Compose service, or of the container. If
+the Service is new, the import publishes it with Local Scope, and the page of
+the Service opens. If the Service already exists, it keeps its Publication and
+Scope, or stays unpublished. If the import fails, for example because the name
+is not a single DNS label or is the name of a Core Service, the page shows why
+next to the container.
+
+`POST /api/workstation/containers/<container>/import` does the same.
+The body can give `port`, `service` (another Service name) and
+`publish: false` (to bind without publishing a new Service). Give `port` when the container
+does not have exactly one TCP port.
+
 ### Health checks
 
 Each Instance has one health check. A TCP check connects to its port. An HTTP

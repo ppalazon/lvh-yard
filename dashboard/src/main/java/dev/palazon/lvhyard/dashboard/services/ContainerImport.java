@@ -1,9 +1,11 @@
 package dev.palazon.lvhyard.dashboard.services;
 
+import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.docker.Docker;
 import dev.palazon.lvhyard.dashboard.docker.DockerFailures;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 /** Running containers that no Container Binding follows yet, to give them a Service. */
@@ -16,10 +18,25 @@ public class ContainerImport {
 
   private final ContainerBindings bindings;
 
-  ContainerImport(Docker docker, DockerFailures failures, ContainerBindings bindings) {
+  private final Workstation workstation;
+
+  private final Publications publications;
+
+  private final YardReader yard;
+
+  ContainerImport(
+      Docker docker,
+      DockerFailures failures,
+      ContainerBindings bindings,
+      Workstation workstation,
+      Publications publications,
+      YardReader yard) {
     this.docker = docker;
     this.failures = failures;
     this.bindings = bindings;
+    this.workstation = workstation;
+    this.publications = publications;
+    this.yard = yard;
   }
 
   /**
@@ -42,6 +59,64 @@ public class ContainerImport {
                     Comparator.nullsLast(Comparator.naturalOrder()))
                 .thenComparing(UnfollowedContainer::name))
         .toList();
+  }
+
+  /**
+   * Binds the running container {@code name} to a Service: by its Compose project and service when
+   * it has them, so the Binding outlives {@code docker compose up}, else by its name. A Service
+   * that already exists keeps its Publication, or stays unpublished.
+   *
+   * @return the Service, with the container bound
+   * @throws UnknownContainerException when no running container has the name
+   * @throws InvalidRegistrationException when the Service name or the port breaks a rule
+   * @throws UnreadableDockerException when Docker does not answer
+   */
+  public Service importContainer(String name, ContainerImportRequest request) {
+    Docker.Container container =
+        running().stream()
+            .filter(running -> running.isNamed(name))
+            .findFirst()
+            .orElseThrow(() -> new UnknownContainerException(name));
+    String service =
+        request.service() == null || request.service().isBlank()
+            ? container.composeService().orElse(name)
+            : request.service().strip();
+    int port =
+        request.port() == null ? onlyPort(UnfollowedContainer.of(container)) : request.port();
+    boolean existed = publications.exists(service);
+    bindings.add(
+        workstation.name(),
+        service,
+        container
+            .composeProject()
+            .map(project ->
+                ContainerBindingRequest.compose(
+                    project, container.composeService().orElseThrow(), port))
+            .orElseGet(() -> ContainerBindingRequest.container(name, port)));
+    if (!existed && !Boolean.FALSE.equals(request.publish())) {
+      publications.publish(workstation.name(), service, null, null);
+    }
+    return yard.service(workstation.name(), service).orElseThrow();
+  }
+
+  private static int onlyPort(UnfollowedContainer container) {
+    List<Integer> ports =
+        container.ports().stream()
+            .map(UnfollowedContainer.ContainerPort::containerPort)
+            .distinct()
+            .toList();
+    if (ports.size() == 1) {
+      return ports.getFirst();
+    }
+    throw new InvalidRegistrationException(
+        "port",
+        ports.isEmpty()
+            ? "The container " + container.name() + " has no exposed port: give the port."
+            : "The container "
+                + container.name()
+                + " has more than one port: give one of "
+                + ports.stream().map(String::valueOf).collect(Collectors.joining(", "))
+                + ".");
   }
 
   private List<Docker.Container> running() {

@@ -141,11 +141,16 @@ public class Publications {
   }
 
   private void checkExists(String service) {
-    if (consul.health(service).isEmpty()
-        && !all().containsKey(service)
-        && !containerBindings.all(null).containsKey(service)) {
+    if (!exists(service)) {
       throw new UnknownServiceException(service);
     }
+  }
+
+  /** It has an Instance, a Publication or a Container Binding on this Workstation. */
+  boolean exists(String service) {
+    return !consul.health(service).isEmpty()
+        || all().containsKey(service)
+        || containerBindings.all(null).containsKey(service);
   }
 
   private void checkHome(String workstation) {

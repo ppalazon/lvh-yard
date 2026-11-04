@@ -58,6 +58,11 @@ class ApiProblems extends ResponseEntityExceptionHandler {
   }
 
   @ExceptionHandler
+  ProblemDetail unknownContainer(UnknownContainerException exception) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+  }
+
+  @ExceptionHandler
   ProblemDetail unknownWorkstation(UnknownWorkstationException exception) {
     return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
   }

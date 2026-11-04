@@ -5,6 +5,7 @@ import dev.palazon.lvhyard.dashboard.reachability.ReachabilityTester;
 import dev.palazon.lvhyard.dashboard.services.Aliases;
 import dev.palazon.lvhyard.dashboard.services.ContainerBindings;
 import dev.palazon.lvhyard.dashboard.services.ContainerImport;
+import dev.palazon.lvhyard.dashboard.services.ContainerImportRequest;
 import dev.palazon.lvhyard.dashboard.services.CoreServiceException;
 import dev.palazon.lvhyard.dashboard.services.Instance;
 import dev.palazon.lvhyard.dashboard.services.InvalidPriorityException;
@@ -17,6 +18,7 @@ import dev.palazon.lvhyard.dashboard.services.Service;
 import dev.palazon.lvhyard.dashboard.services.ServiceState;
 import dev.palazon.lvhyard.dashboard.services.UnknownAliasException;
 import dev.palazon.lvhyard.dashboard.services.UnknownContainerBindingException;
+import dev.palazon.lvhyard.dashboard.services.UnknownContainerException;
 import dev.palazon.lvhyard.dashboard.services.UnknownInstanceException;
 import dev.palazon.lvhyard.dashboard.services.UnknownServiceException;
 import dev.palazon.lvhyard.dashboard.services.UnknownStateException;
@@ -313,11 +315,33 @@ class PagesController {
   @GetMapping(path = ContainersPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
   @ResponseBody
   String containers() {
+    return containersPage(null);
+  }
+
+  private String containersPage(ContainersPage.ImportFailure failure) {
     try {
-      return ContainersPage.render(workstation, containerImport.unfollowed(), null);
+      return ContainersPage.render(workstation, containerImport.unfollowed(), null, failure);
     } catch (UnreadableDockerException e) {
-      return ContainersPage.render(workstation, List.of(), e.getMessage());
+      return ContainersPage.render(workstation, List.of(), e.getMessage(), failure);
     }
+  }
+
+  /** Shows the Service it gave the container, or the list with why it failed. */
+  @PostMapping(ContainersPage.PATH + "/{container}/import")
+  ResponseEntity<String> importContainer(@PathVariable String container) {
+    Service service;
+    try {
+      service = containerImport.importContainer(container, ContainerImportRequest.DEFAULTS);
+    } catch (InvalidRegistrationException e) {
+      return ResponseEntity.badRequest()
+          .contentType(Layout.HTML)
+          .body(containersPage(new ContainersPage.ImportFailure(container, e.getMessage())));
+    } catch (UnknownContainerException e) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+    } catch (UnreadableDockerException e) {
+      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage(), e);
+    }
+    return seeOther(ServicePage.path(service));
   }
 
   @GetMapping(path = AliasesPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
