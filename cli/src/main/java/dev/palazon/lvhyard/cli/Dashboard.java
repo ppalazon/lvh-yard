@@ -97,6 +97,21 @@ final class Dashboard {
 
   record Warning(String kind, String message) {}
 
+  /**
+   * The API leaves {@code composeProject}, {@code composeService} and {@code health} out when the
+   * container has none.
+   */
+  record UnfollowedContainer(
+      String name,
+      String composeProject,
+      String composeService,
+      String service,
+      List<ContainerPort> ports,
+      String health) {}
+
+  /** {@code hostPort} is null when the container port is not published. */
+  record ContainerPort(int containerPort, Integer hostPort) {}
+
   /** This Workstation, then the others by name. */
   record Yard(HomeWorkstation home, List<YardWorkstation> remotes) {}
 
@@ -270,6 +285,31 @@ final class Dashboard {
         HttpRequest.newBuilder(containerBindingsUrl(service))
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(binding)));
+    return read(send(request), new TypeReference<>() {});
+  }
+
+  /** Compose projects first, then the other containers. */
+  List<UnfollowedContainer> containers() {
+    return read(send(get("api/workstation/containers")), new TypeReference<>() {});
+  }
+
+  /** A {@code null} argument gets the dashboard's default. */
+  Service importContainer(String container, Integer port, String service, Boolean publish) {
+    Map<String, Object> body = new LinkedHashMap<>();
+    if (port != null) {
+      body.put("port", port);
+    }
+    if (service != null) {
+      body.put("service", service);
+    }
+    if (publish != null) {
+      body.put("publish", publish);
+    }
+    HttpRequest.Builder request =
+        HttpRequest.newBuilder(
+                url.resolve("api/workstation/containers/" + segment(container) + "/import"))
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body)));
     return read(send(request), new TypeReference<>() {});
   }
 

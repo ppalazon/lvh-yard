@@ -23,6 +23,8 @@ import picocli.CommandLine.Spec;
       Init.class,
       ListServices.class,
       Register.class,
+      Containers.class,
+      Import.class,
       Remove.class,
       Publish.class,
       Unpublish.class,

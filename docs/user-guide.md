@@ -128,6 +128,9 @@ lvh-yard register web --port 8080 --path /health --interval 5s --timeout 1s   # 
 lvh-yard register web --port 8080 --tag backend --meta owner=pablo           # repeat --tag and --meta for more
 lvh-yard register web --container web-1 --port 80                            # bind to the container web-1
 lvh-yard register web --compose-project shop --compose-service web --port 80 # bind to the Compose service web
+lvh-yard containers                         # running containers that no Container Binding follows
+lvh-yard import shop-web-1                  # bind a container to a Service and publish it
+lvh-yard import shop-web-1 --port 9000 --name shop --no-publish
 lvh-yard remove web --port 8080             # add --host if several Instances share the port
 lvh-yard remove web --id <id>               # the ID that lvh-yard list shows
 lvh-yard remove web --container web-1       # add --port if web-1 is bound on several ports
@@ -325,17 +328,38 @@ To give a container with one port a hostname, click Import in its row. The
 import adds a Container Binding on that port. A Compose container is bound by
 its Compose project and service, so the Binding still works after
 `docker compose up` makes a new container. Another container is bound by its
-name. The Service gets the name of the Compose service, or of the container. If
-the Service is new, the import publishes it with Local Scope, and the page of
-the Service opens. If the Service already exists, it keeps its Publication and
-Scope, or stays unpublished. If the import fails, for example because the name
-is not a single DNS label or is the name of a Core Service, the page shows why
-next to the container.
+name. The Service gets the name of the Compose service, or of the container.
+If that name is not a single DNS label, the import uses a cleaned name: lower
+case, with `_`, `.` and other characters changed to `-`. If the Service is new,
+the import publishes it with Local Scope, and the page of the Service opens. If
+the Service already exists, it keeps its Publication and Scope, or stays
+unpublished. If the import fails, for example because the name is the name of a
+Core Service, the page shows why next to the container.
+
+To choose another Service name, click Choose name. If a container has several
+ports or none, click Choose port. A form opens with the proposed name and the
+ports of the container. Change them, and click Import. If the import fails, the
+form shows why next to the field.
+
+If the Service has Yard Scope and the container port is not published, the
+page of the Service warns that other Workstations cannot reach the Bound
+Instance.
 
 `POST /api/workstation/containers/<container>/import` does the same.
 The body can give `port`, `service` (another Service name) and
-`publish: false` (to bind without publishing a new Service). Give `port` when the container
-does not have exactly one TCP port.
+`publish: false` (to bind without publishing a new Service). Give `port` when
+the container does not have exactly one TCP port. If you do not, the error
+lists the ports of the container.
+
+From the terminal:
+
+```sh
+lvh-yard containers                          # the running containers that LVH Yard does not follow
+lvh-yard import shop-web-1                   # a container with one port
+lvh-yard import shop-web-1 --port 9000       # choose the port of a container with several or none
+lvh-yard import shop-web-1 --name shop       # choose the Service name
+lvh-yard import shop-web-1 --no-publish      # bind without publishing a new Service
+```
 
 ### Health checks
 

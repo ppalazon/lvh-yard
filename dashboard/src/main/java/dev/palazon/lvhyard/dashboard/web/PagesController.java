@@ -16,6 +16,7 @@ import dev.palazon.lvhyard.dashboard.services.RemoteServiceException;
 import dev.palazon.lvhyard.dashboard.services.Scope;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import dev.palazon.lvhyard.dashboard.services.ServiceState;
+import dev.palazon.lvhyard.dashboard.services.UnfollowedContainer;
 import dev.palazon.lvhyard.dashboard.services.UnknownAliasException;
 import dev.palazon.lvhyard.dashboard.services.UnknownContainerBindingException;
 import dev.palazon.lvhyard.dashboard.services.UnknownContainerException;
@@ -326,22 +327,69 @@ class PagesController {
     }
   }
 
-  /** Shows the Service it gave the container, or the list with why it failed. */
+  @GetMapping(
+      path = ContainersPage.PATH + "/{container}/import",
+      produces = MediaType.TEXT_HTML_VALUE)
+  @ResponseBody
+  String importForm(@PathVariable String container) {
+    UnfollowedContainer unfollowed = unfollowed(container);
+    return ContainersPage.renderImport(
+        workstation,
+        unfollowed,
+        unfollowed.service(),
+        ContainersPage.proposedPort(unfollowed),
+        null);
+  }
+
+  /**
+   * Shows the Service it gave the container. On a failure, the import form shows why at its field,
+   * or, for the one-click Import of the list, the list shows why in the container's row.
+   *
+   * @param name the Service name, sent only by the import form
+   */
   @PostMapping(ContainersPage.PATH + "/{container}/import")
-  ResponseEntity<String> importContainer(@PathVariable String container) {
+  ResponseEntity<String> importContainer(
+      @PathVariable String container,
+      @RequestParam(required = false) String name,
+      @RequestParam(required = false) String port) {
+    boolean fromForm = name != null;
     Service service;
     try {
-      service = containerImport.importContainer(container, ContainerImportRequest.DEFAULTS);
+      service =
+          containerImport.importContainer(
+              container,
+              fromForm
+                  ? new ContainerImportRequest(Registrations.parsePort(port), name, null)
+                  : ContainerImportRequest.DEFAULTS);
     } catch (InvalidRegistrationException e) {
       return ResponseEntity.badRequest()
           .contentType(Layout.HTML)
-          .body(containersPage(new ContainersPage.ImportFailure(container, e.getMessage())));
+          .body(
+              fromForm
+                  ? ContainersPage.renderImport(
+                      workstation, unfollowed(container), name, port == null ? "" : port, e)
+                  : containersPage(new ContainersPage.ImportFailure(container, e.getMessage())));
     } catch (UnknownContainerException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
     } catch (UnreadableDockerException e) {
       throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage(), e);
     }
     return seeOther(ServicePage.path(service));
+  }
+
+  /** The running container {@code name}, which no Container Binding follows yet. */
+  private UnfollowedContainer unfollowed(String name) {
+    try {
+      return containerImport.unfollowed().stream()
+          .filter(container -> container.name().equals(name))
+          .findFirst()
+          .orElseThrow(() ->
+              new ResponseStatusException(
+                  HttpStatus.NOT_FOUND,
+                  "No running container that LVH Yard does not follow is called " + name + "."));
+    } catch (UnreadableDockerException e) {
+      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage(), e);
+    }
   }
 
   @GetMapping(path = AliasesPage.PATH, produces = MediaType.TEXT_HTML_VALUE)

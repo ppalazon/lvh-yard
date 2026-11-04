@@ -235,18 +235,96 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void importWithANameThatIsNotADnsLabelIsRefused() {
+  void composeServiceNameThatIsNotADnsLabelIsProposedCleaned() {
     String name = newContainerName();
+    String project = newComposeProject();
     start(
         onePort(name)
-            .withLabel("com.docker.compose.project", newComposeProject())
-            .withLabel("com.docker.compose.service", "my_app"));
+            .withLabel("com.docker.compose.project", project)
+            .withLabel("com.docker.compose.service", "My_App.v2"));
 
-    ResponseEntity<JsonNode> response = post(importPath(name), Map.of());
+    assertThat(listed(get(PATH).getBody(), name).orElseThrow().get("service").asString())
+        .isEqualTo("my-app-v2");
+    JsonNode service = post(importPath(name), Map.of()).getBody();
+
+    assertThat(service.get("name").asString()).isEqualTo("my-app-v2");
+    assertThat(service.get("containerBindings").get(0).get("id").asString())
+        .isEqualTo("compose:" + project + ":My_App.v2:80");
+  }
+
+  @Test
+  void importWithAGivenNameThatIsNotADnsLabelIsRefused() {
+    String name = newContainerName();
+    start(onePort(name));
+
+    ResponseEntity<JsonNode> response = post(importPath(name), Map.of("service", "my_app"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody().get("detail").asString()).contains("my_app");
     assertThat(listed(get(PATH).getBody(), name)).isPresent();
+  }
+
+  @Test
+  void importOfAContainerWithSeveralPortsWithoutAPortIsRefusedWithThePorts() {
+    String name = newContainerName();
+    start(twoPorts(name));
+
+    ResponseEntity<JsonNode> response = post(importPath(name), Map.of());
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getBody().get("detail").asString()).contains("80, 9000");
+    assertThat(listed(get(PATH).getBody(), name)).isPresent();
+  }
+
+  @Test
+  void importOfAContainerWithSeveralPortsBindsTheChosenPort() {
+    String name = newContainerName();
+    start(twoPorts(name));
+
+    JsonNode service = post(importPath(name), Map.of("port", 9000)).getBody();
+
+    assertThat(service.get("containerBindings").get(0).get("id").asString())
+        .isEqualTo(name + ":9000");
+  }
+
+  @Test
+  void importOfAContainerWithNoExposedPortNeedsAPort() {
+    String name = newContainerName();
+    start(listener(name, command -> {}));
+
+    ResponseEntity<JsonNode> refused = post(importPath(name), Map.of());
+    JsonNode service = post(importPath(name), Map.of("port", 80)).getBody();
+
+    assertThat(refused.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(refused.getBody().get("detail").asString()).contains("no exposed port");
+    assertThat(service.get("containerBindings").get(0).get("id").asString())
+        .isEqualTo(name + ":80");
+  }
+
+  @Test
+  void importWithPublishFalseLeavesANewServiceUnpublished() {
+    String name = newContainerName();
+    start(onePort(name));
+
+    JsonNode service = post(importPath(name), Map.of("publish", false)).getBody();
+
+    assertThat(service.get("name").asString()).isEqualTo(name);
+    assertThat(service.has("publication")).isFalse();
+    assertThat(service.get("containerBindings")).hasSize(1);
+  }
+
+  @Test
+  void importIntoAYardScopedServiceWarnsAboutAnUnpublishedContainerPort() {
+    String name = newContainerName();
+    String web = newServiceName("web");
+    start(onePort(name));
+    register(web, Map.of("port", 8080));
+    put(publicationPath(web), Map.of("scope", "yard"));
+
+    JsonNode service = post(importPath(name), Map.of("service", web)).getBody();
+
+    assertThat(service.get("warnings").valueStream().map(warning -> warning.get("kind").asString()))
+        .containsExactly("unpublished-container-port");
   }
 
   @Test
@@ -287,14 +365,90 @@ class ContainersTest extends DashboardTest {
     start(
         onePort(name)
             .withLabel("com.docker.compose.project", newComposeProject())
-            .withLabel("com.docker.compose.service", "my_app"));
+            .withLabel("com.docker.compose.service", "traefik"));
 
     ResponseEntity<String> response = postForm("/containers/" + name + "/import", Map.of());
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(row(response.getBody(), name))
-        .contains("role=\"alert\"")
-        .contains("The Service name my_app is not a single DNS label");
+    assertThat(row(response.getBody(), name)).contains("role=\"alert\"").contains("Core Service");
+  }
+
+  @Test
+  void pageLetsTheUserChooseTheNameAndPortOfEachContainer() {
+    String one = newContainerName();
+    String two = newContainerName();
+    start(onePort(one));
+    start(twoPorts(two));
+
+    String page = getPage("/containers").getBody();
+
+    assertThat(row(page, one))
+        .contains("action=\"/containers/" + one + "/import\"")
+        .contains("href=\"/containers/" + one + "/import\"");
+    assertThat(row(page, two))
+        .doesNotContain("action=")
+        .contains("href=\"/containers/" + two + "/import\"");
+  }
+
+  @Test
+  void importFormProposesTheNameAndListsThePorts() {
+    String name = newContainerName();
+    start(twoPorts(name));
+
+    ResponseEntity<String> response = getPage("/containers/" + name + "/import");
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(openingTag(response.getBody(), "name=\"name\"")).contains("value=\"" + name + "\"");
+    assertThat(response.getBody()).contains("name=\"port\"").contains("80, 9000");
+  }
+
+  @Test
+  void importFormOfAContainerThatIsNotListedIsNotFound() {
+    assertThat(getPage("/containers/" + newContainerName() + "/import").getStatusCode())
+        .isEqualTo(HttpStatus.NOT_FOUND);
+  }
+
+  @Test
+  void importFormImportsWithTheChosenNameAndPort() {
+    String name = newContainerName();
+    String web = newServiceName("web");
+    start(twoPorts(name));
+
+    ResponseEntity<String> response =
+        postForm("/containers/" + name + "/import", Map.of("name", web, "port", "9000"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    assertThat(response.getHeaders().getLocation()).hasPath("/services/ws-test/" + web);
+    assertThat(get(servicePath(web)).getBody().get("containerBindings").get(0).get("id").asString())
+        .isEqualTo(name + ":9000");
+  }
+
+  @Test
+  void importFormShowsTheErrorAtItsFieldAndKeepsWhatWasTyped() {
+    String name = newContainerName();
+    start(twoPorts(name));
+
+    ResponseEntity<String> response =
+        postForm("/containers/" + name + "/import", Map.of("name", "my_app", "port", "9000"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(openingTag(response.getBody(), "name=\"name\""))
+        .contains("aria-invalid=\"true\"")
+        .contains("value=\"my_app\"");
+    assertThat(openingTag(response.getBody(), "name=\"port\"")).contains("value=\"9000\"");
+  }
+
+  @Test
+  void importFormWithoutAPortForAContainerWithSeveralShowsThePortsAtThePortField() {
+    String name = newContainerName();
+    start(twoPorts(name));
+
+    ResponseEntity<String> response =
+        postForm("/containers/" + name + "/import", Map.of("name", name, "port", ""));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(openingTag(response.getBody(), "name=\"port\"")).contains("aria-invalid=\"true\"");
+    assertThat(response.getBody()).contains("give one of 80, 9000");
   }
 
   /** The table row of {@code container} on the Containers page. */
@@ -320,6 +474,12 @@ class ContainersTest extends DashboardTest {
   /** A container called {@code name} whose one port is 80. */
   private static GenericContainer<?> onePort(String name) {
     return listener(name, command -> command.withExposedPorts(ExposedPort.tcp(80)));
+  }
+
+  /** A container called {@code name} whose ports are 80 and 9000. */
+  private static GenericContainer<?> twoPorts(String name) {
+    return listener(
+        name, command -> command.withExposedPorts(ExposedPort.tcp(80), ExposedPort.tcp(9000)));
   }
 
   /**

@@ -64,7 +64,8 @@ public class ContainerImport {
   /**
    * Binds the running container {@code name} to a Service: by its Compose project and service when
    * it has them, so the Binding outlives {@code docker compose up}, else by its name. A Service
-   * that already exists keeps its Publication, or stays unpublished.
+   * that already exists keeps its Publication, or stays unpublished. The Service name is by default
+   * the proposed one, the Compose service or container name cleaned.
    *
    * @return the Service, with the container bound
    * @throws UnknownContainerException when no running container has the name
@@ -77,12 +78,12 @@ public class ContainerImport {
             .filter(running -> running.isNamed(name))
             .findFirst()
             .orElseThrow(() -> new UnknownContainerException(name));
+    UnfollowedContainer unfollowed = UnfollowedContainer.of(container);
     String service =
         request.service() == null || request.service().isBlank()
-            ? container.composeService().orElse(name)
+            ? unfollowed.service()
             : request.service().strip();
-    int port =
-        request.port() == null ? onlyPort(UnfollowedContainer.of(container)) : request.port();
+    int port = request.port() == null ? onlyPort(unfollowed) : request.port();
     boolean existed = publications.exists(service);
     bindings.add(
         workstation.name(),

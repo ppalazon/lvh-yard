@@ -405,6 +405,126 @@ class YardTest {
   }
 
   @Test
+  void containersListsTheUnfollowedContainersByComposeProjectWithTheirPorts() {
+    dashboard.answer(
+        "GET",
+        "/api/workstation/containers",
+        200,
+        """
+        [{"name": "storefront", "composeProject": "shop", "composeService": "web",
+          "service": "web", "health": "healthy",
+          "ports": [{"containerPort": 80, "hostPort": 8080}, {"containerPort": 9000}]},
+         {"name": "grafana", "service": "grafana", "ports": [{"containerPort": 3000}]},
+         {"name": "worker", "service": "worker", "ports": []}]
+        """);
+
+    Run run = yard("containers");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out())
+        .isEqualTo(
+            """
+            Compose project shop
+              storefront: ports 80 on host port 8080, 9000 not published; healthy. Imports as web.
+            Other containers
+              grafana: port 3000 not published. Imports as grafana.
+              worker: no exposed port. Imports as worker.
+            """);
+  }
+
+  @Test
+  void containersSaysWhenEveryContainerIsFollowed() {
+    dashboard.answer("GET", "/api/workstation/containers", 200, "[]");
+
+    Run run = yard("containers");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).isEqualTo("Every running container is followed.\n");
+  }
+
+  @Test
+  void importImportsTheContainerAndSaysWhereItIsPublished() {
+    dashboard.answer(
+        "POST",
+        "/api/workstation/containers/grafana/import",
+        200,
+        """
+        {"workstation": "ws-a", "name": "grafana", "state": "healthy",
+         "publication": {"scope": "local"}, "hostname": "grafana.lvh.me",
+         "containerBindings": [], "warnings": [], "instances": []}
+        """);
+
+    Run run = yard("import", "grafana");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).isEqualTo("Imported grafana as grafana, published at grafana.lvh.me.\n");
+    dashboard.verifyCalled("POST", "/api/workstation/containers/grafana/import", "{}");
+  }
+
+  @Test
+  void importSendsThePortTheNameAndNoPublish() {
+    dashboard.answer(
+        "POST",
+        "/api/workstation/containers/storefront/import",
+        200,
+        """
+        {"workstation": "ws-a", "name": "shop", "state": "healthy",
+         "containerBindings": [], "warnings": [], "instances": []}
+        """);
+
+    Run run = yard("import", "storefront", "--port", "9000", "--name", "shop", "--no-publish");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).isEqualTo("Imported storefront as shop. shop is not published.\n");
+    dashboard.verifyCalled(
+        "POST",
+        "/api/workstation/containers/storefront/import",
+        """
+        {"port": 9000, "service": "shop", "publish": false}
+        """);
+  }
+
+  @Test
+  void importWithoutAPortOnAContainerWithSeveralListsThePorts() {
+    dashboard.answer(
+        "POST",
+        "/api/workstation/containers/storefront/import",
+        400,
+        """
+        {"status": 400,
+         "detail": "The container storefront has more than one port: give one of 80, 9000."}
+        """);
+
+    Run run = yard("import", "storefront");
+
+    assertThat(run.exitCode()).isEqualTo(1);
+    assertThat(run.err()).contains("give one of 80, 9000.");
+  }
+
+  @Test
+  void importPrintsTheServicesWarnings() {
+    dashboard.answer(
+        "POST",
+        "/api/workstation/containers/web-1/import",
+        200,
+        """
+        {"workstation": "ws-a", "name": "web", "state": "healthy",
+         "publication": {"scope": "yard"}, "hostname": "web.lvh.me",
+         "containerBindings": [], "instances": [], "warnings": [
+            {"kind": "unpublished-container-port",
+             "message": "The Bound Instance at 172.17.0.2:80 is on a container port that is not published."}]}
+        """);
+
+    Run run = yard("import", "web-1", "--name", "web");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.err())
+        .isEqualTo(
+            "Warning: The Bound Instance at 172.17.0.2:80 is on a container port that is not"
+                + " published.\n");
+  }
+
+  @Test
   void registerWithContainerBindsTheServiceToThatContainersPort() {
     dashboard.answer(
         "POST",
@@ -538,7 +658,7 @@ class YardTest {
         201,
         """
         {"id": "compose:shop:web:80", "composeProject": "shop", "composeService": "web", "port": 80,
-         "instances": ["web:shop-web-1:80", "web:shop-web-2:80"]}
+         "instances": ["web:storefront:80", "web:shop-web-2:80"]}
         """);
 
     Run run =

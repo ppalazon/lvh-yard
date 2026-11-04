@@ -1,6 +1,7 @@
 package dev.palazon.lvhyard.dashboard.web;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
+import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
 import dev.palazon.lvhyard.dashboard.services.UnfollowedContainer;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -168,26 +169,38 @@ final class ContainersPage {
         .__();
   }
 
-  /** One click is enough only when the container has one port, as the port is then known. */
+  /**
+   * One click is enough only when the container has one port, as the port is then known. The choice
+   * of name and port is a page of its own, so the 5 s refresh cannot reset what is typed.
+   */
   private static void importer(Td<?> cell, UnfollowedContainer container, ImportFailure failure) {
-    long ports =
-        container.ports().stream()
-            .map(UnfollowedContainer.ContainerPort::containerPort)
-            .distinct()
-            .count();
-    if (ports == 1) {
-      cell.form()
-          .addAttr("method", "post")
-          .addAttr("action", Layout.attr(importPath(container.name())))
-          .button()
-          .attrType(EnumTypeButtonType.SUBMIT)
-          .attrClass("btn")
-          .addAttr("data-variant", "outline")
-          .addAttr("data-size", "sm")
-          .text("Import")
-          .__()
-          .__();
-    }
+    List<Integer> ports = containerPorts(container);
+    cell.div()
+        .attrClass("flex flex-wrap gap-2")
+        .of(actions -> {
+          if (ports.size() == 1) {
+            actions
+                .form()
+                .addAttr("method", "post")
+                .addAttr("action", Layout.attr(importPath(container.name())))
+                .button()
+                .attrType(EnumTypeButtonType.SUBMIT)
+                .attrClass("btn")
+                .addAttr("data-variant", "outline")
+                .addAttr("data-size", "sm")
+                .text("Import")
+                .__()
+                .__();
+          }
+        })
+        .a()
+        .attrClass("btn")
+        .addAttr("data-variant", ports.size() == 1 ? "ghost" : "outline")
+        .addAttr("data-size", "sm")
+        .attrHref(Layout.attr(importPath(container.name())))
+        .text(ports.size() == 1 ? "Choose name" : "Choose port")
+        .__()
+        .__();
     if (failure != null && failure.container().equals(container.name())) {
       cell.div()
           .attrClass("alert mt-2")
@@ -198,6 +211,90 @@ final class ContainersPage {
           .__()
           .__();
     }
+  }
+
+  /**
+   * The page to choose the Service name and the port before importing {@code container}.
+   *
+   * @param name the Service name as typed
+   * @param port the container port as typed
+   * @param error why the last import failed, shown at its field, or {@code null}
+   */
+  static String renderImport(
+      Workstation workstation,
+      UnfollowedContainer container,
+      String name,
+      String port,
+      InvalidRegistrationException error) {
+    List<Integer> ports = containerPorts(container);
+    return Layout.page(
+        "Import " + container.name(),
+        workstation.name(),
+        main ->
+            main.h1()
+                .text("Import " + container.name())
+                .__()
+                .p()
+                .text(
+                    "Binds the container to a Service. A new Service is published with Local"
+                        + " Scope.")
+                .__()
+                .form()
+                .attrClass("form flex max-w-md flex-col gap-6")
+                .addAttr("method", "post")
+                .addAttr("action", Layout.attr(importPath(container.name())))
+                .of(form ->
+                    InstanceForm.text(
+                        form,
+                        "name",
+                        "Service name",
+                        name,
+                        container.service(),
+                        "Lowercase letters, digits and -.",
+                        error))
+                .of(form ->
+                    InstanceForm.text(
+                        form,
+                        "port",
+                        "Container port",
+                        port,
+                        "80",
+                        ports.isEmpty()
+                            ? "The container has no exposed port."
+                            : "Its ports: "
+                                + ports.stream()
+                                    .map(String::valueOf)
+                                    .collect(Collectors.joining(", "))
+                                + ".",
+                        error))
+                .div()
+                .attrClass("flex gap-2")
+                .button()
+                .attrType(EnumTypeButtonType.SUBMIT)
+                .attrClass("btn")
+                .text("Import")
+                .__()
+                .a()
+                .attrClass("btn")
+                .addAttr("data-variant", "outline")
+                .attrHref(PATH)
+                .text("Cancel")
+                .__()
+                .__()
+                .__());
+  }
+
+  /** The port the import form proposes: the only one, else none. */
+  static String proposedPort(UnfollowedContainer container) {
+    List<Integer> ports = containerPorts(container);
+    return ports.size() == 1 ? String.valueOf(ports.getFirst()) : "";
+  }
+
+  private static List<Integer> containerPorts(UnfollowedContainer container) {
+    return container.ports().stream()
+        .map(UnfollowedContainer.ContainerPort::containerPort)
+        .distinct()
+        .toList();
   }
 
   private static void ports(Td<?> cell, List<UnfollowedContainer.ContainerPort> ports) {
