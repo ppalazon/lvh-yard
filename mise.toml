@@ -33,7 +33,7 @@ description = "Build app.css, build both modules from scratch and run every test
 # sources and auto outputs: mise skips the task if no source changed after the last run that passed.
 sources = [
   "pom.xml", "cli/pom.xml", "dashboard/pom.xml", ".mvn/**/*", "package-lock.json",
-  "cli/src/**/*", "dashboard/src/**/*", "dashboard/openapi.yaml",
+  "cli/src/**/*", "dashboard/src/**/*", "dashboard/openapi.yaml", "compose.yaml", ".env.example",
 ]
 outputs = { auto = true }
 run =[{ task = "css" }, "./mvnw -q -T 2 clean verify"]

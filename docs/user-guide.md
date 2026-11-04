@@ -38,8 +38,9 @@ Java or a copy of this repository.
 
 3. Open TCP port 8300 and TCP and UDP port 8302 to the other Workstations.
 4. Start this Workstation: `cd ~/.config/lvh-yard && docker compose up -d`.
-   This starts Consul, Traefik and the dashboard. If you gave `init` another
-   folder, `cd` to that folder.
+   This starts Consul, the dashboard and Traefik, in that order. When one is
+   healthy, the next one starts. `docker compose ps` shows the
+   health of each one. If you gave `init` another folder, `cd` to that folder.
 5. Make sure that LVH Yard works: `lvh-yard status`.
 
 On its first start, the dashboard sets up three Services with Local Scope:

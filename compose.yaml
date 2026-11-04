@@ -36,6 +36,17 @@ services:
           -serf-lan-port=${YARD_CONSUL_SERF_LAN_PORT:-8301} -serf-wan-port=${YARD_CONSUL_SERF_WAN_PORT:-8302} \
           -hcl='check_update_interval = "0s"' \
           "$$@"
+    # Healthy once this Workstation has a Raft leader. The leader is "" until Consul elects itself.
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:${YARD_CONSUL_HTTP_PORT:-8500}/v1/status/leader | grep -q '[0-9]'",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      start_interval: 1s
     volumes:
       - consul-data:/consul/data
 
@@ -45,10 +56,30 @@ services:
     image: traefik:v3.7.16
     network_mode: host
     restart: unless-stopped
+    # After the dashboard, so that the first poll finds the Routes. Without the dashboard profile, Traefik starts
+    # after Consul only.
+    depends_on:
+      consul:
+        condition: service_healthy
+      dashboard:
+        condition: service_healthy
+        required: false
     # Root, to listen on port 80. Docker gives a user that is not root no capabilities, not even NET_BIND_SERVICE.
     environment:
       YARD_TRAEFIK_BIND_ADDRESS: ${YARD_TRAEFIK_BIND_ADDRESS:-127.0.0.1}
       YARD_DASHBOARD_BIND_ADDRESS: ${YARD_DASHBOARD_BIND_ADDRESS:-127.0.0.1}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-qO-",
+          "http://127.0.0.1:${YARD_TRAEFIK_ADMIN_PORT:-8080}/ping",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      start_interval: 1s
     # A shell first, for the BindAddress rule of the dashboard: a dashboard on the wildcard 0.0.0.0 is reached
     # through loopback.
     # The admin page and the ping of Traefik are on their own entry point, always on loopback, never on web. Traefik
@@ -78,6 +109,21 @@ services:
     # on 127.0.0.1 and Traefik on YARD_TRAEFIK_BIND_ADDRESS.
     network_mode: host
     restart: unless-stopped
+    depends_on:
+      consul:
+        condition: service_healthy
+    # A dashboard on the wildcard 0.0.0.0 is reached through loopback.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - |
+          host="$${YARD_DASHBOARD_BIND_ADDRESS}"
+          [ "$$host" != 0.0.0.0 ] || host=127.0.0.1
+          curl -fsS -o /dev/null "http://$$host:$${YARD_DASHBOARD_PORT}/actuator/health"
+      interval: 30s
+      timeout: 5s
+      start_period: 120s
+      start_interval: 1s
     # The user from .env, not root, with the group of the Docker socket so that it can read the socket. The group has
     # no default, because it differs on each computer. It is not required with :?, because that stops Compose even
     # when the dashboard profile is off. If it is not set, Docker does not start the dashboard: "unable to find group".
