@@ -11,7 +11,7 @@ All the Workstations on one LAN that can see each other's Services.
 _Avoid_: Cluster, network, mesh
 
 **Workstation**:
-A computer in the Yard that hosts Instances and opens hostnames for Services. It may be yours, a coworker's, or shared by the team.
+A computer in the Yard that hosts Instances and opens hostnames for Services. It is yours, a coworker's, or the team's.
 _Avoid_: Machine, host, node, server, client
 
 **Service**:
@@ -46,10 +46,6 @@ _Avoid_: Dynamic instance, container instance
 A running container on this Workstation that no Container Binding matches, whatever the Binding's port. The Containers page and `lvh-yard containers` list them.
 _Avoid_: Unbound container, new container, orphan container
 
-**Import**:
-Giving an Unfollowed Container a Service in one step: a Container Binding (by Compose project and service when the container has both labels, else by container name) on one container port, and a Publication with Local Scope when the Service is new. A Service that exists keeps its Publication, or stays Unpublished. It never starts or stops the container.
-_Avoid_: Adopt, register container, bind
-
 ### Setting up a Workstation
 
 **Workstation Folder**:
@@ -62,14 +58,14 @@ _Avoid_: Seed, neighbour, node
 
 **WAN pool**:
 The Workstations whose Consul datacenters are federated with this Workstation's, as its Consul sees them now. Each one is alive or not. A Peer with no member at its address there is a join that failed.
-_Avoid_: Cluster, federation list, Yard (the Yard is every Workstation; the WAN pool is what Consul sees)
+_Avoid_: Cluster, federation list, Yard (the Yard is every Workstation, but the WAN pool is what Consul sees)
 
 **Gossip Key**:
 The Yard's shared secret. Every Workstation in the Yard needs the same one to join it.
 _Avoid_: Yard key, encryption key, secret
 
 **Base Domain**:
-The domain that every hostname on one Workstation ends with, such as `lvh.me`. Each Workstation picks its own, and it may be a public domain.
+The domain that every hostname on one Workstation ends with, such as `lvh.me`. Each Workstation picks its own, and it can be a public domain.
 _Avoid_: Yard domain, TLD, suffix, zone
 
 ### Facts about them
@@ -129,7 +125,7 @@ _Avoid_: Unreachable Instance, loopback Service, unreachable Service
 ### Service states
 
 **Unpublished**:
-A Service with no Publication, by your choice. Its Instances may be registered and healthy.
+A Service with no Publication, by your choice. Its Instances can be registered and healthy.
 Not the same as an unpublished container port, which is Docker's word for a container port not mapped to a host port (`docker run -p`). A Bound Instance on one is at its container's own address, so a Yard-scoped Service warns about it.
 
 **Unavailable**:
