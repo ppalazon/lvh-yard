@@ -43,7 +43,7 @@ class Containers implements Runnable {
               + ": "
               + ports(container.ports())
               + (container.health() == null ? "" : "; " + container.health())
-              + ". Imports as "
+              + ". Registers as "
               + container.service()
               + ".");
     }

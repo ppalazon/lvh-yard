@@ -304,7 +304,7 @@ final class Dashboard {
   }
 
   /** A {@code null} argument gets the dashboard's default. */
-  Service importContainer(String container, Integer port, String service, Boolean publish) {
+  Service registerContainer(String container, Integer port, String service, Boolean publish) {
     Map<String, Object> body = new LinkedHashMap<>();
     if (port != null) {
       body.put("port", port);
@@ -317,7 +317,7 @@ final class Dashboard {
     }
     HttpRequest.Builder request =
         HttpRequest.newBuilder(
-                url.resolve("api/workstation/containers/" + segment(container) + "/import"))
+                url.resolve("api/workstation/containers/" + segment(container) + "/register"))
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body)));
     return read(send(request), new TypeReference<>() {});

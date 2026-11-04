@@ -9,9 +9,9 @@ import java.util.Map;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 
-/** Running containers that no Container Binding follows yet, to give them a Service. */
+/** Containers that no Container Binding follows yet, to give them a Service. */
 @Component
-public class ContainerImport {
+public class ContainerRegistration {
 
   private final Docker docker;
 
@@ -25,7 +25,7 @@ public class ContainerImport {
 
   private final YardReader yard;
 
-  ContainerImport(
+  ContainerRegistration(
       Docker docker,
       DockerFailures failures,
       ContainerBindings bindings,
@@ -61,45 +61,64 @@ public class ContainerImport {
   }
 
   /**
-   * Binds the running container {@code name} to a Service: by its Compose project and service when
-   * it has them, so the Binding outlives {@code docker compose up}, else by its name. A Service
-   * that already exists keeps its Publication, or stays unpublished. The Service name is by default
-   * the proposed one, the Compose service or container name cleaned.
+   * Binds the container {@code name} to a Service. A running container is bound by its Compose
+   * project and service when it has them, so the Binding outlives {@code docker compose up}, else
+   * by its name. A container that does not run is bound by its name, so the Binding can come before
+   * the container. A Service that already exists keeps its Publication, or stays unpublished. The
+   * Service name is by default the proposed one, the Compose service or container name cleaned.
    *
    * @return the Service, with the container bound
-   * @throws UnknownContainerException when no running container has the name
    * @throws FollowedContainerException when a Container Binding already follows the container
    * @throws InvalidRegistrationException when the Service name or the port breaks a rule
    * @throws UnreadableDockerException when Docker does not answer
    */
-  public Service importContainer(String name, ContainerImportRequest request) {
-    Docker.Container container =
-        running().stream()
-            .filter(running -> running.isNamed(name))
-            .findFirst()
-            .orElseThrow(() -> new UnknownContainerException(name));
-    followingService(bindings.all(null), container)
+  public Service register(String name, ContainerRegistrationRequest request) {
+    Optional<Docker.Container> running =
+        running().stream().filter(container -> container.isNamed(name)).findFirst();
+    Map<String, Map<String, ContainerBindingRequest>> followed = bindings.all(null);
+    running
+        .map(container -> followingService(followed, container))
+        .orElseGet(() -> followingByName(followed, name))
         .ifPresent(following -> {
           throw new FollowedContainerException(name, following);
         });
-    UnfollowedContainer unfollowed = UnfollowedContainer.of(container);
+    String proposed;
+    ContainerBindingRequest binding;
+    if (running.isPresent()) {
+      UnfollowedContainer unfollowed = UnfollowedContainer.of(running.get());
+      proposed = unfollowed.service();
+      int port = request.port() == null ? onlyPort(unfollowed) : request.port();
+      binding =
+          unfollowed.composeProject() == null
+              ? ContainerBindingRequest.container(name, port)
+              : ContainerBindingRequest.compose(
+                  unfollowed.composeProject(), unfollowed.composeService(), port);
+    } else {
+      if (request.port() == null) {
+        throw new InvalidRegistrationException(
+            "port", "The container " + name + " does not run: give the port.");
+      }
+      proposed = UnfollowedContainer.proposedService(Optional.empty(), name);
+      binding = ContainerBindingRequest.container(name, request.port());
+    }
     String service =
         request.service() == null || request.service().isBlank()
-            ? unfollowed.service()
+            ? proposed
             : request.service().strip();
-    int port = request.port() == null ? onlyPort(unfollowed) : request.port();
     publications.addPublishingNew(
-        service,
-        request.publish(),
-        () ->
-            bindings.add(
-                workstation.name(),
-                service,
-                unfollowed.composeProject() == null
-                    ? ContainerBindingRequest.container(name, port)
-                    : ContainerBindingRequest.compose(
-                        unfollowed.composeProject(), unfollowed.composeService(), port)));
+        service, request.publish(), () -> bindings.add(workstation.name(), service, binding));
     return yard.service(workstation.name(), service).orElseThrow();
+  }
+
+  /** The Service of the first Binding in {@code followed} that names {@code container}. */
+  private static Optional<String> followingByName(
+      Map<String, Map<String, ContainerBindingRequest>> followed, String container) {
+    return followed.entrySet().stream()
+        .filter(byService ->
+            byService.getValue().values().stream()
+                .anyMatch(binding -> container.equals(binding.container())))
+        .map(Map.Entry::getKey)
+        .findFirst();
   }
 
   /** The Service of the first Binding in {@code followed} that matches {@code container}. */

@@ -36,7 +36,7 @@ class OpenApiTest extends DashboardTest {
             "/api/workstation/aliases",
             "/api/workstation/aliases/{alias}",
             "/api/workstation/containers",
-            "/api/workstation/containers/{container}/import",
+            "/api/workstation/containers/{container}/register",
             "/api/workstation/route-profiles",
             "/api/workstation/services",
             "/api/workstation/services/{service}",
@@ -80,10 +80,9 @@ class OpenApiTest extends DashboardTest {
     assertThat(answersWithProblem(paths, "/api/workstation/aliases/{alias}", "delete", "404"))
         .isTrue();
     assertThat(answersWithProblem(paths, "/api/workstation/containers", "get", "503")).isTrue();
-    String importPath = "/api/workstation/containers/{container}/import";
-    assertThat(answersWithProblem(paths, importPath, "post", "400")).isTrue();
-    assertThat(answersWithProblem(paths, importPath, "post", "404")).isTrue();
-    assertThat(answersWithProblem(paths, importPath, "post", "503")).isTrue();
+    String registerPath = "/api/workstation/containers/{container}/register";
+    assertThat(answersWithProblem(paths, registerPath, "post", "400")).isTrue();
+    assertThat(answersWithProblem(paths, registerPath, "post", "503")).isTrue();
   }
 
   @Test

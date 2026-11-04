@@ -18,27 +18,27 @@ final class ContainersPage {
 
   static final String PATH = "/containers";
 
-  record ImportFailure(String container, String reason) {}
+  record RegisterFailure(String container, String reason) {}
 
   private ContainersPage() {}
 
-  static String importPath(String container) {
-    return PATH + "/" + container + "/import";
+  static String registerPath(String container) {
+    return PATH + "/" + container + "/register";
   }
 
   /**
    * @param containers in the order to show them, Compose projects first
    * @param dockerProblem why Docker cannot be read, or {@code null} when it answered
-   * @param imported the Service that the one-click Import just gave a container, or {@code null}.
-   *     It is said outside the refreshed list, so the refresh keeps it.
-   * @param failure the import that failed, or {@code null}
+   * @param registered the Service that the one-click Register just gave a container, or {@code
+   *     null}. It is said outside the refreshed list, so the refresh keeps it.
+   * @param failure the register that failed, or {@code null}
    */
   static String render(
       Workstation workstation,
       List<UnfollowedContainer> containers,
       String dockerProblem,
-      Service imported,
-      ImportFailure failure) {
+      Service registered,
+      RegisterFailure failure) {
     return Layout.page(
         "Containers",
         workstation.name(),
@@ -51,18 +51,18 @@ final class ContainersPage {
                 .text("Running containers that LVH Yard does not follow yet.")
                 .__()
                 .of(content -> {
-                  if (imported != null) {
+                  if (registered != null) {
                     content
                         .div()
                         .attrClass("alert")
-                        .addAttr("data-imported", Layout.attr(imported.name()))
+                        .addAttr("data-registered", Layout.attr(registered.name()))
                         .addAttr("role", "status")
                         .section()
-                        .text("Imported into the Service ")
+                        .text("Registered in the Service ")
                         .a()
                         .attrClass("underline")
-                        .attrHref(Layout.attr(ServicePage.path(imported)))
-                        .text(imported.name())
+                        .attrHref(Layout.attr(ServicePage.path(registered)))
+                        .text(registered.name())
                         .__()
                         .text(".")
                         .__()
@@ -92,7 +92,7 @@ final class ContainersPage {
       Div<?> region,
       List<UnfollowedContainer> containers,
       String dockerProblem,
-      ImportFailure failure) {
+      RegisterFailure failure) {
     if (dockerProblem != null) {
       region
           .div()
@@ -125,7 +125,10 @@ final class ContainersPage {
   }
 
   private static void group(
-      Div<?> region, String project, List<UnfollowedContainer> containers, ImportFailure failure) {
+      Div<?> region,
+      String project,
+      List<UnfollowedContainer> containers,
+      RegisterFailure failure) {
     boolean compose = !project.isEmpty();
     region
         .div()
@@ -155,7 +158,7 @@ final class ContainersPage {
         .text("Health")
         .__()
         .th()
-        .text("Import")
+        .text("Register")
         .__()
         .__()
         .__()
@@ -168,7 +171,7 @@ final class ContainersPage {
   }
 
   private static void row(
-      Tr<?> row, boolean compose, UnfollowedContainer container, ImportFailure failure) {
+      Tr<?> row, boolean compose, UnfollowedContainer container, RegisterFailure failure) {
     row.addAttr("data-container", Layout.attr(container.name()));
     if (compose) {
       row.td().attrClass("align-top").text(container.composeService()).__();
@@ -187,7 +190,7 @@ final class ContainersPage {
         .__()
         .td()
         .attrClass("align-top")
-        .of(cell -> importActions(cell, container, failure))
+        .of(cell -> registerActions(cell, container, failure))
         .__()
         .__();
   }
@@ -196,8 +199,8 @@ final class ContainersPage {
    * One click is enough only when the container has one port, as the port is then known. The choice
    * of name and port is a page of its own, so the 5 s refresh cannot reset what is typed.
    */
-  private static void importActions(
-      Td<?> cell, UnfollowedContainer container, ImportFailure failure) {
+  private static void registerActions(
+      Td<?> cell, UnfollowedContainer container, RegisterFailure failure) {
     List<Integer> ports = container.containerPorts();
     cell.div()
         .attrClass("flex flex-wrap gap-2")
@@ -206,13 +209,13 @@ final class ContainersPage {
             actions
                 .form()
                 .addAttr("method", "post")
-                .addAttr("action", Layout.attr(importPath(container.name())))
+                .addAttr("action", Layout.attr(registerPath(container.name())))
                 .button()
                 .attrType(EnumTypeButtonType.SUBMIT)
                 .attrClass("btn")
                 .addAttr("data-variant", "outline")
                 .addAttr("data-size", "sm")
-                .text("Import")
+                .text("Register")
                 .__()
                 .__();
           }
@@ -221,7 +224,7 @@ final class ContainersPage {
         .attrClass("btn")
         .addAttr("data-variant", ports.size() == 1 ? "ghost" : "outline")
         .addAttr("data-size", "sm")
-        .attrHref(Layout.attr(importPath(container.name())))
+        .attrHref(Layout.attr(registerPath(container.name())))
         .text(ports.size() == 1 ? "Choose name" : "Choose port")
         .__()
         .__();
@@ -240,21 +243,21 @@ final class ContainersPage {
   /**
    * @param name the Service name as typed
    * @param port the container port as typed
-   * @param error why the last import failed, shown at its field, or {@code null}
+   * @param error why the last register failed, shown at its field, or {@code null}
    */
-  static String renderImport(
+  static String renderRegister(
       Workstation workstation,
       UnfollowedContainer container,
       String name,
       String port,
       InvalidRegistrationException error) {
     return Layout.page(
-        "Import " + container.name(),
+        "Register " + container.name(),
         workstation.name(),
         Layout.Section.CONTAINERS,
         main ->
             main.h1()
-                .text("Import " + container.name())
+                .text("Register " + container.name())
                 .__()
                 .p()
                 .text(
@@ -264,7 +267,7 @@ final class ContainersPage {
                 .form()
                 .attrClass("form flex max-w-md flex-col gap-6")
                 .addAttr("method", "post")
-                .addAttr("action", Layout.attr(importPath(container.name())))
+                .addAttr("action", Layout.attr(registerPath(container.name())))
                 .of(form ->
                     InstanceForm.text(
                         form,
@@ -290,7 +293,7 @@ final class ContainersPage {
                 .button()
                 .attrType(EnumTypeButtonType.SUBMIT)
                 .attrClass("btn")
-                .text("Import")
+                .text("Register")
                 .__()
                 .a()
                 .attrClass("btn")
@@ -302,7 +305,7 @@ final class ContainersPage {
                 .__());
   }
 
-  /** The port the import form proposes: the only one, else none. */
+  /** The port the register form proposes: the only one, else none. */
   static String proposedPort(UnfollowedContainer container) {
     List<Integer> ports = container.containerPorts();
     return ports.size() == 1 ? String.valueOf(ports.getFirst()) : "";

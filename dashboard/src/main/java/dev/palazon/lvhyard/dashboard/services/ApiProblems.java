@@ -24,7 +24,10 @@ class ApiProblems extends ResponseEntityExceptionHandler {
 
   @ExceptionHandler
   ProblemDetail invalidRegistration(InvalidRegistrationException exception) {
-    return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+    ProblemDetail problem =
+        ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+    problem.setProperty("field", exception.field());
+    return problem;
   }
 
   @ExceptionHandler
@@ -65,11 +68,6 @@ class ApiProblems extends ResponseEntityExceptionHandler {
   @ExceptionHandler
   ProblemDetail followedContainer(FollowedContainerException exception) {
     return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
-  }
-
-  @ExceptionHandler
-  ProblemDetail unknownContainer(UnknownContainerException exception) {
-    return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
   }
 
   @ExceptionHandler

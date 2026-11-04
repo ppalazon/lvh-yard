@@ -495,10 +495,10 @@ class YardTest {
         .isEqualTo(
             """
             Compose project shop
-              storefront: ports 80 on host port 8080, 9000 not published; healthy. Imports as web.
+              storefront: ports 80 on host port 8080, 9000 not published; healthy. Registers as web.
             Other containers
-              grafana: port 3000 not published. Imports as grafana.
-              worker: no exposed port. Imports as worker.
+              grafana: port 3000 not published. Registers as grafana.
+              worker: no exposed port. Registers as worker.
             """);
   }
 
@@ -573,76 +573,132 @@ class YardTest {
   }
 
   @Test
-  void importImportsTheContainerAndSaysWhereItIsPublished() {
+  void registerContainerRegistersTheContainerAndSaysWhereItIsPublished() {
     dashboard.answer(
         "POST",
-        "/api/workstation/containers/grafana/import",
+        "/api/workstation/containers/grafana/register",
         200,
         """
         {"workstation": "ws-a", "name": "grafana", "state": "healthy",
          "publication": {"scope": "local"}, "hostname": "grafana.lvh.me",
-         "containerBindings": [], "warnings": [], "instances": []}
+         "containerBindings": [], "warnings": [],
+         "instances": [{"id": "grafana:grafana:3000", "host": "172.17.0.2", "port": 3000,
+                        "health": "passing", "outOfRange": false,
+                        "checks": [], "tags": [], "meta": {}}]}
         """);
 
-    Run run = yard("import", "grafana");
+    Run run = yard("register", "container", "grafana");
 
     assertThat(run.exitCode()).isZero();
-    assertThat(run.out()).isEqualTo("Imported grafana as grafana, published at grafana.lvh.me.\n");
-    dashboard.verifyCalled("POST", "/api/workstation/containers/grafana/import", "{}");
+    assertThat(run.out())
+        .isEqualTo("Registered grafana as grafana, published at grafana.lvh.me.\n");
+    dashboard.verifyCalled("POST", "/api/workstation/containers/grafana/register", "{}");
   }
 
   @Test
-  void importSendsThePortTheNameAndNoPublish() {
+  void registerContainerSendsThePortTheServiceAndNoPublish() {
     dashboard.answer(
         "POST",
-        "/api/workstation/containers/storefront/import",
+        "/api/workstation/containers/storefront/register",
         200,
         """
         {"workstation": "ws-a", "name": "shop", "state": "healthy",
-         "containerBindings": [], "warnings": [], "instances": []}
+         "containerBindings": [], "warnings": [],
+         "instances": [{"id": "shop:storefront:9000", "host": "172.17.0.2", "port": 9000,
+                        "health": "passing", "outOfRange": false,
+                        "checks": [], "tags": [], "meta": {}}]}
         """);
 
-    Run run = yard("import", "storefront", "--port", "9000", "--name", "shop", "--no-publish");
+    Run run =
+        yard(
+            "register",
+            "container",
+            "storefront",
+            "--port",
+            "9000",
+            "--service",
+            "shop",
+            "--no-publish");
 
     assertThat(run.exitCode()).isZero();
-    assertThat(run.out()).isEqualTo("Imported storefront as shop. shop is not published.\n");
+    assertThat(run.out()).isEqualTo("Registered storefront as shop. shop is not published.\n");
     dashboard.verifyCalled(
         "POST",
-        "/api/workstation/containers/storefront/import",
+        "/api/workstation/containers/storefront/register",
         """
         {"port": 9000, "service": "shop", "publish": false}
         """);
   }
 
   @Test
-  void importWithoutAPortOnAContainerWithSeveralListsThePorts() {
+  void registerContainerOfAContainerThatDoesNotRunSaysWhenItGetsItsInstance() {
     dashboard.answer(
         "POST",
-        "/api/workstation/containers/storefront/import",
+        "/api/workstation/containers/catalog/register",
+        200,
+        """
+        {"workstation": "ws-a", "name": "catalog", "state": "unavailable",
+         "publication": {"scope": "local"}, "hostname": "catalog.lvh.me",
+         "containerBindings": [], "warnings": [], "instances": []}
+        """);
+
+    Run run = yard("register", "container", "catalog", "--port", "80");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out())
+        .isEqualTo(
+            "Registered catalog as catalog, published at catalog.lvh.me. No container"
+                + " of that name runs now: catalog gets its Bound Instance once one starts.\n");
+    dashboard.verifyCalled(
+        "POST", "/api/workstation/containers/catalog/register", "{\"port\": 80}");
+  }
+
+  @Test
+  void registerContainerOfAContainerThatDoesNotRunWithoutAPortSaysToGiveIt() {
+    dashboard.answer(
+        "POST",
+        "/api/workstation/containers/catalog/register",
         400,
         """
-        {"status": 400,
+        {"status": 400, "field": "port",
+         "detail": "The container catalog does not run: give the port."}
+        """);
+
+    Run run = yard("register", "container", "catalog");
+
+    assertThat(run.exitCode()).isEqualTo(1);
+    assertThat(run.err()).contains("The container catalog does not run: give the port.");
+  }
+
+  @Test
+  void registerContainerWithoutAPortOnAContainerWithSeveralListsThePorts() {
+    dashboard.answer(
+        "POST",
+        "/api/workstation/containers/storefront/register",
+        400,
+        """
+        {"status": 400, "field": "port",
          "detail": "The container storefront has more than one port: give one of 80, 9000."}
         """);
 
-    Run run = yard("import", "storefront");
+    Run run = yard("register", "container", "storefront");
 
     assertThat(run.exitCode()).isEqualTo(1);
     assertThat(run.err()).contains("give one of 80, 9000.");
   }
 
   @Test
-  void importOfAFollowedContainerSaysWhichServiceFollowsIt() {
+  void registerContainerOfAFollowedContainerSaysWhichServiceFollowsIt() {
     dashboard.answer(
         "POST",
-        "/api/workstation/containers/grafana/import",
+        "/api/workstation/containers/grafana/register",
         409,
         """
         {"status": 409,
          "detail": "The container grafana is already followed by a Container Binding of the Service metrics."}
         """);
 
-    Run run = yard("import", "grafana");
+    Run run = yard("register", "container", "grafana");
 
     assertThat(run.exitCode()).isEqualTo(1);
     assertThat(run.err())
@@ -650,26 +706,37 @@ class YardTest {
   }
 
   @Test
-  void importPrintsTheServicesWarnings() {
+  void registerContainerPrintsTheServicesWarnings() {
     dashboard.answer(
         "POST",
-        "/api/workstation/containers/web-1/import",
+        "/api/workstation/containers/web-1/register",
         200,
         """
         {"workstation": "ws-a", "name": "web", "state": "healthy",
          "publication": {"scope": "yard"}, "hostname": "web.lvh.me",
-         "containerBindings": [], "instances": [], "warnings": [
+         "containerBindings": [], "warnings": [
             {"kind": "unpublished-container-port",
-             "message": "The Bound Instance at 172.17.0.2:80 is on a container port that is not published."}]}
+             "message": "The Bound Instance at 172.17.0.2:80 is on a container port that is not published."}],
+         "instances": [{"id": "web:web-1:80", "host": "172.17.0.2", "port": 80,
+                        "health": "passing", "outOfRange": false,
+                        "checks": [], "tags": [], "meta": {}}]}
         """);
 
-    Run run = yard("import", "web-1", "--name", "web");
+    Run run = yard("register", "container", "web-1", "--service", "web");
 
     assertThat(run.exitCode()).isZero();
     assertThat(run.err())
         .isEqualTo(
             "Warning: The Bound Instance at 172.17.0.2:80 is on a container port that is not"
                 + " published.\n");
+  }
+
+  @Test
+  void importIsNotACommand() {
+    Run run = yard("import", "grafana");
+
+    assertThat(run.exitCode()).isEqualTo(2);
+    assertThat(run.err()).contains("import");
   }
 
   @Test

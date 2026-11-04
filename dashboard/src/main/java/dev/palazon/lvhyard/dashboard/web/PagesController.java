@@ -5,8 +5,8 @@ import dev.palazon.lvhyard.dashboard.profiles.RouteProfiles;
 import dev.palazon.lvhyard.dashboard.reachability.ReachabilityTester;
 import dev.palazon.lvhyard.dashboard.services.Aliases;
 import dev.palazon.lvhyard.dashboard.services.ContainerBindings;
-import dev.palazon.lvhyard.dashboard.services.ContainerImport;
-import dev.palazon.lvhyard.dashboard.services.ContainerImportRequest;
+import dev.palazon.lvhyard.dashboard.services.ContainerRegistration;
+import dev.palazon.lvhyard.dashboard.services.ContainerRegistrationRequest;
 import dev.palazon.lvhyard.dashboard.services.FollowedContainerException;
 import dev.palazon.lvhyard.dashboard.services.Instance;
 import dev.palazon.lvhyard.dashboard.services.InvalidPriorityException;
@@ -21,7 +21,6 @@ import dev.palazon.lvhyard.dashboard.services.ServiceState;
 import dev.palazon.lvhyard.dashboard.services.UnfollowedContainer;
 import dev.palazon.lvhyard.dashboard.services.UnknownAliasException;
 import dev.palazon.lvhyard.dashboard.services.UnknownContainerBindingException;
-import dev.palazon.lvhyard.dashboard.services.UnknownContainerException;
 import dev.palazon.lvhyard.dashboard.services.UnknownInstanceException;
 import dev.palazon.lvhyard.dashboard.services.UnknownRouteProfileException;
 import dev.palazon.lvhyard.dashboard.services.UnknownServiceException;
@@ -64,7 +63,7 @@ class PagesController {
 
   private final ContainerBindings containerBindings;
 
-  private final ContainerImport containerImport;
+  private final ContainerRegistration containerRegistration;
 
   private final ReachabilityTester reachability;
 
@@ -77,7 +76,7 @@ class PagesController {
       Publications publications,
       Aliases aliases,
       ContainerBindings containerBindings,
-      ContainerImport containerImport,
+      ContainerRegistration containerRegistration,
       ReachabilityTester reachability,
       RouteProfiles routeProfiles) {
     this.workstation = workstation;
@@ -86,7 +85,7 @@ class PagesController {
     this.publications = publications;
     this.aliases = aliases;
     this.containerBindings = containerBindings;
-    this.containerImport = containerImport;
+    this.containerRegistration = containerRegistration;
     this.reachability = reachability;
     this.routeProfiles = routeProfiles;
   }
@@ -347,30 +346,32 @@ class PagesController {
   /** Docker that cannot be read is told on the page, which the refresh can only swap from a 200. */
   @GetMapping(path = ContainersPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
   @ResponseBody
-  String containers(@RequestParam(required = false) String imported) {
+  String containers(@RequestParam(required = false) String registered) {
     return containersPage(
-        imported == null ? null : yard.service(workstation.name(), imported).orElse(null), null);
+        registered == null ? null : yard.service(workstation.name(), registered).orElse(null),
+        null);
   }
 
   /**
-   * @param imported the Service that the one-click Import just gave a container, or {@code null}
+   * @param registered the Service that the one-click Register just gave a container, or {@code
+   *     null}
    */
-  private String containersPage(Service imported, ContainersPage.ImportFailure failure) {
+  private String containersPage(Service registered, ContainersPage.RegisterFailure failure) {
     try {
       return ContainersPage.render(
-          workstation, containerImport.unfollowed(), null, imported, failure);
+          workstation, containerRegistration.unfollowed(), null, registered, failure);
     } catch (UnreadableDockerException e) {
-      return ContainersPage.render(workstation, List.of(), e.getMessage(), imported, failure);
+      return ContainersPage.render(workstation, List.of(), e.getMessage(), registered, failure);
     }
   }
 
   @GetMapping(
-      path = ContainersPage.PATH + "/{container}/import",
+      path = ContainersPage.PATH + "/{container}/register",
       produces = MediaType.TEXT_HTML_VALUE)
   @ResponseBody
-  String importForm(@PathVariable String container) {
+  String registerForm(@PathVariable String container) {
     UnfollowedContainer unfollowed = unfollowed(container);
-    return ContainersPage.renderImport(
+    return ContainersPage.renderRegister(
         workstation,
         unfollowed,
         unfollowed.service(),
@@ -379,14 +380,14 @@ class PagesController {
   }
 
   /**
-   * The import form shows the Service it gave the container, or why it failed at its field. The
-   * one-click Import of the list goes back to the list, which says what it imported, or shows why
-   * it failed in the container's row.
+   * The register form shows the Service it gave the container, or why it failed at its field. The
+   * one-click Register of the list goes back to the list, which says what it registered, or shows
+   * why it failed in the container's row.
    *
-   * @param name the Service name, sent only by the import form
+   * @param name the Service name, sent only by the register form
    */
-  @PostMapping(ContainersPage.PATH + "/{container}/import")
-  ResponseEntity<String> importContainer(
+  @PostMapping(ContainersPage.PATH + "/{container}/register")
+  ResponseEntity<String> registerContainer(
       @PathVariable String container,
       @RequestParam(required = false) String name,
       @RequestParam(required = false) String port) {
@@ -394,35 +395,35 @@ class PagesController {
     Service service;
     try {
       service =
-          containerImport.importContainer(
+          containerRegistration.register(
               container,
               fromForm
-                  ? new ContainerImportRequest(Registrations.parsePort(port), name, null)
-                  : ContainerImportRequest.DEFAULTS);
+                  ? new ContainerRegistrationRequest(Registrations.parsePort(port), name, null)
+                  : ContainerRegistrationRequest.DEFAULTS);
     } catch (InvalidRegistrationException e) {
       return ResponseEntity.badRequest()
           .contentType(Layout.HTML)
           .body(
               fromForm
-                  ? ContainersPage.renderImport(
+                  ? ContainersPage.renderRegister(
                       workstation, unfollowed(container), name, port == null ? "" : port, e)
                   : containersPage(
-                      null, new ContainersPage.ImportFailure(container, e.getMessage())));
-    } catch (UnknownContainerException e) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+                      null, new ContainersPage.RegisterFailure(container, e.getMessage())));
     } catch (FollowedContainerException e) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage(), e);
     } catch (UnreadableDockerException e) {
       throw dockerUnavailable(e);
     }
     return seeOther(
-        fromForm ? ServicePage.path(service) : ContainersPage.PATH + "?imported=" + service.name());
+        fromForm
+            ? ServicePage.path(service)
+            : ContainersPage.PATH + "?registered=" + service.name());
   }
 
   private UnfollowedContainer unfollowed(String name) {
     List<UnfollowedContainer> containers;
     try {
-      containers = containerImport.unfollowed();
+      containers = containerRegistration.unfollowed();
     } catch (UnreadableDockerException e) {
       throw dockerUnavailable(e);
     }

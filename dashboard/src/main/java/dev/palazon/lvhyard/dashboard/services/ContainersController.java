@@ -18,10 +18,10 @@ class ContainersController {
   private static final String UNREADABLE_DOCKER =
       "Docker does not answer, so its containers are not known";
 
-  private final ContainerImport containerImport;
+  private final ContainerRegistration containerRegistration;
 
-  ContainersController(ContainerImport containerImport) {
-    this.containerImport = containerImport;
+  ContainersController(ContainerRegistration containerRegistration) {
+    this.containerRegistration = containerRegistration;
   }
 
   @GetMapping
@@ -34,21 +34,21 @@ class ContainersController {
   @ApiResponse(responseCode = "200", description = "The containers", useReturnTypeSchema = true)
   @ApiResponse(responseCode = "503", description = UNREADABLE_DOCKER)
   List<UnfollowedContainer> containers() {
-    return containerImport.unfollowed();
+    return containerRegistration.unfollowed();
   }
 
-  @PostMapping("/{container}/import")
+  @PostMapping("/{container}/register")
   @Operation(
-      operationId = "importContainer",
-      summary = "Gives a running container a Service",
+      operationId = "registerContainer",
+      summary = "Gives a container a Service",
       description =
-          "Binds the container to a Service: by Compose project and service when it has them, else"
-              + " by container name. The Service is named after the Compose service or the"
-              + " container, cleaned to follow the Service name rule, unless service is given. The"
-              + " port is needed when the container does"
-              + " not have exactly one TCP port. A new Service is published with Local Scope,"
-              + " unless publish is false. A Service that exists keeps its Publication, or stays"
-              + " unpublished. The body can be left out.")
+          "Binds a running container by Compose project and service when it has them, else by"
+              + " container name. Binds a container that does not run by its name. The Service is"
+              + " named after the Compose service or the container, cleaned to follow the Service"
+              + " name rule, unless service is given. The port is needed when the container does"
+              + " not run, or does not have exactly one TCP port. A new Service is published with"
+              + " Local Scope, unless publish is false. A Service that exists keeps its"
+              + " Publication, or stays unpublished. The body can be left out.")
   @ApiResponse(
       responseCode = "200",
       description = "The Service, with the container bound",
@@ -56,15 +56,14 @@ class ContainersController {
   @ApiResponse(
       responseCode = "400",
       description = Registrations.INVALID_NAME + ", or the port is missing or not a TCP port")
-  @ApiResponse(responseCode = "404", description = "No running container has this name")
   @ApiResponse(
       responseCode = "409",
       description = "A Container Binding already follows the container")
   @ApiResponse(responseCode = "503", description = UNREADABLE_DOCKER)
-  Service importContainer(
+  Service registerContainer(
       @PathVariable String container,
-      @RequestBody(required = false) ContainerImportRequest request) {
-    return containerImport.importContainer(
-        container, request == null ? ContainerImportRequest.DEFAULTS : request);
+      @RequestBody(required = false) ContainerRegistrationRequest request) {
+    return containerRegistration.register(
+        container, request == null ? ContainerRegistrationRequest.DEFAULTS : request);
   }
 }

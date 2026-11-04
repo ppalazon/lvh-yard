@@ -17,7 +17,7 @@ import picocli.CommandLine.Spec;
 @Command(
     name = "register",
     mixinStandardHelpOptions = true,
-    subcommands = RegisterStatic.class,
+    subcommands = {RegisterStatic.class, RegisterContainer.class},
     description = "Registers an Instance of a Service, or binds it to a container.")
 class Register implements Runnable {
 

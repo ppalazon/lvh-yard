@@ -85,7 +85,7 @@ public record UnfollowedContainer(
    * The Compose service cleaned, else the container name cleaned. A Docker container name starts
    * with a letter or a digit, so it is never cleaned to nothing. The fixed name is for safety.
    */
-  private static String proposedService(Optional<String> composeService, String container) {
+  static String proposedService(Optional<String> composeService, String container) {
     return Stream.concat(composeService.stream(), Stream.of(container))
         .map(UnfollowedContainer::cleaned)
         .filter(Registrations::isDnsLabel)

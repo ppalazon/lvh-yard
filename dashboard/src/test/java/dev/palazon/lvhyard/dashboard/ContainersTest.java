@@ -175,11 +175,11 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void importGivesAPlainContainerAServiceOfItsNameBoundByNameAndPublishedLocally() {
+  void registerGivesAPlainContainerAServiceOfItsNameBoundByNameAndPublishedLocally() {
     String name = newContainerName();
     start(onePort(name));
 
-    ResponseEntity<JsonNode> response = post(importPath(name), Map.of());
+    ResponseEntity<JsonNode> response = post(registerPath(name), Map.of());
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     JsonNode service = response.getBody();
@@ -191,7 +191,7 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void importBindsAComposeContainerByProjectAndServiceIntoAServiceOfTheComposeServiceName() {
+  void registerBindsAComposeContainerByProjectAndServiceIntoAServiceOfTheComposeServiceName() {
     String name = newContainerName();
     String project = newComposeProject();
     String web = newServiceName("web");
@@ -200,7 +200,7 @@ class ContainersTest extends DashboardTest {
             .withLabel("com.docker.compose.project", project)
             .withLabel("com.docker.compose.service", web));
 
-    JsonNode service = post(importPath(name), Map.of()).getBody();
+    JsonNode service = post(registerPath(name), Map.of()).getBody();
 
     assertThat(service.get("name").asString()).isEqualTo(web);
     assertThat(service.get("containerBindings").get(0).get("id").asString())
@@ -209,13 +209,13 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void importIntoAnUnpublishedServiceKeepsItUnpublished() {
+  void registerIntoAnUnpublishedServiceKeepsItUnpublished() {
     String name = newContainerName();
     String web = newServiceName("web");
     start(onePort(name));
     register(web, Map.of("port", 8080));
 
-    JsonNode service = post(importPath(name), Map.of("service", web)).getBody();
+    JsonNode service = post(registerPath(name), Map.of("service", web)).getBody();
 
     assertThat(service.has("publication")).isFalse();
     assertThat(service.get("containerBindings").get(0).get("id").asString())
@@ -223,14 +223,14 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void importIntoAPublishedServiceKeepsItsScope() {
+  void registerIntoAPublishedServiceKeepsItsScope() {
     String name = newContainerName();
     String web = newServiceName("web");
     start(onePort(name));
     register(web, Map.of("port", 8080));
     put(publicationPath(web), Map.of("scope", "yard"));
 
-    JsonNode service = post(importPath(name), Map.of("service", web)).getBody();
+    JsonNode service = post(registerPath(name), Map.of("service", web)).getBody();
 
     assertThat(service.get("publication").get("scope").asString()).isEqualTo("yard");
   }
@@ -246,7 +246,7 @@ class ContainersTest extends DashboardTest {
 
     assertThat(listed(get(PATH).getBody(), name).orElseThrow().get("service").asString())
         .isEqualTo("my-app-v2");
-    JsonNode service = post(importPath(name), Map.of()).getBody();
+    JsonNode service = post(registerPath(name), Map.of()).getBody();
 
     assertThat(service.get("name").asString()).isEqualTo("my-app-v2");
     assertThat(service.get("containerBindings").get(0).get("id").asString())
@@ -254,11 +254,11 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void importWithAGivenNameThatIsNotADnsLabelIsRefused() {
+  void registerWithAGivenNameThatIsNotADnsLabelIsRefused() {
     String name = newContainerName();
     start(onePort(name));
 
-    ResponseEntity<JsonNode> response = post(importPath(name), Map.of("service", "my_app"));
+    ResponseEntity<JsonNode> response = post(registerPath(name), Map.of("service", "my_app"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody().get("detail").asString()).contains("my_app");
@@ -266,11 +266,11 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void importOfAContainerWithSeveralPortsWithoutAPortIsRefusedWithThePorts() {
+  void registerOfAContainerWithSeveralPortsWithoutAPortIsRefusedWithThePorts() {
     String name = newContainerName();
     start(twoPorts(name));
 
-    ResponseEntity<JsonNode> response = post(importPath(name), Map.of());
+    ResponseEntity<JsonNode> response = post(registerPath(name), Map.of());
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody().get("detail").asString()).contains("80, 9000");
@@ -278,23 +278,23 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void importOfAContainerWithSeveralPortsBindsTheChosenPort() {
+  void registerOfAContainerWithSeveralPortsBindsTheChosenPort() {
     String name = newContainerName();
     start(twoPorts(name));
 
-    JsonNode service = post(importPath(name), Map.of("port", 9000)).getBody();
+    JsonNode service = post(registerPath(name), Map.of("port", 9000)).getBody();
 
     assertThat(service.get("containerBindings").get(0).get("id").asString())
         .isEqualTo(name + ":9000");
   }
 
   @Test
-  void importOfAContainerWithNoExposedPortNeedsAPort() {
+  void registerOfAContainerWithNoExposedPortNeedsAPort() {
     String name = newContainerName();
     start(listener(name, command -> {}));
 
-    ResponseEntity<JsonNode> refused = post(importPath(name), Map.of());
-    JsonNode service = post(importPath(name), Map.of("port", 80)).getBody();
+    ResponseEntity<JsonNode> refused = post(registerPath(name), Map.of());
+    JsonNode service = post(registerPath(name), Map.of("port", 80)).getBody();
 
     assertThat(refused.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(refused.getBody().get("detail").asString()).contains("no exposed port");
@@ -303,11 +303,11 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void importWithPublishFalseLeavesANewServiceUnpublished() {
+  void registerWithPublishFalseLeavesANewServiceUnpublished() {
     String name = newContainerName();
     start(onePort(name));
 
-    JsonNode service = post(importPath(name), Map.of("publish", false)).getBody();
+    JsonNode service = post(registerPath(name), Map.of("publish", false)).getBody();
 
     assertThat(service.get("name").asString()).isEqualTo(name);
     assertThat(service.has("publication")).isFalse();
@@ -315,62 +315,78 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void importIntoAYardScopedServiceWarnsAboutAnUnpublishedContainerPort() {
+  void registerIntoAYardScopedServiceWarnsAboutAnUnpublishedContainerPort() {
     String name = newContainerName();
     String web = newServiceName("web");
     start(onePort(name));
     register(web, Map.of("port", 8080));
     put(publicationPath(web), Map.of("scope", "yard"));
 
-    JsonNode service = post(importPath(name), Map.of("service", web)).getBody();
+    JsonNode service = post(registerPath(name), Map.of("service", web)).getBody();
 
     assertThat(service.get("warnings").valueStream().map(warning -> warning.get("kind").asString()))
         .containsExactly("unpublished-container-port");
   }
 
   @Test
-  void importWithTheNameConsulIsRefused() {
+  void registerWithTheNameConsulIsRefused() {
     String name = newContainerName();
     start(onePort(name));
 
-    ResponseEntity<JsonNode> response = post(importPath(name), Map.of("service", "consul"));
+    ResponseEntity<JsonNode> response = post(registerPath(name), Map.of("service", "consul"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody().get("detail").asString()).contains("Consul's own entry");
   }
 
   @Test
-  void importOfAContainerThatDoesNotRunIsNotFound() {
-    ResponseEntity<JsonNode> response = post(importPath(newContainerName()), Map.of());
+  void registerOfAContainerThatDoesNotRunBindsItByNameIntoAServiceOfTheCleanedName() {
+    String id = newContainerName().substring("yard-test-".length());
+    String name = "Yard_Test." + id;
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    ResponseEntity<JsonNode> response = post(registerPath(name), Map.of("port", 80));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    JsonNode service = response.getBody();
+    assertThat(service.get("name").asString()).isEqualTo("yard-test-" + id);
+    assertThat(service.get("publication").get("scope").asString()).isEqualTo("local");
+    assertThat(service.get("containerBindings").get(0).get("id").asString())
+        .isEqualTo(name + ":80");
   }
 
   @Test
-  void pageImportsAOnePortContainerInOneClickAndStaysOnTheListWithAConfirmation() {
-    String name = newContainerName();
-    start(onePort(name));
-    assertThat(row(getPage("/containers").getBody(), name))
-        .contains("action=\"/containers/" + name + "/import\"");
-
-    ResponseEntity<String> response = postForm("/containers/" + name + "/import", Map.of());
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
-    assertThat(response.getHeaders().getLocation()).hasPath("/containers");
-    String page = getPage(response.getHeaders().getLocation().toString()).getBody();
-    assertThat(div(page, "id=\"containers\"")).doesNotContain(name);
-    assertThat(openingTag(page, "id=\"containers\"")).contains("hx-trigger=\"every 5s\"");
-    assertThat(div(page, "data-imported")).contains("href=\"/services/ws-test/" + name + "\"");
-  }
-
-  @Test
-  void importOfAContainerThatABindingFollowsIsRefused() {
+  void registerOfAContainerThatDoesNotRunUsesTheGivenServiceAndPublish() {
     String name = newContainerName();
     String web = newServiceName("web");
-    start(onePort(name));
+
+    JsonNode service =
+        post(registerPath(name), Map.of("port", 8080, "service", web, "publish", false)).getBody();
+
+    assertThat(service.get("name").asString()).isEqualTo(web);
+    assertThat(service.has("publication")).isFalse();
+    assertThat(service.get("containerBindings").get(0).get("id").asString())
+        .isEqualTo(name + ":8080");
+  }
+
+  @Test
+  void registerOfAContainerThatDoesNotRunWithoutAPortIsRefusedAtThePort() {
+    String name = newContainerName();
+
+    ResponseEntity<JsonNode> response = post(registerPath(name), Map.of());
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getBody().get("field").asString()).isEqualTo("port");
+    assertThat(response.getBody().get("detail").asString()).contains(name).contains("port");
+    assertThat(get(servicePath(name)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+  }
+
+  @Test
+  void registerOfAContainerThatDoesNotRunButABindingFollowsIsRefused() {
+    String name = newContainerName();
+    String web = newServiceName("web");
     bind(web, name, 80);
 
-    ResponseEntity<JsonNode> response = post(importPath(name), Map.of("service", web));
+    ResponseEntity<JsonNode> response = post(registerPath(name), Map.of("port", 9000));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     assertThat(response.getBody().get("detail").asString()).contains(name).contains(web);
@@ -378,11 +394,58 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void containerWithAComposeProjectButNoComposeServiceIsImportedByItsName() {
+  void containerRegisteredBeforeItRunsGetsItsInstanceWhenItStarts() {
+    String name = newContainerName();
+    JsonNode registered = post(registerPath(name), Map.of("port", 80)).getBody();
+    assertThat(registered.get("instances")).isEmpty();
+
+    start(onePort(name));
+
+    await()
+        .atMost(Duration.ofSeconds(15))
+        .untilAsserted(
+            () -> assertThat(get(servicePath(name)).getBody().get("instances")).hasSize(1));
+  }
+
+  @Test
+  void pageRegistersAOnePortContainerInOneClickAndStaysOnTheListWithAConfirmation() {
+    String name = newContainerName();
+    start(onePort(name));
+    assertThat(row(getPage("/containers").getBody(), name))
+        .contains("action=\"/containers/" + name + "/register\"")
+        .contains(">Register<")
+        .doesNotContainIgnoringCase("import");
+
+    ResponseEntity<String> response = postForm("/containers/" + name + "/register", Map.of());
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    assertThat(response.getHeaders().getLocation()).hasPath("/containers");
+    String page = getPage(response.getHeaders().getLocation().toString()).getBody();
+    assertThat(div(page, "id=\"containers\"")).doesNotContain(name);
+    assertThat(openingTag(page, "id=\"containers\"")).contains("hx-trigger=\"every 5s\"");
+    assertThat(div(page, "data-registered")).contains("href=\"/services/ws-test/" + name + "\"");
+  }
+
+  @Test
+  void registerOfAContainerThatABindingFollowsIsRefused() {
+    String name = newContainerName();
+    String web = newServiceName("web");
+    start(onePort(name));
+    bind(web, name, 80);
+
+    ResponseEntity<JsonNode> response = post(registerPath(name), Map.of("service", web));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(response.getBody().get("detail").asString()).contains(name).contains(web);
+    assertThat(get(servicePath(web)).getBody().get("containerBindings")).hasSize(1);
+  }
+
+  @Test
+  void containerWithAComposeProjectButNoComposeServiceIsRegisteredByItsName() {
     String name = newContainerName();
     start(onePort(name).withLabel("com.docker.compose.project", newComposeProject()));
 
-    ResponseEntity<JsonNode> response = post(importPath(name), Map.of());
+    ResponseEntity<JsonNode> response = post(registerPath(name), Map.of());
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody().get("name").asString()).isEqualTo(name);
@@ -403,14 +466,14 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void pageShowsWhyAnImportFailsNextToTheContainer() {
+  void pageShowsWhyARegisterFailsNextToTheContainer() {
     String name = newContainerName();
     start(
         onePort(name)
             .withLabel("com.docker.compose.project", newComposeProject())
             .withLabel("com.docker.compose.service", "consul"));
 
-    ResponseEntity<String> response = postForm("/containers/" + name + "/import", Map.of());
+    ResponseEntity<String> response = postForm("/containers/" + name + "/register", Map.of());
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(row(response.getBody(), name))
@@ -428,19 +491,19 @@ class ContainersTest extends DashboardTest {
     String page = getPage("/containers").getBody();
 
     assertThat(row(page, one))
-        .contains("action=\"/containers/" + one + "/import\"")
-        .contains("href=\"/containers/" + one + "/import\"");
+        .contains("action=\"/containers/" + one + "/register\"")
+        .contains("href=\"/containers/" + one + "/register\"");
     assertThat(row(page, two))
         .doesNotContain("action=")
-        .contains("href=\"/containers/" + two + "/import\"");
+        .contains("href=\"/containers/" + two + "/register\"");
   }
 
   @Test
-  void importFormProposesTheNameAndListsThePorts() {
+  void registerFormProposesTheNameAndListsThePorts() {
     String name = newContainerName();
     start(twoPorts(name));
 
-    ResponseEntity<String> response = getPage("/containers/" + name + "/import");
+    ResponseEntity<String> response = getPage("/containers/" + name + "/register");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(openingTag(response.getBody(), "name=\"name\"")).contains("value=\"" + name + "\"");
@@ -448,19 +511,19 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void importFormOfAContainerThatIsNotListedIsNotFound() {
-    assertThat(getPage("/containers/" + newContainerName() + "/import").getStatusCode())
+  void registerFormOfAContainerThatIsNotListedIsNotFound() {
+    assertThat(getPage("/containers/" + newContainerName() + "/register").getStatusCode())
         .isEqualTo(HttpStatus.NOT_FOUND);
   }
 
   @Test
-  void importFormImportsWithTheChosenNameAndPort() {
+  void registerFormRegistersWithTheChosenNameAndPort() {
     String name = newContainerName();
     String web = newServiceName("web");
     start(twoPorts(name));
 
     ResponseEntity<String> response =
-        postForm("/containers/" + name + "/import", Map.of("name", web, "port", "9000"));
+        postForm("/containers/" + name + "/register", Map.of("name", web, "port", "9000"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
     assertThat(response.getHeaders().getLocation()).hasPath("/services/ws-test/" + web);
@@ -469,12 +532,12 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void importFormShowsTheErrorAtItsFieldAndKeepsWhatWasTyped() {
+  void registerFormShowsTheErrorAtItsFieldAndKeepsWhatWasTyped() {
     String name = newContainerName();
     start(twoPorts(name));
 
     ResponseEntity<String> response =
-        postForm("/containers/" + name + "/import", Map.of("name", "my_app", "port", "9000"));
+        postForm("/containers/" + name + "/register", Map.of("name", "my_app", "port", "9000"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(openingTag(response.getBody(), "name=\"name\""))
@@ -484,12 +547,12 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void importFormWithoutAPortForAContainerWithSeveralShowsThePortsAtThePortField() {
+  void registerFormWithoutAPortForAContainerWithSeveralShowsThePortsAtThePortField() {
     String name = newContainerName();
     start(twoPorts(name));
 
     ResponseEntity<String> response =
-        postForm("/containers/" + name + "/import", Map.of("name", name, "port", ""));
+        postForm("/containers/" + name + "/register", Map.of("name", name, "port", ""));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(openingTag(response.getBody(), "name=\"port\"")).contains("aria-invalid=\"true\"");
@@ -512,8 +575,8 @@ class ContainersTest extends DashboardTest {
         .findFirst();
   }
 
-  private static String importPath(String container) {
-    return PATH + "/" + container + "/import";
+  private static String registerPath(String container) {
+    return PATH + "/" + container + "/register";
   }
 
   /** A container called {@code name} whose one port is 80. */
