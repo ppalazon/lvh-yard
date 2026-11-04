@@ -2,6 +2,7 @@ package dev.palazon.lvhyard.dashboard;
 
 import static org.awaitility.Awaitility.await;
 
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
@@ -33,6 +34,12 @@ final class RemoteWorkstation implements AutoCloseable {
 
   /** Where a dashboard writes when it has kept its Core Services after it started. */
   static final String CORE_SERVICES_INITIALIZED = "lvh-yard/core-services/initialized";
+
+  /**
+   * This Workstation's {@code route-profiles.yaml}, in a folder of this JVM's own, so its dashboard
+   * never reads a developer's own file. Tests write it; it does not exist at first.
+   */
+  static final Path ROUTE_PROFILES = TestcontainersConfiguration.routeProfilesPath();
 
   /** How long a dashboard may take to keep its Core Services after it started. */
   private static final Duration CORE_SERVICES_WAIT = Duration.ofSeconds(30);
@@ -148,6 +155,7 @@ final class RemoteWorkstation implements AutoCloseable {
       "--lvh-yard.workstation.base-domain=" + DashboardTest.BASE_DOMAIN,
       "--lvh-yard.docker.host=" + TestcontainersConfiguration.dockerHost(),
       "--lvh-yard.consul.url=http://" + consul.getHost() + ":" + consulPort(),
+      "--lvh-yard.route-profiles.path=" + ROUTE_PROFILES,
       // Its real Peer is a name only the Docker network resolves. Not the Peers of a developer's
       // .env.
       "--lvh-yard.consul.peers="
@@ -213,6 +221,16 @@ final class RemoteWorkstation implements AutoCloseable {
         .uri(DashboardTest.publicationPath(service))
         .contentType(MediaType.APPLICATION_JSON)
         .body(Map.of("scope", scope))
+        .retrieve()
+        .toBodilessEntity();
+  }
+
+  /** Publishes {@code service} on this Workstation with {@code publication}, the API's body. */
+  void publish(String service, Map<String, Object> publication) {
+    http.put()
+        .uri(DashboardTest.publicationPath(service))
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(publication)
         .retrieve()
         .toBodilessEntity();
   }

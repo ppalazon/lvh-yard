@@ -114,6 +114,8 @@ final class ServicePage {
                                 .of(content -> {
                                   if (own && service.published()) {
                                     routeProfiles(content, service, profileNames);
+                                  } else if (!own && !service.profiles().isEmpty()) {
+                                    remoteRouteProfiles(content, service);
                                   }
                                 })
                                 .of(content -> {
@@ -541,6 +543,31 @@ final class ServicePage {
             }
           }
           priorityForm(buttons, service, List.of(), "Turn off", "Turn off");
+        })
+        .__()
+        .__();
+  }
+
+  /** Its names only: they are chosen on its Home Workstation, from that Workstation's file. */
+  private static void remoteRouteProfiles(Div<?> content, Service service) {
+    List<String> chosen = service.profiles();
+    content
+        .div()
+        .attrClass("flex flex-col gap-2")
+        .h2()
+        .attrClass("text-lg font-semibold")
+        .text("Route Profiles")
+        .__()
+        .p()
+        .attrClass("text-muted-foreground")
+        .text("The Route applies them in this order.")
+        .__()
+        .ol()
+        .attrClass("flex flex-col gap-2")
+        .of(list -> {
+          for (int i = 0; i < chosen.size(); i++) {
+            list.li().text((i + 1) + ". " + chosen.get(i)).__();
+          }
         })
         .__()
         .__();
