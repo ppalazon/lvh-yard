@@ -64,6 +64,19 @@ ssh -C "$usage_host" "mkdir -p '$usage_dir' && cat > '$usage_dir/lvh-yard.new' &
 echo "Copied lvh-yard to $usage_host:$usage_dir/lvh-yard"
 """
 
+[tasks."native:install"]
+description = "Copy cli/target/lvh-yard to a folder on this computer: mise run native:install [--dir ~/.local/bin]"
+# A new file, then mv: a running lvh-yard cannot be overwritten in place ("Text file busy").
+usage = 'flag "--dir <dir>" default="~/.local/bin" help="The folder for lvh-yard"'
+run = """
+[ -x cli/target/lvh-yard ] || { echo "cli/target/lvh-yard is missing. Build it first with mise run native." >&2; exit 1; }
+dir="${usage_dir/#\\~/$HOME}"
+mkdir -p "$dir"
+cp cli/target/lvh-yard "$dir/lvh-yard.new"
+mv "$dir/lvh-yard.new" "$dir/lvh-yard"
+echo "Installed lvh-yard to $dir/lvh-yard"
+"""
+
 [tasks.openapi]
 description = "Rewrite dashboard/openapi.yaml from the running dashboard's OpenAPI document"
 run = "./mvnw -q -pl dashboard test -Dtest=OpenApiTest#committedCopyIsCurrent -Dopenapi.update=true -Dsurefire.failIfNoSpecifiedTests=false"

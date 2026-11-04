@@ -77,6 +77,13 @@ The release workflow builds with the default -O2. To set another level, use
 `-Dnative.optimization`. Do not use `-DbuildArgs`, because it replaces the
 build arguments of `cli/pom.xml`.
 
+To copy the executable to a folder on this computer:
+
+```sh
+mise run native:install                          # to ~/.local/bin/lvh-yard
+mise run native:install --dir ~/bin              # to ~/bin/lvh-yard
+```
+
 To copy the executable to another computer through ssh:
 
 ```sh
@@ -84,8 +91,8 @@ mise run native:copy user@host                   # to ~/.local/bin/lvh-yard
 mise run native:copy user@host --dir bin         # to ~/bin/lvh-yard
 ```
 
-The other computer must have the same OS and CPU type as this one. The task
-does not build the executable, so run `mise run native` first.
+The other computer must have the same OS and CPU type as this one. Neither
+task builds the executable, so run `mise run native` first.
 
 ## Tests
 
