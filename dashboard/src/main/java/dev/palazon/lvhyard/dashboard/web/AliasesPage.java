@@ -125,7 +125,7 @@ final class AliasesPage {
         };
     cell.span()
         .attrClass("badge")
-        .addAttr("data-variant", alias.active() ? "primary" : "outline")
+        .addAttr("data-variant", alias.active() ? "success" : "outline")
         .text(label)
         .__();
     if (alias.reason() != null) {

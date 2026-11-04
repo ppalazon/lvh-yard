@@ -47,7 +47,7 @@ class AliasesPageTest extends DashboardTest {
     assertThat(getPage("/aliases").getBody())
         .contains("href=\"http://" + grafana + ".lvh.test\"")
         .contains("href=\"/services/" + RemoteWorkstation.NAME + "/" + grafana + "\"")
-        .contains("Active");
+        .contains(badge("success", "Active"));
   }
 
   @Test
@@ -106,7 +106,7 @@ class AliasesPageTest extends DashboardTest {
     publish(grafana);
 
     assertThat(getPage("/aliases").getBody())
-        .contains("Fallback")
+        .contains(badge("outline", "Fallback"))
         .contains("The last fallback for this Workstation");
   }
 }
