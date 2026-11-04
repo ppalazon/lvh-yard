@@ -101,7 +101,7 @@ class TestcontainersConfiguration {
     };
   }
 
-  private static Path routeProfilesPath() {
+  static Path routeProfilesPath() {
     try {
       return Files.createTempDirectory("lvh-yard-test").resolve("route-profiles.yaml");
     } catch (IOException e) {

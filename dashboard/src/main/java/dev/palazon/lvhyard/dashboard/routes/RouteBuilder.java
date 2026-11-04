@@ -42,6 +42,8 @@ final class RouteBuilder {
     Map<String, Router> routers = new LinkedHashMap<>();
     Map<String, Service> backends = new LinkedHashMap<>();
     Map<String, Map<String, Object>> middlewares = new LinkedHashMap<>();
+    // An Alias's Route applies the middlewares of its Remote Service's Route.
+    Map<String, List<String>> applied = new LinkedHashMap<>();
     services.stream()
         .filter(dev.palazon.lvhyard.dashboard.services.Service::routed)
         .forEach(service -> {
@@ -50,7 +52,8 @@ final class RouteBuilder {
                   .map(instance -> new Server("http://" + instance.address()))
                   .toList();
           String name = name(workstation, service);
-          routers.put(name, router(service.hostname(), name, profiles(service, middlewares)));
+          applied.put(name, profiles(service, middlewares));
+          routers.put(name, router(service.hostname(), name, applied.get(name)));
           backends.put(name, new Service(new LoadBalancer(servers)));
         });
     aliases.stream()
@@ -58,7 +61,8 @@ final class RouteBuilder {
         .forEach(alias -> {
           String target = name(workstation, alias.workstation(), alias.service());
           if (backends.containsKey(target)) {
-            routers.put(ALIAS_PREFIX + alias.name(), router(alias.hostname(), target, List.of()));
+            routers.put(
+                ALIAS_PREFIX + alias.name(), router(alias.hostname(), target, applied.get(target)));
           }
         });
     String yard = CoreService.YARD.serviceName();

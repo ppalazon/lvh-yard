@@ -6,9 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] Every Workstation routing a Publication reads its profiles from the Home Workstation's KV
-- [ ] Middlewares are named `<home-workstation>-<profile>`; chain members and references are renamed the same way
-- [ ] Aliases apply the Remote Service's profiles
-- [ ] A Remote Service's page shows its profile names
-- [ ] A change in the Home file reaches the remote Traefik configuration within seconds
-- [ ] Tested with the two-datacenter Yard
+- [x] Every Workstation routing a Publication reads its profiles from the Home Workstation's KV
+- [x] Middlewares are named `<home-workstation>-<profile>`; chain members and references are renamed the same way
+- [x] Aliases apply the Remote Service's profiles
+- [x] A Remote Service's page shows its profile names
+- [x] A change in the Home file reaches the remote Traefik configuration within seconds
+- [x] Tested with the two-datacenter Yard

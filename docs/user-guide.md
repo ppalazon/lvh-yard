@@ -353,6 +353,12 @@ The Route gets each profile as a Traefik middleware named
 Publication. A chain's members get the same name in front. So the profiles of
 two Workstations never clash.
 
+A Service with Yard Scope gets its profiles on every Workstation. A teammate's
+Route to it, and a teammate's Alias to it, apply the same profiles. Their
+dashboard reads the profiles from your Consul KV, so nobody copies a file. When
+you change your file, their Routes change within a few seconds. The Service's
+page on their dashboard shows the profile names.
+
 A profile with `basicAuth`, `digestAuth` or `forwardAuth`, also inside a chain,
 protects only the hostname. A connection straight to the Instance's address and
 port does not go through Traefik, so it skips the profile. The Service page,
