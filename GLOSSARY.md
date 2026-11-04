@@ -50,10 +50,6 @@ _Avoid_: Unbound container, new container, orphan container
 Giving an Unfollowed Container a Service in one step: a Container Binding (by Compose project and service when the container has both labels, else by container name) on one container port, and a Publication with Local Scope when the Service is new. A Service that exists keeps its Publication, or stays Unpublished. It never starts or stops the container.
 _Avoid_: Adopt, register container, bind
 
-**Core Service**:
-A Service that LVH Yard itself keeps registered and published on every Workstation: the dashboard (`yard`), Consul and Traefik. You cannot remove or unpublish it.
-_Avoid_: System service, built-in service
-
 ### Setting up a Workstation
 
 **Workstation Folder**:
@@ -91,7 +87,7 @@ How LVH Yard itself works on one Workstation: each Status Part, and the worst of
 _Avoid_: Health, state, availability
 
 **Status Part**:
-One piece of LVH Yard with a Status of its own: Consul, Traefik, Docker or the Core Services.
+One piece of LVH Yard with a Status of its own: Consul, Traefik or Docker.
 _Avoid_: Component, subsystem, check
 
 **Reachability**:
