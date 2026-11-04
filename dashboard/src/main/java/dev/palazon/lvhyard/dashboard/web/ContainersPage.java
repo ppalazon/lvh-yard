@@ -42,6 +42,7 @@ final class ContainersPage {
     return Layout.page(
         "Containers",
         workstation.name(),
+        Layout.Section.CONTAINERS,
         main ->
             main.h1()
                 .text("Containers")
@@ -250,6 +251,7 @@ final class ContainersPage {
     return Layout.page(
         "Import " + container.name(),
         workstation.name(),
+        Layout.Section.CONTAINERS,
         main ->
             main.h1()
                 .text("Import " + container.name())

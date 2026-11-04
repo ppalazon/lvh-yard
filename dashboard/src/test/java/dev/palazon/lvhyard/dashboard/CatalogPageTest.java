@@ -21,8 +21,14 @@ class CatalogPageTest extends DashboardTest {
   }
 
   @Test
-  void linksToTheRegisterForm() {
-    assertThat(getPage("/").getBody()).contains("href=\"/register\"");
+  void leavesTheOtherListsToTheNavigationBar() {
+    String page = getPage("/").getBody();
+    String main = page.substring(page.indexOf("<main"));
+
+    assertThat(main)
+        .doesNotContain("href=\"/containers\"")
+        .doesNotContain("href=\"/aliases\"")
+        .doesNotContain("href=\"/register\"");
   }
 
   @Test

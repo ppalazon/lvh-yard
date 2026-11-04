@@ -52,32 +52,10 @@ final class CatalogPage {
     return Layout.page(
         "Catalog",
         workstation.name(),
+        Layout.Section.CATALOG,
         main ->
-            main.div()
-                .attrClass("flex flex-wrap items-center justify-between gap-4")
-                .h1()
+            main.h1()
                 .text("Catalog")
-                .__()
-                .div()
-                .attrClass("flex flex-wrap gap-2")
-                .a()
-                .attrHref(ContainersPage.PATH)
-                .attrClass("btn")
-                .addAttr("data-variant", "outline")
-                .text("Containers")
-                .__()
-                .a()
-                .attrHref(AliasesPage.PATH)
-                .attrClass("btn")
-                .addAttr("data-variant", "outline")
-                .text("Aliases")
-                .__()
-                .a()
-                .attrHref(RegisterPage.PATH)
-                .attrClass("btn")
-                .text("Register")
-                .__()
-                .__()
                 .__()
                 .p()
                 .text(
