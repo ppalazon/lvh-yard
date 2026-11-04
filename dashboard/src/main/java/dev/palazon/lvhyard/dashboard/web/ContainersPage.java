@@ -330,7 +330,7 @@ final class ContainersPage {
     }
     String variant =
         switch (health) {
-          case HEALTHY -> "primary";
+          case HEALTHY -> "success";
           case UNHEALTHY -> "destructive";
           case STARTING -> "secondary";
         };

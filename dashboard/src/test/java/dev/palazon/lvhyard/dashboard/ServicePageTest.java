@@ -15,6 +15,22 @@ import tools.jackson.databind.JsonNode;
 class ServicePageTest extends DashboardTest {
 
   @Test
+  void showsGoodStatesWithGreenBadges() {
+    String web = newServiceName("web");
+    int port = newLanPort();
+    listenOnLanAddress(port);
+    register(web, Map.of("port", port, "check", Map.of("interval", "1s")));
+    publish(web);
+
+    await()
+        .atMost(Duration.ofSeconds(10))
+        .untilAsserted(() ->
+            assertThat(getPage("/services/ws-test/" + web).getBody())
+                .contains(badge("success", "Healthy"))
+                .contains(badge("success", "passing")));
+  }
+
+  @Test
   void showsTheServicesInstancesAndTheirHealth() {
     String api = newServiceName("api");
     register(api, Map.of("host", "10.1.2.3", "port", 8080));

@@ -11,7 +11,7 @@ final class ServiceViews {
   static void state(PhrasingContent<?, ?> parent, ServiceState state) {
     String variant =
         switch (state) {
-          case HEALTHY -> "primary";
+          case HEALTHY -> "success";
           case UNHEALTHY -> "destructive";
           case UNAVAILABLE -> "outline";
           case UNPUBLISHED -> "secondary";

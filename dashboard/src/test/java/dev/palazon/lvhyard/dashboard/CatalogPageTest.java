@@ -1,7 +1,9 @@
 package dev.palazon.lvhyard.dashboard;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
+import java.time.Duration;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -50,6 +52,33 @@ class CatalogPageTest extends DashboardTest {
 
     assertThat(rowOf(page, web)).contains("Unpublished");
     assertThat(rowOf(page, api)).contains("Unhealthy").contains(api + ".lvh.test");
+  }
+
+  @Test
+  void showsGoodStatesWithGreenBadges() {
+    String web = newServiceName("web");
+    int port = newLanPort();
+    listenOnLanAddress(port);
+    register(web, Map.of("port", port, "check", Map.of("interval", "1s")));
+    publish(web);
+
+    await()
+        .atMost(Duration.ofSeconds(10))
+        .untilAsserted(() ->
+            assertThat(rowOf(getPage("/").getBody(), web))
+                .contains(badge("success", "Healthy"))
+                .contains(badge("success", "passing")));
+  }
+
+  @Test
+  void showsBadStatesWithTheirOwnBadges() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+    publish(web);
+
+    assertThat(rowOf(getPage("/").getBody(), web))
+        .contains(badge("destructive", "Unhealthy"))
+        .contains(badge("destructive", "critical"));
   }
 
   @Test

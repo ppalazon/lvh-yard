@@ -116,10 +116,12 @@ class StatusTest extends DashboardTest {
     String consul = div(response.getBody(), "id=\"part-consul\"");
     assertThat(consul)
         .contains("Consul")
-        .contains("OK")
+        .contains(badge("success", "✓ OK"))
         .contains("Consul has a leader")
         .contains(RemoteWorkstation.NAME);
-    assertThat(div(response.getBody(), "id=\"part-docker\"")).contains("Docker").contains("OK");
+    assertThat(div(response.getBody(), "id=\"part-docker\""))
+        .contains("Docker")
+        .contains(badge("success", "✓ OK"));
     assertThat(div(response.getBody(), "id=\"part-traefik\""))
         .contains("Traefik")
         .contains("ping")
@@ -134,7 +136,7 @@ class StatusTest extends DashboardTest {
     remote.whileDashboardRunsWith(
         () ->
             assertThat(remote.page("/status"))
-                .contains("Failing")
+                .contains(badge("destructive", "✕ Failing"))
                 .contains("No Docker socket at /nowhere/docker.sock"),
         "--lvh-yard.docker.host=unix:///nowhere/docker.sock");
   }

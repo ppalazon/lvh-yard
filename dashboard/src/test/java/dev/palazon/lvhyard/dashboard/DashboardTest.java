@@ -343,6 +343,11 @@ abstract class DashboardTest {
     return http.get().uri(path).retrieve().toEntity(JsonNode.class);
   }
 
+  /** A badge as the pages write it, such as {@code badge("success", "passing")}. */
+  static String badge(String variant, String text) {
+    return "<span class=\"badge\" data-variant=\"" + variant + "\">" + text + "</span>";
+  }
+
   ResponseEntity<String> getPage(String path) {
     return http.get().uri(path).retrieve().toEntity(String.class);
   }

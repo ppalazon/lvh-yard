@@ -286,7 +286,7 @@ final class ServicePage {
   private static void result(Td<?> cell, boolean reached) {
     cell.span()
         .attrClass("badge")
-        .addAttr("data-variant", reached ? "primary" : "destructive")
+        .addAttr("data-variant", reached ? "success" : "destructive")
         .text(reached ? "Reached" : "Not reached")
         .__();
   }

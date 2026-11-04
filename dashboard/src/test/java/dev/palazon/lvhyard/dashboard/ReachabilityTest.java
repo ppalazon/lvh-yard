@@ -227,8 +227,9 @@ class ReachabilityTest extends DashboardTest {
         .contains("<h1>" + api + "</h1>")
         .contains("Reachability from ws-test")
         .contains(lanAddress() + ":7103")
-        .contains("Reached")
+        .contains(badge("success", "Reached"))
         .contains(lanAddress() + ":7104")
+        .contains(badge("destructive", "Not reached"))
         .containsIgnoringCase("refused")
         .contains("Not published, so only its Instances are tested");
   }

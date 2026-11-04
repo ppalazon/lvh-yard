@@ -86,7 +86,7 @@ final class InstanceViews {
   private static void badge(PhrasingContent<?, ?> parent, Health health) {
     String variant =
         switch (health) {
-          case PASSING -> "primary";
+          case PASSING -> "success";
           case WARNING -> "secondary";
           case CRITICAL -> "destructive";
         };

@@ -91,6 +91,7 @@ class ContainersTest extends DashboardTest {
         .untilAsserted(() ->
             assertThat(listed(get(PATH).getBody(), name).orElseThrow().get("health").asString())
                 .isEqualTo("healthy"));
+    assertThat(rowOf(getPage("/containers").getBody(), name)).contains(badge("success", "healthy"));
   }
 
   @Test
@@ -539,5 +540,11 @@ class ContainersTest extends DashboardTest {
               .withCmd();
           more.accept(command);
         });
+  }
+
+  private static String rowOf(String page, String container) {
+    int at = page.indexOf(">" + container + "<");
+    assertThat(at).as("a row for %s", container).isNotNegative();
+    return page.substring(page.lastIndexOf("<tr", at), page.indexOf("</tr>", at));
   }
 }
