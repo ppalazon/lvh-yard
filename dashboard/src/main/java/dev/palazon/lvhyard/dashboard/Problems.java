@@ -20,9 +20,9 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.util.DisconnectedClientHelper;
 
 /**
- * The exceptions that no controller and no other advice handles. Each one logs one line. The line
- * has the stack trace only when {@code YARD_STACK_TRACES} is true. The REST API answers with
- * Problem Details (RFC 9457). The pages answer with the error page.
+ * This advice handles the exceptions that no controller and no other advice handles. Each one logs
+ * one line. The line has the stack trace only when {@code YARD_STACK_TRACES} is true. The REST API
+ * answers with Problem Details (RFC 9457). The pages answer with the error page.
  *
  * <p>It must come last. Its handler for {@link Exception} matches every exception, so it can take
  * the exceptions of {@code ApiProblems}.
@@ -63,7 +63,8 @@ class Problems {
 
   /**
    * An exception with its own status, such as a missing page, keeps the default handling of Spring.
-   * So does a client that went away. The handler throws these again, and Spring passes them on.
+   * So does a client that closed the connection. The handler throws these again, and Spring gives
+   * them to its default handling.
    */
   @ExceptionHandler
   @ResponseBody
