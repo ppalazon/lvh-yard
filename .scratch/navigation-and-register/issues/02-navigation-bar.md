@@ -4,12 +4,12 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The header has four links: Catalog (`/`), Containers (`/containers`), Aliases (`/aliases`) and Static Instances (`/static-instances`).
-- [ ] The link of the current page has `aria-current="page"` and looks highlighted.
-- [ ] The Service page, the edit page and the status page have no current link.
-- [ ] The Catalog page has no Containers, Aliases or Register buttons.
-- [ ] Until ticket 03 is done, `/static-instances` answers 301 to `/register`.
-- [ ] The header fits at phone width.
-- [ ] The page tests cover the links and the current link on each page.
+- [x] The header has four links: Catalog (`/`), Containers (`/containers`), Aliases (`/aliases`) and Static Instances (`/static-instances`).
+- [x] The link of the current page has `aria-current="page"` and looks highlighted.
+- [x] The Service page, the edit page and the status page have no current link.
+- [x] The Catalog page has no Containers, Aliases or Register buttons.
+- [x] Until ticket 03 is done, `/static-instances` answers 301 to `/register`.
+- [x] The header fits at phone width.
+- [x] The page tests cover the links and the current link on each page.
