@@ -142,6 +142,11 @@ abstract class DashboardTest {
   }
 
   private GenericContainer<?> startYardNetworkContainer(GenericContainer<?> container) {
+    return start(container);
+  }
+
+  /** Starts {@code container}, which is removed after the test. */
+  GenericContainer<?> start(GenericContainer<?> container) {
     containers.add(container);
     container.start();
     return container;

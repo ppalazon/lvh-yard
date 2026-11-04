@@ -1,13 +1,9 @@
 package dev.palazon.lvhyard.dashboard.status;
 
 import dev.palazon.lvhyard.dashboard.docker.Docker;
+import dev.palazon.lvhyard.dashboard.docker.DockerFailures;
 import dev.palazon.lvhyard.dashboard.docker.DockerSettings;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.attribute.PosixFileAttributes;
 import java.util.List;
-import java.util.Optional;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -21,9 +17,12 @@ class DockerStatus implements PartReader {
 
   private final DockerSettings settings;
 
-  DockerStatus(Docker docker, DockerSettings settings) {
+  private final DockerFailures failures;
+
+  DockerStatus(Docker docker, DockerSettings settings, DockerFailures failures) {
     this.docker = docker;
     this.settings = settings;
+    this.failures = failures;
   }
 
   @Override
@@ -38,7 +37,7 @@ class DockerStatus implements PartReader {
       docker.ping();
       version = docker.version();
     } catch (RuntimeException e) {
-      return Part.failing(NAME, whyNot(e));
+      return Part.failing(NAME, failures.reason(e));
     }
     return Part.of(
         NAME,
@@ -48,34 +47,5 @@ class DockerStatus implements PartReader {
             Part.Detail.fact("version", version.version()),
             Part.Detail.fact("API version", version.apiVersion()),
             Part.Detail.fact("host", settings.host().toString())));
-  }
-
-  private String whyNot(RuntimeException e) {
-    if ("unix".equals(settings.host().getScheme())) {
-      Path socket = Path.of(settings.host().getPath());
-      if (!Files.exists(socket)) {
-        return "No Docker socket at " + socket + ". Start Docker, or fix DOCKER_HOST.";
-      }
-      if (!Files.isReadable(socket) || !Files.isWritable(socket)) {
-        return "The dashboard cannot read "
-            + socket
-            + ": permission denied."
-            + group(socket)
-                .map(group ->
-                    " Add the dashboard's user to the group "
-                        + group
-                        + ", or set YARD_DOCKER_GID in .env to that group's ID.")
-                .orElse("");
-      }
-    }
-    return "Docker does not answer at " + settings.host() + ": " + e.getMessage();
-  }
-
-  private static Optional<String> group(Path socket) {
-    try {
-      return Optional.of(Files.readAttributes(socket, PosixFileAttributes.class).group().getName());
-    } catch (IOException | UnsupportedOperationException e) {
-      return Optional.empty();
-    }
   }
 }

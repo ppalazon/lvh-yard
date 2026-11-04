@@ -4,6 +4,7 @@ import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.reachability.ReachabilityTester;
 import dev.palazon.lvhyard.dashboard.services.Aliases;
 import dev.palazon.lvhyard.dashboard.services.ContainerBindings;
+import dev.palazon.lvhyard.dashboard.services.ContainerImport;
 import dev.palazon.lvhyard.dashboard.services.CoreServiceException;
 import dev.palazon.lvhyard.dashboard.services.Instance;
 import dev.palazon.lvhyard.dashboard.services.InvalidPriorityException;
@@ -21,6 +22,7 @@ import dev.palazon.lvhyard.dashboard.services.UnknownServiceException;
 import dev.palazon.lvhyard.dashboard.services.UnknownStateException;
 import dev.palazon.lvhyard.dashboard.services.UnknownWorkstationException;
 import dev.palazon.lvhyard.dashboard.services.UnreachableWorkstationException;
+import dev.palazon.lvhyard.dashboard.services.UnreadableDockerException;
 import dev.palazon.lvhyard.dashboard.services.Yard;
 import dev.palazon.lvhyard.dashboard.services.YardReader;
 import jakarta.servlet.http.HttpServletResponse;
@@ -56,6 +58,8 @@ class PagesController {
 
   private final ContainerBindings containerBindings;
 
+  private final ContainerImport containerImport;
+
   private final ReachabilityTester reachability;
 
   PagesController(
@@ -65,6 +69,7 @@ class PagesController {
       Publications publications,
       Aliases aliases,
       ContainerBindings containerBindings,
+      ContainerImport containerImport,
       ReachabilityTester reachability) {
     this.workstation = workstation;
     this.yard = yard;
@@ -72,6 +77,7 @@ class PagesController {
     this.publications = publications;
     this.aliases = aliases;
     this.containerBindings = containerBindings;
+    this.containerImport = containerImport;
     this.reachability = reachability;
   }
 
@@ -301,6 +307,17 @@ class PagesController {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
     }
     return seeOther(yard.service(home, service).map(ServicePage::path).orElse("/"));
+  }
+
+  /** Docker that cannot be read is told on the page, which the refresh can only swap from a 200. */
+  @GetMapping(path = ContainersPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
+  @ResponseBody
+  String containers() {
+    try {
+      return ContainersPage.render(workstation, containerImport.unfollowed(), null);
+    } catch (UnreadableDockerException e) {
+      return ContainersPage.render(workstation, List.of(), e.getMessage());
+    }
   }
 
   @GetMapping(path = AliasesPage.PATH, produces = MediaType.TEXT_HTML_VALUE)

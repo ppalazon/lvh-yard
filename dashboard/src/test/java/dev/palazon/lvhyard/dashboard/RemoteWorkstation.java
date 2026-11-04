@@ -238,6 +238,15 @@ final class RemoteWorkstation implements AutoCloseable {
     return http.get().uri(path).accept(MediaType.TEXT_HTML).retrieve().body(String.class);
   }
 
+  /** The answer of this Workstation's dashboard to {@code path}, even an error. */
+  ResponseEntity<JsonNode> get(String path) {
+    return http.get()
+        .uri(path)
+        .retrieve()
+        .onStatus(status -> true, (request, response) -> {})
+        .toEntity(JsonNode.class);
+  }
+
   /** The status of LVH Yard on this Workstation, from its dashboard's API. */
   JsonNode status() {
     return http.get().uri("/api/status").retrieve().body(JsonNode.class);

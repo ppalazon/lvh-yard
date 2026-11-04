@@ -312,6 +312,15 @@ The dashboard follows the Docker events at `DOCKER_HOST`. If that is not set,
 it uses `unix:///var/run/docker.sock`. When it starts, or when Docker answers
 again, it updates each Binding to the containers that run then.
 
+The Containers page (`/containers`, linked from the Catalog) lists the running
+containers that no Container Binding follows yet. It groups Compose containers
+by Compose project, and lists the other containers apart. For each container,
+it shows the TCP ports, with the host port when the port is published, and the
+HEALTHCHECK state when the container has a HEALTHCHECK. A container that any
+Binding matches is not listed, whatever the port of the Binding. The list
+refreshes every 5 seconds. If the dashboard cannot read Docker, the page says
+why. `GET /api/workstation/containers` gives the same list.
+
 ### Health checks
 
 Each Instance has one health check. A TCP check connects to its port. An HTTP

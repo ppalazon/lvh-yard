@@ -10,6 +10,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @RestControllerAdvice(
     assignableTypes = {
       AliasesController.class,
+      ContainersController.class,
       ServicesController.class,
       WorkstationServicesController.class,
       YardController.class
@@ -48,6 +49,11 @@ class ApiProblems extends ResponseEntityExceptionHandler {
 
   @ExceptionHandler
   ProblemDetail unreachableWorkstation(UnreachableWorkstationException exception) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage());
+  }
+
+  @ExceptionHandler
+  ProblemDetail unreadableDocker(UnreadableDockerException exception) {
     return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage());
   }
 

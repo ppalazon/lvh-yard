@@ -18,6 +18,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.core.type.TypeReference;
@@ -168,7 +170,13 @@ public class Docker {
       @JsonProperty("Names") List<String> names,
       @JsonProperty("Ports") List<Port> ports,
       @JsonProperty("NetworkSettings") NetworkSettings networkSettings,
-      @JsonProperty("Labels") Map<String, String> labels) {
+      @JsonProperty("Labels") Map<String, String> labels,
+      @JsonProperty("Status") String status,
+      @JsonProperty("Health") Health health) {
+
+    /** How an older Docker, which has no {@code Health}, ends a running container's status. */
+    private static final Pattern HEALTH_IN_STATUS =
+        Pattern.compile("\\((?:health: )?(starting|healthy|unhealthy)\\)$");
 
     private static final String COMPOSE_PROJECT = "com.docker.compose.project";
 
@@ -189,6 +197,29 @@ public class Docker {
     public boolean isOfComposeService(String project, String service) {
       return project.equals(labels.get(COMPOSE_PROJECT))
           && service.equals(labels.get(COMPOSE_SERVICE));
+    }
+
+    public Optional<String> composeProject() {
+      return Optional.ofNullable(labels.get(COMPOSE_PROJECT));
+    }
+
+    public Optional<String> composeService() {
+      return Optional.ofNullable(labels.get(COMPOSE_SERVICE));
+    }
+
+    /**
+     * Its HEALTHCHECK state: {@code starting}, {@code healthy} or {@code unhealthy}. None when it
+     * has no HEALTHCHECK.
+     */
+    public Optional<String> healthState() {
+      if (health != null && health.status() != null && !"none".equals(health.status())) {
+        return Optional.of(health.status());
+      }
+      if (status == null) {
+        return Optional.empty();
+      }
+      Matcher matcher = HEALTH_IN_STATUS.matcher(status.strip());
+      return matcher.find() ? Optional.of(matcher.group(1)) : Optional.empty();
     }
 
     /** The first of its names, or its ID when it has none. */
@@ -214,6 +245,9 @@ public class Docker {
           .findFirst();
     }
   }
+
+  /** {@code status} is {@code none} when the image's HEALTHCHECK is turned off. */
+  public record Health(@JsonProperty("Status") String status) {}
 
   /**
    * {@code ip} is {@code 0.0.0.0} or {@code ::} for every host address. {@code ip} and {@code

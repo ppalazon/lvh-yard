@@ -198,7 +198,7 @@ public class ContainerBindings {
     registrations.keepBoundInstances(wanted);
   }
 
-  private static boolean matches(ContainerBindingRequest binding, Container container) {
+  static boolean matches(ContainerBindingRequest binding, Container container) {
     return binding.followsCompose()
         ? container.isOfComposeService(binding.composeProject(), binding.composeService())
         : container.isNamed(binding.container());

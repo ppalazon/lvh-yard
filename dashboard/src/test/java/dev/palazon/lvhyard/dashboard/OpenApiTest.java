@@ -35,6 +35,7 @@ class OpenApiTest extends DashboardTest {
             "/api/yard",
             "/api/workstation/aliases",
             "/api/workstation/aliases/{alias}",
+            "/api/workstation/containers",
             "/api/workstation/services",
             "/api/workstation/services/{service}",
             "/api/workstation/services/{service}/container-bindings",
@@ -76,6 +77,7 @@ class OpenApiTest extends DashboardTest {
         .isTrue();
     assertThat(answersWithProblem(paths, "/api/workstation/aliases/{alias}", "delete", "404"))
         .isTrue();
+    assertThat(answersWithProblem(paths, "/api/workstation/containers", "get", "503")).isTrue();
   }
 
   @Test
