@@ -5,7 +5,8 @@ import dev.palazon.lvhyard.dashboard.docker.Docker;
 import dev.palazon.lvhyard.dashboard.docker.DockerFailures;
 import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 /** Running containers that no Container Binding follows yet, to give them a Service. */
@@ -47,11 +48,9 @@ public class ContainerImport {
    */
   public List<UnfollowedContainer> unfollowed() {
     List<Docker.Container> running = running();
-    List<ContainerBindingRequest> followed =
-        bindings.all(null).values().stream().flatMap(byId -> byId.values().stream()).toList();
+    Map<String, Map<String, ContainerBindingRequest>> followed = bindings.all(null);
     return running.stream()
-        .filter(container ->
-            followed.stream().noneMatch(binding -> ContainerBindings.matches(binding, container)))
+        .filter(container -> followingService(followed, container).isEmpty())
         .map(UnfollowedContainer::of)
         .sorted(
             Comparator.comparing(
@@ -69,6 +68,7 @@ public class ContainerImport {
    *
    * @return the Service, with the container bound
    * @throws UnknownContainerException when no running container has the name
+   * @throws FollowedContainerException when a Container Binding already follows the container
    * @throws InvalidRegistrationException when the Service name or the port breaks a rule
    * @throws UnreadableDockerException when Docker does not answer
    */
@@ -78,34 +78,45 @@ public class ContainerImport {
             .filter(running -> running.isNamed(name))
             .findFirst()
             .orElseThrow(() -> new UnknownContainerException(name));
+    followingService(bindings.all(null), container)
+        .ifPresent(following -> {
+          throw new FollowedContainerException(name, following);
+        });
     UnfollowedContainer unfollowed = UnfollowedContainer.of(container);
     String service =
         request.service() == null || request.service().isBlank()
             ? unfollowed.service()
             : request.service().strip();
     int port = request.port() == null ? onlyPort(unfollowed) : request.port();
-    boolean existed = publications.exists(service);
+    // Before add, which makes the Service exist. Only this Workstation's Instances, Publication
+    // and Bindings count, so a Service with any of them but no Publication stays unpublished.
+    boolean isNew = !publications.exists(service);
     bindings.add(
         workstation.name(),
         service,
-        container
-            .composeProject()
-            .map(project ->
-                ContainerBindingRequest.compose(
-                    project, container.composeService().orElseThrow(), port))
-            .orElseGet(() -> ContainerBindingRequest.container(name, port)));
-    if (!existed && !Boolean.FALSE.equals(request.publish())) {
+        unfollowed.composeProject() == null
+            ? ContainerBindingRequest.container(name, port)
+            : ContainerBindingRequest.compose(
+                unfollowed.composeProject(), unfollowed.composeService(), port));
+    if (isNew && !Boolean.FALSE.equals(request.publish())) {
       publications.publish(workstation.name(), service, null, null);
     }
     return yard.service(workstation.name(), service).orElseThrow();
   }
 
+  /** The Service of the first Binding in {@code followed} that matches {@code container}. */
+  private static Optional<String> followingService(
+      Map<String, Map<String, ContainerBindingRequest>> followed, Docker.Container container) {
+    return followed.entrySet().stream()
+        .filter(byService ->
+            byService.getValue().values().stream()
+                .anyMatch(binding -> ContainerBindings.matches(binding, container)))
+        .map(Map.Entry::getKey)
+        .findFirst();
+  }
+
   private static int onlyPort(UnfollowedContainer container) {
-    List<Integer> ports =
-        container.ports().stream()
-            .map(UnfollowedContainer.ContainerPort::containerPort)
-            .distinct()
-            .toList();
+    List<Integer> ports = container.containerPorts();
     if (ports.size() == 1) {
       return ports.getFirst();
     }
@@ -116,7 +127,7 @@ public class ContainerImport {
             : "The container "
                 + container.name()
                 + " has more than one port: give one of "
-                + ports.stream().map(String::valueOf).collect(Collectors.joining(", "))
+                + container.containerPortList()
                 + ".");
   }
 

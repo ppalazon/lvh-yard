@@ -22,8 +22,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class Registrations {
 
+  /** The longest DNS label. */
+  static final int MAX_NAME_LENGTH = 63;
+
   /** A single DNS label: what a hostname's first part can be. */
-  private static final Pattern DNS_LABEL = Pattern.compile("[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?");
+  private static final Pattern DNS_LABEL =
+      Pattern.compile("[a-z0-9]([a-z0-9-]{0," + (MAX_NAME_LENGTH - 2) + "}[a-z0-9])?");
 
   /** An IP address or a hostname. Nothing that would break a URL, such as /, ?, % or a space. */
   private static final Pattern HOST = Pattern.compile("[A-Za-z0-9.:-]+");
@@ -393,9 +397,14 @@ public class Registrations {
     checkName("Service", service);
   }
 
+  /** The DNS label rule only. A Core Service name passes it. */
+  static boolean isDnsLabel(String name) {
+    return DNS_LABEL.matcher(name).matches();
+  }
+
   /** A Service and an Alias both take a hostname's first part. */
   static void checkName(String kind, String name) {
-    if (!DNS_LABEL.matcher(name).matches()) {
+    if (!isDnsLabel(name)) {
       throw new InvalidRegistrationException(
           "name",
           "The "

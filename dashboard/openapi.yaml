@@ -296,6 +296,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: No running container has this name
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: A Container Binding already follows the container
         "503":
           content:
             application/problem+json:

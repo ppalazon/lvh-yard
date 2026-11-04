@@ -129,7 +129,7 @@ lvh-yard register web --port 8080 --tag backend --meta owner=pablo           # r
 lvh-yard register web --container web-1 --port 80                            # bind to the container web-1
 lvh-yard register web --compose-project shop --compose-service web --port 80 # bind to the Compose service web
 lvh-yard containers                         # running containers that no Container Binding follows
-lvh-yard import shop-web-1                  # bind a container to a Service and publish it
+lvh-yard import shop-web-1                  # bind a container to a Service, and publish a new Service
 lvh-yard import shop-web-1 --port 9000 --name shop --no-publish
 lvh-yard remove web --port 8080             # add --host if several Instances share the port
 lvh-yard remove web --id <id>               # the ID that lvh-yard list shows
@@ -320,26 +320,31 @@ containers that no Container Binding follows yet. It groups Compose containers
 by Compose project, and lists the other containers apart. For each container,
 it shows the TCP ports, with the host port when the port is published, and the
 HEALTHCHECK state when the container has a HEALTHCHECK. A container that any
-Binding matches is not listed, whatever the port of the Binding. The list
+Container Binding matches is not listed, whatever the port of the Container
+Binding. A container with a Compose project label but no Compose service label
+is listed with the other containers. The list
 refreshes every 5 seconds. If the dashboard cannot read Docker, the page says
 why. `GET /api/workstation/containers` gives the same list.
 
 To give a container with one port a hostname, click Import in its row. The
 import adds a Container Binding on that port. A Compose container is bound by
-its Compose project and service, so the Binding still works after
+its Compose project and service, so the Container Binding still works after
 `docker compose up` makes a new container. Another container is bound by its
 name. The Service gets the name of the Compose service, or of the container.
 If that name is not a single DNS label, the import uses a cleaned name: lower
-case, with `_`, `.` and other characters changed to `-`. If the Service is new,
-the import publishes it with Local Scope, and the page of the Service opens. If
-the Service already exists, it keeps its Publication and Scope, or stays
-unpublished. If the import fails, for example because the name is the name of a
-Core Service, the page shows why next to the container.
+case, with `_`, `.` and other characters changed to `-`. If the cleaned
+Compose service name is empty, the import uses the cleaned container name. If
+the Service is new, the import publishes it with Local Scope. If the Service
+already exists on this Workstation, it keeps its Publication and Scope, or
+stays unpublished. After the import, the list says which Service it imported
+into, with a link to the page of the Service. If the import fails, for example
+because the name is the name of a Core Service, the page shows why next to the
+container.
 
 To choose another Service name, click Choose name. If a container has several
 ports or none, click Choose port. A form opens with the proposed name and the
-ports of the container. Change them, and click Import. If the import fails, the
-form shows why next to the field.
+ports of the container. Change them, and click Import. The page of the Service
+then opens. If the import fails, the form shows why next to the field.
 
 If the Service has Yard Scope and the container port is not published, the
 page of the Service warns that other Workstations cannot reach the Bound
@@ -349,7 +354,9 @@ Instance.
 The body can give `port`, `service` (another Service name) and
 `publish: false` (to bind without publishing a new Service). Give `port` when
 the container does not have exactly one TCP port. If you do not, the error
-lists the ports of the container.
+lists the ports of the container. If a Container Binding already follows the
+container, the import is refused with 409, and names the Service of that
+Container Binding.
 
 From the terminal:
 

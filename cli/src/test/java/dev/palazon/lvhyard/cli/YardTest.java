@@ -502,6 +502,24 @@ class YardTest {
   }
 
   @Test
+  void importOfAFollowedContainerSaysWhichServiceFollowsIt() {
+    dashboard.answer(
+        "POST",
+        "/api/workstation/containers/grafana/import",
+        409,
+        """
+        {"status": 409,
+         "detail": "The container grafana is already followed by a Container Binding of the Service metrics."}
+        """);
+
+    Run run = yard("import", "grafana");
+
+    assertThat(run.exitCode()).isEqualTo(1);
+    assertThat(run.err())
+        .contains("already followed by a Container Binding of the Service metrics.");
+  }
+
+  @Test
   void importPrintsTheServicesWarnings() {
     dashboard.answer(
         "POST",

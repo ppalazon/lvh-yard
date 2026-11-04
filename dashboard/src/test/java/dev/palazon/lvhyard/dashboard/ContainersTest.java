@@ -346,7 +346,7 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void pageImportsAOnePortContainerInOneClickAndShowsItsService() {
+  void pageImportsAOnePortContainerInOneClickAndStaysOnTheListWithAConfirmation() {
     String name = newContainerName();
     start(onePort(name));
     assertThat(row(getPage("/containers").getBody(), name))
@@ -355,8 +355,50 @@ class ContainersTest extends DashboardTest {
     ResponseEntity<String> response = postForm("/containers/" + name + "/import", Map.of());
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
-    assertThat(response.getHeaders().getLocation()).hasPath("/services/ws-test/" + name);
-    assertThat(getPage("/containers").getBody()).doesNotContain(name);
+    assertThat(response.getHeaders().getLocation()).hasPath("/containers");
+    String page = getPage(response.getHeaders().getLocation().toString()).getBody();
+    assertThat(div(page, "id=\"containers\"")).doesNotContain(name);
+    assertThat(openingTag(page, "id=\"containers\"")).contains("hx-trigger=\"every 5s\"");
+    assertThat(div(page, "data-imported")).contains("href=\"/services/ws-test/" + name + "\"");
+  }
+
+  @Test
+  void importOfAContainerThatABindingFollowsIsRefused() {
+    String name = newContainerName();
+    String web = newServiceName("web");
+    start(onePort(name));
+    bind(web, name, 80);
+
+    ResponseEntity<JsonNode> response = post(importPath(name), Map.of("service", web));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(response.getBody().get("detail").asString()).contains(name).contains(web);
+    assertThat(get(servicePath(web)).getBody().get("containerBindings")).hasSize(1);
+  }
+
+  @Test
+  void containerWithAComposeProjectButNoComposeServiceIsImportedByItsName() {
+    String name = newContainerName();
+    start(onePort(name).withLabel("com.docker.compose.project", newComposeProject()));
+
+    ResponseEntity<JsonNode> response = post(importPath(name), Map.of());
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody().get("name").asString()).isEqualTo(name);
+    assertThat(response.getBody().get("containerBindings").get(0).get("id").asString())
+        .isEqualTo(name + ":80");
+  }
+
+  @Test
+  void composeServiceNameThatCleansToNothingProposesTheContainerName() {
+    String name = newContainerName();
+    start(
+        onePort(name)
+            .withLabel("com.docker.compose.project", newComposeProject())
+            .withLabel("com.docker.compose.service", "___"));
+
+    assertThat(listed(get(PATH).getBody(), name).orElseThrow().get("service").asString())
+        .isEqualTo(name);
   }
 
   @Test

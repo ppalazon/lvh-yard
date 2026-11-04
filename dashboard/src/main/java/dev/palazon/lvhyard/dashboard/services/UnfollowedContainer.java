@@ -1,19 +1,26 @@
 package dev.palazon.lvhyard.dashboard.services;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonValue;
 import dev.palazon.lvhyard.dashboard.docker.Docker;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * A running container on this Workstation that no Container Binding follows.
  *
+ * @param composeProject none unless the container has both Compose labels, as a Binding by Compose
+ *     needs the service too
  * @param service the proposed Service name: the Compose service or the container name, cleaned to
  *     follow the Service name rule
  * @param ports its TCP ports, each once
- * @param health its HEALTHCHECK state, none when it has no HEALTHCHECK
+ * @param health none when it has no HEALTHCHECK
  */
 public record UnfollowedContainer(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
@@ -21,21 +28,37 @@ public record UnfollowedContainer(
     @JsonInclude(JsonInclude.Include.NON_NULL) String composeService,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String service,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ContainerPort> ports,
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-        @Schema(allowableValues = {"starting", "healthy", "unhealthy"})
-        String health) {
+    @JsonInclude(JsonInclude.Include.NON_NULL) HealthcheckState health) {
 
   /** {@code hostPort} is none when the container port is not published. */
   public record ContainerPort(
       @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int containerPort,
       @JsonInclude(JsonInclude.Include.NON_NULL) Integer hostPort) {}
 
+  /** Its Docker HEALTHCHECK state. */
+  public enum HealthcheckState {
+    STARTING,
+    HEALTHY,
+    UNHEALTHY;
+
+    @JsonValue
+    public String value() {
+      return name().toLowerCase(Locale.ROOT);
+    }
+
+    static Optional<HealthcheckState> of(String value) {
+      return Arrays.stream(values()).filter(state -> state.value().equals(value)).findFirst();
+    }
+  }
+
   static UnfollowedContainer of(Docker.Container container) {
+    Optional<String> composeService =
+        container.composeProject().isPresent() ? container.composeService() : Optional.empty();
     return new UnfollowedContainer(
         container.name(),
-        container.composeProject().orElse(null),
-        container.composeService().orElse(null),
-        serviceName(container.composeService().orElse(container.name())),
+        composeService.flatMap(service -> container.composeProject()).orElse(null),
+        composeService.orElse(null),
+        proposedService(composeService, container.name()),
         container.ports().stream()
             .filter(port -> "tcp".equals(port.type()))
             .map(port -> new ContainerPort(port.privatePort(), port.publicPort()))
@@ -45,17 +68,39 @@ public record UnfollowedContainer(
                     .thenComparing(
                         ContainerPort::hostPort, Comparator.nullsFirst(Comparator.naturalOrder())))
             .toList(),
-        container.healthState().orElse(null));
+        container.healthState().flatMap(HealthcheckState::of).orElse(null));
+  }
+
+  /** A port published on IPv4 and IPv6 is in {@link #ports} twice, with one host port each. */
+  public List<Integer> containerPorts() {
+    return ports.stream().map(ContainerPort::containerPort).distinct().toList();
+  }
+
+  /** {@link #containerPorts()} as text, such as {@code 80, 9000}. */
+  public String containerPortList() {
+    return containerPorts().stream().map(String::valueOf).collect(Collectors.joining(", "));
+  }
+
+  /**
+   * The Compose service cleaned, else the container name cleaned. A Docker container name starts
+   * with a letter or a digit, so it is never cleaned to nothing. The fixed name is for safety.
+   */
+  private static String proposedService(Optional<String> composeService, String container) {
+    return Stream.concat(composeService.stream(), Stream.of(container))
+        .map(UnfollowedContainer::cleaned)
+        .filter(Registrations::isDnsLabel)
+        .findFirst()
+        .orElse("container");
   }
 
   /**
    * Lower case, with {@code _}, {@code .} and other characters a DNS label cannot hold turned into
    * {@code -}, and no {@code -} at either end.
    */
-  static String serviceName(String name) {
+  private static String cleaned(String name) {
     String cleaned = name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9-]", "-");
-    if (cleaned.length() > 63) {
-      cleaned = cleaned.substring(0, 63);
+    if (cleaned.length() > Registrations.MAX_NAME_LENGTH) {
+      cleaned = cleaned.substring(0, Registrations.MAX_NAME_LENGTH);
     }
     return cleaned.replaceAll("^-+|-+$", "");
   }

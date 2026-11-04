@@ -27,15 +27,15 @@ class Containers implements Runnable {
       out.println("Every running container is followed.");
     }
     // The dashboard sends Compose projects first, so a new heading starts each group.
-    String group = null;
+    String lastHeading = null;
     for (Dashboard.UnfollowedContainer container : containers) {
       String heading =
           container.composeProject() == null
               ? "Other containers"
               : "Compose project " + container.composeProject();
-      if (!Objects.equals(heading, group)) {
+      if (!Objects.equals(heading, lastHeading)) {
         out.println(heading);
-        group = heading;
+        lastHeading = heading;
       }
       out.println(
           "  "

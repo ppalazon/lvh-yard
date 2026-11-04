@@ -11,7 +11,7 @@ import picocli.CommandLine.Spec;
 @Command(
     name = "import",
     mixinStandardHelpOptions = true,
-    description = "Binds a running container to a Service and publishes it.")
+    description = "Binds a running container to a Service, and publishes a new Service.")
 class Import implements Runnable {
 
   @ParentCommand Yard yard;

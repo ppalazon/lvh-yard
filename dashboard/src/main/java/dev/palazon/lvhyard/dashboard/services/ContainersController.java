@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** The running containers on this Workstation's own Docker. */
 @RestController
 @RequestMapping(path = "/api/workstation/containers", produces = MediaType.APPLICATION_JSON_VALUE)
 class ContainersController {
@@ -60,6 +59,9 @@ class ContainersController {
           "The Service name is not a single DNS label or is taken by a Core Service, or the port"
               + " is missing or not a TCP port")
   @ApiResponse(responseCode = "404", description = "No running container has this name")
+  @ApiResponse(
+      responseCode = "409",
+      description = "A Container Binding already follows the container")
   @ApiResponse(responseCode = "503", description = UNREADABLE_DOCKER)
   Service importContainer(
       @PathVariable String container,

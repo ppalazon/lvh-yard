@@ -42,6 +42,14 @@ _Avoid_: Docker registration, container mapping
 An Instance created and removed by a Container Binding, at the matching container's current address and port.
 _Avoid_: Dynamic instance, container instance
 
+**Unfollowed Container**:
+A running container on this Workstation that no Container Binding matches, whatever the Binding's port. The Containers page and `lvh-yard containers` list them.
+_Avoid_: Unbound container, new container, orphan container
+
+**Import**:
+Giving an Unfollowed Container a Service in one step: a Container Binding (by Compose project and service when the container has both labels, else by container name) on one container port, and a Publication with Local Scope when the Service is new. A Service that exists keeps its Publication, or stays Unpublished. It never starts or stops the container.
+_Avoid_: Adopt, register container, bind
+
 **Core Service**:
 A Service that LVH Yard itself keeps registered and published on every Workstation: the dashboard (`yard`), Consul and Traefik. You cannot remove or unpublish it.
 _Avoid_: System service, built-in service

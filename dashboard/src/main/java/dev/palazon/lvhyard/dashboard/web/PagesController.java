@@ -7,6 +7,7 @@ import dev.palazon.lvhyard.dashboard.services.ContainerBindings;
 import dev.palazon.lvhyard.dashboard.services.ContainerImport;
 import dev.palazon.lvhyard.dashboard.services.ContainerImportRequest;
 import dev.palazon.lvhyard.dashboard.services.CoreServiceException;
+import dev.palazon.lvhyard.dashboard.services.FollowedContainerException;
 import dev.palazon.lvhyard.dashboard.services.Instance;
 import dev.palazon.lvhyard.dashboard.services.InvalidPriorityException;
 import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
@@ -315,15 +316,20 @@ class PagesController {
   /** Docker that cannot be read is told on the page, which the refresh can only swap from a 200. */
   @GetMapping(path = ContainersPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
   @ResponseBody
-  String containers() {
-    return containersPage(null);
+  String containers(@RequestParam(required = false) String imported) {
+    return containersPage(
+        imported == null ? null : yard.service(workstation.name(), imported).orElse(null), null);
   }
 
-  private String containersPage(ContainersPage.ImportFailure failure) {
+  /**
+   * @param imported the Service that the one-click Import just gave a container, or {@code null}
+   */
+  private String containersPage(Service imported, ContainersPage.ImportFailure failure) {
     try {
-      return ContainersPage.render(workstation, containerImport.unfollowed(), null, failure);
+      return ContainersPage.render(
+          workstation, containerImport.unfollowed(), null, imported, failure);
     } catch (UnreadableDockerException e) {
-      return ContainersPage.render(workstation, List.of(), e.getMessage(), failure);
+      return ContainersPage.render(workstation, List.of(), e.getMessage(), imported, failure);
     }
   }
 
@@ -342,8 +348,9 @@ class PagesController {
   }
 
   /**
-   * Shows the Service it gave the container. On a failure, the import form shows why at its field,
-   * or, for the one-click Import of the list, the list shows why in the container's row.
+   * The import form shows the Service it gave the container, or why it failed at its field. The
+   * one-click Import of the list goes back to the list, which says what it imported, or shows why
+   * it failed in the container's row.
    *
    * @param name the Service name, sent only by the import form
    */
@@ -368,28 +375,37 @@ class PagesController {
               fromForm
                   ? ContainersPage.renderImport(
                       workstation, unfollowed(container), name, port == null ? "" : port, e)
-                  : containersPage(new ContainersPage.ImportFailure(container, e.getMessage())));
+                  : containersPage(
+                      null, new ContainersPage.ImportFailure(container, e.getMessage())));
     } catch (UnknownContainerException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+    } catch (FollowedContainerException e) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage(), e);
     } catch (UnreadableDockerException e) {
-      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage(), e);
+      throw dockerUnavailable(e);
     }
-    return seeOther(ServicePage.path(service));
+    return seeOther(
+        fromForm ? ServicePage.path(service) : ContainersPage.PATH + "?imported=" + service.name());
   }
 
-  /** The running container {@code name}, which no Container Binding follows yet. */
   private UnfollowedContainer unfollowed(String name) {
+    List<UnfollowedContainer> containers;
     try {
-      return containerImport.unfollowed().stream()
-          .filter(container -> container.name().equals(name))
-          .findFirst()
-          .orElseThrow(() ->
-              new ResponseStatusException(
-                  HttpStatus.NOT_FOUND,
-                  "No running container that LVH Yard does not follow is called " + name + "."));
+      containers = containerImport.unfollowed();
     } catch (UnreadableDockerException e) {
-      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage(), e);
+      throw dockerUnavailable(e);
     }
+    return containers.stream()
+        .filter(container -> container.name().equals(name))
+        .findFirst()
+        .orElseThrow(() ->
+            new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "No running container that LVH Yard does not follow is called " + name + "."));
+  }
+
+  private static ResponseStatusException dockerUnavailable(UnreadableDockerException e) {
+    return new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage(), e);
   }
 
   @GetMapping(path = AliasesPage.PATH, produces = MediaType.TEXT_HTML_VALUE)

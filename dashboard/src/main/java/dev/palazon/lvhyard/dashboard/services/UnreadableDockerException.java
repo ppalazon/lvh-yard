@@ -1,6 +1,5 @@
 package dev.palazon.lvhyard.dashboard.services;
 
-/** Docker did not answer, so its containers are not known for now. */
 public class UnreadableDockerException extends RuntimeException {
 
   /**

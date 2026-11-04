@@ -2,6 +2,7 @@ package dev.palazon.lvhyard.dashboard.web;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
+import dev.palazon.lvhyard.dashboard.services.Service;
 import dev.palazon.lvhyard.dashboard.services.UnfollowedContainer;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -17,7 +18,6 @@ final class ContainersPage {
 
   static final String PATH = "/containers";
 
-  /** Why importing {@code container} failed. */
   record ImportFailure(String container, String reason) {}
 
   private ContainersPage() {}
@@ -29,12 +29,15 @@ final class ContainersPage {
   /**
    * @param containers in the order to show them, Compose projects first
    * @param dockerProblem why Docker cannot be read, or {@code null} when it answered
+   * @param imported the Service that the one-click Import just gave a container, or {@code null}.
+   *     It is said outside the refreshed list, so the refresh keeps it.
    * @param failure the import that failed, or {@code null}
    */
   static String render(
       Workstation workstation,
       List<UnfollowedContainer> containers,
       String dockerProblem,
+      Service imported,
       ImportFailure failure) {
     return Layout.page(
         "Containers",
@@ -46,6 +49,25 @@ final class ContainersPage {
                 .p()
                 .text("Running containers that LVH Yard does not follow yet.")
                 .__()
+                .of(content -> {
+                  if (imported != null) {
+                    content
+                        .div()
+                        .attrClass("alert")
+                        .addAttr("data-imported", Layout.attr(imported.name()))
+                        .addAttr("role", "status")
+                        .section()
+                        .text("Imported into the Service ")
+                        .a()
+                        .attrClass("underline")
+                        .attrHref(Layout.attr(ServicePage.path(imported)))
+                        .text(imported.name())
+                        .__()
+                        .text(".")
+                        .__()
+                        .__();
+                  }
+                })
                 .of(content -> {
                   if (failure == null) {
                     Layout.refreshed(
@@ -164,7 +186,7 @@ final class ContainersPage {
         .__()
         .td()
         .attrClass("align-top")
-        .of(cell -> importer(cell, container, failure))
+        .of(cell -> importActions(cell, container, failure))
         .__()
         .__();
   }
@@ -173,8 +195,9 @@ final class ContainersPage {
    * One click is enough only when the container has one port, as the port is then known. The choice
    * of name and port is a page of its own, so the 5 s refresh cannot reset what is typed.
    */
-  private static void importer(Td<?> cell, UnfollowedContainer container, ImportFailure failure) {
-    List<Integer> ports = containerPorts(container);
+  private static void importActions(
+      Td<?> cell, UnfollowedContainer container, ImportFailure failure) {
+    List<Integer> ports = container.containerPorts();
     cell.div()
         .attrClass("flex flex-wrap gap-2")
         .of(actions -> {
@@ -214,8 +237,6 @@ final class ContainersPage {
   }
 
   /**
-   * The page to choose the Service name and the port before importing {@code container}.
-   *
    * @param name the Service name as typed
    * @param port the container port as typed
    * @param error why the last import failed, shown at its field, or {@code null}
@@ -226,7 +247,6 @@ final class ContainersPage {
       String name,
       String port,
       InvalidRegistrationException error) {
-    List<Integer> ports = containerPorts(container);
     return Layout.page(
         "Import " + container.name(),
         workstation.name(),
@@ -259,13 +279,9 @@ final class ContainersPage {
                         "Container port",
                         port,
                         "80",
-                        ports.isEmpty()
+                        container.containerPorts().isEmpty()
                             ? "The container has no exposed port."
-                            : "Its ports: "
-                                + ports.stream()
-                                    .map(String::valueOf)
-                                    .collect(Collectors.joining(", "))
-                                + ".",
+                            : "Its ports: " + container.containerPortList() + ".",
                         error))
                 .div()
                 .attrClass("flex gap-2")
@@ -286,15 +302,8 @@ final class ContainersPage {
 
   /** The port the import form proposes: the only one, else none. */
   static String proposedPort(UnfollowedContainer container) {
-    List<Integer> ports = containerPorts(container);
+    List<Integer> ports = container.containerPorts();
     return ports.size() == 1 ? String.valueOf(ports.getFirst()) : "";
-  }
-
-  private static List<Integer> containerPorts(UnfollowedContainer container) {
-    return container.ports().stream()
-        .map(UnfollowedContainer.ContainerPort::containerPort)
-        .distinct()
-        .toList();
   }
 
   private static void ports(Td<?> cell, List<UnfollowedContainer.ContainerPort> ports) {
@@ -308,23 +317,23 @@ final class ContainersPage {
                 list.li()
                     .text(
                         port.hostPort() == null
-                            ? port.containerPort() + ", not published"
-                            : port.containerPort() + ", on host port " + port.hostPort())
+                            ? port.containerPort() + " not published"
+                            : port.containerPort() + " on host port " + port.hostPort())
                     .__()))
         .__();
   }
 
-  private static void health(Td<?> cell, String health) {
+  private static void health(Td<?> cell, UnfollowedContainer.HealthcheckState health) {
     if (health == null) {
       cell.text("No HEALTHCHECK");
       return;
     }
     String variant =
         switch (health) {
-          case "healthy" -> "primary";
-          case "unhealthy" -> "destructive";
-          default -> "secondary";
+          case HEALTHY -> "primary";
+          case UNHEALTHY -> "destructive";
+          case STARTING -> "secondary";
         };
-    cell.span().attrClass("badge").addAttr("data-variant", variant).text(health).__();
+    cell.span().attrClass("badge").addAttr("data-variant", variant).text(health.value()).__();
   }
 }
