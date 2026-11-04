@@ -12,6 +12,7 @@ import dev.palazon.lvhyard.dashboard.services.FollowedContainerException;
 import dev.palazon.lvhyard.dashboard.services.Instance;
 import dev.palazon.lvhyard.dashboard.services.InvalidPriorityException;
 import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
+import dev.palazon.lvhyard.dashboard.services.PublicationRequest;
 import dev.palazon.lvhyard.dashboard.services.Publications;
 import dev.palazon.lvhyard.dashboard.services.Registrations;
 import dev.palazon.lvhyard.dashboard.services.RemoteServiceException;
@@ -290,7 +291,10 @@ class PagesController {
                     new ResponseStatusException(
                         HttpStatus.BAD_REQUEST, "The Scope is local or yard, not " + scope + "."));
     try {
-      publications.publish(home, service, chosen, list(priority), list(profiles));
+      publications.publish(
+          home,
+          service,
+          new PublicationRequest(chosen, commaSeparated(priority), commaSeparated(profiles)));
     } catch (UnknownServiceException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
     } catch (InvalidRegistrationException
@@ -305,7 +309,7 @@ class PagesController {
    * Blank text names nothing, so it empties the list, such as turning the Instance Priority off. It
    * is not an unknown name.
    */
-  private static List<String> list(String text) {
+  private static List<String> commaSeparated(String text) {
     if (text == null) {
       return null;
     }

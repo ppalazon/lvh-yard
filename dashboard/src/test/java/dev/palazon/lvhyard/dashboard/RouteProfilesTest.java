@@ -63,8 +63,7 @@ class RouteProfilesTest extends DashboardTest {
                 customResponseHeaders:
                   X-Kept: "yes"
             removed:
-              stripPrefix:
-                prefixes: [/api]
+              compress: {}
         """);
     await().untilAsserted(() -> assertThat(kv("removed")).isNotNull());
 
@@ -152,8 +151,7 @@ class RouteProfilesTest extends DashboardTest {
                 middlewares: [fine, from-file]
             two-types:
               headers: {}
-              stripPrefix:
-                prefixes: [/api]
+              compress: {}
         """);
 
     await().untilAsserted(() -> assertThat(kv("auth-on-lan")).isNotNull());
@@ -214,6 +212,27 @@ class RouteProfilesTest extends DashboardTest {
     awaitKeptGoodProfileWithError("rewriteEverything");
     assertThat(kv("unknown-type")).isNull();
     assertThat(kv("good")).doesNotContain("X-Changed");
+  }
+
+  @Test
+  void rateLimitIsOutOfScopeSoItIsAnUnknownType() throws Exception {
+    writeGoodProfile();
+
+    writeProfiles(
+        """
+        http:
+          middlewares:
+            good:
+              headers:
+                customRequestHeaders:
+                  X-Forwarded-Proto: https
+            limited:
+              rateLimit:
+                average: 100
+        """);
+
+    awaitKeptGoodProfileWithError("rateLimit");
+    assertThat(kv("limited")).isNull();
   }
 
   private void writeGoodProfile() throws Exception {

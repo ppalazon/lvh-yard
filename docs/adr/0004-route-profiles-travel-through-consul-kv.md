@@ -1,6 +1,6 @@
 # Route Profiles are written in a Home file and travel through Consul KV
 
-A Route Profile is a Traefik middleware, written in Traefik's own format in `route-profiles.yaml` on its Home Workstation, the only place anyone edits it. The dashboard there copies each valid profile into its Consul KV, under `lvh-yard/route-profiles/<name>`. Every Workstation that routes a Publication naming it reads it from there, as it already reads Publications, and gives it to its Traefik through the HTTP provider as `<workstation>-<profile>`. So a Service is protected the same way on every Workstation, and nobody copies Traefik configuration by hand.
+A Route Profile is a Traefik middleware, written in Traefik's own format in `route-profiles.yaml` on its Home Workstation, the only place anyone edits it. The dashboard there copies each valid profile into its Consul KV, under `lvh-yard/route-profiles/<name>`. Every Workstation that routes a Publication naming it reads it from there, as it already reads Publications, and gives it to its Traefik through the HTTP provider as `<workstation>_<profile>`. So a Service is protected the same way on every Workstation, and nobody copies Traefik configuration by hand.
 
 ## Considered Options
 

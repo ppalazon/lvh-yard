@@ -193,7 +193,7 @@ class WorkstationServicesController {
               + " Publication gets static, bound, alias and an existing one keeps its own. An empty"
               + " priority turns the Instance Priority off: the passing Static and Bound Instances"
               + " share the Route. The Route applies the Route Profiles in order, as Traefik"
-              + " middlewares named <workstation>-<profile>. With no profiles, a Publication keeps"
+              + " middlewares named <workstation>_<profile>. With no profiles, a Publication keeps"
               + " its own. Empty profiles remove them all. A Core Service takes profiles too.")
   @ApiResponse(
       responseCode = "200",
@@ -212,11 +212,7 @@ class WorkstationServicesController {
   Service publish(
       @PathVariable String service, @RequestBody(required = false) PublicationRequest request) {
     publications.publish(
-        workstation.name(),
-        service,
-        request == null ? null : request.scope(),
-        request == null ? null : request.priority(),
-        request == null ? null : request.profiles());
+        workstation.name(), service, request == null ? PublicationRequest.KEEP_ALL : request);
     return service(service);
   }
 

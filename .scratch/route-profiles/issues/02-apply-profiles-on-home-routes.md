@@ -7,7 +7,7 @@
 **Status:** ready-for-agent
 
 - [x] `PublicationRequest` takes `profiles`; absent keeps them, empty clears them; unknown names are refused with the names that exist
-- [x] The Traefik configuration has the middlewares as `<workstation>-<profile>` and lists them on the Route in order
+- [x] The Traefik configuration has the middlewares as `<workstation>_<profile>` and lists them on the Route in order
 - [x] An auth warning (basicAuth, digestAuth, forwardAuth, also inside a chain) is a Service warning on the page, in the API and in `lvh-yard publish`
 - [x] Core Services accept profiles
 - [x] The Service page picks profiles from the file's names

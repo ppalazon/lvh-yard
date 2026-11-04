@@ -6,9 +6,9 @@ import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.Http;
 import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.LoadBalancer;
 import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.Router;
 import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.Server;
-import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.Service;
 import dev.palazon.lvhyard.dashboard.services.Alias;
 import dev.palazon.lvhyard.dashboard.services.CoreService;
+import dev.palazon.lvhyard.dashboard.services.Service;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,17 +35,14 @@ final class RouteBuilder {
    * @param dashboard the URL the dashboard listens on
    */
   static TraefikConfiguration build(
-      Workstation workstation,
-      String dashboard,
-      List<dev.palazon.lvhyard.dashboard.services.Service> services,
-      List<Alias> aliases) {
+      Workstation workstation, String dashboard, List<Service> services, List<Alias> aliases) {
     Map<String, Router> routers = new LinkedHashMap<>();
-    Map<String, Service> backends = new LinkedHashMap<>();
+    Map<String, TraefikConfiguration.Service> backends = new LinkedHashMap<>();
     Map<String, Map<String, Object>> middlewares = new LinkedHashMap<>();
     // An Alias's Route applies the middlewares of its Remote Service's Route.
     Map<String, List<String>> applied = new LinkedHashMap<>();
     services.stream()
-        .filter(dev.palazon.lvhyard.dashboard.services.Service::routed)
+        .filter(Service::routed)
         .forEach(service -> {
           List<Server> servers =
               service.routing().routedInstances().stream()
@@ -54,7 +51,7 @@ final class RouteBuilder {
           String name = name(workstation, service);
           applied.put(name, profiles(service, middlewares));
           routers.put(name, router(service.hostname(), name, applied.get(name)));
-          backends.put(name, new Service(new LoadBalancer(servers)));
+          backends.put(name, new TraefikConfiguration.Service(new LoadBalancer(servers)));
         });
     aliases.stream()
         .filter(Alias::active)
@@ -69,7 +66,8 @@ final class RouteBuilder {
     if (!routers.containsKey(yard)) {
       // The yard Core Service is not there yet, such as while Consul is not ready.
       routers.put(yard, router(workstation.hostname(yard), yard, List.of()));
-      backends.put(yard, new Service(new LoadBalancer(List.of(new Server(dashboard)))));
+      backends.put(
+          yard, new TraefikConfiguration.Service(new LoadBalancer(List.of(new Server(dashboard)))));
     }
     return new TraefikConfiguration(new Http(routers, backends, middlewares));
   }
@@ -80,8 +78,7 @@ final class RouteBuilder {
    * so Traefik refuses the Route rather than open it.
    */
   private static List<String> profiles(
-      dev.palazon.lvhyard.dashboard.services.Service service,
-      Map<String, Map<String, Object>> middlewares) {
+      Service service, Map<String, Map<String, Object>> middlewares) {
     String home = service.workstation();
     service.profileDefinitions().values().stream()
         .map(RouteProfileDefinition::middlewares)
@@ -92,11 +89,12 @@ final class RouteBuilder {
   }
 
   /**
-   * Each Workstation's profiles get its name in front, so two Workstations' profiles of the same
-   * name never clash. A Workstation name is a DNS label, so the name never has a dot or an _.
+   * {@code <workstation>_<profile>}, so two Workstations' profiles never clash. A Workstation name
+   * is a DNS label and never has an _, so the first _ always ends it. A - would not: {@code a} with
+   * {@code b-c} and {@code a-b} with {@code c} would both give {@code a-b-c}.
    */
   private static String middleware(String home, String name) {
-    return home + "-" + name;
+    return home + "_" + name;
   }
 
   /** {@code definition} with a chain's members named as they are in Traefik. */
@@ -116,8 +114,7 @@ final class RouteBuilder {
    * A Remote Service is named {@code <service>.<workstation>}. A Service name has no dot, so it
    * never takes the name of an own Service or of the dashboard.
    */
-  private static String name(
-      Workstation workstation, dev.palazon.lvhyard.dashboard.services.Service service) {
+  private static String name(Workstation workstation, Service service) {
     return name(workstation, service.workstation(), service.name());
   }
 

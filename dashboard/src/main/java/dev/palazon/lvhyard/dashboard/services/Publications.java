@@ -48,15 +48,13 @@ public class Publications {
    * Publication gets Local Scope, the default order or no profiles, and an existing one keeps its
    * own. A Core Service keeps Local Scope and the default order.
    *
-   * @param profiles names of this Workstation's valid Route Profiles. Empty removes them all.
+   * @param change its {@code profiles} are names of this Workstation's valid Route Profiles
    */
-  public void publish(
-      String workstation,
-      String service,
-      Scope scope,
-      List<String> priority,
-      List<String> profiles) {
+  public void publish(String workstation, String service, PublicationRequest change) {
     checkHome(workstation);
+    Scope scope = change.scope();
+    List<String> priority = change.priority();
+    List<String> profiles = change.profiles();
     if (profiles != null) {
       checkProfiles(profiles);
     }

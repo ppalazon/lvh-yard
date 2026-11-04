@@ -301,7 +301,8 @@ gets a Route. These are the states of an Alias:
 
 ### Route Profiles
 
-A Route Profile is a Traefik middleware, such as basic auth or added headers.
+A Route Profile is a named set of Route options, such as basic auth or added
+headers. LVH Yard gives it to Traefik as a middleware.
 Write your Route Profiles in `route-profiles.yaml`, in the format of Traefik:
 each middleware under `http.middlewares` is one profile. `init` writes this
 file with commented examples. The dashboard reads it from `YARD_ROUTE_PROFILES`.
@@ -335,6 +336,11 @@ opens or breaks a Service. `lvh-yard profiles` and the API show the error. The
 Traefik part of the status shows a warning for a broken file or a refused
 profile.
 
+LVH Yard does not take the middleware types for rate limits (`rateLimit`,
+`inFlightReq`) or for path rewrites (`addPrefix`, `stripPrefix`,
+`replacePath` and their `Regex` forms). A profile with one of them breaks the
+file, like a typo.
+
 A Publication names zero or more Route Profiles. Choose them on the Service
 page, or with `lvh-yard publish`:
 
@@ -349,9 +355,13 @@ valid profile of the file is refused, with the names that exist. A Core
 Service, such as `consul`, can have profiles too.
 
 The Route gets each profile as a Traefik middleware named
-`<workstation>-<profile>`, such as `ws-a-basic-auth`, in the order of the
+`<workstation>_<profile>`, such as `ws-a_basic-auth`, in the order of the
 Publication. A chain's members get the same name in front. So the profiles of
 two Workstations never clash.
+
+Before you protect a Service with Yard Scope, check that every Workstation in
+the Yard runs a version of LVH Yard with Route Profiles. An older version does
+not read the profiles of a Publication, so it routes the Service without them.
 
 A Service with Yard Scope gets its profiles on every Workstation. A teammate's
 Route to it, and a teammate's Alias to it, apply the same profiles. Their

@@ -61,14 +61,14 @@ class RouteProfilesOnRoutesTest extends DashboardTest {
     assertThat(published.get("profiles").toString()).isEqualTo("[\"team-login\",\"behind-https\"]");
     JsonNode http = get("/traefik/configuration").getBody().get("http");
     assertThat(http.get("routers").get(web).get("middlewares").toString())
-        .isEqualTo("[\"ws-test-team-login\",\"ws-test-behind-https\"]");
-    assertThat(http.get("middlewares").get("ws-test-behind-https"))
+        .isEqualTo("[\"ws-test_team-login\",\"ws-test_behind-https\"]");
+    assertThat(http.get("middlewares").get("ws-test_behind-https"))
         .isEqualTo(
             JSON.readTree(
                 """
                 {"headers": {"customRequestHeaders": {"X-Forwarded-Proto": "https"}}}
                 """));
-    assertThat(http.get("middlewares").get("ws-test-team-login").get("basicAuth")).isNotNull();
+    assertThat(http.get("middlewares").get("ws-test_team-login").get("basicAuth")).isNotNull();
   }
 
   @Test
@@ -81,15 +81,15 @@ class RouteProfilesOnRoutesTest extends DashboardTest {
 
     JsonNode http = get("/traefik/configuration").getBody().get("http");
     assertThat(http.get("routers").get(web).get("middlewares").toString())
-        .isEqualTo("[\"ws-test-protected\"]");
-    assertThat(http.get("middlewares").get("ws-test-protected"))
+        .isEqualTo("[\"ws-test_protected\"]");
+    assertThat(http.get("middlewares").get("ws-test_protected"))
         .isEqualTo(
             JSON.readTree(
                 """
-                {"chain": {"middlewares": ["ws-test-office-only", "ws-test-team-login"]}}
+                {"chain": {"middlewares": ["ws-test_office-only", "ws-test_team-login"]}}
                 """));
-    assertThat(http.get("middlewares").has("ws-test-office-only")).isTrue();
-    assertThat(http.get("middlewares").has("ws-test-team-login")).isTrue();
+    assertThat(http.get("middlewares").has("ws-test_office-only")).isTrue();
+    assertThat(http.get("middlewares").has("ws-test_team-login")).isTrue();
   }
 
   @Test
@@ -147,8 +147,8 @@ class RouteProfilesOnRoutesTest extends DashboardTest {
 
     JsonNode http = get("/traefik/configuration").getBody().get("http");
     assertThat(http.get("routers").get(web).get("middlewares").toString())
-        .isEqualTo("[\"ws-test-behind-https\",\"ws-test-team-login\"]");
-    assertThat(http.get("middlewares").has("ws-test-team-login")).isFalse();
+        .isEqualTo("[\"ws-test_behind-https\",\"ws-test_team-login\"]");
+    assertThat(http.get("middlewares").has("ws-test_team-login")).isFalse();
     assertThat(warning(get(servicePath(web)).getBody(), "unknown-route-profile"))
         .contains("team-login")
         .doesNotContain("behind-https");
@@ -179,7 +179,7 @@ class RouteProfilesOnRoutesTest extends DashboardTest {
                           .path(router)
                           .path("middlewares")
                           .toString())
-                  .isEqualTo("[\"" + RemoteWorkstation.NAME + "-gone\"]"));
+                  .isEqualTo("[\"" + RemoteWorkstation.NAME + "_gone\"]"));
       JsonNode service = get("/api/services/" + RemoteWorkstation.NAME + "/" + api).getBody();
       assertThat(warning(service, "unknown-route-profile")).contains("gone");
       assertThat(getPage("/services/" + RemoteWorkstation.NAME + "/" + api).getBody())
@@ -231,7 +231,7 @@ class RouteProfilesOnRoutesTest extends DashboardTest {
                   .get("consul")
                   .get("middlewares")
                   .toString())
-          .isEqualTo("[\"ws-test-team-login\"]");
+          .isEqualTo("[\"ws-test_team-login\"]");
     } finally {
       put(publicationPath("consul"), Map.of("profiles", List.of()));
     }

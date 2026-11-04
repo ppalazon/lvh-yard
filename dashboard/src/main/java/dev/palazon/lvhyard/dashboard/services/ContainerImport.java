@@ -99,7 +99,7 @@ public class ContainerImport {
             : ContainerBindingRequest.compose(
                 unfollowed.composeProject(), unfollowed.composeService(), port));
     if (isNew && !Boolean.FALSE.equals(request.publish())) {
-      publications.publish(workstation.name(), service, null, null, null);
+      publications.publish(workstation.name(), service, PublicationRequest.KEEP_ALL);
     }
     return yard.service(workstation.name(), service).orElseThrow();
   }

@@ -46,9 +46,9 @@ class Publish implements Runnable {
   List<String> priority;
 
   @ArgGroup(exclusive = true, multiplicity = "0..1")
-  Profiles profiles;
+  ProfileChoice profiles;
 
-  static class Profiles {
+  static class ProfileChoice {
 
     @Option(
         names = "--profile",

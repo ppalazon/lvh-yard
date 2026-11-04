@@ -71,7 +71,11 @@ class TraefikStatusTest extends DashboardTest {
       JsonNode profiles = detail(traefikPart, "route profiles");
       assertThat(profiles.get("state").asString()).isEqualTo("warning");
       assertThat(profiles.get("value").asString()).contains("not valid YAML");
-      assertThat(getPage("/status/summary").getBody()).contains("aria-label=\"Traefik: Warning.");
+      String summary = getPage("/status/summary").getBody();
+      assertThat(openingTag(summary, "id=\"dot-traefik\""))
+          .contains("aria-label=\"Traefik: Warning.")
+          .contains("route-profiles.yaml");
+      assertThat(summary).containsPattern("id=\"dot-traefik\"[^>]*>!</span>");
     } finally {
       Files.deleteIfExists(TestcontainersConfiguration.ROUTE_PROFILES);
     }

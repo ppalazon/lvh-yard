@@ -69,7 +69,7 @@ public class RouteProfiles {
     consul
         .values(datacenter, KEY_PREFIX)
         .forEach((key, value) -> {
-          String name = key.substring(KEY_PREFIX.length());
+          String name = name(key);
           stored.put(name, new RouteProfileDefinition(name, JSON.readValue(value, STORED)));
         });
     return stored;
@@ -116,7 +116,11 @@ public class RouteProfiles {
       }
     });
     stored.keySet().stream()
-        .filter(key -> !definitions.containsKey(key.substring(KEY_PREFIX.length())))
+        .filter(key -> !definitions.containsKey(name(key)))
         .forEach(consul::deleteValue);
+  }
+
+  private static String name(String key) {
+    return key.substring(KEY_PREFIX.length());
   }
 }

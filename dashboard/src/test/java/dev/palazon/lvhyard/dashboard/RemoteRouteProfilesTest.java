@@ -58,15 +58,15 @@ class RemoteRouteProfilesTest extends DashboardTest {
 
     String router = admin + "." + RemoteWorkstation.NAME;
     assertThat(http.get("routers").get(router).get("middlewares").toString())
-        .isEqualTo("[\"ws-remote-protected\"]");
-    assertThat(http.get("middlewares").get("ws-remote-protected"))
+        .isEqualTo("[\"ws-remote_protected\"]");
+    assertThat(http.get("middlewares").get("ws-remote_protected"))
         .isEqualTo(
             JSON.readTree(
                 """
-                {"chain": {"middlewares": ["ws-remote-office-only", "ws-remote-team-login"]}}
+                {"chain": {"middlewares": ["ws-remote_office-only", "ws-remote_team-login"]}}
                 """));
-    assertThat(http.get("middlewares").get("ws-remote-team-login").get("basicAuth")).isNotNull();
-    assertThat(http.get("middlewares").has("ws-remote-office-only")).isTrue();
+    assertThat(http.get("middlewares").get("ws-remote_team-login").get("basicAuth")).isNotNull();
+    assertThat(http.get("middlewares").has("ws-remote_office-only")).isTrue();
   }
 
   @Test
@@ -91,8 +91,8 @@ class RemoteRouteProfilesTest extends DashboardTest {
 
     JsonNode middlewares = get("/traefik/configuration").getBody().get("http").get("middlewares");
 
-    assertThat(middlewares.get("ws-test-team-login").toString()).contains("bob:");
-    assertThat(middlewares.get("ws-remote-team-login").toString()).contains("ana:");
+    assertThat(middlewares.get("ws-test_team-login").toString()).contains("bob:");
+    assertThat(middlewares.get("ws-remote_team-login").toString()).contains("ana:");
   }
 
   @Test
@@ -107,8 +107,8 @@ class RemoteRouteProfilesTest extends DashboardTest {
 
     JsonNode http = get("/traefik/configuration").getBody().get("http");
     assertThat(http.get("routers").get("alias_" + alias).get("middlewares").toString())
-        .isEqualTo("[\"ws-remote-team-login\"]");
-    assertThat(http.get("middlewares").has("ws-remote-team-login")).isTrue();
+        .isEqualTo("[\"ws-remote_team-login\"]");
+    assertThat(http.get("middlewares").has("ws-remote_team-login")).isTrue();
   }
 
   @Test
@@ -140,7 +140,7 @@ class RemoteRouteProfilesTest extends DashboardTest {
                         .getBody()
                         .get("http")
                         .get("middlewares")
-                        .get("ws-remote-team-login")
+                        .get("ws-remote_team-login")
                         .toString())
                 .contains("carla:"));
   }

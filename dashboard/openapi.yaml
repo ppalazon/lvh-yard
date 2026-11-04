@@ -586,7 +586,7 @@ paths:
         \ its own. With no priority, a new Publication gets static, bound, alias and\
         \ an existing one keeps its own. An empty priority turns the Instance Priority\
         \ off: the passing Static and Bound Instances share the Route. The Route applies\
-        \ the Route Profiles in order, as Traefik middlewares named <workstation>-<profile>.\
+        \ the Route Profiles in order, as Traefik middlewares named <workstation>_<profile>.\
         \ With no profiles, a Publication keeps its own. Empty profiles remove them\
         \ all. A Core Service takes profiles too."
       operationId: publish

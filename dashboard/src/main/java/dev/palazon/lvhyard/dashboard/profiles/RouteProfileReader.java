@@ -26,12 +26,12 @@ import org.yaml.snakeyaml.error.YAMLException;
 final class RouteProfileReader {
 
   /**
-   * Traefik's own HTTP middlewares. Not {@code errors}: it names a Traefik service, and LVH Yard
-   * gives Traefik only its own.
+   * Traefik's own HTTP middlewares, less those the spec leaves out: rate and request limits, and
+   * path rewrites. Not {@code errors} either: it names a Traefik service, and LVH Yard gives
+   * Traefik only its own.
    */
   private static final Set<String> TYPES =
       Set.of(
-          "addPrefix",
           "basicAuth",
           "buffering",
           "chain",
@@ -42,18 +42,12 @@ final class RouteProfileReader {
           "forwardAuth",
           "grpcWeb",
           "headers",
-          "inFlightReq",
           "ipAllowList",
           "ipWhiteList",
           "passTLSClientCert",
-          "rateLimit",
           "redirectRegex",
           "redirectScheme",
-          "replacePath",
-          "replacePathRegex",
-          "retry",
-          "stripPrefix",
-          "stripPrefixRegex");
+          "retry");
 
   /** A Consul key part, and Traefik's {@code @} would name another provider. */
   private static final Pattern NAME = Pattern.compile("[A-Za-z0-9][A-Za-z0-9_-]*");
@@ -109,23 +103,13 @@ final class RouteProfileReader {
       return Map.of();
     }
     Map<String, Object> top = mapOrRefuse(root, "route-profiles.yaml must hold http.middlewares.");
-    for (String key : top.keySet()) {
-      if (!key.equals("http")) {
-        throw new IllegalArgumentException(
-            "route-profiles.yaml may hold only http.middlewares, not " + key + ".");
-      }
-    }
+    checkOnlyKey(top, "http", "");
     if (top.get("http") == null) {
       return Map.of();
     }
     Map<String, Object> http =
         mapOrRefuse(top.get("http"), "route-profiles.yaml must hold http.middlewares.");
-    for (String key : http.keySet()) {
-      if (!key.equals("middlewares")) {
-        throw new IllegalArgumentException(
-            "route-profiles.yaml may hold only http.middlewares, not http." + key + ".");
-      }
-    }
+    checkOnlyKey(http, "middlewares", "http.");
     if (http.get("middlewares") == null) {
       return Map.of();
     }
@@ -140,6 +124,16 @@ final class RouteProfileReader {
       copy.put(String.valueOf(name), withEmptyOptions(middleware));
     });
     return copy;
+  }
+
+  /** {@code path} is where {@code map} is in the file, such as {@code http.}. */
+  private static void checkOnlyKey(Map<String, Object> map, String allowed, String path) {
+    for (String key : map.keySet()) {
+      if (!key.equals(allowed)) {
+        throw new IllegalArgumentException(
+            "route-profiles.yaml may hold only http.middlewares, not " + path + key + ".");
+      }
+    }
   }
 
   /**

@@ -9,7 +9,7 @@ import picocli.CommandLine.Spec;
 @Command(
     name = "profiles",
     mixinStandardHelpOptions = true,
-    description = "Lists the Route Profiles of route-profiles.yaml, with their types and errors.")
+    description = "Lists the Route Profiles of route-profiles.yaml.")
 class Profiles implements Runnable {
 
   @ParentCommand Yard yard;
