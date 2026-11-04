@@ -13,7 +13,7 @@ import picocli.CommandLine.Spec;
     name = "status",
     mixinStandardHelpOptions = true,
     description = {
-      "Shows whether the Core Services work on this Workstation.",
+      "Shows whether LVH Yard works on this Workstation.",
       "Exits with 1 when a part fails."
     })
 class Status implements Callable<Integer> {

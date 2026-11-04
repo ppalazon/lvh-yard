@@ -220,7 +220,7 @@ class Init implements Runnable {
       1. Open TCP port %s and TCP and UDP port %s to the other Workstations.
       2. Start this Workstation: cd %s && docker compose up -d
       3. Open the dashboard: %s
-      4. Make sure that the Core Services work: lvh-yard status
+      4. Make sure that LVH Yard works: lvh-yard status
     """
         .formatted(
             env.valueOrDefault(Settings.CONSUL_SERVER_PORT),

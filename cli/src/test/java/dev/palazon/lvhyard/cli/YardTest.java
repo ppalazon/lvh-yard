@@ -1259,38 +1259,40 @@ class YardTest {
   }
 
   @Test
-  void statusShowsTraefikAndEachCoreServiceWithTheirStates() {
+  void statusShowsTraefikWithItsDetailsAndSucceedsOnAWarning() {
     dashboard.answer(
         "GET",
         "/api/status",
         200,
         """
-        {"overall": "failing", "parts": [
+        {"overall": "warning", "parts": [
+          {"name": "Consul", "state": "ok", "reason": "Consul has a leader.", "details": []},
           {"name": "Traefik", "state": "warning",
            "reason": "Traefik answers, but last fetched its Routes from this dashboard 40 s ago, more than 15 s.",
            "details": [{"name": "ping", "value": "OK at http://127.0.0.1:8080/ping", "state": "ok"},
                        {"name": "last fetch", "value": "40 s ago", "state": "warning"}]},
-          {"name": "Core Services", "state": "failing",
-           "reason": "Not passing its check: Consul's web page (missing).",
-           "details": [{"name": "yard", "value": "passing at 127.0.0.1:7780", "state": "ok"},
-                       {"name": "consul", "value": "missing", "state": "failing"},
-                       {"name": "traefik", "value": "passing at 127.0.0.1:8080", "state": "ok"}]}]}
+          {"name": "Docker", "state": "ok", "reason": "Docker answers, so Container Bindings work.", "details": []}]}
         """);
 
     Run run = yard("status");
 
-    assertThat(run.exitCode()).isEqualTo(1);
+    assertThat(run.exitCode()).isZero();
     assertThat(run.lines())
         .containsExactly(
-            "LVH Yard on this Workstation: failing",
+            "LVH Yard on this Workstation: warning",
+            "  ok    Consul: Consul has a leader.",
             "  WARN  Traefik: Traefik answers, but last fetched its Routes from this dashboard 40 s"
                 + " ago, more than 15 s.",
             "          ping: OK at http://127.0.0.1:8080/ping",
             "          last fetch: 40 s ago (warning)",
-            "  FAIL  Core Services: Not passing its check: Consul's web page (missing).",
-            "          yard: passing at 127.0.0.1:7780",
-            "          consul: missing (failing)",
-            "          traefik: passing at 127.0.0.1:8080");
+            "  ok    Docker: Docker answers, so Container Bindings work.");
+  }
+
+  @Test
+  void statusHelpSaysThatItShowsWhetherLvhYardWorks() {
+    assertThat(yard("status", "--help").out())
+        .contains("Shows whether LVH Yard works on this Workstation.")
+        .doesNotContain("Core Services");
   }
 
   @Test
@@ -2342,7 +2344,9 @@ class YardTest {
     Run init = yardAsTyped("init", "--dir", folder.toString(), "--reinit");
     Run list = yardProcess(Map.of("XDG_CONFIG_HOME", config.toString()), "list");
 
-    assertThat(init.out()).contains("Open the dashboard: http://127.0.0.1:7780\n");
+    assertThat(init.out())
+        .contains("Open the dashboard: http://127.0.0.1:7780\n")
+        .contains("  4. Make sure that LVH Yard works: lvh-yard status\n\n");
     // A dashboard of this computer's own may answer at the default; else the error names it.
     assertThat(list.exitCode() == 0 || list.err().contains("at http://127.0.0.1:7780"))
         .as(list.err())

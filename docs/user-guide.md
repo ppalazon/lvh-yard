@@ -40,7 +40,7 @@ Java or a copy of this repository.
 4. Start this Workstation: `cd ~/.config/lvh-yard && docker compose up -d`.
    This starts Consul, Traefik and the dashboard. If you gave `init` another
    folder, `cd` to that folder.
-5. Make sure that the Core Services work: `lvh-yard status`.
+5. Make sure that LVH Yard works: `lvh-yard status`.
 
 If Traefik works, open [yard.lvh.me](http://yard.lvh.me). If Traefik is down,
 open `127.0.0.1:7780`. The Catalog shows the Core Services: `yard` (the
@@ -177,7 +177,7 @@ lvh-yard alias remove grafana
 lvh-yard profiles                           # the Route Profiles of route-profiles.yaml, with their errors
 lvh-yard test web                           # tests whether this Workstation reaches web
 lvh-yard test grafana --workstation ws-b    # a Remote Service
-lvh-yard status                             # whether the Core Services work
+lvh-yard status                             # whether LVH Yard works
 lvh-yard status --strict                    # also exits with 1 on a warning
 ```
 

@@ -31,7 +31,6 @@ final class StatusViews {
         .__();
   }
 
-  /** {@code Core Services} is {@code core-services}. */
   static String slug(String name) {
     return name.toLowerCase().replace(' ', '-');
   }

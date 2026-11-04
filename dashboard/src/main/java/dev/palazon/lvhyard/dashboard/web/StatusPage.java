@@ -31,7 +31,7 @@ final class StatusPage {
                         .of(heading -> StatusViews.badge(heading, status.overall()))
                         .__()
                         .p()
-                        .text("Whether the Core Services work on " + workstation.name() + ".")
+                        .text("Whether LVH Yard works on " + workstation.name() + ".")
                         .__()
                         .of(content -> status.parts().forEach(part -> part(content, part)))));
   }

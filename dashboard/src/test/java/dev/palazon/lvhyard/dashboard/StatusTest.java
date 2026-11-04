@@ -1,13 +1,11 @@
 package dev.palazon.lvhyard.dashboard;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFileAttributes;
-import java.time.Duration;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -103,40 +101,11 @@ class StatusTest extends DashboardTest {
   }
 
   @Test
-  void coreServicesShowEachCoreServiceWithItsHealth() {
-    // The test Consul runs checks inside its container, where the Core Services' loopback
-    // addresses lead nowhere, so every Core Service is critical here.
-    JsonNode core = part(get("/api/status").getBody(), "Core Services");
+  void statusHasConsulTraefikAndDockerOnly() {
+    JsonNode status = get("/api/status").getBody();
 
-    assertThat(core.get("state").asString()).isEqualTo("failing");
-    for (String name : new String[] {"yard", "consul", "traefik"}) {
-      JsonNode service = detail(core, name);
-      assertThat(service.get("value").asString()).startsWith("critical at 127.0.0.1:");
-      assertThat(service.get("state").asString()).isEqualTo("failing");
-    }
-    assertThat(core.get("reason").asString())
-        .contains("the dashboard (critical)")
-        .contains("Consul's web page (critical)")
-        .contains("Traefik's admin page (critical)");
-  }
-
-  @Test
-  void aMissingCoreServiceIsFailing() {
-    try {
-      remote.deregisterInConsul("lvh-yard-core-consul");
-
-      JsonNode core =
-          await()
-              .atMost(Duration.ofSeconds(15))
-              .until(
-                  () -> part(remote.status(), "Core Services"),
-                  part -> detail(part, "consul").get("value").asString().equals("missing"));
-      assertThat(detail(core, "consul").get("state").asString()).isEqualTo("failing");
-      assertThat(core.get("state").asString()).isEqualTo("failing");
-      assertThat(core.get("reason").asString()).contains("Consul's web page (missing)");
-    } finally {
-      remote.whileDashboardIsStopped(() -> {});
-    }
+    assertThat(status.get("parts").valueStream().map(part -> part.get("name").asString()))
+        .containsExactly("Consul", "Traefik", "Docker");
   }
 
   @Test
@@ -155,10 +124,9 @@ class StatusTest extends DashboardTest {
         .contains("Traefik")
         .contains("ping")
         .contains("last fetch");
-    assertThat(div(response.getBody(), "id=\"part-core-services\""))
-        .contains("Core Services")
-        .contains("Failing")
-        .contains("Traefik&#39;s admin page (critical)");
+    assertThat(response.getBody())
+        .contains("Whether LVH Yard works on " + WORKSTATION + ".")
+        .doesNotContain("Core Services");
   }
 
   @Test
@@ -203,9 +171,11 @@ class StatusTest extends DashboardTest {
         .contains("aria-label=\"Consul: OK. Consul has a leader")
         .contains("title=\"Consul: OK. Consul has a leader");
     assertThat(response.getBody())
+        .contains("id=\"dot-traefik\"")
         .contains("id=\"dot-docker\"")
         .contains("✓")
         .doesNotContain("<html");
+    assertThat(response.getBody().split("id=\"dot-", -1)).hasSize(4);
   }
 
   @Test

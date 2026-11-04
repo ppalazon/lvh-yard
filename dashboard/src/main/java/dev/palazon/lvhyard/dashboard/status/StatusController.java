@@ -17,7 +17,7 @@ class StatusController {
   @GetMapping(path = "/api/status", produces = MediaType.APPLICATION_JSON_VALUE)
   @Operation(
       operationId = "status",
-      summary = "Gets whether the Core Services work on this Workstation",
+      summary = "Gets whether LVH Yard works on this Workstation",
       description = "Each part is ok, warning or failing. The answer is kept for about 5 s.")
   Status status() {
     return status.status();

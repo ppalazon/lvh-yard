@@ -149,7 +149,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Status"
           description: OK
-      summary: Gets whether the Core Services work on this Workstation
+      summary: Gets whether LVH Yard works on this Workstation
       tags:
       - status-controller
   /api/workstation/aliases:

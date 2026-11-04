@@ -9,7 +9,5 @@ final class StatusOrder {
 
   static final int DOCKER = 30;
 
-  static final int CORE_SERVICES = 40;
-
   private StatusOrder() {}
 }
