@@ -8,9 +8,9 @@ import dev.palazon.lvhyard.dashboard.reachability.TraefikSettings;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.SmartLifecycle;
@@ -18,10 +18,10 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 /**
- * On the first start against a Consul, it registers yard, consul-ui and traefik-admin and publishes
- * them with Local Scope, as a user's request would. Then it writes the time at {@value #MARKER} and
- * never does this again. A Service with one of the names that already exists is left alone. This
- * runs in the background, so a slow Consul never holds up the start.
+ * The first start of a dashboard against a Consul registers yard, consul-ui and traefik-admin and
+ * publishes them with Local Scope, as a user's request would. Then the dashboard writes the time at
+ * {@value #MARKER} and never does this again. A Service with one of the names that already exists
+ * is left alone. This runs in the background, so a slow Consul never holds up the start.
  */
 @Component
 public class FirstSetup implements SmartLifecycle {
@@ -29,6 +29,14 @@ public class FirstSetup implements SmartLifecycle {
   private static final Logger LOG = LoggerFactory.getLogger(FirstSetup.class);
 
   public static final String MARKER = "lvh-yard/first-setup";
+
+  /**
+   * The names of the Services that the setup writes, comma-separated. The setup writes it before
+   * its first Service, so a setup that stops halfway finishes these on the next start, and still
+   * leaves alone a Service that existed before it. It starts with {@value #MARKER}, so one read
+   * gives both.
+   */
+  static final String NAMES = MARKER + "-names";
 
   private static final Duration RETRY = Duration.ofSeconds(5);
 
@@ -40,13 +48,13 @@ public class FirstSetup implements SmartLifecycle {
 
   private final Workstation workstation;
 
-  private final Consul kv;
+  private final Consul consul;
 
   private final Registrations registrations;
 
   private final Publications publications;
 
-  private final ConsulSettings consul;
+  private final ConsulSettings consulSettings;
 
   private final TraefikSettings traefik;
 
@@ -58,17 +66,17 @@ public class FirstSetup implements SmartLifecycle {
 
   FirstSetup(
       Workstation workstation,
-      Consul kv,
+      Consul consul,
       Registrations registrations,
       Publications publications,
-      ConsulSettings consul,
+      ConsulSettings consulSettings,
       TraefikSettings traefik,
       Environment environment) {
     this.workstation = workstation;
-    this.kv = kv;
+    this.consul = consul;
     this.registrations = registrations;
     this.publications = publications;
-    this.consul = consul;
+    this.consulSettings = consulSettings;
     this.traefik = traefik;
     this.environment = environment;
   }
@@ -98,17 +106,17 @@ public class FirstSetup implements SmartLifecycle {
 
   private void setUpUntilDone() {
     boolean failedBefore = false;
-    // A Service that an earlier try started to write is ours, so a later try finishes it.
-    Set<String> started = new HashSet<>();
     while (settingUpThread == Thread.currentThread()) {
       try {
-        if (kv.values(null, MARKER).containsKey(MARKER)) {
+        Map<String, String> values = consul.values(null, MARKER);
+        if (values.containsKey(MARKER)) {
           if (failedBefore) {
             LOG.info("Consul answers: the first setup was done before");
           }
         } else {
-          List<String> written = setUp(Instant.now().plus(TRY_LIMIT), started);
-          kv.putValue(MARKER, Instant.now().toString());
+          List<String> written = setUp(Instant.now().plus(TRY_LIMIT), values.get(NAMES));
+          consul.deleteValue(NAMES);
+          consul.putValue(MARKER, Instant.now().toString());
           LOG.info(
               "The first setup is done. It wrote these Services: {}",
               written.isEmpty() ? "none" : String.join(", ", written));
@@ -132,15 +140,32 @@ public class FirstSetup implements SmartLifecycle {
     }
   }
 
-  private List<String> setUp(Instant deadline, Set<String> started) {
+  /**
+   * @param names what an earlier try kept at {@value #NAMES}, or null when no try began
+   */
+  private List<String> setUp(Instant deadline, String names) {
+    List<OwnService> services = services();
+    List<String> toWrite;
+    if (names == null) {
+      toWrite = new ArrayList<>();
+      for (OwnService service : services) {
+        failIfPast(deadline);
+        if (!publications.exists(service.name())) {
+          toWrite.add(service.name());
+        }
+      }
+      failIfPast(deadline);
+      consul.putValue(NAMES, String.join(",", toWrite));
+    } else {
+      toWrite = Arrays.asList(names.split(","));
+    }
     List<String> written = new ArrayList<>();
-    for (OwnService service : services()) {
-      before(deadline);
-      if (!started.contains(service.name()) && publications.exists(service.name())) {
+    for (OwnService service : services) {
+      if (!toWrite.contains(service.name())) {
         continue;
       }
-      started.add(service.name());
-      before(deadline);
+      failIfPast(deadline);
+      // The same host and port again replaces the Instance, so a second try adds no other one.
       registrations.register(
           workstation.name(),
           service.name(),
@@ -150,7 +175,7 @@ public class FirstSetup implements SmartLifecycle {
               new HealthCheck(HealthCheck.HTTP, service.path(), null, null),
               List.of(),
               null));
-      before(deadline);
+      failIfPast(deadline);
       publications.publish(
           workstation.name(), service.name(), new PublicationRequest(Scope.LOCAL, null, null));
       written.add(service.name());
@@ -158,7 +183,7 @@ public class FirstSetup implements SmartLifecycle {
     return written;
   }
 
-  private static void before(Instant deadline) {
+  private static void failIfPast(Instant deadline) {
     if (Instant.now().isAfter(deadline)) {
       throw new IllegalStateException(
           "Consul took longer than " + TRY_LIMIT.toSeconds() + " s to answer");
@@ -177,7 +202,7 @@ public class FirstSetup implements SmartLifecycle {
             BindAddress.host(environment.getRequiredProperty("server.address")),
             Integer.parseInt(dashboardPort),
             "/actuator/health"),
-        new OwnService("consul-ui", loopback, consul.url().getPort(), "/v1/status/leader"),
+        new OwnService("consul-ui", loopback, consulSettings.url().getPort(), "/v1/status/leader"),
         new OwnService("traefik-admin", loopback, traefik.adminPort(), "/ping"));
   }
 

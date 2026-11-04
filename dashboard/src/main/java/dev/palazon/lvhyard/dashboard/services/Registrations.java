@@ -56,6 +56,9 @@ public class Registrations {
   /** Consul keeps its own server entry in its catalog under this name. */
   private static final String CONSUL = "consul";
 
+  /** For the API docs of each request that names a Service or an Alias. */
+  static final String INVALID_NAME = "The name is not a single DNS label or is consul";
+
   private static final String CONSUL_REFUSAL = "consul is Consul's own entry in its catalog";
 
   /** Where an HTTP check's path is kept: Consul does not give back a check's URL. */
@@ -119,7 +122,7 @@ public class Registrations {
   public Instance edit(
       String workstation, String service, String id, StaticInstanceRequest request) {
     checkHome(workstation);
-    checkStaticInstance(service, id);
+    requireStaticInstance(service, id);
     StaticInstanceRequest checked = checked(request);
     Optional<String> other =
         staticInstanceAt(service, checked.host(), checked.port())
@@ -295,11 +298,11 @@ public class Registrations {
   /** {@code workstation} must be this one. */
   public void remove(String workstation, String service, String id) {
     checkHome(workstation);
-    checkStaticInstance(service, id);
+    requireStaticInstance(service, id);
     consul.deregister(id);
   }
 
-  private void checkStaticInstance(String service, String id) {
+  private void requireStaticInstance(String service, String id) {
     consul
         .agentService(id)
         .filter(

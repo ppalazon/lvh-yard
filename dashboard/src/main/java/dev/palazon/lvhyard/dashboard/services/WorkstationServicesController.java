@@ -99,7 +99,7 @@ class WorkstationServicesController {
   @ApiResponse(responseCode = "201", description = "Registered", useReturnTypeSchema = true)
   @ApiResponse(
       responseCode = "400",
-      description = "The name is not a single DNS label or is consul. " + INVALID_INSTANCE)
+      description = Registrations.INVALID_NAME + ". " + INVALID_INSTANCE)
   Instance register(@PathVariable String service, @RequestBody StaticInstanceRequest request) {
     return registrations.register(workstation.name(), service, request);
   }
@@ -150,9 +150,9 @@ class WorkstationServicesController {
   @ApiResponse(
       responseCode = "400",
       description =
-          "The name is not a single DNS label or is consul, the body names both or neither of a"
-              + " container and a Compose service, a name is not one Docker or Compose allows, or"
-              + " the port is not a TCP port")
+          Registrations.INVALID_NAME
+              + ", the body names both or neither of a container and a Compose service, a name is"
+              + " not one Docker or Compose allows, or the port is not a TCP port")
   ContainerBinding bind(
       @PathVariable String service, @RequestBody ContainerBindingRequest request) {
     String id = containerBindings.add(workstation.name(), service, request);
@@ -196,9 +196,9 @@ class WorkstationServicesController {
   @ApiResponse(
       responseCode = "400",
       description =
-          "The name is not a single DNS label or is consul, the Scope is not local or yard, the"
-              + " priority repeats a kind or names an unknown one, or a Route Profile is not among"
-              + " this Workstation's valid profiles")
+          Registrations.INVALID_NAME
+              + ", the Scope is not local or yard, the priority repeats a kind or names an unknown"
+              + " one, or a Route Profile is not among this Workstation's valid profiles")
   @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
   Service publish(
       @PathVariable String service, @RequestBody(required = false) PublicationRequest request) {

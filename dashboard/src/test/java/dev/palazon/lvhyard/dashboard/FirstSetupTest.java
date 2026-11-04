@@ -223,6 +223,64 @@ class FirstSetupTest extends DashboardTest {
   }
 
   @Test
+  void theSetupLeavesAYardWithOnlyAPublicationAlone() {
+    try {
+      instanceIds("yard").forEach(id -> remote.remove("yard", id));
+      remote.whileDashboardIsStopped(() -> remote.deleteConsulValue(RemoteWorkstation.FIRST_SETUP));
+
+      JsonNode yard = remote.service("yard").getBody();
+      assertThat(yard.get("instances")).isEmpty();
+      assertThat(yard.get("publication").get("scope").asString()).isEqualTo("local");
+    } finally {
+      setUpAgain();
+    }
+  }
+
+  @Test
+  void theSetupLeavesAYardWithOnlyAContainerBindingAlone() {
+    String container = "no-such-container";
+    try {
+      instanceIds("yard").forEach(id -> remote.remove("yard", id));
+      remote.unpublish("yard");
+      remote.bind("yard", container, 80);
+      remote.whileDashboardIsStopped(() -> remote.deleteConsulValue(RemoteWorkstation.FIRST_SETUP));
+
+      JsonNode yard = remote.service("yard").getBody();
+      assertThat(yard.get("instances")).isEmpty();
+      assertThat(yard.has("publication")).as("yard is not published").isFalse();
+      assertThat(yard.get("containerBindings")).hasSize(1);
+    } finally {
+      remote.unbind("yard", container + ":80");
+      setUpAgain();
+    }
+  }
+
+  @Test
+  void theSetupFinishesAServiceThatItBeganOnAnEarlierStart() {
+    List<String> ids = new ArrayList<>();
+    List.of("yard", "consul-ui").forEach(name -> ids.addAll(instanceIds(name)));
+    try {
+      // As if the dashboard stopped after it registered traefik-admin and before it published it.
+      // The test dashboard starts on another port, so yard cannot be the one.
+      remote.whileDashboardIsStopped(() -> {
+        ids.forEach(remote::deregisterInConsul);
+        OWN_SERVICES.forEach(name -> remote.deleteConsulValue("lvh-yard/publications/" + name));
+        remote.deleteConsulValue(RemoteWorkstation.FIRST_SETUP);
+        remote.putConsulValue(RemoteWorkstation.FIRST_SETUP_NAMES, String.join(",", OWN_SERVICES));
+      });
+
+      for (String name : OWN_SERVICES) {
+        JsonNode service = remote.service(name).getBody();
+        assertThat(service.get("instances")).as(name).hasSize(1);
+        assertThat(service.get("publication").get("scope").asString()).as(name).isEqualTo("local");
+      }
+      assertThat(remote.consulValue(RemoteWorkstation.FIRST_SETUP_NAMES)).isNull();
+    } finally {
+      setUpAgain();
+    }
+  }
+
+  @Test
   void yardFollowsTheBindAddressAndTraefikAdminTheAdminPort() throws IOException {
     int adminPort;
     try (ServerSocket free = new ServerSocket(0)) {

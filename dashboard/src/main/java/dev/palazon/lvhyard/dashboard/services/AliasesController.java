@@ -39,8 +39,7 @@ class AliasesController {
       useReturnTypeSchema = true)
   @ApiResponse(
       responseCode = "400",
-      description =
-          "The name is not a single DNS label or is consul, or the Workstation is this one")
+      description = Registrations.INVALID_NAME + ", or the Workstation is this one")
   @ApiResponse(
       responseCode = "404",
       description =

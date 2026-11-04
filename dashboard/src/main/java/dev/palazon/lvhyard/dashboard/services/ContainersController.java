@@ -55,9 +55,7 @@ class ContainersController {
       useReturnTypeSchema = true)
   @ApiResponse(
       responseCode = "400",
-      description =
-          "The Service name is not a single DNS label or is consul, or the port is missing or not"
-              + " a TCP port")
+      description = Registrations.INVALID_NAME + ", or the port is missing or not a TCP port")
   @ApiResponse(responseCode = "404", description = "No running container has this name")
   @ApiResponse(
       responseCode = "409",

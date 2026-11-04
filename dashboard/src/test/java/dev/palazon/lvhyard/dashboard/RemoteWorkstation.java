@@ -34,6 +34,9 @@ final class RemoteWorkstation implements AutoCloseable {
   /** Where a dashboard writes the time when its first setup is done. */
   static final String FIRST_SETUP = "lvh-yard/first-setup";
 
+  /** The names of the Services that the first setup writes, kept until it is done. */
+  static final String FIRST_SETUP_NAMES = "lvh-yard/first-setup-names";
+
   /**
    * This Workstation's {@code route-profiles.yaml}, in a folder of this JVM's own, so its dashboard
    * never reads a developer's own file. Tests write it; it does not exist at first.
@@ -201,6 +204,14 @@ final class RemoteWorkstation implements AutoCloseable {
         .uri(DashboardTest.containerBindingsPath(service))
         .contentType(MediaType.APPLICATION_JSON)
         .body(Map.of("container", container, "port", port))
+        .retrieve()
+        .toBodilessEntity();
+  }
+
+  /** Removes the Container Binding {@code id} of {@code service}, through its dashboard. */
+  void unbind(String service, String id) {
+    http.delete()
+        .uri(DashboardTest.containerBindingsPath(service) + "/" + id)
         .retrieve()
         .toBodilessEntity();
   }

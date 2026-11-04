@@ -233,9 +233,9 @@ class YardTest {
         """
         [{"workstation": "ws-b", "name": "consul-ui", "state": "healthy",
           "publication": {"scope": "local"}, "hostname": "consul-ui.lvh.me", "containerBindings": [],
-          "warnings": [], "core": true, "instances": [
+          "warnings": [], "instances": [
             {"id": "consul-ui", "host": "127.0.0.1", "port": 8500, "health": "passing",
-             "tags": [], "meta": {}, "checks": [], "outOfRange": false, "core": true}]},
+             "tags": [], "meta": {}, "checks": [], "outOfRange": false}]},
          {"workstation": "ws-b", "name": "traefik-admin", "state": "healthy",
           "publication": {"scope": "local"}, "hostname": "traefik-admin.lvh.me", "containerBindings": [],
           "warnings": [], "instances": [

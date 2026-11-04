@@ -287,8 +287,8 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: "The Service name is not a single DNS label or is consul, or\
-            \ the port is missing or not a TCP port"
+          description: "The name is not a single DNS label or is consul, or the port\
+            \ is missing or not a TCP port"
         "404":
           content:
             application/problem+json:
