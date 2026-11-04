@@ -24,11 +24,12 @@ services:
         [ -n "$$bind" ] || bind='{{ GetDefaultInterfaces | include "type" "IPv4" | attr "address" }}'
         set -f -- # -f: a Peer such as [fd00::1]:8302 is not a file pattern
         for peer in $$(printf '%s' "$${YARD_PEERS}" | tr ',' ' '); do set -- "$$@" "-retry-join-wan=$$peer"; done
+        # -disable-keyring-file: Consul otherwise keeps its first gossip key in /consul/data and ignores a new one.
         # check_update_interval 0s: the new output of a check reaches the catalog at once. Otherwise it waits 5
         # minutes while the status stays the same. So every Workstation reads the last output of each check.
         exec consul agent -server -bootstrap-expect=1 -ui \
           -datacenter="$${YARD_WORKSTATION}" -node="$${YARD_WORKSTATION}" \
-          -data-dir=/consul/data -encrypt="$${YARD_GOSSIP_KEY}" \
+          -data-dir=/consul/data -encrypt="$${YARD_GOSSIP_KEY}" -disable-keyring-file \
           -bind="$$bind" -client=127.0.0.1 \
           -http-port=${YARD_CONSUL_HTTP_PORT:-8500} -dns-port=${YARD_CONSUL_DNS_PORT:-8600} \
           -grpc-tls-port=${YARD_CONSUL_GRPC_TLS_PORT:-8503} -server-port=${YARD_CONSUL_SERVER_PORT:-8300} \

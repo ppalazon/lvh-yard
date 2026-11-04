@@ -2050,18 +2050,51 @@ class YardTest {
   }
 
   @Test
-  void initInATerminalAsksForTheWorkstationAndThePeers(@TempDir Path dir) throws Exception {
-    Run run = yardAtTerminal("ws-a\n10.0.0.2 10.0.0.3\n", "init", "--dir", dir.toString());
+  void initInATerminalAsksForTheWorkstationAndTheBaseDomainButNotThePeers(@TempDir Path dir)
+      throws Exception {
+    Run run = yardAtTerminal("ws-a\nexample.test\n", "init", "--dir", dir.toString());
 
     assertThat(run.exitCode()).isZero();
-    assertThat(run.out()).contains("Workstation name", "Peers");
-    assertThat(env(dir)).contains("YARD_WORKSTATION=ws-a", "YARD_PEERS=10.0.0.2 10.0.0.3");
+    assertThat(run.out()).contains("Workstation name", "Base domain [lvh.me]: ");
+    assertThat(run.out()).doesNotContain("Peers");
+    assertThat(env(dir))
+        .contains("YARD_WORKSTATION=ws-a", "YARD_BASE_DOMAIN=example.test", "YARD_PEERS=");
+  }
+
+  @Test
+  void initInATerminalOffersTheHostnameAsTheWorkstationName(@TempDir Path dir) throws Exception {
+    Run run =
+        yardAtTerminal(
+            "\n\n", "init", "--dir", dir.toString(), "--hostname", "Pablo_Laptop.local\n");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).contains("[pablo-laptop]: ");
+    assertThat(env(dir)).contains("YARD_WORKSTATION=pablo-laptop", "YARD_BASE_DOMAIN=lvh.me");
+  }
+
+  @Test
+  void initInATerminalOffersNoNameForAHostnameWithNothingValid(@TempDir Path dir) throws Exception {
+    Run run = yardAtTerminal("ws-a\n\n", "init", "--dir", dir.toString(), "--hostname", "___");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).contains("(lowercase letters, digits and -): ");
+    assertThat(env(dir)).contains("YARD_WORKSTATION=ws-a");
+  }
+
+  @Test
+  void initMakesAWorkstationNameFromAHostname() {
+    assertThat(Init.nameFromHostname("My-Box.example.com")).contains("my-box");
+    assertThat(Init.nameFromHostname("-dev_box-")).contains("dev-box");
+    assertThat(Init.nameFromHostname("a".repeat(62) + "-b")).contains("a".repeat(62));
+    assertThat(Init.nameFromHostname("")).isEmpty();
+    assertThat(Init.nameFromHostname(null)).isEmpty();
   }
 
   @Test
   void initInATerminalExplainsAnInvalidWorkstationNameAndAsksAgain(@TempDir Path dir)
       throws Exception {
-    Run run = yardAtTerminal("WS_A\n\nws-a\n\n", "init", "--dir", dir.toString());
+    Run run =
+        yardAtTerminal("WS_A\n\nws-a\n\n", "init", "--dir", dir.toString(), "--hostname", "_");
 
     assertThat(run.exitCode()).isZero();
     assertThat(run.out()).contains("WS_A is not a Workstation name", "A Workstation needs a name");
@@ -2070,20 +2103,41 @@ class YardTest {
   }
 
   @Test
-  void initInATerminalAcceptsNoPeersForTheFirstWorkstation(@TempDir Path dir) throws Exception {
-    Run run = yardAtTerminal("ws-a\n\n", "init", "--dir", dir.toString());
+  void initInATerminalExplainsAnInvalidBaseDomainAndAsksAgain(@TempDir Path dir) throws Exception {
+    Run run = yardAtTerminal("ws-a\nNot A Domain\nlocalhost\n", "init", "--dir", dir.toString());
 
     assertThat(run.exitCode()).isZero();
-    assertThat(env(dir)).contains("YARD_PEERS=");
+    assertThat(run.out()).contains("Not A Domain is not a domain name");
+    assertThat(env(dir)).contains("YARD_BASE_DOMAIN=localhost");
   }
 
   @Test
   void initInATerminalAsksOnlyForWhatNoFlagGave(@TempDir Path dir) throws Exception {
     Run run =
-        yardAtTerminal("", "init", "--dir", dir.toString(), "--workstation", "ws-a", "--peers", "");
+        yardAtTerminal(
+            "",
+            "init",
+            "--dir",
+            dir.toString(),
+            "--workstation",
+            "ws-a",
+            "--base-domain",
+            "lvh.me");
 
     assertThat(run.exitCode()).isZero();
-    assertThat(run.out()).doesNotContain("Workstation name", "Peers:");
+    assertThat(run.out()).doesNotContain("Workstation name", "Base domain");
+  }
+
+  @Test
+  void initWithReinitInATerminalAsksNothing(@TempDir Path dir) throws Exception {
+    yardAsTyped(
+        "init", "--dir", dir.toString(), "--workstation", "ws-a", "--base-domain", "x.test");
+
+    Run run = yardAtTerminal("", "init", "--dir", dir.toString(), "--reinit");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).doesNotContain("Workstation name", "Base domain");
+    assertThat(env(dir)).contains("YARD_WORKSTATION=ws-a", "YARD_BASE_DOMAIN=x.test");
   }
 
   @Test
@@ -2091,8 +2145,8 @@ class YardTest {
     Run run = yardProcess(Map.of(), "init", "--dir", dir.toString(), "--workstation", "ws-a");
 
     assertThat(run.exitCode()).isZero();
-    assertThat(run.out()).doesNotContain("Workstation name", "Peers:");
-    assertThat(env(dir)).contains("YARD_PEERS=");
+    assertThat(run.out()).doesNotContain("Workstation name", "Base domain");
+    assertThat(env(dir)).contains("YARD_PEERS=", "YARD_BASE_DOMAIN=lvh.me");
   }
 
   @Test
@@ -2356,9 +2410,47 @@ class YardTest {
 
     assertThat(run.out())
         .contains("Open TCP port 8300 and TCP and UDP port 8302 to the other Workstations.")
-        .contains("cd " + dir + " && docker compose up -d")
+        .contains("Start this Workstation: YARD_CONFIG_DIR=" + dir + " lvh-yard compose up -d")
         .contains("http://127.0.0.1:7780")
-        .contains("lvh-yard status");
+        .contains("lvh-yard status")
+        .contains("lvh-yard init --reinit --peers <ip> --gossip-key <key>");
+  }
+
+  @Test
+  void initsNextStepsNeedNoFolderForTheStandardOne(@TempDir Path config) throws Exception {
+    Run run =
+        yardProcess(Map.of("XDG_CONFIG_HOME", config.toString()), "init", "--workstation", "ws-a");
+
+    assertThat(run.out()).contains("Start this Workstation: lvh-yard compose up -d\n");
+  }
+
+  @Test
+  void composeRunsDockerComposeInTheWorkstationFolder(@TempDir Path config, @TempDir Path bin)
+      throws Exception {
+    Path folder = config.resolve("lvh-yard");
+    yardAsTyped("init", "--dir", folder.toString(), "--workstation", "ws-a");
+    Path docker = bin.resolve("docker");
+    Files.writeString(docker, "#!/bin/sh\necho \"$(pwd) $*\"\nexit 3\n");
+    docker.toFile().setExecutable(true);
+
+    Run run =
+        yardProcess(
+            Map.of("XDG_CONFIG_HOME", config.toString(), "PATH", bin + ":" + System.getenv("PATH")),
+            "compose",
+            "logs",
+            "--help",
+            "-f");
+
+    assertThat(run.exitCode()).isEqualTo(3);
+    assertThat(run.out()).isEqualTo(folder.toRealPath() + " compose logs --help -f\n");
+  }
+
+  @Test
+  void composeWithoutAComposeFileSaysToRunInit(@TempDir Path config) throws Exception {
+    Run run = yardProcess(Map.of("YARD_CONFIG_DIR", config.toString()), "compose", "ps");
+
+    assertThat(run.exitCode()).isEqualTo(1);
+    assertThat(run.err()).contains("No compose.yaml in " + config + ": run lvh-yard init first.");
   }
 
   @Test

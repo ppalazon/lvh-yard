@@ -5,6 +5,7 @@ import java.io.Console;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
@@ -15,6 +16,7 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -106,6 +108,10 @@ class Init implements Runnable {
   @Option(names = "--docker-socket", hidden = true, defaultValue = "/var/run/docker.sock")
   Path dockerSocket;
 
+  /** Hidden: a test gives the hostname that init offers as the Workstation name. */
+  @Option(names = "--hostname", hidden = true)
+  String hostname;
+
   /** Hidden: a test types the answers in. */
   @Option(names = "--terminal", hidden = true)
   boolean terminal;
@@ -140,9 +146,10 @@ class Init implements Runnable {
     if (baseDomain != null && !DOMAIN.matcher(baseDomain).matches()) {
       throw usage("--base-domain " + baseDomain + " is not a domain name such as lvh.me.");
     }
-    // --reinit keeps the old peers unless --peers replaces them, so it asks for none.
-    List<String> peerAddresses =
-        peers != null ? peers : mode.reinit ? null : atTerminal() ? askPeers() : List.of();
+    // --reinit keeps the old values unless a flag replaces them, so it asks for neither.
+    String domain =
+        baseDomain != null ? baseDomain : !mode.reinit && atTerminal() ? askBaseDomain() : null;
+    List<String> peerAddresses = peers != null ? peers : mode.reinit ? null : List.of();
     String key =
         gossipKey != null
             ? checkedGossipKey(gossipKey)
@@ -161,8 +168,8 @@ class Init implements Runnable {
     if (peerAddresses != null) {
       env.set(Settings.PEERS, String.join(" ", peerAddresses));
     }
-    if (baseDomain != null) {
-      env.set(Settings.BASE_DOMAIN, baseDomain);
+    if (domain != null) {
+      env.set(Settings.BASE_DOMAIN, domain);
     }
 
     Map<String, String> files = new LinkedHashMap<>();
@@ -190,6 +197,9 @@ class Init implements Runnable {
     out.println("Give this key to every other Workstation: lvh-yard init --gossip-key <key>.");
     out.println();
     out.print(nextSteps(folder, env));
+    out.println();
+    out.println("To join a Yard later, run this with the address of one of its Workstations:");
+    out.println("  lvh-yard init --reinit --peers <ip> --gossip-key <key>");
     out.flush();
   }
 
@@ -205,28 +215,38 @@ class Init implements Runnable {
   }
 
   private static String nextSteps(Path folder, EnvFile env) {
+    // lvh-yard compose finds the standard folder by itself, but not a --dir one.
+    boolean found =
+        folder
+            .toAbsolutePath()
+            .normalize()
+            .equals(ConfigFolder.forReading(System.getenv()).toAbsolutePath().normalize());
     return """
     Next steps:
       1. Open TCP port %s and TCP and UDP port %s to the other Workstations.
-      2. Start this Workstation: cd %s && docker compose up -d
+      2. Start this Workstation: %slvh-yard compose up -d
       3. Open the dashboard: %s
       4. Make sure that the Core Services work: lvh-yard status
     """
         .formatted(
             env.valueOrDefault(Settings.CONSUL_SERVER_PORT),
             env.valueOrDefault(Settings.CONSUL_SERF_WAN_PORT),
-            folder,
+            found ? "" : Settings.CONFIG_DIR + "=" + folder + " ",
             env.dashboardUrl());
   }
 
-  /** Asks again until the name is valid. */
+  /** Asks again until the name is valid. Enter takes the hostname, made into a name. */
   private String askWorkstation() {
     PrintWriter out = spec.commandLine().getOut();
+    Optional<String> offered = nameFromHostname(hostname != null ? hostname : hostname());
     while (true) {
-      String name =
+      String typed =
           ask(
-              "Workstation name, unique in the Yard (lowercase letters, digits and -): ",
+              "Workstation name, unique in the Yard (lowercase letters, digits and -)"
+                  + offered.map(name -> " [" + name + "]").orElse("")
+                  + ": ",
               "--workstation");
+      String name = typed.isEmpty() ? offered.orElse("") : typed;
       if (WORKSTATION.matcher(name).matches()) {
         return name;
       }
@@ -237,13 +257,46 @@ class Init implements Runnable {
     }
   }
 
-  private List<String> askPeers() {
-    String typed =
-        ask(
-            "Peers: the other Workstations' LAN addresses, each <ip> or <ip>:<serf-wan-port>,"
-                + " separated by spaces (none for the first Workstation of a Yard): ",
-            "--peers");
-    return typed.isEmpty() ? List.of() : List.of(typed.split(PEER_SEPARATORS));
+  /** Asks again until the domain is valid. Enter takes the default. */
+  private String askBaseDomain() {
+    PrintWriter out = spec.commandLine().getOut();
+    String standard = Templates.env().get(Settings.BASE_DOMAIN).orElseThrow();
+    while (true) {
+      String typed = ask("Base domain [" + standard + "]: ", "--base-domain");
+      String domain = typed.isEmpty() ? standard : typed;
+      if (DOMAIN.matcher(domain).matches()) {
+        return domain;
+      }
+      out.println(domain + " is not a domain name such as lvh.me.");
+    }
+  }
+
+  /**
+   * The part of {@code hostname} before the first dot, as a Workstation name: lowercase, each
+   * invalid character made {@code -}, no {@code -} at the ends, at most 63 characters.
+   */
+  static Optional<String> nameFromHostname(String hostname) {
+    if (hostname == null) {
+      return Optional.empty();
+    }
+    String name =
+        hostname.strip().split("\\.", -1)[0].toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9-]", "-");
+    name = name.replaceAll("^-+", "");
+    name = name.substring(0, Math.min(name.length(), 63)).replaceAll("-+$", "");
+    return WORKSTATION.matcher(name).matches() ? Optional.of(name) : Optional.empty();
+  }
+
+  /** The kernel's name for this computer, which needs no DNS lookup, else Java's. */
+  private static String hostname() {
+    try {
+      return Files.readString(Path.of("/proc/sys/kernel/hostname"));
+    } catch (IOException notLinux) {
+      try {
+        return InetAddress.getLocalHost().getHostName();
+      } catch (IOException unknown) {
+        return null;
+      }
+    }
   }
 
   /**

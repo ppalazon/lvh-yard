@@ -21,24 +21,24 @@ Java or a copy of this repository.
 1. Download `lvh-yard` and put it on your `PATH`, as
    [Installing the CLI](#installing-the-cli) shows.
 2. Run `lvh-yard init`. It asks for the name of this Workstation and for its
-   Peers, the LAN addresses of the other Workstations. You can give both as
-   flags instead:
+   Base Domain. Press Enter to take the default: the hostname of this computer
+   as the name, and `lvh.me` as the Base Domain. You can give both as flags
+   instead:
 
    ```sh
-   lvh-yard init --workstation ws-a                                          # the first Workstation of a Yard
-   lvh-yard init --workstation ws-b --peers 192.168.1.10 --gossip-key <key>  # each next one
+   lvh-yard init --workstation ws-a --base-domain lvh.me
    ```
 
    `init` writes `compose.yaml`, `.env` and `route-profiles.yaml` to
    `~/.config/lvh-yard`. If `XDG_CONFIG_HOME` is set, it writes to
    `$XDG_CONFIG_HOME/lvh-yard`. `--dir` picks another folder.
 
-   On the first Workstation, `init` makes the gossip key of the Yard and prints
-   it. Give the same key to each next Workstation with `--gossip-key`.
+   `init` makes a new gossip key and prints it. This Workstation then starts a
+   Yard of its own. To join a Yard, see [Joining a Yard](#joining-a-yard).
 
 3. Open TCP port 8300 and TCP and UDP port 8302 to the other Workstations.
-4. Start this Workstation: `cd ~/.config/lvh-yard && docker compose up -d`.
-   This starts Consul, Traefik and the dashboard.
+4. Start this Workstation: `lvh-yard compose up -d`. This starts Consul,
+   Traefik and the dashboard.
 5. Make sure that the Core Services work: `lvh-yard status`.
 
 If Traefik works, open [yard.lvh.me](http://yard.lvh.me). If Traefik is down,
@@ -46,13 +46,32 @@ open `127.0.0.1:7780`. The Catalog shows the Core Services: `yard` (the
 dashboard), `consul` ([consul.lvh.me](http://consul.lvh.me)) and `traefik`
 ([traefik.lvh.me](http://traefik.lvh.me)).
 
+`lvh-yard compose <arguments>` runs `docker compose <arguments>` in the folder
+of this Workstation, from any directory. For example, `lvh-yard compose logs -f
+consul` shows the logs of Consul. If you gave `init` a `--dir` folder, set
+`YARD_CONFIG_DIR` to that folder first.
+
+### Joining a Yard
+
+A Workstation joins a Yard through one Peer, the LAN address of a Workstation
+that is already in the Yard. It also needs the gossip key of that Yard. Copy
+the key from `YARD_GOSSIP_KEY` in the `.env` of that Workstation. Then run
+these commands on the new Workstation:
+
+```sh
+lvh-yard init --reinit --peers 192.168.1.10 --gossip-key <key>
+lvh-yard compose up -d
+```
+
+You can also give `--peers` and `--gossip-key` to the first `lvh-yard init`.
+
 ### Upgrading
 
 `lvh-yard init` does not overwrite a file unless you give `--force`. After you
 install a new `lvh-yard`, use one of these flags:
 
 - `lvh-yard init --upgrade` changes only the consul, traefik and dashboard
-  images in `compose.yaml`. Then run `docker compose up -d` again.
+  images in `compose.yaml`. Then run `lvh-yard compose up -d` again.
 - `lvh-yard init --reinit` writes `compose.yaml` and `.env` again from the new
   templates, with the values of the old `.env`. A flag that you give with it
   replaces the old value. The old files stay as
