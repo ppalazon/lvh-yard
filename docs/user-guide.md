@@ -204,8 +204,9 @@ that you register later. The Publications are in the Consul KV of this
 Workstation, under `lvh-yard/publications/`.
 
 A Service name is the first part of its hostname, so it is a single DNS label:
-1 to 63 lowercase letters, digits and `-`. The name `consul` is refused,
-because Consul keeps its own entry in its catalog under that name.
+1 to 63 lowercase letters, digits and `-`. The dashboard refuses the name
+`consul` with this reason: "consul is Consul's own entry in its catalog".
+Consul keeps its own server entry in its catalog under that name.
 
 A new Publication has Local Scope: only this Workstation routes it, at
 `<service>.<base-domain>`. With Yard Scope, the other Workstations also route
