@@ -361,8 +361,8 @@ paths:
   /api/workstation/services/{service}/container-bindings:
     post:
       description: "Give either container, or composeProject and composeService. Each\
-        \ running container that matches is a Bound Instance with a TCP check. Binding\
-        \ the same again changes nothing."
+        \ running container that matches is a Bound Instance with a TCP check. A new\
+        \ Service gets a Publication with Local Scope, unless publish is false."
       operationId: bindContainer
       parameters:
       - in: path
@@ -391,6 +391,14 @@ paths:
           description: "The name is not a single DNS label or is consul, the body\
             \ names both or neither of a container and a Compose service, a name is\
             \ not one Docker or Compose allows, or the port is not a TCP port"
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "A Container Binding of this Workstation already follows the\
+            \ same container name, or the same Compose project and service, whatever\
+            \ its port. The answer names its Service"
       summary: Binds a Service to a container or a Compose service
       tags:
       - workstation-services-controller
@@ -730,6 +738,11 @@ components:
         port:
           type: integer
           format: int32
+        publish:
+          type: boolean
+          description: "If the Service is new, false leaves it Unpublished. Otherwise\
+            \ it gets a Publication with Local Scope. An existing Service keeps its\
+            \ Publication, or stays Unpublished."
       required:
       - port
     ContainerPort:

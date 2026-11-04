@@ -160,6 +160,8 @@ public class Publications {
   public <T> T addPublishingNew(String service, Boolean publish, Supplier<T> add) {
     // Before add, which makes the Service exist. Only this Workstation's Instances, Publication
     // and Bindings count, so a Service with any of them but no Publication stays Unpublished.
+    // A name Consul cannot look up fails here, as a 400, not in exists.
+    Registrations.checkName(service);
     boolean isNew = !exists(service);
     T added = add.get();
     if (isNew && !Boolean.FALSE.equals(publish)) {

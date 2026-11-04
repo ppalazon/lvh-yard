@@ -277,16 +277,19 @@ final class Dashboard {
     return read(send(request), new TypeReference<>() {});
   }
 
-  ContainerBinding bind(String service, String container, int port) {
-    return bind(service, Map.of("container", container, "port", port));
-  }
-
-  ContainerBinding bindCompose(String service, String project, String composeService, int port) {
-    return bind(
-        service, Map.of("composeProject", project, "composeService", composeService, "port", port));
-  }
-
-  private ContainerBinding bind(String service, Map<String, Object> binding) {
+  /**
+   * @param publish {@code false} leaves a new Service unpublished; {@code null} lets the dashboard
+   *     publish it
+   */
+  ContainerBinding bindCompose(
+      String service, String project, String composeService, int port, Boolean publish) {
+    Map<String, Object> binding = new LinkedHashMap<>();
+    binding.put("composeProject", project);
+    binding.put("composeService", composeService);
+    binding.put("port", port);
+    if (publish != null) {
+      binding.put("publish", publish);
+    }
     HttpRequest.Builder request =
         HttpRequest.newBuilder(containerBindingsUrl(service))
             .header("Content-Type", "application/json")

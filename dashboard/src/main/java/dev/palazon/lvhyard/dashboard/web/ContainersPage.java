@@ -1,7 +1,9 @@
 package dev.palazon.lvhyard.dashboard.web;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
+import dev.palazon.lvhyard.dashboard.services.ContainerBindingRequest;
 import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
+import dev.palazon.lvhyard.dashboard.services.Registrations;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import dev.palazon.lvhyard.dashboard.services.UnfollowedContainer;
 import java.util.LinkedHashMap;
@@ -10,6 +12,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
+import org.xmlet.htmlapifaster.EnumTypeInputType;
+import org.xmlet.htmlapifaster.Main;
 import org.xmlet.htmlapifaster.Td;
 import org.xmlet.htmlapifaster.Tr;
 
@@ -18,7 +22,58 @@ final class ContainersPage {
 
   static final String PATH = "/containers";
 
+  static final String BIND_PATH = PATH + "/bind";
+
+  static final String CONTAINER = "container";
+
+  static final String COMPOSE = "compose";
+
   record RegisterFailure(String container, String reason) {}
+
+  /**
+   * What the binding form sends, besides {@code publish}. Spring fills the fields by name. A field
+   * left out is empty.
+   *
+   * @param kind {@value #CONTAINER} or {@value #COMPOSE}, by default {@value #CONTAINER}
+   * @param name the Service name
+   */
+  record Binding(
+      String kind,
+      String container,
+      String composeProject,
+      String composeService,
+      String containerPort,
+      String name) {
+
+    static final Binding EMPTY = new Binding(CONTAINER, "", "", "", "", "");
+
+    Binding {
+      kind = COMPOSE.equals(kind) ? COMPOSE : CONTAINER;
+      container = container == null ? "" : container;
+      composeProject = composeProject == null ? "" : composeProject;
+      composeService = composeService == null ? "" : composeService;
+      containerPort = containerPort == null ? "" : containerPort;
+      name = name == null ? "" : name;
+    }
+
+    /** The other kind's fields are left out. */
+    ContainerBindingRequest request(boolean publish) {
+      Integer port = Registrations.parsePort("containerPort", containerPort);
+      return kind.equals(COMPOSE)
+          ? new ContainerBindingRequest(null, composeProject, composeService, port, publish)
+          : new ContainerBindingRequest(container, null, null, port, publish);
+    }
+  }
+
+  /**
+   * What the binding form shows.
+   *
+   * @param error why the last binding failed, shown at its field, or {@code null}
+   */
+  record BindForm(Binding binding, boolean publish, InvalidRegistrationException error) {
+
+    static final BindForm EMPTY = new BindForm(Binding.EMPTY, true, null);
+  }
 
   private ContainersPage() {}
 
@@ -38,7 +93,8 @@ final class ContainersPage {
       List<UnfollowedContainer> containers,
       String dockerProblem,
       Service registered,
-      RegisterFailure failure) {
+      RegisterFailure failure,
+      BindForm bind) {
     return Layout.page(
         "Containers",
         workstation.name(),
@@ -85,7 +141,107 @@ final class ContainersPage {
                       .attrClass("flex flex-col gap-8")
                       .of(region -> list(region, containers, dockerProblem, failure))
                       .__();
-                }));
+                })
+                .of(content -> bindForm(content, bind)));
+  }
+
+  /**
+   * Outside the refreshed list, so the refresh cannot reset what is typed. app.css hides the fields
+   * of the kind that is not chosen, so the choice works without JavaScript.
+   */
+  private static void bindForm(Main<?> main, BindForm bind) {
+    Binding binding = bind.binding();
+    InvalidRegistrationException error = bind.error();
+    main.h2()
+        .text("Bind a container or a Compose service")
+        .__()
+        .p()
+        .text("The container does not need to run. Each container that matches gets an Instance.")
+        .__()
+        .form()
+        .attrClass("form flex max-w-md flex-col gap-6")
+        .addAttr("data-bind-form", "")
+        .addAttr("method", "post")
+        .addAttr("action", BIND_PATH)
+        .div()
+        .attrClass("flex flex-col gap-3")
+        .addAttr("role", "radiogroup")
+        .addAttr("aria-label", "What to bind")
+        .of(group -> kind(group, CONTAINER, "Container name", binding.kind()))
+        .of(group -> kind(group, COMPOSE, "Compose service", binding.kind()))
+        .__()
+        .of(form ->
+            InstanceForm.text(
+                form,
+                "container",
+                "Container name",
+                binding.container(),
+                "grafana",
+                "As docker run --name gives it.",
+                error))
+        .of(form ->
+            InstanceForm.text(
+                form,
+                "composeProject",
+                "Compose project",
+                binding.composeProject(),
+                "shop",
+                null,
+                error))
+        .of(form ->
+            InstanceForm.text(
+                form,
+                "composeService",
+                "Compose service",
+                binding.composeService(),
+                "web",
+                "Each of its containers gets an Instance.",
+                error))
+        .of(form ->
+            InstanceForm.text(
+                form,
+                "containerPort",
+                "Container port",
+                binding.containerPort(),
+                "80",
+                "The port inside the container.",
+                error))
+        .of(form ->
+            InstanceForm.text(
+                form,
+                "name",
+                "Service name",
+                binding.name(),
+                "web",
+                "Lowercase letters, digits and -.",
+                error))
+        .of(form -> StaticInstancesPage.publish(form, bind.publish()))
+        .button()
+        .attrType(EnumTypeButtonType.SUBMIT)
+        .attrClass("btn w-fit")
+        .text("Bind")
+        .__()
+        .__();
+  }
+
+  private static void kind(Div<?> group, String value, String label, String chosen) {
+    group
+        .label()
+        .attrClass("label gap-3")
+        .input()
+        .attrType(EnumTypeInputType.RADIO)
+        .attrClass("input")
+        .attrId("kind-" + value)
+        .attrName("kind")
+        .attrValue(value)
+        .of(input -> {
+          if (value.equals(chosen)) {
+            input.attrChecked(true);
+          }
+        })
+        .__()
+        .text(label)
+        .__();
   }
 
   private static void list(

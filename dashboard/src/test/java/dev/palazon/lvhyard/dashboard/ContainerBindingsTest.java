@@ -249,14 +249,84 @@ class ContainerBindingsTest extends DashboardTest {
   }
 
   @Test
-  void bindingTheSameContainerAndPortAgainChangesNothing() {
+  void bindingANewServicePublishesItWithLocalScope() {
+    String web = newServiceName("web");
+
+    ResponseEntity<JsonNode> response =
+        post(containerBindingsPath(web), Map.of("container", newContainerName(), "port", 80));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    JsonNode service = get(servicePath(web)).getBody();
+    assertThat(service.get("publication").get("scope").asString()).isEqualTo("local");
+  }
+
+  @Test
+  void bindingANewServiceWithPublishFalseLeavesItUnpublished() {
+    String web = newServiceName("web");
+
+    post(
+        containerBindingsPath(web),
+        Map.of("container", newContainerName(), "port", 80, "publish", false));
+
+    assertThat(get(servicePath(web)).getBody().get("state").asString()).isEqualTo("unpublished");
+  }
+
+  @Test
+  void bindingIntoAnUnpublishedServiceKeepsItUnpublished() {
+    String web = newServiceName("web");
+    bind(web, newContainerName(), 80);
+
+    post(
+        containerBindingsPath(web),
+        Map.of("container", newContainerName(), "port", 80, "publish", true));
+
+    assertThat(get(servicePath(web)).getBody().get("state").asString()).isEqualTo("unpublished");
+  }
+
+  @Test
+  void bindingAContainerNameThatABindingFollowsIsRefusedWithItsServiceWhateverThePort() {
+    String web = newServiceName("web");
+    String api = newServiceName("api");
+    String name = newContainerName();
+    bind(web, name, 80);
+
+    ResponseEntity<JsonNode> response =
+        post(containerBindingsPath(api), Map.of("container", name, "port", 9000));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(response.getBody().get("detail").asString()).contains(name).contains(web);
+    assertThat(get(servicePath(api)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+  }
+
+  @Test
+  void bindingTheSameContainerAgainIsRefused() {
     String web = newServiceName("web");
     String name = newContainerName();
-
-    bind(web, name, 80);
     bind(web, name, 80);
 
+    ResponseEntity<JsonNode> response =
+        post(containerBindingsPath(web), Map.of("container", name, "port", 80));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     assertThat(get(servicePath(web)).getBody().get("containerBindings")).hasSize(1);
+  }
+
+  @Test
+  void bindingAComposeServiceThatABindingFollowsIsRefusedWithItsService() {
+    String web = newServiceName("web");
+    String api = newServiceName("api");
+    String project = newComposeProject();
+    bindCompose(web, project, "web", 80);
+
+    ResponseEntity<JsonNode> response =
+        post(
+            containerBindingsPath(api),
+            Map.of("composeProject", project, "composeService", "web", "port", 8080));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(response.getBody().get("detail").asString())
+        .contains("Compose service web of project " + project)
+        .contains(web);
   }
 
   @Test

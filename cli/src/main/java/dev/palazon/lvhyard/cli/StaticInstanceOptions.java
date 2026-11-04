@@ -57,27 +57,4 @@ class StaticInstanceOptions {
   Dashboard.Check healthCheck() {
     return new Dashboard.Check(check, path, interval, timeout);
   }
-
-  /** The names of the options that were given, in the order of the help. */
-  List<String> given() {
-    List<String> given = new ArrayList<>();
-    if (host != null) {
-      given.add("--host");
-    }
-    for (String[] option :
-        new String[][] {
-          {"--check", check}, {"--path", path}, {"--interval", interval}, {"--timeout", timeout}
-        }) {
-      if (option[1] != null) {
-        given.add(option[0]);
-      }
-    }
-    if (!tags.isEmpty()) {
-      given.add("--tag");
-    }
-    if (!meta.isEmpty()) {
-      given.add("--meta");
-    }
-    return given;
-  }
 }

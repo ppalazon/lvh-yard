@@ -168,11 +168,10 @@ lvh-yard register static web --host 127.0.0.1 --port 8080
 lvh-yard register static web --port 8080 --path /health --interval 5s --timeout 1s   # an HTTP check (default: TCP, 10s, 2s)
 lvh-yard register static web --port 8080 --tag backend --meta owner=pablo           # repeat --tag and --meta for more
 lvh-yard register static web --port 8080 --no-publish                               # a new Service stays unpublished
-lvh-yard register web --container web-1 --port 80                            # bind to the container web-1
-lvh-yard register web --compose-project shop --compose-service web --port 80 # bind to the Compose service web
 lvh-yard containers                         # running containers that no Container Binding follows
 lvh-yard register container shop-web-1     # bind a container to a Service, and publish a new Service
 lvh-yard register container shop-web-1 --port 9000 --service shop --no-publish
+lvh-yard register container --compose shop/web --port 80   # bind the Compose service web of project shop
 lvh-yard remove web --port 8080             # add --host if several Instances share the port
 lvh-yard remove web --id <id>               # the ID that lvh-yard list shows
 lvh-yard remove web --container web-1       # add --port if web-1 is bound on several ports
@@ -444,11 +443,15 @@ stays unpublished.
 ### Container Bindings
 
 A Container Binding binds a Service to a Docker container by its name, or to
-each container of a Compose project and service. Add one with
-`lvh-yard register --container` (or `--compose-project` and
-`--compose-service`). Remove it on the page of the Service or with
-`lvh-yard remove` and the same options. The Bindings are in the Consul KV of
-this Workstation, under `lvh-yard/container-bindings/`.
+each container of a Compose project and service. Add one on the Containers
+page or with `lvh-yard register container`. Remove it on the page of the
+Service, or with `lvh-yard remove` and `--container`, or `--compose-project`
+and `--compose-service`. The Bindings are in the Consul KV of this
+Workstation, under `lvh-yard/container-bindings/`.
+
+One container name, or one Compose project and service, has at most one
+Container Binding on a Workstation. A second one is refused, whatever its port,
+and the refusal names the Service of the first one.
 
 Each running container that matches is a Bound Instance with a TCP check. If
 the container port is published on every host address, the Bound Instance is at
@@ -510,6 +513,20 @@ needed: without it, the register is refused with 400, and the `field` of the
 error is `port`. The Service gets the cleaned container name. The Service gets
 its Bound Instance when the container starts.
 
+Below the list, a form binds a container name or a Compose service that does
+not need to run. Choose "Container name" or "Compose service", and fill in its
+names, the container port and the Service name. If the Service is new, LVH Yard
+publishes it with Local Scope. To keep it unpublished, clear "Publish a new
+Service". Then click Bind. The page of the Service opens. If the binding
+fails, the form shows why next to the field.
+
+`POST /api/workstation/services/<service>/container-bindings` does the same.
+The body gives `container`, or `composeProject` and `composeService`, and
+`port`. It can give `publish: false`. If a Container Binding of this
+Workstation already follows the same container name, or the same Compose
+project and service, the binding is refused with 409, and names the Service of
+that Container Binding.
+
 From the terminal:
 
 ```sh
@@ -519,7 +536,13 @@ lvh-yard register container shop-web-1 --port 9000       # choose the port of a 
 lvh-yard register container shop-web-1 --service shop    # choose the Service name
 lvh-yard register container shop-web-1 --no-publish      # bind without publishing a new Service
 lvh-yard register container shop-web-1 --port 80         # a container that does not run yet
+lvh-yard register container --compose shop/web --port 80                # a Compose service, running or not
+lvh-yard register container --compose shop/web --port 80 --service shop # choose the Service name
 ```
+
+With `--compose`, the Service name is by default the cleaned Compose service
+name, and `--port` is needed. Give a container or `--compose`, not both.
+`lvh-yard register` alone lists its two subcommands, `static` and `container`.
 
 ### Health checks
 

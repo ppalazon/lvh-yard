@@ -140,7 +140,7 @@ final class StaticInstancesPage {
   }
 
   /** A cleared checkbox sends nothing, so the form sends {@code publish} only when it is on. */
-  private static void publish(Form<?> form, boolean checked) {
+  static void publish(Form<?> form, boolean checked) {
     form.label()
         .attrClass("label gap-3")
         .input()

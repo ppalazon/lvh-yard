@@ -4,6 +4,7 @@ import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.profiles.RouteProfiles;
 import dev.palazon.lvhyard.dashboard.reachability.ReachabilityTester;
 import dev.palazon.lvhyard.dashboard.services.Aliases;
+import dev.palazon.lvhyard.dashboard.services.ContainerBindingRequest;
 import dev.palazon.lvhyard.dashboard.services.ContainerBindings;
 import dev.palazon.lvhyard.dashboard.services.ContainerRegistration;
 import dev.palazon.lvhyard.dashboard.services.ContainerRegistrationRequest;
@@ -349,20 +350,53 @@ class PagesController {
   String containers(@RequestParam(required = false) String registered) {
     return containersPage(
         registered == null ? null : yard.service(workstation.name(), registered).orElse(null),
-        null);
+        null,
+        ContainersPage.BindForm.EMPTY);
   }
 
   /**
    * @param registered the Service that the one-click Register just gave a container, or {@code
    *     null}
    */
-  private String containersPage(Service registered, ContainersPage.RegisterFailure failure) {
+  private String containersPage(
+      Service registered, ContainersPage.RegisterFailure failure, ContainersPage.BindForm bind) {
     try {
       return ContainersPage.render(
-          workstation, containerRegistration.unfollowed(), null, registered, failure);
+          workstation, containerRegistration.unfollowed(), null, registered, failure, bind);
     } catch (UnreadableDockerException e) {
-      return ContainersPage.render(workstation, List.of(), e.getMessage(), registered, failure);
+      return ContainersPage.render(
+          workstation, List.of(), e.getMessage(), registered, failure, bind);
     }
+  }
+
+  /**
+   * The binding form of the Containers page. A followed target is shown at its field, as the other
+   * failures are.
+   *
+   * @param publish sent only when the "Publish a new Service" checkbox is on
+   */
+  @PostMapping(path = ContainersPage.BIND_PATH, produces = MediaType.TEXT_HTML_VALUE)
+  ResponseEntity<String> bindContainer(
+      ContainersPage.Binding binding, @RequestParam(required = false) String publish) {
+    String service = binding.name().strip();
+    InvalidRegistrationException error;
+    try {
+      ContainerBindingRequest request = binding.request(publish != null);
+      publications.addPublishingNew(
+          service,
+          request.publish(),
+          () -> containerBindings.add(workstation.name(), service, request));
+      return seeOther(ServicePage.path(workstation.name(), service));
+    } catch (InvalidRegistrationException e) {
+      error = e;
+    } catch (FollowedContainerException e) {
+      error = new InvalidRegistrationException(e.field(), e.getMessage());
+    }
+    return ResponseEntity.badRequest()
+        .contentType(Layout.HTML)
+        .body(
+            containersPage(
+                null, null, new ContainersPage.BindForm(binding, publish != null, error)));
   }
 
   @GetMapping(
@@ -408,7 +442,9 @@ class PagesController {
                   ? ContainersPage.renderRegister(
                       workstation, unfollowed(container), name, port == null ? "" : port, e)
                   : containersPage(
-                      null, new ContainersPage.RegisterFailure(container, e.getMessage())));
+                      null,
+                      new ContainersPage.RegisterFailure(container, e.getMessage()),
+                      ContainersPage.BindForm.EMPTY));
     } catch (FollowedContainerException e) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage(), e);
     } catch (UnreadableDockerException e) {

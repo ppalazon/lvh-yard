@@ -559,6 +559,143 @@ class ContainersTest extends DashboardTest {
     assertThat(response.getBody()).contains("give one of 80, 9000");
   }
 
+  @Test
+  void pageHasABindingFormBelowTheListThatPublishesANewServiceByDefault() {
+    String page = getPage("/containers").getBody();
+
+    assertThat(page.indexOf("action=\"/containers/bind\""))
+        .isGreaterThan(page.indexOf("id=\"containers\""));
+    assertThat(openingTag(page, "value=\"container\"")).contains("type=\"radio\"");
+    assertThat(openingTag(page, "value=\"compose\"")).contains("type=\"radio\"");
+    assertThat(page)
+        .contains("Container name")
+        .contains("Compose service")
+        .contains("name=\"containerPort\"")
+        .contains("name=\"name\"");
+    assertThat(openingTag(page, "name=\"publish\"")).contains("checked");
+  }
+
+  @Test
+  void bindingFormBindsAContainerNameAndGoesToTheServicePage() {
+    String name = newContainerName();
+    String web = newServiceName("web");
+
+    ResponseEntity<String> response =
+        postForm(
+            "/containers/bind",
+            Map.of(
+                "kind",
+                "container",
+                "container",
+                name,
+                "containerPort",
+                "8080",
+                "name",
+                web,
+                "publish",
+                "on"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    assertThat(response.getHeaders().getLocation()).hasPath("/services/ws-test/" + web);
+    JsonNode service = get(servicePath(web)).getBody();
+    assertThat(service.get("containerBindings").get(0).get("id").asString())
+        .isEqualTo(name + ":8080");
+    assertThat(service.get("publication").get("scope").asString()).isEqualTo("local");
+  }
+
+  @Test
+  void bindingFormBindsAComposeServiceAndLeavesItUnpublishedWithoutTheCheckbox() {
+    String project = newComposeProject();
+    String web = newServiceName("web");
+
+    ResponseEntity<String> response =
+        postForm(
+            "/containers/bind",
+            Map.of(
+                "kind",
+                "compose",
+                "composeProject",
+                project,
+                "composeService",
+                "web",
+                "containerPort",
+                "80",
+                "name",
+                web));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    JsonNode service = get(servicePath(web)).getBody();
+    assertThat(service.get("containerBindings").get(0).get("id").asString())
+        .isEqualTo("compose:" + project + ":web:80");
+    assertThat(service.get("state").asString()).isEqualTo("unpublished");
+  }
+
+  @Test
+  void bindingFormShowsTheErrorAtItsFieldAndKeepsWhatWasTyped() {
+    String name = newContainerName();
+
+    ResponseEntity<String> response =
+        postForm(
+            "/containers/bind",
+            Map.of("kind", "container", "container", name, "containerPort", "", "name", "web"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(openingTag(response.getBody(), "name=\"containerPort\""))
+        .contains("aria-invalid=\"true\"");
+    assertThat(openingTag(response.getBody(), "name=\"container\""))
+        .contains("value=\"" + name + "\"");
+    assertThat(openingTag(response.getBody(), "name=\"publish\"")).doesNotContain("checked");
+  }
+
+  @Test
+  void bindingFormKeepsTheComposeChoiceWhenItFails() {
+    ResponseEntity<String> response =
+        postForm(
+            "/containers/bind",
+            Map.of(
+                "kind",
+                "compose",
+                "composeProject",
+                "Shop",
+                "composeService",
+                "web",
+                "name",
+                "web"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(openingTag(response.getBody(), "value=\"compose\"")).contains("checked");
+    assertThat(openingTag(response.getBody(), "name=\"composeProject\""))
+        .contains("aria-invalid=\"true\"");
+  }
+
+  @Test
+  void bindingFormWithoutAServiceNameShowsTheErrorAtTheNameField() {
+    ResponseEntity<String> response =
+        postForm(
+            "/containers/bind",
+            Map.of("kind", "container", "container", newContainerName(), "containerPort", "80"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(openingTag(response.getBody(), "name=\"name\"")).contains("aria-invalid=\"true\"");
+  }
+
+  @Test
+  void bindingFormOfAFollowedContainerShowsItsServiceAtTheContainerField() {
+    String name = newContainerName();
+    String web = newServiceName("web");
+    bind(web, name, 80);
+
+    ResponseEntity<String> response =
+        postForm(
+            "/containers/bind",
+            Map.of("kind", "container", "container", name, "containerPort", "9000", "name", "api"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(openingTag(response.getBody(), "name=\"container\""))
+        .contains("aria-invalid=\"true\"");
+    assertThat(response.getBody()).contains("of the Service " + web);
+  }
+
   /** The table row of {@code container} on the Containers page. */
   private static String row(String page, String container) {
     int at = page.indexOf("data-container=\"" + container + "\"");

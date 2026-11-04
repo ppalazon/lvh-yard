@@ -427,11 +427,13 @@ abstract class DashboardTest {
 
   /**
    * Binds {@code service} on this Workstation to {@code container}'s {@code port} through the REST
-   * API.
+   * API. A new Service stays Unpublished, as with {@link #register}.
    */
   JsonNode bind(String service, String container, int port) {
     ResponseEntity<JsonNode> response =
-        post(containerBindingsPath(service), Map.of("container", container, "port", port));
+        post(
+            containerBindingsPath(service),
+            Map.of("container", container, "port", port, "publish", false));
     if (!response.getStatusCode().is2xxSuccessful()) {
       throw new AssertionError("Binding " + service + " answered " + response);
     }
@@ -440,13 +442,21 @@ abstract class DashboardTest {
 
   /**
    * Binds {@code service} on this Workstation to {@code composeService} of {@code project}'s {@code
-   * port}.
+   * port}. A new Service stays Unpublished, as with {@link #register}.
    */
   JsonNode bindCompose(String service, String project, String composeService, int port) {
     ResponseEntity<JsonNode> response =
         post(
             containerBindingsPath(service),
-            Map.of("composeProject", project, "composeService", composeService, "port", port));
+            Map.of(
+                "composeProject",
+                project,
+                "composeService",
+                composeService,
+                "port",
+                port,
+                "publish",
+                false));
     if (!response.getStatusCode().is2xxSuccessful()) {
       throw new AssertionError("Binding " + service + " answered " + response);
     }

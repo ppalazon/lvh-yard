@@ -203,13 +203,13 @@ final class RemoteWorkstation implements AutoCloseable {
 
   /**
    * Binds {@code service} on this Workstation to {@code container}'s {@code port}, through its
-   * dashboard.
+   * dashboard. A new Service stays Unpublished.
    */
   void bind(String service, String container, int port) {
     http.post()
         .uri(DashboardTest.containerBindingsPath(service))
         .contentType(MediaType.APPLICATION_JSON)
-        .body(Map.of("container", container, "port", port))
+        .body(Map.of("container", container, "port", port, "publish", false))
         .retrieve()
         .toBodilessEntity();
   }

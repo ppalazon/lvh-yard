@@ -65,15 +65,26 @@ public class ContainerBindings {
   }
 
   /**
-   * {@code workstation} must be this one. Binding the same again changes nothing. Running
-   * containers that match give their Bound Instances at once.
+   * {@code workstation} must be this one. Running containers that match give their Bound Instances
+   * at once.
    *
    * @return the Binding's ID
+   * @throws FollowedContainerException when a Binding of this Workstation already names the same
+   *     container, or the same Compose project and service, whatever its port
    */
   public String add(String workstation, String service, ContainerBindingRequest request) {
     checkHome(workstation);
     Registrations.checkName(service);
     ContainerBindingRequest binding = checked(request);
+    all(null)
+        .forEach((following, bindings) -> {
+          if (bindings.values().stream().anyMatch(other -> sameTarget(binding, other))) {
+            throw new FollowedContainerException(
+                new ContainerBinding(null, binding, List.of()).follows(),
+                following,
+                binding.followsCompose() ? "composeService" : "container");
+          }
+        });
     String id = ContainerBinding.id(binding);
     consul.putValue(PREFIX + service + "/" + id, JSON.writeValueAsString(binding));
     syncIfDockerAnswers();
@@ -133,6 +144,13 @@ public class ContainerBindings {
     }
     Registrations.checkPort("containerPort", "A Container Binding", request.port());
     return ContainerBindingRequest.compose(project, composeService, request.port());
+  }
+
+  private static boolean sameTarget(ContainerBindingRequest one, ContainerBindingRequest other) {
+    return one.followsCompose()
+        ? one.composeProject().equals(other.composeProject())
+            && one.composeService().equals(other.composeService())
+        : one.container().equals(other.container());
   }
 
   private static String stripped(String name) {

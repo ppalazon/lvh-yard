@@ -5,7 +5,7 @@ public class InvalidRegistrationException extends RuntimeException {
 
   private final String field;
 
-  InvalidRegistrationException(String field, String message) {
+  public InvalidRegistrationException(String field, String message) {
     super(message);
     this.field = field;
   }

@@ -740,69 +740,131 @@ class YardTest {
   }
 
   @Test
-  void registerWithContainerBindsTheServiceToThatContainersPort() {
+  void registerContainerWithComposeBindsTheComposeServiceIntoAServiceOfItsCleanedName() {
     dashboard.answer(
         "POST",
-        "/api/workstation/services/web/container-bindings",
+        "/api/workstation/services/my-web/container-bindings",
         201,
         """
-        {"id": "web-1:80", "container": "web-1", "port": 80, "instances": ["web:web-1:80"]}
+        {"id": "compose:shop:my_web:80", "composeProject": "shop", "composeService": "my_web",
+         "port": 80, "instances": ["my-web:storefront:80", "my-web:shop-web-2:80"]}
         """);
 
-    Run run = yard("register", "web", "--container", "web-1", "--port", "80");
+    Run run = yard("register", "container", "--compose", "shop/my_web", "--port", "80");
 
     assertThat(run.exitCode()).isZero();
     assertThat(run.out())
         .isEqualTo(
-            "Bound web to container web-1, port 80. It runs now, so web has its"
-                + " Bound Instance.\n");
+            "Bound my-web to Compose service my_web of project shop, port 80. 2 of its"
+                + " containers run now, so my-web has 2 Bound Instances.\n");
     dashboard.verifyCalled(
         "POST",
-        "/api/workstation/services/web/container-bindings",
+        "/api/workstation/services/my-web/container-bindings",
         """
-        {"container": "web-1", "port": 80}
+        {"composeProject": "shop", "composeService": "my_web", "port": 80}
         """);
   }
 
   @Test
-  void registerWithContainerThatDoesNotRunSaysWhenTheInstanceComes() {
+  void registerContainerWithComposeSendsTheServiceAndNoPublish() {
     dashboard.answer(
         "POST",
-        "/api/workstation/services/web/container-bindings",
+        "/api/workstation/services/shop/container-bindings",
         201,
         """
-        {"id": "web-1:80", "container": "web-1", "port": 80, "instances": []}
+        {"id": "compose:shop:web:80", "composeProject": "shop", "composeService": "web", "port": 80,
+         "instances": []}
         """);
 
-    Run run = yard("register", "web", "--container", "web-1", "--port", "80");
-
-    assertThat(run.exitCode()).isZero();
-    assertThat(run.out())
-        .isEqualTo(
-            "Bound web to container web-1, port 80. No container of that name runs"
-                + " now: web gets its Bound Instance once one starts.\n");
-  }
-
-  @Test
-  void registerWithContainerRefusesWhatOnlyAStaticInstanceHas() {
     Run run =
         yard(
             "register",
-            "web",
-            "--container",
-            "web-1",
+            "container",
+            "--compose",
+            "shop/web",
             "--port",
             "80",
-            "--host",
-            "10.1.2.3",
-            "--tag",
-            "backend");
+            "--service",
+            "shop",
+            "--no-publish");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out())
+        .isEqualTo(
+            "Bound shop to Compose service web of project shop, port 80. None of its"
+                + " containers runs now: shop gets a Bound Instance for each one that starts.\n");
+    dashboard.verifyCalled(
+        "POST",
+        "/api/workstation/services/shop/container-bindings",
+        """
+        {"composeProject": "shop", "composeService": "web", "port": 80, "publish": false}
+        """);
+  }
+
+  @Test
+  void registerContainerWithComposeNeedsAPort() {
+    Run run = yard("register", "container", "--compose", "shop/web");
+
+    assertThat(run.exitCode()).isNotZero();
+    assertThat(run.err()).isEqualTo("A Compose service needs --port.\n");
+  }
+
+  @Test
+  void registerContainerWithComposeNeedsAProjectAndAService() {
+    Run run = yard("register", "container", "--compose", "web", "--port", "80");
 
     assertThat(run.exitCode()).isNotZero();
     assertThat(run.err())
-        .isEqualTo(
-            "A Container Binding takes only --container and --port, not --host or"
-                + " --tag: those are for a Static Instance.\n");
+        .isEqualTo("Give --compose as <project>/<service>, such as shop/web, not web.\n");
+  }
+
+  @Test
+  void registerContainerWithAContainerAndComposeIsRefused() {
+    Run run = yard("register", "container", "web-1", "--compose", "shop/web", "--port", "80");
+
+    assertThat(run.exitCode()).isNotZero();
+    assertThat(run.err()).isEqualTo("Give a container or --compose, not both.\n");
+  }
+
+  @Test
+  void registerContainerNeedsAContainerOrCompose() {
+    Run run = yard("register", "container");
+
+    assertThat(run.exitCode()).isNotZero();
+    assertThat(run.err()).isEqualTo("Give a container, or --compose <project>/<service>.\n");
+  }
+
+  @Test
+  void registerContainerWithComposeThatABindingFollowsSaysWhichServiceFollowsIt() {
+    dashboard.answer(
+        "POST",
+        "/api/workstation/services/web/container-bindings",
+        409,
+        """
+        {"status": 409,
+         "detail": "The Compose service web of project shop is already followed by a Container Binding of the Service shop."}
+        """);
+
+    Run run = yard("register", "container", "--compose", "shop/web", "--port", "80");
+
+    assertThat(run.exitCode()).isEqualTo(1);
+    assertThat(run.err()).contains("of the Service shop.");
+  }
+
+  @Test
+  void registerAloneShowsItsTwoSubcommands() {
+    Run run = yard("register");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).contains("static").contains("container");
+  }
+
+  @Test
+  void registerWithAServiceAndNoSubcommandIsRefused() {
+    Run run = yard("register", "web", "--port", "80");
+
+    assertThat(run.exitCode()).isEqualTo(2);
+    assertThat(run.err()).contains("web").contains("static").contains("container");
   }
 
   @Test
@@ -863,121 +925,6 @@ class YardTest {
 
     assertThat(run.exitCode()).isNotZero();
     assertThat(run.err()).isEqualTo("web has no Container Binding to container web-1.\n");
-  }
-
-  @Test
-  void registerWithComposeServiceBindsTheServiceToEachOfItsContainers() {
-    dashboard.answer(
-        "POST",
-        "/api/workstation/services/web/container-bindings",
-        201,
-        """
-        {"id": "compose:shop:web:80", "composeProject": "shop", "composeService": "web", "port": 80,
-         "instances": ["web:storefront:80", "web:shop-web-2:80"]}
-        """);
-
-    Run run =
-        yard(
-            "register",
-            "web",
-            "--compose-project",
-            "shop",
-            "--compose-service",
-            "web",
-            "--port",
-            "80");
-
-    assertThat(run.exitCode()).isZero();
-    assertThat(run.out())
-        .isEqualTo(
-            "Bound web to Compose service web of project shop, port 80. 2 of its"
-                + " containers run now, so web has 2 Bound Instances.\n");
-    dashboard.verifyCalled(
-        "POST",
-        "/api/workstation/services/web/container-bindings",
-        """
-        {"composeProject": "shop", "composeService": "web", "port": 80}
-        """);
-  }
-
-  @Test
-  void registerWithComposeServiceThatDoesNotRunSaysWhenTheInstancesCome() {
-    dashboard.answer(
-        "POST",
-        "/api/workstation/services/web/container-bindings",
-        201,
-        """
-        {"id": "compose:shop:web:80", "composeProject": "shop", "composeService": "web", "port": 80,
-         "instances": []}
-        """);
-
-    Run run =
-        yard(
-            "register",
-            "web",
-            "--compose-project",
-            "shop",
-            "--compose-service",
-            "web",
-            "--port",
-            "80");
-
-    assertThat(run.exitCode()).isZero();
-    assertThat(run.out())
-        .isEqualTo(
-            "Bound web to Compose service web of project shop, port 80. None of its"
-                + " containers runs now: web gets a Bound Instance for each one that starts.\n");
-  }
-
-  @Test
-  void registerWithComposeServiceNeedsBothItsProjectAndItsService() {
-    Run run = yard("register", "web", "--compose-service", "web", "--port", "80");
-
-    assertThat(run.exitCode()).isNotZero();
-    assertThat(run.err())
-        .isEqualTo("A Compose service needs both --compose-project and --compose-service.\n");
-  }
-
-  @Test
-  void registerWithAContainerAndAComposeServiceIsRefused() {
-    Run run =
-        yard(
-            "register",
-            "web",
-            "--container",
-            "web-1",
-            "--compose-project",
-            "shop",
-            "--compose-service",
-            "web",
-            "--port",
-            "80");
-
-    assertThat(run.exitCode()).isNotZero();
-    assertThat(run.err())
-        .isEqualTo("Give --container, or --compose-project and --compose-service, not both.\n");
-  }
-
-  @Test
-  void registerWithComposeServiceRefusesWhatOnlyAStaticInstanceHas() {
-    Run run =
-        yard(
-            "register",
-            "web",
-            "--compose-project",
-            "shop",
-            "--compose-service",
-            "web",
-            "--port",
-            "80",
-            "--check",
-            "http");
-
-    assertThat(run.exitCode()).isNotZero();
-    assertThat(run.err())
-        .isEqualTo(
-            "A Container Binding takes only --compose-project, --compose-service and"
-                + " --port, not --check: those are for a Static Instance.\n");
   }
 
   @Test

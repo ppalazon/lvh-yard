@@ -148,8 +148,8 @@ class WorkstationServicesController {
       summary = "Binds a Service to a container or a Compose service",
       description =
           "Give either container, or composeProject and composeService. Each running container that"
-              + " matches is a Bound Instance with a TCP check. Binding the same again changes"
-              + " nothing.")
+              + " matches is a Bound Instance with a TCP check. A new Service gets a Publication"
+              + " with Local Scope, unless publish is false.")
   @ApiResponse(responseCode = "201", description = "Bound", useReturnTypeSchema = true)
   @ApiResponse(
       responseCode = "400",
@@ -157,9 +157,19 @@ class WorkstationServicesController {
           Registrations.INVALID_NAME
               + ", the body names both or neither of a container and a Compose service, a name is"
               + " not one Docker or Compose allows, or the port is not a TCP port")
+  @ApiResponse(
+      responseCode = "409",
+      description =
+          "A Container Binding of this Workstation already follows the same container name, or the"
+              + " same Compose project and service, whatever its port. The answer names its"
+              + " Service")
   ContainerBinding bind(
       @PathVariable String service, @RequestBody ContainerBindingRequest request) {
-    String id = containerBindings.add(workstation.name(), service, request);
+    String id =
+        publications.addPublishingNew(
+            service,
+            request.publish(),
+            () -> containerBindings.add(workstation.name(), service, request));
     return service(service).containerBindings().stream()
         .filter(binding -> binding.id().equals(id))
         .findFirst()
