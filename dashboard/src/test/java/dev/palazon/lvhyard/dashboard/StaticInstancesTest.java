@@ -73,7 +73,7 @@ class StaticInstancesTest extends DashboardTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody().get("detail").asString())
-        .isEqualTo("consul is Consul's own entry in its catalog.");
+        .isEqualTo("consul is Consul's own entry in its catalog");
   }
 
   @ParameterizedTest
