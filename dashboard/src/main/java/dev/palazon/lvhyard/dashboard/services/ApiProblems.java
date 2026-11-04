@@ -1,12 +1,17 @@
 package dev.palazon.lvhyard.dashboard.services;
 
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
-/** Every error is a Problem Details document (RFC 9457). */
+/**
+ * Every error is a Problem Details document (RFC 9457). Before the advice for every controller,
+ * which matches every exception.
+ */
+@Order(0)
 @RestControllerAdvice(
     assignableTypes = {
       AliasesController.class,

@@ -1,0 +1,102 @@
+package dev.palazon.lvhyard.dashboard;
+
+import dev.palazon.lvhyard.dashboard.consul.ConsulSettings;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.NestedExceptionUtils;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
+import org.springframework.web.ErrorResponse;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.util.DisconnectedClientHelper;
+
+/**
+ * The exceptions that no controller and no other advice handles. Each one logs one line, with its
+ * stack trace only when {@code YARD_STACK_TRACES} is true. The REST API answers with Problem
+ * Details (RFC 9457), and the pages with the error page.
+ *
+ * <p>Last in order, because its handler for {@link Exception} matches every exception, and would
+ * otherwise take the exceptions of {@code ApiProblems}.
+ */
+@ControllerAdvice
+@Order(Ordered.LOWEST_PRECEDENCE)
+class Problems {
+
+  private static final Logger LOG = LoggerFactory.getLogger(Problems.class);
+
+  private final ConsulSettings consul;
+
+  private final boolean stackTraces;
+
+  Problems(ConsulSettings consul, @Value("${lvh-yard.stack-traces}") boolean stackTraces) {
+    this.consul = consul;
+    this.stackTraces = stackTraces;
+  }
+
+  /**
+   * Only {@code Consul} uses a RestClient, so this exception always means that Consul of this
+   * Workstation did not answer in time, or not at all. It is expected while Consul starts or is
+   * busy.
+   */
+  @ExceptionHandler
+  @ResponseBody
+  ProblemDetail unanswered(
+      ResourceAccessException e, HttpServletRequest request, HttpServletResponse response)
+      throws IOException {
+    LOG.atWarn()
+        .setCause(stackTraces ? e : null)
+        .log("{} {} failed: {}", request.getMethod(), request.getRequestURI(), e.getMessage());
+    return answer(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        "Consul does not answer at " + consul.url() + ". Try again in a moment.",
+        request,
+        response);
+  }
+
+  /**
+   * An exception that has its own status, such as a missing page, and a client that went away, keep
+   * the default handling of Spring: an exception handler that throws its own exception again passes
+   * it on.
+   */
+  @ExceptionHandler
+  @ResponseBody
+  ProblemDetail unexpected(Exception e, HttpServletRequest request, HttpServletResponse response)
+      throws Exception {
+    if (e instanceof ErrorResponse || DisconnectedClientHelper.isClientDisconnectedException(e)) {
+      throw e;
+    }
+    Throwable cause = NestedExceptionUtils.getMostSpecificCause(e);
+    LOG.atError()
+        .setCause(stackTraces ? e : null)
+        .log(
+            "{} {} failed: {}{}",
+            request.getMethod(),
+            request.getRequestURI(),
+            e,
+            cause == e ? "" : ", caused by " + cause);
+    return answer(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName(),
+        request,
+        response);
+  }
+
+  private static ProblemDetail answer(
+      HttpStatus status, String detail, HttpServletRequest request, HttpServletResponse response)
+      throws IOException {
+    if (request.getRequestURI().startsWith("/api/")) {
+      return ProblemDetail.forStatusAndDetail(status, detail);
+    }
+    response.sendError(status.value(), detail);
+    return null;
+  }
+}

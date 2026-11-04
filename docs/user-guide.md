@@ -50,6 +50,10 @@ dashboard), `consul` ([consul.lvh.me](http://consul.lvh.me)) and `traefik`
 Run the other `docker compose` commands in the same folder. For example,
 `docker compose logs -f consul` shows the logs of Consul.
 
+If a request to the dashboard fails, `docker compose logs dashboard` shows one
+line for it, with no stack trace. To also log the stack trace, set
+`YARD_STACK_TRACES=true` in `.env`. Then run `docker compose up -d`.
+
 The files that `init` writes are a reference setup, and they are yours. You
 can change `compose.yaml`, or run Consul, Traefik and the dashboard another
 way. The comments in `compose.yaml` and `.env` explain each value. `lvh-yard`

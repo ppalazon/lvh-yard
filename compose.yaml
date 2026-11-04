@@ -98,6 +98,7 @@ services:
       YARD_CONSUL_HTTP_PORT: ${YARD_CONSUL_HTTP_PORT:-8500}
       YARD_PEERS: ${YARD_PEERS:-}
       YARD_ROUTE_PROFILES: /etc/lvh-yard/route-profiles.yaml
+      YARD_STACK_TRACES: ${YARD_STACK_TRACES:-false}
     # The Container Bindings follow the containers of this Workstation. The dashboard reads route-profiles.yaml in
     # this folder. The folder is mounted, not the file: when an editor saves by replacing the file, a file mount keeps
     # the old copy.
