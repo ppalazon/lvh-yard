@@ -1,6 +1,6 @@
 # Route Profiles: auth and headers for a Publication, on every Workstation
 
-Status: ready-for-agent
+Status: done
 
 Words follow `GLOSSARY.md` (Route Profile, Publication, Home Workstation, Alias, Out-of-range Instance). Decisions follow ADR-0004 (Route Profiles are written in a Home file and travel through Consul KV) and ADR-0002. Builds on `.scratch/init/spec.md` (the `route-profiles.yaml` template) and `.scratch/status/spec.md`.
 

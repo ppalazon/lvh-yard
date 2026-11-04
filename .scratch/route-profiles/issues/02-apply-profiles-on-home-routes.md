@@ -4,7 +4,7 @@
 
 **Blocked by:** 01, core-services/03
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] `PublicationRequest` takes `profiles`; absent keeps them, empty clears them; unknown names are refused with the names that exist
 - [x] The Traefik configuration has the middlewares as `<workstation>_<profile>` and lists them on the Route in order

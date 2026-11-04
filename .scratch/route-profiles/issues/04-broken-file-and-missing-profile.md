@@ -4,7 +4,7 @@
 
 **Blocked by:** 02, status/02
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] Invalid YAML or an unknown type keeps the last good profiles in KV and records the error
 - [x] The error shows in `GET .../route-profiles`, `lvh-yard profiles`, and as a warning in the status's Traefik part and header dot

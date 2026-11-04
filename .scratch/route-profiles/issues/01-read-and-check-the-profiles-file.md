@@ -4,7 +4,7 @@
 
 **Blocked by:** init/01
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] The dashboard reads the file from `YARD_ROUTE_PROFILES` (default: `init`'s folder); no file means no profiles
 - [x] The `init` template writes a commented example file, and `compose.yaml` mounts it read-only into the dashboard

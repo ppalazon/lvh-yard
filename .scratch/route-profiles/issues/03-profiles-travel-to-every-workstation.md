@@ -4,7 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] Every Workstation routing a Publication reads its profiles from the Home Workstation's KV
 - [x] Middlewares are named `<home-workstation>_<profile>`; chain members and references are renamed the same way
