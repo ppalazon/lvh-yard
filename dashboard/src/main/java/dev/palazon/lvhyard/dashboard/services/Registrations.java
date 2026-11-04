@@ -56,7 +56,7 @@ public class Registrations {
   /** Consul keeps its own server entry in its catalog under this name. */
   private static final String CONSUL = "consul";
 
-  private static final String CONSUL_REFUSAL = "consul is Consul's own entry in its catalog.";
+  private static final String CONSUL_REFUSAL = "consul is Consul's own entry in its catalog";
 
   /** Where an HTTP check's path is kept: Consul does not give back a check's URL. */
   static final String HTTP_PATH = RESERVED_META + "http-path";
