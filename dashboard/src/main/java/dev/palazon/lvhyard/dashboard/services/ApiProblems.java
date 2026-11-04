@@ -28,6 +28,11 @@ class ApiProblems extends ResponseEntityExceptionHandler {
   }
 
   @ExceptionHandler
+  ProblemDetail unknownRouteProfile(UnknownRouteProfileException exception) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+  }
+
+  @ExceptionHandler
   ProblemDetail coreService(CoreServiceException exception) {
     return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
   }

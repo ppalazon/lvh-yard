@@ -1,7 +1,9 @@
 package dev.palazon.lvhyard.dashboard.services;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.consul.Consul;
+import dev.palazon.lvhyard.dashboard.profiles.RouteProfiles;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -12,8 +14,8 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * One Consul KV key per published Service, holding its Scope and Instance Priority. Publishing
- * never touches an Instance.
+ * One Consul KV key per published Service, holding its Scope, Instance Priority and Route Profiles.
+ * Publishing never touches an Instance.
  */
 @Component
 public class Publications {
@@ -28,19 +30,36 @@ public class Publications {
 
   private final ContainerBindings containerBindings;
 
-  Publications(Workstation workstation, Consul consul, ContainerBindings containerBindings) {
+  private final RouteProfiles routeProfiles;
+
+  Publications(
+      Workstation workstation,
+      Consul consul,
+      ContainerBindings containerBindings,
+      RouteProfiles routeProfiles) {
     this.workstation = workstation;
     this.consul = consul;
     this.containerBindings = containerBindings;
+    this.routeProfiles = routeProfiles;
   }
 
   /**
-   * {@code workstation} must be this one. With no Scope or no priority, a new Publication gets
-   * Local Scope or the default order, and an existing one keeps its own. A Core Service keeps Local
-   * Scope and the default order.
+   * {@code workstation} must be this one. With no Scope, no priority or no profiles, a new
+   * Publication gets Local Scope, the default order or no profiles, and an existing one keeps its
+   * own. A Core Service keeps Local Scope and the default order.
+   *
+   * @param profiles names of this Workstation's valid Route Profiles. Empty removes them all.
    */
-  public void publish(String workstation, String service, Scope scope, List<String> priority) {
+  public void publish(
+      String workstation,
+      String service,
+      Scope scope,
+      List<String> priority,
+      List<String> profiles) {
     checkHome(workstation);
+    if (profiles != null) {
+      checkProfiles(profiles);
+    }
     Optional<CoreService> core = CoreService.named(service);
     if (core.isPresent()) {
       if (scope == Scope.YARD) {
@@ -53,7 +72,7 @@ public class Publications {
         throw CoreServiceException.cannotBe(
             service, "given an Instance Priority, as it has only its own Instance");
       }
-      keepCorePublication(core.get());
+      keepCorePublication(core.get(), profiles);
       return;
     }
     Registrations.checkName(service);
@@ -63,8 +82,18 @@ public class Publications {
     Publication chosen =
         new Publication(
             given(scope, existing, Publication::scope, Scope.LOCAL),
-            given(kinds, existing, Publication::priority, InstanceKind.DEFAULT_PRIORITY));
+            given(kinds, existing, Publication::priority, InstanceKind.DEFAULT_PRIORITY),
+            given(profiles, existing, Publication::profiles, List.of()));
     consul.putValue(PREFIX + service, value(chosen));
+  }
+
+  private void checkProfiles(List<String> profiles) {
+    List<String> known = routeProfiles.names();
+    List<String> unknown =
+        profiles.stream().filter(name -> !known.contains(name)).distinct().toList();
+    if (!unknown.isEmpty()) {
+      throw new UnknownRouteProfileException(unknown, known);
+    }
   }
 
   /** {@code given} when there is one, else what {@code existing} has, else {@code fallback}. */
@@ -77,17 +106,19 @@ public class Publications {
   }
 
   /**
-   * The Scope alone, as before Instance Priority, while the order is the default. So Workstations
-   * on an older version still read most Publications.
+   * The Scope alone, as before Instance Priority, while the order is the default and there are no
+   * profiles. So Workstations on an older version still read most Publications.
    */
   private static String value(Publication publication) {
-    if (publication.priority().equals(InstanceKind.DEFAULT_PRIORITY)) {
+    if (publication.priority().equals(InstanceKind.DEFAULT_PRIORITY)
+        && publication.profiles().isEmpty()) {
       return publication.scope().value();
     }
     return JSON.writeValueAsString(
         new StoredPublication(
             publication.scope().value(),
-            publication.priority().stream().map(InstanceKind::value).toList()));
+            publication.priority().stream().map(InstanceKind::value).toList(),
+            publication.profiles().isEmpty() ? null : publication.profiles()));
   }
 
   private static Publication publication(String value) {
@@ -96,23 +127,37 @@ public class Publications {
     }
     StoredPublication stored = JSON.readValue(value, StoredPublication.class);
     try {
-      return new Publication(Scope.of(stored.scope()), InstanceKind.priority(stored.priority()));
+      return new Publication(
+          Scope.of(stored.scope()),
+          InstanceKind.priority(stored.priority()),
+          stored.profiles() == null ? List.of() : stored.profiles());
     } catch (InvalidPriorityException e) {
       // A fault in the stored data, not a refusal of what someone asked.
       throw new IllegalStateException(e.getMessage(), e);
     }
   }
 
-  private record StoredPublication(String scope, List<String> priority) {}
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  private record StoredPublication(String scope, List<String> priority, List<String> profiles) {}
 
   /**
    * A Yard Scope from before it was refused for Core Services goes back to Local. No name rule
    * applies: the Core Service's name is kept for it.
    */
   void keepCorePublication(CoreService service) {
+    keepCorePublication(service, null);
+  }
+
+  /** With no {@code profiles}, the Core Service keeps its own. */
+  private void keepCorePublication(CoreService service, List<String> profiles) {
     Publication existing = all().get(service.serviceName());
-    if (existing == null || existing.scope() != Scope.LOCAL) {
-      consul.putValue(PREFIX + service.serviceName(), Scope.LOCAL.value());
+    Publication kept =
+        new Publication(
+            Scope.LOCAL,
+            InstanceKind.DEFAULT_PRIORITY,
+            given(profiles, existing, Publication::profiles, List.of()));
+    if (!kept.equals(existing)) {
+      consul.putValue(PREFIX + service.serviceName(), value(kept));
     }
   }
 

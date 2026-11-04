@@ -139,6 +139,8 @@ lvh-yard publish web                        # http://web.<base-domain> (Local Sc
 lvh-yard publish web --scope yard           # also on every other Workstation (Yard Scope)
 lvh-yard publish web --priority bound,static  # prefer Bound Instances (Instance Priority)
 lvh-yard publish web --priority off           # Static and Bound Instances share the Route
+lvh-yard publish web --profile basic-auth     # apply a Route Profile; repeat for more
+lvh-yard publish web --no-profiles            # remove all Route Profiles
 lvh-yard unpublish web
 lvh-yard alias add grafana --workstation ws-b                 # http://grafana.<base-domain> for grafana of ws-b
 lvh-yard alias add db --workstation ws-b --service postgres   # a name that differs from the Service
@@ -326,6 +328,30 @@ The other profiles still work. `lvh-yard profiles` and
 `GET /api/workstation/route-profiles` list each profile with its type and the
 reason it is refused. If the whole file cannot be read, for example because it
 is not valid YAML, the dashboard keeps the profiles that it read before.
+
+A Publication names zero or more Route Profiles. Choose them on the Service
+page, or with `lvh-yard publish`:
+
+```sh
+lvh-yard publish admin --profile basic-auth             # admin.<base-domain> asks for a password
+lvh-yard publish admin --profile office-only --profile basic-auth   # in this order
+lvh-yard publish admin --no-profiles                    # removes them all
+```
+
+Without `--profile`, a Publication keeps its profiles. A name that is not a
+valid profile of the file is refused, with the names that exist. A Core
+Service, such as `consul`, can have profiles too.
+
+The Route gets each profile as a Traefik middleware named
+`<workstation>-<profile>`, such as `ws-a-basic-auth`, in the order of the
+Publication. A chain's members get the same name in front. So the profiles of
+two Workstations never clash.
+
+A profile with `basicAuth`, `digestAuth` or `forwardAuth`, also inside a chain,
+protects only the hostname. A connection straight to the Instance's address and
+port does not go through Traefik, so it skips the profile. The Service page,
+the API and `lvh-yard publish` show a warning about it. The Service must check
+its users itself.
 
 ### Container Bindings
 

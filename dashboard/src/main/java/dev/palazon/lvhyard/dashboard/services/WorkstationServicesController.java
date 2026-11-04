@@ -185,14 +185,16 @@ class WorkstationServicesController {
   @PutMapping("/{service}/publication")
   @Operation(
       operationId = "publish",
-      summary = "Publishes a Service, or changes its Scope or Instance Priority",
+      summary = "Publishes a Service, or changes its Scope, Instance Priority or Route Profiles",
       description =
           "With Yard Scope, the other Workstations also route it, at"
               + " <service>.<workstation>.<base-domain>. With no Scope, a new Publication gets"
               + " Local Scope and an existing one keeps its own. With no priority, a new"
               + " Publication gets static, bound, alias and an existing one keeps its own. An empty"
               + " priority turns the Instance Priority off: the passing Static and Bound Instances"
-              + " share the Route.")
+              + " share the Route. The Route applies the Route Profiles in order, as Traefik"
+              + " middlewares named <workstation>-<profile>. With no profiles, a Publication keeps"
+              + " its own. Empty profiles remove them all. A Core Service takes profiles too.")
   @ApiResponse(
       responseCode = "200",
       description = "The Service, published",
@@ -201,7 +203,8 @@ class WorkstationServicesController {
       responseCode = "400",
       description =
           "The name is not a single DNS label or is taken by a Core Service, the Scope is not"
-              + " local or yard, or the priority repeats a kind or names an unknown one")
+              + " local or yard, the priority repeats a kind or names an unknown one, or a Route"
+              + " Profile is not among this Workstation's valid profiles")
   @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
   @ApiResponse(
       responseCode = "409",
@@ -212,7 +215,8 @@ class WorkstationServicesController {
         workstation.name(),
         service,
         request == null ? null : request.scope(),
-        request == null ? null : request.priority());
+        request == null ? null : request.priority(),
+        request == null ? null : request.profiles());
     return service(service);
   }
 

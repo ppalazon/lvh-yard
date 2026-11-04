@@ -9,7 +9,9 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -26,6 +28,9 @@ public class RouteProfiles {
   public static final String KEY_PREFIX = "lvh-yard/route-profiles/";
 
   private static final ObjectMapper JSON = JsonMapper.builder().build();
+
+  private static final TypeReference<Map<String, Map<String, Object>>> STORED =
+      new TypeReference<>() {};
 
   private final Path path;
 
@@ -55,6 +60,22 @@ public class RouteProfiles {
   }
 
   /**
+   * The profiles a Workstation's Consul KV holds, by name.
+   *
+   * @param datacenter the Workstation's; {@code null} for this Workstation
+   */
+  public Map<String, RouteProfileDefinition> stored(String datacenter) {
+    Map<String, RouteProfileDefinition> stored = new TreeMap<>();
+    consul
+        .values(datacenter, KEY_PREFIX)
+        .forEach((key, value) -> {
+          String name = key.substring(KEY_PREFIX.length());
+          stored.put(name, new RouteProfileDefinition(name, JSON.readValue(value, STORED)));
+        });
+    return stored;
+  }
+
+  /**
    * Reads the file and, when it changed since the Consul KV took it, copies its valid profiles
    * there and deletes the others. A file that cannot be read writes nothing, so the KV keeps the
    * profiles read before.
@@ -80,8 +101,9 @@ public class RouteProfiles {
       synced = text;
       return;
     }
-    file = new RouteProfilesFile(null, reading.profiles());
+    // Consul first: a profile that names() gives is one a Route can read.
     copyToConsul(reading.definitions());
+    file = new RouteProfilesFile(null, reading.profiles());
     synced = text;
   }
 

@@ -148,6 +148,29 @@ class OpenApiTest extends DashboardTest {
   }
 
   @Test
+  void publishingTakesRouteProfilesAndServicesShowThem() {
+    JsonNode docs = get("/v3/api-docs").getBody();
+    JsonNode schemas = docs.get("components").get("schemas");
+
+    JsonNode profiles = schemas.get("PublicationRequest").get("properties").get("profiles");
+    assertThat(profiles.get("type").asString()).isEqualTo("array");
+    assertThat(profiles.get("items").get("type").asString()).isEqualTo("string");
+    assertThat(schemas.get("Service").get("properties").get("profiles").get("type").asString())
+        .isEqualTo("array");
+    assertThat(schemas.get("Service").get("properties").has("profileDefinitions")).isFalse();
+    assertThat(schemas.get("Publication").get("properties").has("profiles")).isFalse();
+    assertThat(
+            schemas.get("ServiceWarning").get("properties").get("kind").get("enum").valueStream())
+        .map(JsonNode::asString)
+        .contains("route-profile-auth");
+    JsonNode put =
+        docs.get("paths").get("/api/workstation/services/{service}/publication").get("put");
+    assertThat(put.get("description").asString()).contains("Route Profiles");
+    assertThat(put.get("responses").get("400").get("description").asString())
+        .contains("Route Profile");
+  }
+
+  @Test
   void publishingTakesAnInstancePriority() {
     JsonNode request =
         get("/v3/api-docs")

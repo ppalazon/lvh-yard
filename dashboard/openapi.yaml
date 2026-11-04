@@ -585,7 +585,10 @@ paths:
         \ With no Scope, a new Publication gets Local Scope and an existing one keeps\
         \ its own. With no priority, a new Publication gets static, bound, alias and\
         \ an existing one keeps its own. An empty priority turns the Instance Priority\
-        \ off: the passing Static and Bound Instances share the Route."
+        \ off: the passing Static and Bound Instances share the Route. The Route applies\
+        \ the Route Profiles in order, as Traefik middlewares named <workstation>-<profile>.\
+        \ With no profiles, a Publication keeps its own. Empty profiles remove them\
+        \ all. A Core Service takes profiles too."
       operationId: publish
       parameters:
       - in: path
@@ -611,8 +614,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: "The name is not a single DNS label or is taken by a Core Service,\
-            \ the Scope is not local or yard, or the priority repeats a kind or names\
-            \ an unknown one"
+            \ the Scope is not local or yard, the priority repeats a kind or names\
+            \ an unknown one, or a Route Profile is not among this Workstation's valid\
+            \ profiles"
         "404":
           content:
             application/problem+json:
@@ -626,7 +630,8 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
           description: "The Service is a Core Service, and the Scope is yard or a\
             \ priority is given"
-      summary: "Publishes a Service, or changes its Scope or Instance Priority"
+      summary: "Publishes a Service, or changes its Scope, Instance Priority or Route\
+        \ Profiles"
       tags:
       - workstation-services-controller
   /api/workstation/services/{service}/reachability:
@@ -916,6 +921,13 @@ components:
             - static
             - bound
             - alias
+        profiles:
+          type: array
+          description: "Names of this Workstation's Route Profiles, in the order the\
+            \ Route applies them. Empty removes them all. When left out, a Publication\
+            \ keeps its own."
+          items:
+            type: string
         scope:
           type: string
           enum:
@@ -1034,6 +1046,12 @@ components:
             - static
             - bound
             - alias
+        profiles:
+          type: array
+          description: "The names of its Route Profiles, in the order its Route applies\
+            \ them"
+          items:
+            type: string
         publication:
           $ref: "#/components/schemas/Publication"
         routing:
@@ -1066,6 +1084,7 @@ components:
           enum:
           - loopback-instance
           - unpublished-container-port
+          - route-profile-auth
         message:
           type: string
       required:

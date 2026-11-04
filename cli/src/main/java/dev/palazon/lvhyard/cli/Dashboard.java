@@ -58,6 +58,7 @@ final class Dashboard {
       List<Instance> instances,
       List<ContainerBinding> containerBindings,
       List<Warning> warnings,
+      List<String> profiles,
       Routing routing,
       Boolean core) {
 
@@ -337,7 +338,8 @@ final class Dashboard {
    * With no Scope or no priority, a new Publication gets Local Scope or the default order, and an
    * existing one keeps its own.
    */
-  Service publish(String service, String scope, List<String> priority) {
+  /** Sends only what is not {@code null}, so the Publication keeps the rest. */
+  Service publish(String service, String scope, List<String> priority, List<String> profiles) {
     HttpRequest.Builder request = HttpRequest.newBuilder(publicationUrl(service));
     Map<String, Object> body = new LinkedHashMap<>();
     if (scope != null) {
@@ -345,6 +347,9 @@ final class Dashboard {
     }
     if (priority != null) {
       body.put("priority", priority);
+    }
+    if (profiles != null) {
+      body.put("profiles", profiles);
     }
     if (body.isEmpty()) {
       request.PUT(HttpRequest.BodyPublishers.noBody());

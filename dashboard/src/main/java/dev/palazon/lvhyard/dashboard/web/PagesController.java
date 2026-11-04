@@ -1,6 +1,7 @@
 package dev.palazon.lvhyard.dashboard.web;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
+import dev.palazon.lvhyard.dashboard.profiles.RouteProfiles;
 import dev.palazon.lvhyard.dashboard.reachability.ReachabilityTester;
 import dev.palazon.lvhyard.dashboard.services.Aliases;
 import dev.palazon.lvhyard.dashboard.services.ContainerBindings;
@@ -22,6 +23,7 @@ import dev.palazon.lvhyard.dashboard.services.UnknownAliasException;
 import dev.palazon.lvhyard.dashboard.services.UnknownContainerBindingException;
 import dev.palazon.lvhyard.dashboard.services.UnknownContainerException;
 import dev.palazon.lvhyard.dashboard.services.UnknownInstanceException;
+import dev.palazon.lvhyard.dashboard.services.UnknownRouteProfileException;
 import dev.palazon.lvhyard.dashboard.services.UnknownServiceException;
 import dev.palazon.lvhyard.dashboard.services.UnknownStateException;
 import dev.palazon.lvhyard.dashboard.services.UnknownWorkstationException;
@@ -66,6 +68,8 @@ class PagesController {
 
   private final ReachabilityTester reachability;
 
+  private final RouteProfiles routeProfiles;
+
   PagesController(
       Workstation workstation,
       YardReader yard,
@@ -74,7 +78,8 @@ class PagesController {
       Aliases aliases,
       ContainerBindings containerBindings,
       ContainerImport containerImport,
-      ReachabilityTester reachability) {
+      ReachabilityTester reachability,
+      RouteProfiles routeProfiles) {
     this.workstation = workstation;
     this.yard = yard;
     this.registrations = registrations;
@@ -83,6 +88,7 @@ class PagesController {
     this.containerBindings = containerBindings;
     this.containerImport = containerImport;
     this.reachability = reachability;
+    this.routeProfiles = routeProfiles;
   }
 
   @GetMapping(path = "/", produces = MediaType.TEXT_HTML_VALUE)
@@ -140,7 +146,7 @@ class PagesController {
   @GetMapping(path = "/services/{workstation}/{service}", produces = MediaType.TEXT_HTML_VALUE)
   @ResponseBody
   String service(@PathVariable("workstation") String home, @PathVariable String service) {
-    return ServicePage.render(workstation, anyService(home, service));
+    return ServicePage.render(workstation, anyService(home, service), routeProfiles.names(), null);
   }
 
   /** The results are not kept. */
@@ -150,7 +156,7 @@ class PagesController {
   @ResponseBody
   String reachability(@PathVariable("workstation") String home, @PathVariable String service) {
     Service found = anyService(home, service);
-    return ServicePage.render(workstation, found, reachability.test(found));
+    return ServicePage.render(workstation, found, routeProfiles.names(), reachability.test(found));
   }
 
   private Service anyService(String home, String service) {
@@ -267,13 +273,15 @@ class PagesController {
    * existing one keeps its own.
    *
    * @param priority the kinds in order, separated by commas. Blank turns the Instance Priority off.
+   * @param profiles the Route Profiles in order, separated by commas. Blank removes them all.
    */
   @PostMapping("/services/{workstation}/{service}/publish")
   ResponseEntity<String> publish(
       @PathVariable("workstation") String home,
       @PathVariable String service,
       @RequestParam(required = false) String scope,
-      @RequestParam(required = false) String priority) {
+      @RequestParam(required = false) String priority,
+      @RequestParam(required = false) String profiles) {
     Scope chosen =
         scope == null
             ? null
@@ -282,23 +290,28 @@ class PagesController {
                     new ResponseStatusException(
                         HttpStatus.BAD_REQUEST, "The Scope is local or yard, not " + scope + "."));
     try {
-      publications.publish(home, service, chosen, kinds(priority));
+      publications.publish(home, service, chosen, list(priority), list(profiles));
     } catch (UnknownServiceException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
-    } catch (InvalidRegistrationException | InvalidPriorityException e) {
+    } catch (InvalidRegistrationException
+        | InvalidPriorityException
+        | UnknownRouteProfileException e) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
     }
     return seeOther(ServicePage.path(home, service));
   }
 
-  /** Blank text names no kind, so it turns the Instance Priority off. It is not an unknown kind. */
-  private static List<String> kinds(String priority) {
-    if (priority == null) {
+  /**
+   * Blank text names nothing, so it empties the list, such as turning the Instance Priority off. It
+   * is not an unknown name.
+   */
+  private static List<String> list(String text) {
+    if (text == null) {
       return null;
     }
-    return priority.isBlank()
+    return text.isBlank()
         ? List.of()
-        : Arrays.stream(priority.split(",", -1)).map(String::strip).toList();
+        : Arrays.stream(text.split(",", -1)).map(String::strip).toList();
   }
 
   /** Shows the Catalog when the Service had no Instances left. */

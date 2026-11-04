@@ -5,6 +5,8 @@ import dev.palazon.lvhyard.dashboard.consul.Consul;
 import dev.palazon.lvhyard.dashboard.consul.Consul.AgentService;
 import dev.palazon.lvhyard.dashboard.consul.Consul.HealthEntry;
 import dev.palazon.lvhyard.dashboard.consul.ConsulSettings;
+import dev.palazon.lvhyard.dashboard.profiles.RouteProfileDefinition;
+import dev.palazon.lvhyard.dashboard.profiles.RouteProfiles;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
@@ -61,6 +63,8 @@ public class YardReader {
 
   private final AliasKeys aliasKeys;
 
+  private final RouteProfiles routeProfiles;
+
   /**
    * When another Workstation is not asked: after two reads in a row found it unreachable, for the
    * unreachable pause. Then one read tries it again, and the Workstation shows again by itself once
@@ -76,6 +80,7 @@ public class YardReader {
       ContainerBindings containerBindings,
       OutOfRange outOfRange,
       AliasKeys aliasKeys,
+      RouteProfiles routeProfiles,
       ConsulSettings consulSettings) {
     this.workstation = workstation;
     this.consul = consul;
@@ -83,6 +88,7 @@ public class YardReader {
     this.containerBindings = containerBindings;
     this.outOfRange = outOfRange;
     this.aliasKeys = aliasKeys;
+    this.routeProfiles = routeProfiles;
     this.breakers =
         CircuitBreakerRegistry.of(
             CircuitBreakerConfig.custom()
@@ -163,7 +169,8 @@ public class YardReader {
                     datacenter,
                     name,
                     publications.all(datacenter).get(name),
-                    containerBindings.all(datacenter).getOrDefault(name, Map.of())));
+                    containerBindings.all(datacenter).getOrDefault(name, Map.of()),
+                    routeProfiles.stored(datacenter)));
     return this.workstation.is(workstation)
         ? service.map(found -> withAliases(List.of(found), this::aliasTarget).getFirst())
         : service;
@@ -235,6 +242,7 @@ public class YardReader {
           Map<String, Publication> published = publications.all(datacenter);
           Map<String, Map<String, ContainerBindingRequest>> bindings =
               containerBindings.all(datacenter);
+          Map<String, RouteProfileDefinition> profiles = routeProfiles.stored(datacenter);
           TreeSet<String> names = new TreeSet<>(consul.serviceNames(datacenter));
           names.addAll(published.keySet());
           names.addAll(bindings.keySet());
@@ -245,7 +253,8 @@ public class YardReader {
                       datacenter,
                       name,
                       published.get(name),
-                      bindings.getOrDefault(name, Map.of()))
+                      bindings.getOrDefault(name, Map.of()),
+                      profiles)
                       .stream())
               .toList();
         });
@@ -273,7 +282,8 @@ public class YardReader {
       String datacenter,
       String name,
       Publication publication,
-      Map<String, ContainerBindingRequest> bindings) {
+      Map<String, ContainerBindingRequest> bindings,
+      Map<String, RouteProfileDefinition> profiles) {
     List<Instance> instances =
         consul.health(datacenter, name).stream()
             .filter(entry -> !Consul.isServerItself(entry.service()))
@@ -302,6 +312,7 @@ public class YardReader {
             hostname(home, name, publication),
             instances,
             containerBindings,
+            profiles,
             core(home, name, instances)));
   }
 

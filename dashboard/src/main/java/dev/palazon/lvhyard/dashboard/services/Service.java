@@ -1,15 +1,23 @@
 package dev.palazon.lvhyard.dashboard.services;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import dev.palazon.lvhyard.dashboard.profiles.RouteProfileDefinition;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
- * {@code publication}, {@code hostname}, {@code priority}, {@code routing} and {@code core} are
- * left out of the JSON when null or false. {@code containerBindings} include those that match no
- * running container.
+ * {@code publication}, {@code hostname}, {@code priority}, {@code profiles}, {@code routing} and
+ * {@code core} are left out of the JSON when null, empty or false. {@code containerBindings}
+ * include those that match no running container.
  *
  * @param priority the Instance Priority of its Publication
+ * @param profiles the Route Profiles of its Publication, in the order its Route applies them
+ * @param profileDefinitions the definitions of {@code profiles} that its Home Workstation's Consul
+ *     KV holds, by name
  * @param routing where its Route on this Workstation sends requests now
  */
 public record Service(
@@ -22,9 +30,20 @@ public record Service(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ContainerBinding> containerBindings,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ServiceWarning> warnings,
     @JsonInclude(JsonInclude.Include.NON_NULL) List<InstanceKind> priority,
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+        @ArraySchema(
+            arraySchema =
+                @Schema(
+                    description =
+                        "The names of its Route Profiles, in the order its Route applies them"))
+        List<String> profiles,
+    @JsonIgnore @Schema(hidden = true) Map<String, RouteProfileDefinition> profileDefinitions,
     @JsonInclude(JsonInclude.Include.NON_NULL) Routing routing,
     @JsonInclude(JsonInclude.Include.NON_DEFAULT) boolean core) {
 
+  /**
+   * @param stored the Route Profiles its Home Workstation's Consul KV holds, by name
+   */
   Service(
       String workstation,
       String name,
@@ -32,6 +51,7 @@ public record Service(
       String hostname,
       List<Instance> instances,
       List<ContainerBinding> containerBindings,
+      Map<String, RouteProfileDefinition> stored,
       boolean core) {
     this(
         workstation,
@@ -41,10 +61,19 @@ public record Service(
         hostname,
         instances,
         containerBindings,
-        ServiceWarning.of(publication, instances),
+        ServiceWarning.of(publication, instances, stored),
         publication == null ? null : publication.priority(),
+        publication == null ? List.of() : publication.profiles(),
+        publication == null ? Map.of() : definitions(publication.profiles(), stored),
         routing(publication, hostname, instances, List.of()),
         core);
+  }
+
+  private static Map<String, RouteProfileDefinition> definitions(
+      List<String> profiles, Map<String, RouteProfileDefinition> stored) {
+    return stored.entrySet().stream()
+        .filter(entry -> profiles.contains(entry.getKey()))
+        .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
   /**
@@ -62,6 +91,8 @@ public record Service(
         containerBindings,
         warnings,
         priority,
+        profiles,
+        profileDefinitions,
         routing(publication, hostname, instances, aliased),
         core);
   }

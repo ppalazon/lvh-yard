@@ -1,5 +1,6 @@
 package dev.palazon.lvhyard.dashboard.routes;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
 import java.util.Map;
 
@@ -9,9 +10,20 @@ import java.util.Map;
  */
 record TraefikConfiguration(Http http) {
 
-  record Http(Map<String, Router> routers, Map<String, Service> services) {}
+  /**
+   * @param middlewares the Route Profiles' middlewares, by their name in Traefik, each in Traefik's
+   *     own shape
+   */
+  record Http(
+      Map<String, Router> routers,
+      Map<String, Service> services,
+      @JsonInclude(JsonInclude.Include.NON_EMPTY) Map<String, Map<String, Object>> middlewares) {}
 
-  record Router(String rule, List<String> entryPoints, String service) {}
+  record Router(
+      String rule,
+      List<String> entryPoints,
+      String service,
+      @JsonInclude(JsonInclude.Include.NON_EMPTY) List<String> middlewares) {}
 
   record Service(LoadBalancer loadBalancer) {}
 

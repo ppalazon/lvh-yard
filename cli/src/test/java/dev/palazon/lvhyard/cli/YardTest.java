@@ -1043,6 +1043,69 @@ class YardTest {
   }
 
   @Test
+  void publishWithProfilesSendsThemInOrderAndPrintsTheAuthWarning() {
+    dashboard.answer(
+        "PUT",
+        "/api/workstation/services/admin/publication",
+        200,
+        """
+        {"workstation": "ws-a", "name": "admin", "state": "healthy",
+         "publication": {"scope": "local"}, "hostname": "admin.lvh.me", "containerBindings": [],
+         "profiles": ["basic-auth", "cors"],
+         "warnings": [
+            {"kind": "route-profile-auth",
+             "message": "The Route Profile basic-auth asks who the user is only on the hostname."}],
+         "instances": []}
+        """);
+
+    Run run = yard("publish", "admin", "--profile", "basic-auth", "--profile", "cors");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).contains("Route Profiles: basic-auth, cors.");
+    assertThat(run.err())
+        .isEqualTo(
+            "Warning: The Route Profile basic-auth asks who the user is only on the hostname.\n");
+    dashboard.verifyCalled(
+        "PUT",
+        "/api/workstation/services/admin/publication",
+        """
+        {"profiles": ["basic-auth", "cors"]}
+        """);
+  }
+
+  @Test
+  void publishWithNoProfilesSendsAnEmptyList() {
+    dashboard.answer(
+        "PUT",
+        "/api/workstation/services/admin/publication",
+        200,
+        """
+        {"workstation": "ws-a", "name": "admin", "state": "healthy",
+         "publication": {"scope": "local"}, "hostname": "admin.lvh.me", "containerBindings": [],
+         "warnings": [], "instances": []}
+        """);
+
+    Run run = yard("publish", "admin", "--no-profiles");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).doesNotContain("Route Profiles");
+    dashboard.verifyCalled(
+        "PUT",
+        "/api/workstation/services/admin/publication",
+        """
+        {"profiles": []}
+        """);
+  }
+
+  @Test
+  void publishRefusesProfilesWithNoProfiles() {
+    Run run = yard("publish", "admin", "--profile", "cors", "--no-profiles");
+
+    assertThat(run.exitCode()).isEqualTo(CommandLine.ExitCode.USAGE);
+    assertThat(run.err()).contains("--profile").contains("--no-profiles");
+  }
+
+  @Test
   void publishWithARefusedPriorityShowsWhyAndExitsWithOne() {
     dashboard.answer(
         "PUT",
