@@ -51,10 +51,22 @@ run = "docker compose up -d"
 description = "Stop this Workstation's Consul and Traefik"
 run = "docker compose down"
 
-[tasks.dashboard]
+[tasks."dashboard:run"]
 description = "Run the dashboard on this Workstation, as .env sets it up"
 depends = ["css"]
 run = "./mvnw -q -pl dashboard spring-boot:run"
+
+[tasks."dashboard:image"]
+description = "Build the dashboard image: mise run dashboard:image [--platform linux/arm64]"
+# The tag is the default image of compose.yaml, so docker compose on a Workstation uses this build without a change to .env.
+usage = 'flag "--platform <platform>" help="The platform of the Workstation that runs the image, for example linux/arm64"'
+run = 'docker build ${usage_platform:+--platform "$usage_platform"} -t ghcr.io/ppalazon/lvh-yard-dashboard:latest .'
+
+[tasks."dashboard:copy"]
+description = "Copy the dashboard image to another computer through ssh: mise run dashboard:copy user@host"
+usage = 'arg "<host>" help="The ssh destination, for example user@host"'
+# -C compresses the image on the way. The other computer needs no registry, only Docker and ssh.
+run = 'docker save ghcr.io/ppalazon/lvh-yard-dashboard:latest | ssh -C "$usage_host" docker load'
 
 [tasks."dev:up"]
 description = "Start a Yard of two test Workstations, ws-a and ws-b, on this computer (dev/*.env)"

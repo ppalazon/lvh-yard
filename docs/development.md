@@ -15,13 +15,26 @@ installs Node for Tailwind CSS.
 1. Copy `.env.example` to `.env`. Set `YARD_WORKSTATION`, `YARD_GOSSIP_KEY`
    and `YARD_PEERS`.
 2. Run `mise run up` to start Consul and Traefik.
-3. Run `mise run dashboard` to start the dashboard from the sources.
+3. Run `mise run dashboard:run` to start the dashboard from the sources.
 
 To run the dashboard image instead, add `COMPOSE_PROFILES=dashboard` and
 `YARD_DOCKER_GID` to `.env`. Then run `docker compose up -d`. To pin a version,
 set `YARD_DASHBOARD_IMAGE`, for example to
 `ghcr.io/ppalazon/lvh-yard-dashboard:0.1.0`. `docker compose build dashboard`
 builds the image from this repository.
+
+To try the image from your sources on another Workstation, build it and copy it
+there through ssh. The other Workstation needs Docker and ssh, but no registry.
+
+```sh
+mise run dashboard:image                        # for the CPU of this computer
+mise run dashboard:image --platform linux/arm64 # for a Workstation with another CPU
+mise run dashboard:copy user@host
+```
+
+Both tasks use the tag `ghcr.io/ppalazon/lvh-yard-dashboard:latest`. It is the
+default image of `compose.yaml`. On the other Workstation, unset
+`YARD_DASHBOARD_IMAGE` in `.env` and run `docker compose up -d`.
 
 ## A Yard on one computer
 
