@@ -4,11 +4,11 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `lvh-yard list` shows no "(Core Service)" mark.
-- [ ] The CLI does not read a `core` field from the dashboard.
-- [ ] The CLI tests for Core Service refusals go away.
-- [ ] The setup steps of the user guide name `yard`, `consul-ui` and `traefik-admin`, with their hostnames. They say that the first start sets them up and that you can remove them.
-- [ ] No other part of the user guide names Core Services.
-- [ ] The CLI test covers the text of `lvh-yard list`.
+- [x] `lvh-yard list` shows no "(Core Service)" mark.
+- [x] The CLI does not read a `core` field from the dashboard.
+- [x] The CLI tests for Core Service refusals go away.
+- [x] The setup steps of the user guide name `yard`, `consul-ui` and `traefik-admin`, with their hostnames. They say that the first start sets them up and that you can remove them.
+- [x] No other part of the user guide names Core Services.
+- [x] The CLI test covers the text of `lvh-yard list`.

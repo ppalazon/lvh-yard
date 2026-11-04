@@ -4,14 +4,14 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `GET /api/status` has the parts Consul, Traefik and Docker, and no Core Services part.
-- [ ] The status page shows the same three parts. Its text says whether LVH Yard works on this Workstation.
-- [ ] The header of every page shows one dot for each of the three parts.
-- [ ] The summary of the status API in the API documentation says whether LVH Yard works on this Workstation.
-- [ ] The help of `lvh-yard status` is "Shows whether LVH Yard works on this Workstation."
-- [ ] `lvh-yard status` exits with 1 only when Consul, Traefik or Docker is not OK.
-- [ ] The last next step of `lvh-yard init` is "Make sure that LVH Yard works: lvh-yard status".
-- [ ] The status lines of the user guide name no Core Services.
-- [ ] The status test, the status page test and the CLI test cover these points.
+- [x] `GET /api/status` has the parts Consul, Traefik and Docker, and no Core Services part.
+- [x] The status page shows the same three parts. Its text says whether LVH Yard works on this Workstation.
+- [x] The header of every page shows one dot for each of the three parts.
+- [x] The summary of the status API in the API documentation says whether LVH Yard works on this Workstation.
+- [x] The help of `lvh-yard status` is "Shows whether LVH Yard works on this Workstation."
+- [x] `lvh-yard status` exits with 1 only when Consul, Traefik or Docker is not OK.
+- [x] The last next step of `lvh-yard init` is "Make sure that LVH Yard works: lvh-yard status".
+- [x] The status lines of the user guide name no Core Services.
+- [x] The status test, the status page test and the CLI test cover these points.

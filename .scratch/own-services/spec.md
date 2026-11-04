@@ -1,6 +1,6 @@
 # LVH Yard sets up its own Services once
 
-Status: ready-for-agent
+Status: done
 
 Words follow `GLOSSARY.md`. The decision is in `docs/adr/0006-lvh-yard-sets-up-its-own-services-once.md`. This spec replaces the design in `.scratch/core-services/spec.md`.
 
