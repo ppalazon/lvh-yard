@@ -135,9 +135,32 @@ final class RouteProfileReader {
             "http.middlewares in route-profiles.yaml must map each profile's name to its"
                 + " middleware.");
     Map<String, Object> copy = new LinkedHashMap<>();
-    middlewares.forEach(
-        (name, middleware) -> copy.put(String.valueOf(name), withEmptyOptions(middleware)));
+    middlewares.forEach((name, middleware) -> {
+      checkTypesAreKnown(String.valueOf(name), middleware);
+      copy.put(String.valueOf(name), withEmptyOptions(middleware));
+    });
     return copy;
+  }
+
+  /**
+   * An unknown type is most likely a typo in a profile that Services already use, so it breaks the
+   * whole file and the Consul KV keeps the profiles read before.
+   */
+  private static void checkTypesAreKnown(String name, Object middleware) {
+    if (!(middleware instanceof Map<?, ?> map)) {
+      return;
+    }
+    for (Object key : map.keySet()) {
+      String type = String.valueOf(key);
+      if (!type.equals("plugin") && !TYPES.contains(type)) {
+        throw new IllegalArgumentException(
+            name
+                + " in route-profiles.yaml has the type "
+                + type
+                + ", which is not a Traefik"
+                + " middleware.");
+      }
+    }
   }
 
   /** {@code compress:} with nothing after it is {@code compress: {}} for Traefik. */
@@ -205,9 +228,6 @@ final class RouteProfileReader {
       }
       if (type.equals("plugin")) {
         return name + " uses a plugin. Another Workstation's Traefik may not have it.";
-      }
-      if (!TYPES.contains(type)) {
-        return name + " has the type " + type + ", which is not a Traefik middleware.";
       }
       Object options = ((Map<?, ?>) middlewares.get(name)).get(type);
       if (!(options instanceof Map<?, ?> settings)) {

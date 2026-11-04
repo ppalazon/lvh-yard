@@ -1085,6 +1085,7 @@ components:
           - loopback-instance
           - unpublished-container-port
           - route-profile-auth
+          - unknown-route-profile
         message:
           type: string
       required:

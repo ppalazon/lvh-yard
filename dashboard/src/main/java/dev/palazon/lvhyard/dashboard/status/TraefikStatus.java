@@ -1,5 +1,8 @@
 package dev.palazon.lvhyard.dashboard.status;
 
+import dev.palazon.lvhyard.dashboard.profiles.RouteProfile;
+import dev.palazon.lvhyard.dashboard.profiles.RouteProfiles;
+import dev.palazon.lvhyard.dashboard.profiles.RouteProfilesFile;
 import dev.palazon.lvhyard.dashboard.reachability.TraefikSettings;
 import dev.palazon.lvhyard.dashboard.routes.TraefikFetches;
 import java.io.IOException;
@@ -16,7 +19,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * A last fetch older than {@link #STALE}, or none, is a warning: Traefik then reads another
- * dashboard, or none, and its Routes may be old.
+ * dashboard, or none, and its Routes may be old. A broken {@code route-profiles.yaml}, or a refused
+ * profile in it, is a warning too: Traefik then applies other profiles than the file says.
  */
 @Component
 @Order(StatusOrder.TRAEFIK)
@@ -34,11 +38,14 @@ class TraefikStatus implements PartReader {
 
   private final TraefikFetches fetches;
 
+  private final RouteProfiles profiles;
+
   private final HttpClient http = HttpClient.newBuilder().connectTimeout(PING_TIMEOUT).build();
 
-  TraefikStatus(TraefikSettings settings, TraefikFetches fetches) {
+  TraefikStatus(TraefikSettings settings, TraefikFetches fetches, RouteProfiles profiles) {
     this.settings = settings;
     this.fetches = fetches;
+    this.profiles = profiles;
   }
 
   @Override
@@ -64,10 +71,43 @@ class TraefikStatus implements PartReader {
             "last fetch",
             age == null ? "none since the dashboard started" : age.toSeconds() + " s ago",
             fresh ? PartState.OK : PartState.WARNING);
-    return Part.of(NAME, reason(ping, pingFault, age, fresh), List.of(pingDetail, fetchDetail));
+    Optional<String> profilesFault = profilesFault(profiles.file());
+    Part.Detail profilesDetail =
+        new Part.Detail(
+            "route profiles",
+            profilesFault.orElse(profiles.names().size() + " valid"),
+            profilesFault.isPresent() ? PartState.WARNING : PartState.OK);
+    return Part.of(
+        NAME,
+        reason(ping, pingFault, age, fresh, profilesFault),
+        List.of(pingDetail, fetchDetail, profilesDetail));
   }
 
-  private static String reason(URI ping, Optional<String> pingFault, Duration age, boolean fresh) {
+  /** The broken file, else the refused profiles, as the Route Profiles' detail says them. */
+  private static Optional<String> profilesFault(RouteProfilesFile file) {
+    if (file.error() != null) {
+      return Optional.of(file.error() + " The Route Profiles read before still apply.");
+    }
+    List<String> refused =
+        file.profiles().stream()
+            .filter(profile -> !profile.valid())
+            .map(RouteProfile::name)
+            .toList();
+    if (refused.isEmpty()) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        "route-profiles.yaml has refused profiles: "
+            + String.join(", ", refused)
+            + ". Run lvh-yard profiles to see why.");
+  }
+
+  private static String reason(
+      URI ping,
+      Optional<String> pingFault,
+      Duration age,
+      boolean fresh,
+      Optional<String> profilesFault) {
     if (pingFault.isPresent()) {
       return "Traefik does not answer its ping at " + ping + ". Make sure that it runs.";
     }
@@ -81,6 +121,9 @@ class TraefikStatus implements PartReader {
           + " s ago, more than "
           + STALE.toSeconds()
           + " s. Make sure that it reads this dashboard.";
+    }
+    if (profilesFault.isPresent()) {
+      return "Traefik answers, but " + profilesFault.get();
     }
     return "Traefik answers, and fetched its Routes " + age.toSeconds() + " s ago.";
   }

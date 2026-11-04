@@ -199,6 +199,32 @@ class YardTest {
   }
 
   @Test
+  void listShowsTheServicesWarnings() {
+    dashboard.answer(
+        "GET",
+        "/api/services?workstation=ws-b",
+        200,
+        """
+        [{"workstation": "ws-b", "name": "api", "state": "healthy", "publication": {"scope": "yard"},
+          "hostname": "api.ws-b.lvh.me", "containerBindings": [], "profiles": ["team-login"],
+          "warnings": [{"kind": "unknown-route-profile",
+                        "message": "The Route Profile team-login does not exist."}],
+          "instances": [
+            {"id": "1a2b", "host": "10.1.2.4", "port": 9090, "health": "passing",
+             "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}]
+        """);
+
+    Run run = yard("list", "--workstation", "ws-b");
+
+    assertThat(run.lines())
+        .containsExactly(
+            "ws-b",
+            "  api: healthy at api.ws-b.lvh.me",
+            "    10.1.2.4:9090  passing   1a2b",
+            "    Warning: The Route Profile team-login does not exist.");
+  }
+
+  @Test
   void listMarksACoreService() {
     dashboard.answer(
         "GET",
@@ -467,6 +493,29 @@ class YardTest {
             behind-https: headers
             team-login: basicAuth, refused. team-login reads its users from usersFile.
             two-types: refused. two-types must have exactly one middleware type.
+            """);
+  }
+
+  @Test
+  void profilesShowsTheFilesErrorAndTheProfilesReadBefore() {
+    dashboard.answer(
+        "GET",
+        "/api/workstation/route-profiles",
+        200,
+        """
+        {"error": "route-profiles.yaml is not valid YAML: line 1.",
+         "profiles": [{"name": "behind-https", "type": "headers"}]}
+        """);
+
+    Run run = yard("profiles");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out())
+        .isEqualTo(
+            """
+            Error: route-profiles.yaml is not valid YAML: line 1.
+            These Route Profiles, read before, still apply:
+            behind-https: headers
             """);
   }
 

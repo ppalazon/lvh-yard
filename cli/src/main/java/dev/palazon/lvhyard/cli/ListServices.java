@@ -67,6 +67,9 @@ class ListServices implements Runnable {
             service.routes(instance) ? "  routed" : "",
             instance.outOfRange() ? "  out of range" : "");
       }
+      for (Dashboard.Warning warning : service.warnings()) {
+        out.println("    Warning: " + warning.message());
+      }
     }
   }
 }

@@ -20,7 +20,12 @@ class Profiles implements Runnable {
   public void run() {
     Dashboard.RouteProfiles file = yard.dashboard().routeProfiles();
     PrintWriter out = spec.commandLine().getOut();
-    if (file.profiles().isEmpty()) {
+    if (file.error() != null) {
+      out.println("Error: " + file.error());
+      if (!file.profiles().isEmpty()) {
+        out.println("These Route Profiles, read before, still apply:");
+      }
+    } else if (file.profiles().isEmpty()) {
       out.println("No Route Profiles. Write them in route-profiles.yaml, next to compose.yaml.");
     }
     for (Dashboard.RouteProfile profile : file.profiles()) {

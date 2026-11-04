@@ -80,6 +80,38 @@ class RouteProfilesThroughTraefikTest extends DashboardTest {
     assertThat(answerThroughTraefik(hostname, "Basic YW5hOndyb25n")).startsWith("HTTP/1.1 401");
   }
 
+  @Test
+  void profileRemovedFromTheFileClosesTheRoute() throws IOException {
+    Files.writeString(
+        TestcontainersConfiguration.ROUTE_PROFILES,
+        """
+        http:
+          middlewares:
+            behind-https:
+              headers:
+                customRequestHeaders:
+                  X-Forwarded-Proto: https
+        """);
+    await()
+        .atMost(Duration.ofSeconds(10))
+        .until(() -> get("/api/workstation/route-profiles").getBody().get("profiles").size() == 1);
+    String web = newServiceName("web");
+    int listening = newLanPort();
+    answerHttpOnLanAddress(listening, "200 OK", "inside");
+    register(web, Map.of("port", listening));
+    put(publicationPath(web), Map.of("profiles", List.of("behind-https")));
+    String hostname = web + ".lvh.test";
+    await()
+        .atMost(Duration.ofSeconds(20))
+        .until(() -> answerThroughTraefik(hostname, null).startsWith("HTTP/1.1 200"));
+
+    Files.writeString(TestcontainersConfiguration.ROUTE_PROFILES, "");
+
+    await()
+        .atMost(Duration.ofSeconds(20))
+        .until(() -> answerThroughTraefik(hostname, null).startsWith("HTTP/1.1 404"));
+  }
+
   /**
    * The whole answer, or nothing when the connection fails. By hand, as the JDK's HTTP client does
    * not let a request set its own Host header.

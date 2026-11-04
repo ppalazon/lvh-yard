@@ -5,6 +5,8 @@ import static dev.palazon.lvhyard.dashboard.StatusTest.part;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.time.Duration;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
@@ -51,6 +53,56 @@ class TraefikStatusTest extends DashboardTest {
     assertThat(detail(traefikPart, "ping").get("state").asString()).isEqualTo("ok");
     assertThat(detail(traefikPart, "last fetch").get("value").asString()).endsWith(" s ago");
     assertThat(traefikPart.get("reason").asString()).contains("answers");
+  }
+
+  @Test
+  void brokenRouteProfilesFileIsAWarningOnThePartAndItsDot() throws IOException {
+    startTraefik();
+    Files.writeString(TestcontainersConfiguration.ROUTE_PROFILES, "http: [unclosed\n");
+    try {
+      JsonNode traefikPart =
+          await()
+              .atMost(CHANGE)
+              .until(
+                  () -> part(get("/api/status").getBody(), "Traefik"),
+                  part -> part.get("state").asString().equals("warning"));
+
+      assertThat(traefikPart.get("reason").asString()).contains("route-profiles.yaml");
+      JsonNode profiles = detail(traefikPart, "route profiles");
+      assertThat(profiles.get("state").asString()).isEqualTo("warning");
+      assertThat(profiles.get("value").asString()).contains("not valid YAML");
+      assertThat(getPage("/status/summary").getBody()).contains("aria-label=\"Traefik: Warning.");
+    } finally {
+      Files.deleteIfExists(TestcontainersConfiguration.ROUTE_PROFILES);
+    }
+  }
+
+  @Test
+  void refusedRouteProfileIsAWarningOnThePart() throws IOException {
+    startTraefik();
+    Files.writeString(
+        TestcontainersConfiguration.ROUTE_PROFILES,
+        """
+        http:
+          middlewares:
+            from-file:
+              basicAuth:
+                usersFile: /etc/traefik/users
+        """);
+    try {
+      JsonNode traefikPart =
+          await()
+              .atMost(CHANGE)
+              .until(
+                  () -> part(get("/api/status").getBody(), "Traefik"),
+                  part -> part.get("state").asString().equals("warning"));
+
+      assertThat(traefikPart.get("reason").asString()).contains("from-file");
+      assertThat(detail(traefikPart, "route profiles").get("value").asString())
+          .contains("from-file");
+    } finally {
+      Files.deleteIfExists(TestcontainersConfiguration.ROUTE_PROFILES);
+    }
   }
 
   @Test

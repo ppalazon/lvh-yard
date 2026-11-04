@@ -128,6 +128,68 @@ class RouteProfilesOnRoutesTest extends DashboardTest {
   }
 
   @Test
+  void profileRemovedFromTheFileStaysOnTheRouteAndWarns() throws Exception {
+    writeProfiles(PROFILES);
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+    put(publicationPath(web), Map.of("profiles", List.of("behind-https", "team-login")));
+
+    writeProfiles(
+        """
+        http:
+          middlewares:
+            behind-https:
+              headers:
+                customRequestHeaders:
+                  X-Forwarded-Proto: https
+        """);
+    await().untilAsserted(() -> assertThat(profileNames()).containsExactly("behind-https"));
+
+    JsonNode http = get("/traefik/configuration").getBody().get("http");
+    assertThat(http.get("routers").get(web).get("middlewares").toString())
+        .isEqualTo("[\"ws-test-behind-https\",\"ws-test-team-login\"]");
+    assertThat(http.get("middlewares").has("ws-test-team-login")).isFalse();
+    assertThat(warning(get(servicePath(web)).getBody(), "unknown-route-profile"))
+        .contains("team-login")
+        .doesNotContain("behind-https");
+    assertThat(getPage("/services/ws-test/" + web).getBody())
+        .contains("The Route Profile team-login does not exist");
+  }
+
+  @Test
+  void remotePublicationNamingAProfileItsHomeLacksStaysOnTheRouteAndWarns() {
+    String api = newServiceName("api");
+    remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
+    try {
+      // Straight to Consul: its dashboard refuses a profile it does not have.
+      remote.putConsulValue(
+          "lvh-yard/publications/" + api,
+          """
+          {"scope": "yard", "priority": ["static", "bound", "alias"], "profiles": ["gone"]}
+          """);
+
+      String router = api + "." + RemoteWorkstation.NAME;
+      await()
+          .untilAsserted(() ->
+              assertThat(
+                      get("/traefik/configuration")
+                          .getBody()
+                          .get("http")
+                          .get("routers")
+                          .path(router)
+                          .path("middlewares")
+                          .toString())
+                  .isEqualTo("[\"" + RemoteWorkstation.NAME + "-gone\"]"));
+      JsonNode service = get("/api/services/" + RemoteWorkstation.NAME + "/" + api).getBody();
+      assertThat(warning(service, "unknown-route-profile")).contains("gone");
+      assertThat(getPage("/services/" + RemoteWorkstation.NAME + "/" + api).getBody())
+          .contains("The Route Profile gone does not exist");
+    } finally {
+      remote.unpublish(api);
+    }
+  }
+
+  @Test
   void authProfileWarnsThatADirectConnectionSkipsIt() throws Exception {
     writeProfiles(PROFILES);
     String login = newServiceName("login");

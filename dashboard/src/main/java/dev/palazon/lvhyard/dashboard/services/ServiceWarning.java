@@ -26,7 +26,10 @@ public record ServiceWarning(
      * A Route Profile asks who the user is, but only Traefik applies it, so a connection straight
      * to an Instance skips it.
      */
-    ROUTE_PROFILE_AUTH;
+    ROUTE_PROFILE_AUTH,
+
+    /** Its Home Workstation does not hold the Route Profile, so Traefik refuses the Route. */
+    UNKNOWN_ROUTE_PROFILE;
 
     @JsonValue
     public String value() {
@@ -44,7 +47,11 @@ public record ServiceWarning(
     if (publication == null) {
       return List.of();
     }
-    return Stream.concat(yardScope(publication, instances), auth(publication, instances, profiles))
+    return Stream.of(
+            yardScope(publication, instances),
+            unknown(publication, profiles),
+            auth(publication, instances, profiles))
+        .flatMap(warnings -> warnings)
         .toList();
   }
 
@@ -78,6 +85,20 @@ public record ServiceWarning(
                         + " cannot reach it. Publish port "
                         + instance.port()
                         + " with docker run -p or a ports: entry, and restart the container.")));
+  }
+
+  private static Stream<ServiceWarning> unknown(
+      Publication publication, Map<String, RouteProfileDefinition> profiles) {
+    return publication.profiles().stream()
+        .filter(name -> !profiles.containsKey(name))
+        .map(name ->
+            new ServiceWarning(
+                Kind.UNKNOWN_ROUTE_PROFILE,
+                "The Route Profile "
+                    + name
+                    + " does not exist on the Home Workstation, so Traefik refuses the Route and"
+                    + " the hostname does not answer. Add the profile to route-profiles.yaml"
+                    + " again, or remove it from the Publication."));
   }
 
   private static Stream<ServiceWarning> auth(

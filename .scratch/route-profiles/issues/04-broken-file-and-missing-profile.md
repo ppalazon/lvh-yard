@@ -6,8 +6,8 @@
 
 **Status:** ready-for-agent
 
-- [ ] Invalid YAML or an unknown type keeps the last good profiles in KV and records the error
-- [ ] The error shows in `GET .../route-profiles`, `lvh-yard profiles`, and as a warning in the status's Traefik part and header dot
-- [ ] A Publication naming a missing profile keeps it on the Route, so Traefik refuses the Route
-- [ ] "Unknown Route Profile" is a Service warning on the page, in the API and in `lvh-yard list`
-- [ ] Tested on the Home and the remote Workstation
+- [x] Invalid YAML or an unknown type keeps the last good profiles in KV and records the error
+- [x] The error shows in `GET .../route-profiles`, `lvh-yard profiles`, and as a warning in the status's Traefik part and header dot
+- [x] A Publication naming a missing profile keeps it on the Route, so Traefik refuses the Route
+- [x] "Unknown Route Profile" is a Service warning on the page, in the API and in `lvh-yard list`
+- [x] Tested on the Home and the remote Workstation

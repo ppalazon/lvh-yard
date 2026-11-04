@@ -317,7 +317,7 @@ deletes it from the KV.
 A profile must work on every Workstation, so the dashboard refuses a profile
 that:
 
-- has a type that is not a Traefik middleware, or is a plugin
+- uses a plugin
 - reads its users from a file (`usersFile`). Write them under `users`, as
   hashes from `htpasswd -nbB <user> <password>`.
 - sends `forwardAuth` to `localhost` or to an out-of-range address
@@ -326,8 +326,14 @@ that:
 
 The other profiles still work. `lvh-yard profiles` and
 `GET /api/workstation/route-profiles` list each profile with its type and the
-reason it is refused. If the whole file cannot be read, for example because it
-is not valid YAML, the dashboard keeps the profiles that it read before.
+reason it is refused.
+
+If the whole file cannot be read, the dashboard keeps the profiles that it read
+before. This happens when the file is not valid YAML, or when a profile has a
+type that is not a Traefik middleware, such as a typo. So a bad save never
+opens or breaks a Service. `lvh-yard profiles` and the API show the error. The
+Traefik part of the status shows a warning for a broken file or a refused
+profile.
 
 A Publication names zero or more Route Profiles. Choose them on the Service
 page, or with `lvh-yard publish`:
@@ -352,6 +358,12 @@ protects only the hostname. A connection straight to the Instance's address and
 port does not go through Traefik, so it skips the profile. The Service page,
 the API and `lvh-yard publish` show a warning about it. The Service must check
 its users itself.
+
+If you remove a profile from the file while a Publication still names it, the
+Route still lists it. Traefik then refuses the Route, so the hostname does not
+answer and a missing auth profile never opens the Service. The Service page,
+the API and `lvh-yard list` show an "unknown Route Profile" warning. Add the
+profile again, or remove it from the Publication.
 
 ### Container Bindings
 

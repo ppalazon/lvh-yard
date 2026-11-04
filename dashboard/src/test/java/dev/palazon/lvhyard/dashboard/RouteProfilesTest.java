@@ -122,8 +122,6 @@ class RouteProfilesTest extends DashboardTest {
               headers:
                 customRequestHeaders:
                   X-Forwarded-Proto: https
-            unknown-type:
-              rewriteEverything: {}
             from-file:
               basicAuth:
                 usersFile: /etc/traefik/users
@@ -163,7 +161,6 @@ class RouteProfilesTest extends DashboardTest {
     assertThat(listed.has("error")).isFalse();
     assertThat(error(listed, "fine")).isNull();
     assertThat(error(listed, "auth-on-lan")).isNull();
-    assertThat(error(listed, "unknown-type")).contains("rewriteEverything");
     assertThat(error(listed, "from-file")).contains("usersFile").contains("users");
     assertThat(error(listed, "digest-from-file")).contains("usersFile");
     assertThat(error(listed, "auth-on-loopback")).contains("127.0.0.1");
@@ -176,7 +173,6 @@ class RouteProfilesTest extends DashboardTest {
     assertThat(names()).containsExactlyInAnyOrder("fine", "auth-on-lan");
     for (String refused :
         List.of(
-            "unknown-type",
             "from-file",
             "digest-from-file",
             "auth-on-loopback",
@@ -191,12 +187,53 @@ class RouteProfilesTest extends DashboardTest {
   }
 
   @Test
-  void fileThatIsNotYamlIsAnError() throws Exception {
+  void fileThatIsNotYamlKeepsTheLastGoodProfiles() throws Exception {
+    writeGoodProfile();
+
     writeProfiles("http: [unclosed\n");
 
-    await()
-        .untilAsserted(
-            () -> assertThat(listed().path("error").asString()).contains("route-profiles.yaml"));
+    awaitKeptGoodProfileWithError("route-profiles.yaml");
+  }
+
+  @Test
+  void unknownMiddlewareTypeKeepsTheLastGoodProfiles() throws Exception {
+    writeGoodProfile();
+
+    writeProfiles(
+        """
+        http:
+          middlewares:
+            good:
+              headers:
+                customRequestHeaders:
+                  X-Changed: "yes"
+            unknown-type:
+              rewriteEverything: {}
+        """);
+
+    awaitKeptGoodProfileWithError("rewriteEverything");
+    assertThat(kv("unknown-type")).isNull();
+    assertThat(kv("good")).doesNotContain("X-Changed");
+  }
+
+  private void writeGoodProfile() throws Exception {
+    writeProfiles(
+        """
+        http:
+          middlewares:
+            good:
+              headers:
+                customRequestHeaders:
+                  X-Forwarded-Proto: https
+        """);
+    await().untilAsserted(() -> assertThat(kv("good")).isNotNull());
+  }
+
+  /** The file's error names {@code expected}, and the profile {@code good} stays as it was. */
+  private void awaitKeptGoodProfileWithError(String expected) {
+    await().untilAsserted(() -> assertThat(listed().path("error").asString()).contains(expected));
+    assertThat(listed().get("profiles").toString())
+        .isEqualTo("[{\"name\":\"good\",\"type\":\"headers\"}]");
   }
 
   @Test
