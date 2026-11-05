@@ -52,6 +52,10 @@ _Avoid_: Unbound container, new container, orphan container
 The folder that holds one Workstation's setup files. There is one per Workstation.
 _Avoid_: Config folder, config dir, install dir
 
+**Backup**:
+A YAML file that holds what you set up for the Services of one Workstation: their Publications, Static Instances and Container Bindings, and the Workstation's Aliases and Route Profiles. You export a Backup from one Workstation and import it into the same Workstation or another one. It never holds Bound Instances, Health or Remote Services, because those come from what runs now.
+_Avoid_: Snapshot, dump, export file, setup file
+
 **Peer**:
 The LAN address of another Workstation that this Workstation joins to find the Yard. One is enough, and the first Workstation of a Yard has none.
 _Avoid_: Seed, neighbour, node
