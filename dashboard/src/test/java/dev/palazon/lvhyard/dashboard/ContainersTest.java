@@ -155,6 +155,172 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
+  void pageShowsOneComposeServiceRowWithContainerPortsAndHealthCounts() {
+    String project = newComposeProject();
+    String healthy = newContainerName();
+    String unhealthy = newContainerName();
+    String unchecked = newContainerName();
+    String starting = newContainerName();
+    GenericContainer<?> first =
+        start(
+            onePort(healthy)
+                .withExposedPorts(80)
+                .withLabel("com.docker.compose.project", project)
+                .withLabel("com.docker.compose.service", "api")
+                .withCreateContainerCmdModifier(command ->
+                    command.withHealthcheck(
+                        new HealthCheck()
+                            .withTest(List.of("CMD-SHELL", "true"))
+                            .withInterval(Duration.ofMillis(500).toNanos()))));
+    GenericContainer<?> second =
+        start(
+            twoPorts(unhealthy)
+                .withExposedPorts(80)
+                .withLabel("com.docker.compose.project", project)
+                .withLabel("com.docker.compose.service", "api")
+                .withCreateContainerCmdModifier(command ->
+                    command.withHealthcheck(
+                        new HealthCheck()
+                            .withTest(List.of("CMD-SHELL", "false"))
+                            .withRetries(1)
+                            .withInterval(Duration.ofMillis(500).toNanos()))));
+    start(
+        onePort(unchecked)
+            .withLabel("com.docker.compose.project", project)
+            .withLabel("com.docker.compose.service", "api"));
+    start(
+        onePort(starting)
+            .withLabel("com.docker.compose.project", project)
+            .withLabel("com.docker.compose.service", "api")
+            .withCreateContainerCmdModifier(command ->
+                command.withHealthcheck(
+                    new HealthCheck()
+                        .withTest(List.of("CMD-SHELL", "false"))
+                        .withStartPeriod(Duration.ofMinutes(5).toNanos())
+                        .withInterval(Duration.ofMillis(500).toNanos()))));
+    await()
+        .atMost(Duration.ofSeconds(15))
+        .untilAsserted(() -> {
+          JsonNode containers = get(PATH).getBody();
+          assertThat(listed(containers, healthy).orElseThrow().get("health").asString())
+              .isEqualTo("healthy");
+          assertThat(listed(containers, unhealthy).orElseThrow().get("health").asString())
+              .isEqualTo("unhealthy");
+        });
+
+    String group =
+        div(getPage("/containers").getBody(), "data-compose-project=\"" + project + "\"");
+
+    assertThat(group).containsOnlyOnce(">api<").contains("4 containers");
+    assertThat(group)
+        .contains("80 on host port " + first.getMappedPort(80))
+        .contains("80 on host port " + second.getMappedPort(80))
+        .containsOnlyOnce("80 not published")
+        .containsOnlyOnce("9000 not published");
+    assertThat(group).contains("1 healthy", "1 unhealthy", "1 starting", "1 without HEALTHCHECK");
+  }
+
+  @Test
+  void composeRegistrationOffersThePortsOfEveryContainerAndBindsTheWholeService() {
+    String prefix = newContainerName();
+    String first = prefix + "-a";
+    String second = prefix + "-b";
+    String project = newComposeProject();
+    String web = newServiceName("web");
+    start(
+        onePort(first)
+            .withLabel("com.docker.compose.project", project)
+            .withLabel("com.docker.compose.service", web));
+    start(
+        twoPorts(second)
+            .withLabel("com.docker.compose.project", project)
+            .withLabel("com.docker.compose.service", web));
+
+    String group =
+        div(getPage("/containers").getBody(), "data-compose-project=\"" + project + "\"");
+    assertThat(group).contains("Choose port").doesNotContain("action=");
+    String form = getPage("/containers/" + first + "/register").getBody();
+    assertThat(form).contains("80, 9000");
+    assertThat(openingTag(form, "name=\"port\"")).contains("value=\"\"");
+
+    ResponseEntity<String> response =
+        postForm("/containers/" + first + "/register", Map.of("name", web, "port", "9000"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    assertThat(response.getHeaders().getLocation()).hasPath("/services/ws-test/" + web);
+    await()
+        .atMost(Duration.ofSeconds(15))
+        .untilAsserted(() -> {
+          JsonNode service = get(servicePath(web)).getBody();
+          assertThat(service.get("instances")).hasSize(2);
+          assertThat(service.get("containerBindings").get(0).get("id").asString())
+              .isEqualTo("compose:" + project + ":" + web + ":9000");
+        });
+    assertThat(getPage("/containers").getBody())
+        .doesNotContain("data-compose-project=\"" + project + "\"");
+  }
+
+  @Test
+  void oneClickComposeRegistrationUsesTheGroupsOnlyPortEvenWhenTheFirstContainerListsNone() {
+    String prefix = newContainerName();
+    String first = prefix + "-a";
+    String second = prefix + "-b";
+    String project = newComposeProject();
+    String web = newServiceName("web");
+    start(
+        listener(first, command -> {})
+            .withLabel("com.docker.compose.project", project)
+            .withLabel("com.docker.compose.service", web));
+    start(
+        onePort(second)
+            .withLabel("com.docker.compose.project", project)
+            .withLabel("com.docker.compose.service", web));
+
+    String group =
+        div(getPage("/containers").getBody(), "data-compose-project=\"" + project + "\"");
+    assertThat(group).contains(">Register</button>");
+
+    ResponseEntity<String> response =
+        postForm("/containers/" + first + "/register", Map.of("port", "80"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    assertThat(response.getHeaders().getLocation()).hasPath("/containers");
+    await()
+        .atMost(Duration.ofSeconds(15))
+        .untilAsserted(
+            () -> assertThat(get(servicePath(web)).getBody().get("instances")).hasSize(2));
+    assertThat(getPage("/containers").getBody())
+        .doesNotContain("data-compose-project=\"" + project + "\"");
+  }
+
+  @Test
+  void composeServiceRowsStaySeparateAcrossServicesAndProjects() {
+    String first = newComposeProject();
+    String second = newComposeProject();
+    for (String service : List.of("web", "api")) {
+      start(
+          onePort(newContainerName())
+              .withLabel("com.docker.compose.project", first)
+              .withLabel("com.docker.compose.service", service));
+    }
+    start(
+        twoPorts(newContainerName())
+            .withLabel("com.docker.compose.project", second)
+            .withLabel("com.docker.compose.service", "web"));
+
+    String page = getPage("/containers").getBody();
+    String firstGroup = div(page, "data-compose-project=\"" + first + "\"");
+    String secondGroup = div(page, "data-compose-project=\"" + second + "\"");
+
+    assertThat(firstGroup).containsOnlyOnce(">web<").containsOnlyOnce(">api<");
+    assertThat(firstGroup).doesNotContain(">9000 not published<", ">2 containers<");
+    assertThat(secondGroup)
+        .containsOnlyOnce(">web<")
+        .contains(">9000 not published<", ">1 container<");
+    assertThat(secondGroup).doesNotContain(">api<");
+  }
+
+  @Test
   void pageRefreshesItsListByItself() {
     assertThat(openingTag(getPage("/containers").getBody(), "id=\"containers\""))
         .contains("hx-get=\"/containers\"")

@@ -6,6 +6,7 @@ import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
 import dev.palazon.lvhyard.dashboard.services.Registrations;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import dev.palazon.lvhyard.dashboard.services.UnfollowedContainer;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -14,6 +15,7 @@ import java.util.stream.Collectors;
 import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
 import org.xmlet.htmlapifaster.EnumTypeInputType;
+import org.xmlet.htmlapifaster.PhrasingContent;
 import org.xmlet.htmlapifaster.Section;
 import org.xmlet.htmlapifaster.Td;
 import org.xmlet.htmlapifaster.Tr;
@@ -304,7 +306,7 @@ final class ContainersPage {
           }
         })
         .th()
-        .text("Container")
+        .text(compose ? "Containers" : "Container")
         .__()
         .th()
         .text("Ports")
@@ -318,7 +320,15 @@ final class ContainersPage {
         .__()
         .__()
         .tbody()
-        .of(body -> containers.forEach(container -> row(body.tr(), compose, container, failure)))
+        .of(body ->
+            containers.stream()
+                .collect(
+                    Collectors.groupingBy(
+                        container -> compose ? container.composeService() : container.name(),
+                        LinkedHashMap::new,
+                        Collectors.toList()))
+                .values()
+                .forEach(members -> row(body.tr(), compose, members, failure)))
         .__()
         .__()
         .__()
@@ -326,37 +336,56 @@ final class ContainersPage {
   }
 
   private static void row(
-      Tr<?> row, boolean compose, UnfollowedContainer container, RegisterFailure failure) {
+      Tr<?> row, boolean compose, List<UnfollowedContainer> containers, RegisterFailure failure) {
+    UnfollowedContainer container = containers.getFirst();
+    List<UnfollowedContainer.ContainerPort> ports = combinedPorts(containers);
     row.addAttr("data-container", Layout.attr(container.name()));
     if (compose) {
+      row.addAttr("data-compose-service", Layout.attr(container.composeService()));
       row.td().attrClass("align-top").text(container.composeService()).__();
     }
     row.td()
         .attrClass("align-top")
-        .text(container.name())
+        .text(
+            compose
+                ? containers.size() + (containers.size() == 1 ? " container" : " containers")
+                : container.name())
         .__()
         .td()
         .attrClass("align-top")
-        .of(cell -> ports(cell, container.ports()))
+        .of(cell -> ports(cell, ports))
         .__()
         .td()
         .attrClass("align-top")
-        .of(cell -> health(cell, container.health()))
+        .of(cell -> {
+          if (compose) {
+            healthSummary(cell, containers);
+          } else {
+            health(cell, container.health());
+          }
+        })
         .__()
         .td()
         .attrClass("align-top")
-        .of(cell -> registerActions(cell, container, failure))
+        .of(cell -> registerActions(cell, container, ports, failure))
         .__()
         .__();
   }
 
   /**
-   * One click is enough only when the container has one port, as the port is then known. The choice
-   * of name and port is a page of its own, so the 5 s refresh cannot reset what is typed.
+   * One click is enough only when the row has one Container Port. The choice of name and port is a
+   * page of its own, so the 5 s refresh cannot reset what is typed.
    */
   private static void registerActions(
-      Td<?> cell, UnfollowedContainer container, RegisterFailure failure) {
-    List<Integer> ports = container.containerPorts();
+      Td<?> cell,
+      UnfollowedContainer container,
+      List<UnfollowedContainer.ContainerPort> availablePorts,
+      RegisterFailure failure) {
+    List<Integer> ports =
+        availablePorts.stream()
+            .map(UnfollowedContainer.ContainerPort::containerPort)
+            .distinct()
+            .toList();
     cell.div()
         .attrClass("flex flex-wrap gap-2")
         .of(actions -> {
@@ -365,6 +394,11 @@ final class ContainersPage {
                 .form()
                 .addAttr("method", "post")
                 .addAttr("action", Layout.attr(registerPath(container.name())))
+                .input()
+                .attrType(EnumTypeInputType.HIDDEN)
+                .attrName("port")
+                .attrValue(String.valueOf(ports.getFirst()))
+                .__()
                 .button()
                 .attrType(EnumTypeButtonType.SUBMIT)
                 .attrClass("btn")
@@ -402,10 +436,18 @@ final class ContainersPage {
    */
   static String renderRegister(
       Workstation workstation,
-      UnfollowedContainer container,
+      List<UnfollowedContainer> containers,
       String name,
       String port,
       InvalidRegistrationException error) {
+    UnfollowedContainer container = containers.getFirst();
+    List<Integer> ports =
+        combinedPorts(containers).stream()
+            .map(UnfollowedContainer.ContainerPort::containerPort)
+            .distinct()
+            .toList();
+    String proposedPort =
+        port == null ? (ports.size() == 1 ? String.valueOf(ports.getFirst()) : "") : port;
     return Layout.page(
         "Register " + container.name(),
         workstation.name(),
@@ -437,11 +479,15 @@ final class ContainersPage {
                         form,
                         "port",
                         "Container port",
-                        port,
+                        proposedPort,
                         "80",
-                        container.containerPorts().isEmpty()
-                            ? "The container has no exposed port."
-                            : "Its ports: " + container.containerPortList() + ".",
+                        ports.isEmpty()
+                            ? "No Container Port is listed."
+                            : "Container Ports: "
+                                + ports.stream()
+                                    .map(String::valueOf)
+                                    .collect(Collectors.joining(", "))
+                                + ".",
                         error))
                 .div()
                 .attrClass("flex gap-2")
@@ -460,10 +506,52 @@ final class ContainersPage {
                 .__());
   }
 
-  /** The port the register form proposes: the only one, else none. */
-  static String proposedPort(UnfollowedContainer container) {
-    List<Integer> ports = container.containerPorts();
-    return ports.size() == 1 ? String.valueOf(ports.getFirst()) : "";
+  private static List<UnfollowedContainer.ContainerPort> combinedPorts(
+      List<UnfollowedContainer> containers) {
+    if (containers.size() == 1) {
+      return containers.getFirst().ports();
+    }
+    return containers.stream()
+        .flatMap(container -> container.ports().stream())
+        .distinct()
+        .sorted(
+            Comparator.comparingInt(UnfollowedContainer.ContainerPort::containerPort)
+                .thenComparing(
+                    UnfollowedContainer.ContainerPort::hostPort,
+                    Comparator.nullsFirst(Comparator.naturalOrder())))
+        .toList();
+  }
+
+  private static void healthSummary(Td<?> cell, List<UnfollowedContainer> containers) {
+    int healthy = 0;
+    int unhealthy = 0;
+    int starting = 0;
+    int unchecked = 0;
+    for (UnfollowedContainer container : containers) {
+      if (container.health() == null) {
+        unchecked++;
+      } else {
+        switch (container.health()) {
+          case HEALTHY -> healthy++;
+          case UNHEALTHY -> unhealthy++;
+          case STARTING -> starting++;
+        }
+      }
+    }
+    Div<?> summary = cell.div().attrClass("flex flex-wrap gap-2");
+    if (healthy > 0) {
+      health(summary, UnfollowedContainer.HealthcheckState.HEALTHY, healthy + " healthy");
+    }
+    if (unhealthy > 0) {
+      health(summary, UnfollowedContainer.HealthcheckState.UNHEALTHY, unhealthy + " unhealthy");
+    }
+    if (starting > 0) {
+      health(summary, UnfollowedContainer.HealthcheckState.STARTING, starting + " starting");
+    }
+    if (unchecked > 0) {
+      summary.span().text(unchecked + " without HEALTHCHECK").__();
+    }
+    summary.__();
   }
 
   private static void ports(Td<?> cell, List<UnfollowedContainer.ContainerPort> ports) {
@@ -488,12 +576,17 @@ final class ContainersPage {
       cell.text("No HEALTHCHECK");
       return;
     }
+    health(cell, health, health.value());
+  }
+
+  private static void health(
+      PhrasingContent<?, ?> cell, UnfollowedContainer.HealthcheckState health, String label) {
     String variant =
         switch (health) {
           case HEALTHY -> "success";
           case UNHEALTHY -> "destructive";
           case STARTING -> "secondary";
         };
-    cell.span().attrClass("badge").addAttr("data-variant", variant).text(health.value()).__();
+    cell.span().attrClass("badge").addAttr("data-variant", variant).text(label).__();
   }
 }

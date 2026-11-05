@@ -34,6 +34,7 @@ import dev.palazon.lvhyard.dashboard.services.YardReader;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -410,13 +411,9 @@ class PagesController {
       produces = MediaType.TEXT_HTML_VALUE)
   @ResponseBody
   String registerForm(@PathVariable String container) {
-    UnfollowedContainer unfollowed = unfollowed(container);
+    List<UnfollowedContainer> unfollowed = unfollowed(container);
     return ContainersPage.renderRegister(
-        workstation,
-        unfollowed,
-        unfollowed.service(),
-        ContainersPage.proposedPort(unfollowed),
-        null);
+        workstation, unfollowed, unfollowed.getFirst().service(), null, null);
   }
 
   /**
@@ -437,9 +434,7 @@ class PagesController {
       service =
           containerRegistration.register(
               container,
-              fromForm
-                  ? new ContainerRegistrationRequest(Registrations.parsePort(port), name, null)
-                  : ContainerRegistrationRequest.DEFAULTS);
+              new ContainerRegistrationRequest(Registrations.parsePort(port), name, null));
     } catch (InvalidRegistrationException e) {
       return ResponseEntity.badRequest()
           .contentType(Layout.HTML)
@@ -462,20 +457,34 @@ class PagesController {
             : ContainersPage.PATH + "?registered=" + service.name());
   }
 
-  private UnfollowedContainer unfollowed(String name) {
+  private List<UnfollowedContainer> unfollowed(String name) {
     List<UnfollowedContainer> containers;
     try {
       containers = containerRegistration.unfollowed();
     } catch (UnreadableDockerException e) {
       throw dockerUnavailable(e);
     }
-    return containers.stream()
-        .filter(container -> container.name().equals(name))
-        .findFirst()
-        .orElseThrow(() ->
-            new ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                "No running container that LVH Yard does not follow is called " + name + "."));
+    UnfollowedContainer target =
+        containers.stream()
+            .filter(container -> container.name().equals(name))
+            .findFirst()
+            .orElseThrow(() ->
+                new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "No running container that LVH Yard does not follow is called " + name + "."));
+    if (target.composeProject() == null) {
+      return List.of(target);
+    }
+    List<UnfollowedContainer> members = new ArrayList<>();
+    members.add(target);
+    for (UnfollowedContainer container : containers) {
+      if (!container.name().equals(name)
+          && target.composeProject().equals(container.composeProject())
+          && target.composeService().equals(container.composeService())) {
+        members.add(container);
+      }
+    }
+    return members;
   }
 
   private static ResponseStatusException dockerUnavailable(UnreadableDockerException e) {

@@ -909,22 +909,26 @@ The dashboard follows the Docker events at `DOCKER_HOST`. If that is not set,
 it uses `unix:///var/run/docker.sock`. When it starts, or when Docker answers
 again, it updates each Binding to the containers that run then.
 
-The Containers page (`/containers`) lists the running
-containers that no Container Binding follows yet. It groups Compose containers
-by Compose project, and lists the other containers apart. For each container,
-it shows the TCP ports, with the host port when the port is published, and the
-HEALTHCHECK state when the container has a HEALTHCHECK. A container that any
-Container Binding matches is not listed, whatever the port of the Container
-Binding. A container with a Compose project label but no Compose service label
-is listed with the other containers. The list
-refreshes every 5 seconds. If the dashboard cannot read Docker, the page says
-why. `GET /api/workstation/containers` gives the same list.
+The Containers page (`/containers`) lists the running containers that no
+Container Binding follows yet. It groups them by Compose project, with one
+row per Compose service. Each row shows the number of containers, their
+combined TCP ports and Host Ports, and counts for each Docker HEALTHCHECK
+state. Containers without a HEALTHCHECK have a separate count.
+Other containers keep one row each, with their ports and HEALTHCHECK state.
 
-To give a container with one port a hostname, click Register in its row.
-This adds a Container Binding on that port. A Compose container is bound by
-its Compose project and service, so the Container Binding still works after
-`docker compose up` makes a new container. Another container is bound by its
-name. The Service gets the name of the Compose service, or of the container.
+A container that any Container Binding matches is not listed, whatever the
+port of the Container Binding. A container with a Compose project label but
+no Compose service label is listed with the other containers. The list
+refreshes every 5 seconds. If the dashboard cannot read Docker, the page says
+why. `GET /api/workstation/containers` and `lvh-yard containers` list each
+container on its own.
+
+If a row has one Container Port, click Register to give it a hostname.
+This adds a Container Binding on that port. A Compose service row binds all
+its containers by Compose project and service, so the Container Binding still
+works after `docker compose up` makes new containers. Another container is
+bound by its name.
+The Service gets the name of the Compose service, or of the container.
 If that name is not a single DNS label, LVH Yard uses a cleaned name: lower
 case, with `_`, `.` and other characters changed to `-`. If the cleaned
 Compose service name is empty, LVH Yard uses the cleaned container name. If
@@ -935,11 +939,11 @@ the container, with a link to the page of the Service. If the registration
 fails, for example because the name is `consul`, the page shows why next to the
 container.
 
-To choose another Service name, click Choose name. If a container has several
-ports or none, click Choose port. A form opens with the proposed name and the
-ports of the container. Change them, and click Register. The page of the
-Service then opens. If the registration fails, the form shows why next to the
-field.
+To choose another Service name, click Choose name. If a row has several
+Container Ports or none, click Choose port. The form lists the combined
+Container Ports of a Compose service, or the ports of a standalone container.
+Change the name and port, and click Register. The page of the Service then
+opens. If the registration fails, the form shows why next to the field.
 
 If the Service has Yard Scope and the container port is not published, the
 page of the Service warns that other Workstations cannot reach the Bound
