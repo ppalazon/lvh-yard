@@ -99,6 +99,32 @@ install a new `lvh-yard`, use one of these flags:
   replaces the old value. The old files stay as
   `<file>.<yyyyMMdd-HHmmss>.bak`.
 
+#### An old `route-profiles.yaml`
+
+Older versions read the Route Profiles from `route-profiles.yaml` in the
+folder of the Workstation. The new dashboard does not read this file. It reads
+the profiles only from Consul KV.
+
+The old dashboard copied each valid profile into Consul KV. So your valid
+profiles stay after the upgrade, and their Routes keep their auth. A profile
+that the old dashboard refused never reached Consul KV, so it is missing now.
+
+To get back a refused profile, fix it in the old file. Then apply the file
+once:
+
+```sh
+lvh-yard profiles set route-profiles.yaml
+```
+
+`lvh-yard profiles set` adds or replaces each profile under
+`http.middlewares.<name>` in the file. It keeps the profiles that the file
+does not name. If the dashboard refuses one profile, it saves none of them and
+shows the reason. To read the file from standard input, give `-` as the file.
+
+After the profiles are back, `lvh-yard profiles` lists them. Then you can
+delete `route-profiles.yaml`. An old `YARD_ROUTE_PROFILES` line in `.env` does
+nothing now, so you can delete it too.
+
 ### Addresses and ports
 
 Traefik and the dashboard listen on `127.0.0.1`, so only this computer reaches
