@@ -1,6 +1,6 @@
 # Export and import Backups of a Workstation
 
-Status: ready-for-agent
+Status: done
 
 Words follow `GLOSSARY.md`. This spec needs `.scratch/route-profiles-in-kv/spec.md` done first, because a Backup holds Route Profiles and the import writes them to Consul KV.
 
