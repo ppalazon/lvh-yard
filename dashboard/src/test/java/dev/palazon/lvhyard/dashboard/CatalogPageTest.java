@@ -32,18 +32,24 @@ class CatalogPageTest extends DashboardTest {
   }
 
   @Test
-  void listsEachServiceWithItsInstancesAndTheirHealth() {
+  void listsOneRowPerServiceWithItsPassingCount() {
     String grafana = newServiceName("grafana");
-    register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
+    int port = newLanPort();
+    listenOnLanAddress(port);
+    register(grafana, Map.of("port", port, "check", Map.of("interval", "1s")));
     register(grafana, Map.of("host", "10.1.2.3", "port", 3001));
 
-    String page = getPage("/").getBody();
-
-    assertThat(page)
-        .contains("href=\"/services/ws-test/" + grafana + "\"")
-        .contains("10.1.2.3:3000")
-        .contains("10.1.2.3:3001")
-        .contains("critical");
+    await()
+        .atMost(Duration.ofSeconds(10))
+        .untilAsserted(() -> {
+          String page = getPage("/").getBody();
+          assertThat(page)
+              .containsOnlyOnce("href=\"/services/ws-test/" + grafana + "\"")
+              .contains("<th>Service</th><th>State</th><th>Hostname</th><th>Instances</th>")
+              .doesNotContain("<th>Instance</th>", "<th>Health</th>")
+              .doesNotContain("10.1.2.3:3001");
+          assertThat(rowOf(page, grafana)).contains("Unpublished", "1 of 2 passing");
+        });
   }
 
   @Test
@@ -89,7 +95,7 @@ class CatalogPageTest extends DashboardTest {
         .untilAsserted(() ->
             assertThat(rowOf(getPage("/").getBody(), web))
                 .contains(badge("success", "Healthy"))
-                .contains(badge("success", "passing")));
+                .contains("1 of 1 passing"));
   }
 
   @Test
@@ -100,7 +106,7 @@ class CatalogPageTest extends DashboardTest {
 
     assertThat(rowOf(getPage("/").getBody(), web))
         .contains(badge("destructive", "Unhealthy"))
-        .contains(badge("destructive", "critical"));
+        .contains("0 of 1 passing");
   }
 
   @Test
@@ -110,7 +116,7 @@ class CatalogPageTest extends DashboardTest {
     publish(web);
     delete(instancesPath(web) + "/" + id);
 
-    assertThat(rowOf(getPage("/").getBody(), web)).contains("Unavailable");
+    assertThat(rowOf(getPage("/").getBody(), web)).contains("Unavailable", "No Instances");
   }
 
   @Test
@@ -129,7 +135,7 @@ class CatalogPageTest extends DashboardTest {
     assertThat(page.indexOf("href=\"/services/ws-test/" + web + "\"")).isBetween(own, other);
     assertThat(page.indexOf("href=\"/services/" + RemoteWorkstation.NAME + "/" + api + "\""))
         .isGreaterThan(other);
-    assertThat(page).contains("10.9.8.7:9090");
+    assertThat(page).doesNotContain("10.9.8.7:9090");
   }
 
   @Test

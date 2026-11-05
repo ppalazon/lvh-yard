@@ -1,8 +1,8 @@
 package dev.palazon.lvhyard.dashboard.web;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
+import dev.palazon.lvhyard.dashboard.services.Health;
 import dev.palazon.lvhyard.dashboard.services.HomeWorkstation;
-import dev.palazon.lvhyard.dashboard.services.Instance;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import dev.palazon.lvhyard.dashboard.services.ServiceState;
 import dev.palazon.lvhyard.dashboard.services.Yard;
@@ -206,28 +206,18 @@ final class CatalogPage {
         .text("Hostname")
         .__()
         .th()
-        .text("Instance")
-        .__()
-        .th()
-        .text("Health")
+        .text("Instances")
         .__()
         .__()
         .__()
         .tbody()
-        .of(body ->
-            services.forEach(service -> {
-              if (service.instances().isEmpty()) {
-                row(body, service, null);
-              }
-              service.instances().forEach(instance -> row(body, service, instance));
-            }))
+        .of(body -> services.forEach(service -> row(body, service)))
         .__()
         .__()
         .__();
   }
 
-  /** For the Service alone when {@code instance} is null. */
-  private static void row(Tbody<?> body, Service service, Instance instance) {
+  private static void row(Tbody<?> body, Service service) {
     body.tr()
         .td()
         .a()
@@ -242,14 +232,15 @@ final class CatalogPage {
         .of(cell -> ServiceViews.hostname(cell, service))
         .__()
         .td()
-        .text(instance == null ? "No Instances" : instance.address())
-        .__()
-        .td()
-        .of(cell -> {
-          if (instance != null) {
-            InstanceViews.health(cell, instance.health());
-          }
-        })
+        .text(
+            service.instances().isEmpty()
+                ? "No Instances"
+                : service.instances().stream()
+                        .filter(instance -> instance.health() == Health.PASSING)
+                        .count()
+                    + " of "
+                    + service.instances().size()
+                    + " passing")
         .__()
         .__();
   }

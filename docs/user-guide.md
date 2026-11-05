@@ -17,6 +17,12 @@ Each page of the dashboard has a navigation bar at the top. It links to the
 Catalog, Containers, Aliases, Static Instances and Route Profiles pages, and it
 highlights the current page.
 
+The Catalog shows one row for each Service, grouped by Workstation. Its columns
+are Service, State, Hostname and Instances. The Instances count says "2 of 3
+passing", for example, or "No Instances". Unpublished Services show the count
+too. Instance addresses are on the Service page. You can filter by Workstation
+and state. The Catalog refreshes every five seconds and keeps your filters.
+
 ## Running on a Workstation
 
 You need Docker with Compose and the `lvh-yard` executable. You do not need
