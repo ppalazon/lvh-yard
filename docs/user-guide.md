@@ -251,7 +251,8 @@ lvh-yard status --strict                    # also exits with 1 on a warning
 ```
 
 `lvh-yard catalog` shows aligned columns for the Service name, state, hostname
-and Instance count. An Unpublished Service has no hostname. It prints no
+and Instance count. The count says "N of M passing", or "No Instances" when empty.
+Unpublished Services show the count too, but have no hostname. It prints no
 Instance IDs or Service Warnings. Use `lvh-yard list` to see those details.
 You can combine `--workstation` and `--state`. The states are `unpublished`,
 `unavailable`, `unhealthy`, `degraded` and `healthy`. An unreachable Workstation
