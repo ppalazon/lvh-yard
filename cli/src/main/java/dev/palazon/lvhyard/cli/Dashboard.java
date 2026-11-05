@@ -112,6 +112,10 @@ final class Dashboard {
    */
   record RouteProfile(String name, String type, List<String> services) {}
 
+  /** {@code definition} is the middleware in Traefik's format, such as {@code {"headers": {}}}. */
+  record RouteProfileDetail(
+      String name, String type, List<String> services, Map<String, Object> definition) {}
+
   /** This Workstation, then the others by name. */
   record Yard(HomeWorkstation home, List<YardWorkstation> remotes) {}
 
@@ -301,6 +305,30 @@ final class Dashboard {
     return read(send(get("api/workstation/route-profiles")), new TypeReference<>() {});
   }
 
+  RouteProfileDetail routeProfile(String name) {
+    return read(send(get(routeProfilePath(name))), new TypeReference<>() {});
+  }
+
+  /**
+   * Adds or replaces each profile of {@code profiles}, a map of names to middlewares. All or none
+   * are saved, and the others stay. Answers the whole list.
+   */
+  List<RouteProfile> putRouteProfiles(Map<String, Object> profiles) {
+    HttpRequest.Builder request =
+        HttpRequest.newBuilder(url.resolve("api/workstation/route-profiles"))
+            .header("Content-Type", "application/json")
+            .PUT(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(profiles)));
+    return read(send(request), new TypeReference<>() {});
+  }
+
+  void removeRouteProfile(String name) {
+    send(HttpRequest.newBuilder(url.resolve(routeProfilePath(name))).DELETE());
+  }
+
+  private static String routeProfilePath(String name) {
+    return "api/workstation/route-profiles/" + segment(name);
+  }
+
   /** A {@code null} argument gets the dashboard's default. */
   Service registerContainer(String container, Integer port, String service, Boolean publish) {
     Map<String, Object> body = new LinkedHashMap<>();
@@ -448,10 +476,18 @@ final class Dashboard {
     return response;
   }
 
-  /** The Problem Details' detail, else its title, else the status. */
+  /**
+   * Each reason of the Problem Details' {@code problems} on a line of its own, else its detail,
+   * else its title, else the status.
+   */
   private static String reason(HttpResponse<String> response) {
     try {
       JsonNode problem = JSON.readTree(response.body());
+      List<String> reasons =
+          problem.path("problems").valueStream().map(p -> p.path("reason").asString("")).toList();
+      if (!reasons.isEmpty() && !reasons.contains("")) {
+        return String.join("\n", reasons);
+      }
       for (String member : List.of("detail", "title")) {
         if (problem.path(member).isString() && !problem.get(member).asString().isBlank()) {
           return problem.get(member).asString();

@@ -99,6 +99,32 @@ install a new `lvh-yard`, use one of these flags:
   replaces the old value. The old files stay as
   `<file>.<yyyyMMdd-HHmmss>.bak`.
 
+#### An old `route-profiles.yaml`
+
+Older versions read the Route Profiles from `route-profiles.yaml` in the
+folder of the Workstation. The new dashboard does not read this file. It reads
+the profiles only from Consul KV.
+
+The old dashboard copied each valid profile into Consul KV. So your valid
+profiles stay after the upgrade, and their Routes keep their auth. A profile
+that the old dashboard refused never reached Consul KV, so it is missing now.
+
+To get back a refused profile, fix it in the old file. Then apply the file
+once:
+
+```sh
+lvh-yard profiles set route-profiles.yaml
+```
+
+`lvh-yard profiles set` adds or replaces each profile under
+`http.middlewares.<name>` in the file. It keeps the profiles that the file
+does not name. If the dashboard refuses one profile, it saves none of them and
+shows the reason. To read the file from standard input, give `-` as the file.
+
+After the profiles are back, `lvh-yard profiles` lists them. Then you can
+delete `route-profiles.yaml`. An old `YARD_ROUTE_PROFILES` line in `.env` does
+nothing now, so you can delete it too.
+
 ### Addresses and ports
 
 Traefik and the dashboard listen on `127.0.0.1`, so only this computer reaches
@@ -188,6 +214,10 @@ lvh-yard alias add db --workstation ws-b --service postgres   # a name that diff
 lvh-yard alias list
 lvh-yard alias remove grafana
 lvh-yard profiles                           # the Route Profiles, with their types and the Services that use them
+lvh-yard profiles show basic-auth           # one Route Profile, in Traefik's file format
+lvh-yard profiles set profiles.yaml        # add or replace each Route Profile of the file
+lvh-yard profiles show basic-auth | lvh-yard profiles set -   # - reads standard input
+lvh-yard profiles remove basic-auth
 lvh-yard test web                           # tests whether this Workstation reaches web
 lvh-yard test grafana --workstation ws-b    # a Remote Service
 lvh-yard status                             # whether LVH Yard works
@@ -195,6 +225,29 @@ lvh-yard status --strict                    # also exits with 1 on a warning
 ```
 
 If a command fails, it prints the reason and exits with a code that is not 0.
+
+`lvh-yard profiles show` and `lvh-yard profiles set` use Traefik's file format:
+a YAML document with `http.middlewares.<name>`. So the output of `show` works as
+input to `set`:
+
+```yaml
+http:
+  middlewares:
+    office-only:
+      ipAllowList:
+        sourceRange:
+          - 192.168.1.0/24
+    protected:
+      chain:
+        middlewares:
+          - office-only
+```
+
+`lvh-yard profiles set` saves all profiles of the file, or none. A chain can
+name a profile of the same file. The profiles that the file does not name stay.
+If the dashboard refuses the file, the command prints each reason. If a
+Publication or a chain names a profile, `lvh-yard profiles remove` refuses and
+names each Service and chain.
 The `/status` page of the dashboard and `GET /api/status` show the same status
 as `lvh-yard status`.
 
