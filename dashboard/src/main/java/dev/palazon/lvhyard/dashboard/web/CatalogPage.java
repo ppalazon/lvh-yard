@@ -13,7 +13,6 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.xmlet.htmlapifaster.Div;
-import org.xmlet.htmlapifaster.EnumTypeButtonType;
 import org.xmlet.htmlapifaster.Main;
 import org.xmlet.htmlapifaster.Tbody;
 
@@ -86,7 +85,10 @@ final class CatalogPage {
     }
   }
 
-  /** It loads the Catalog with the filters in its address. */
+  /**
+   * On each change it loads the Catalog with the new filters, swaps only the {@code catalog} region
+   * and puts the filters in the page address. The swapped region then refreshes with them.
+   */
   private static void filterForm(Main<?> main, Yard yard, Filters filters) {
     List<String> names =
         Stream.concat(
@@ -94,8 +96,14 @@ final class CatalogPage {
             .toList();
     main.form()
         .attrClass("form flex flex-wrap items-end gap-4")
-        .addAttr("method", "get")
-        .addAttr("action", "/")
+        .addAttr("hx-get", "/")
+        .addAttr("hx-trigger", "change")
+        .addAttr("hx-target", "#catalog")
+        .addAttr("hx-select", "#catalog")
+        .addAttr("hx-swap", "outerHTML")
+        .addAttr("hx-push-url", "true")
+        .addAttr("hx-status:4xx", "swap:none")
+        .addAttr("hx-status:5xx", "swap:none")
         .div()
         .attrClass("field")
         .label()
@@ -144,12 +152,6 @@ final class CatalogPage {
                         .text(ServiceViews.label(state))
                         .__()))
         .__()
-        .__()
-        .button()
-        .attrType(EnumTypeButtonType.SUBMIT)
-        .attrClass("btn")
-        .addAttr("data-variant", "outline")
-        .text("Filter")
         .__()
         .__();
   }
