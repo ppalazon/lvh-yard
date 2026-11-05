@@ -659,6 +659,39 @@ class YardTest {
   }
 
   @Test
+  void importWithUpdateAsksToOverwriteAndCountsEachUpdate(@TempDir Path dir) throws Exception {
+    dashboard.answer(
+        "POST",
+        "/api/workstation/backup?mode=update",
+        200,
+        """
+        {"mode": "update", "dryRun": false,
+         "entries": [
+           {"kind": "service", "name": "web", "action": "skip", "reason": "It exists already."},
+           {"kind": "static-instance", "name": "10.1.2.3:8080", "service": "web",
+            "action": "update"},
+           {"kind": "publication", "name": "web", "action": "update"},
+           {"kind": "alias", "name": "dash", "action": "add"}]}
+        """);
+    Path file = dir.resolve("ws-a.yaml");
+    Files.writeString(file, BACKUP);
+
+    Run run = yard("import", "--update", file.toString());
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out())
+        .isEqualTo(
+            """
+            skip Service web: It exists already.
+            update Static Instance 10.1.2.3:8080 of web
+            update Publication of web
+            add Alias dash
+            Added 1, updated 2, skipped 1.
+            """);
+    dashboard.verifyCalled("POST", "/api/workstation/backup", "application/yaml", BACKUP);
+  }
+
+  @Test
   void importPrintsEachProblemWithItsPlaceWhenTheFileIsRefused(@TempDir Path dir) throws Exception {
     dashboard.answer(
         "POST",

@@ -23,6 +23,9 @@ class Import implements Runnable {
   @Parameters(paramLabel = "<file>", description = "The Backup, or - for standard input.")
   String file;
 
+  @Option(names = "--update", description = "Also overwrites what exists with the Backup.")
+  boolean update;
+
   @Option(names = "--dry-run", description = "Shows the plan and changes nothing.")
   boolean dryRun;
 
@@ -30,7 +33,8 @@ class Import implements Runnable {
 
   @Override
   public void run() {
-    Dashboard.ImportResult result = yard.dashboard().importBackup(text(), "add", dryRun);
+    Dashboard.ImportResult result =
+        yard.dashboard().importBackup(text(), update ? "update" : "add", dryRun);
     PrintWriter out = spec.commandLine().getOut();
     Dashboard.ExportedFrom from = result.exportedFrom();
     if (from != null && from.workstation() != null) {
@@ -38,19 +42,28 @@ class Import implements Runnable {
           "Backup of " + from.workstation() + (from.at() == null ? "" : " at " + from.at()) + ".");
     }
     int added = 0;
+    int updated = 0;
     for (Dashboard.PlanEntry entry : result.entries()) {
       out.println(line(entry));
-      if (!entry.action().equals("skip")) {
-        added++;
+      switch (entry.action()) {
+        case "add" -> added++;
+        case "update" -> updated++;
+        default -> {}
       }
     }
-    int skipped = result.entries().size() - added;
+    int skipped = result.entries().size() - added - updated;
     if (result.dryRun()) {
       out.println("Dry run: nothing changed.");
-    } else if (added == 0) {
+    } else if (added + updated == 0) {
       out.println("Nothing changed: skipped " + skipped + ".");
     } else {
-      out.println("Added " + added + ", skipped " + skipped + ".");
+      out.println(
+          "Added "
+              + added
+              + (updated == 0 ? "" : ", updated " + updated)
+              + ", skipped "
+              + skipped
+              + ".");
     }
     out.flush();
   }

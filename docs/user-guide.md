@@ -222,6 +222,7 @@ lvh-yard profiles remove basic-auth
 lvh-yard export                             # a Backup of this Workstation's setup, as YAML
 lvh-yard export -o ws-a.yaml                # write it to a file that only you can read
 lvh-yard import ws-a.yaml                   # add what is new in a Backup, and skip what exists
+lvh-yard import --update ws-a.yaml          # also overwrite what exists with the Backup
 lvh-yard import --dry-run ws-a.yaml         # show the plan, and change nothing
 lvh-yard test web                           # tests whether this Workstation reaches web
 lvh-yard test grafana --workstation ws-b    # a Remote Service
@@ -342,17 +343,22 @@ read the file can read them. Keep a Backup as private as a password file.
 
 ### Importing a Backup
 
-`lvh-yard import <file>` adds what is new in a Backup to this Workstation. It
-skips what exists, so it never overwrites your changes. `lvh-yard import -`
-reads the Backup from standard input. So you can copy the setup of another
+An import has two modes:
+
+- `lvh-yard import <file>` adds what is new in a Backup to this Workstation. It
+  skips what exists, so it never overwrites your changes.
+- `lvh-yard import --update <file>` also overwrites what exists with the values
+  of the Backup. Use it to bring a Workstation back to a Backup.
+
+`lvh-yard import -` reads the Backup from standard input. So you can copy the setup of another
 Workstation:
 
 ```sh
 ssh ws-b lvh-yard export | lvh-yard import -
 ```
 
-The import prints one line for each entry of the file. Each line says `add` or
-`skip`. A skip gives its reason:
+The import prints one line for each entry of the file. Each line says `add`,
+`update` or `skip`. A skip gives its reason:
 
 ```text
 Backup of ws-b at 2026-11-05T10:00:00+01:00.
@@ -372,10 +378,22 @@ The import finds what exists in this way:
 - a Container Binding by its ID, such as `shop-web-1:80` or
   `compose:shop:worker:9000`
 
+With `--update`, the import overwrites what it finds:
+
+- the Publication of a Service: its Scope, Instance Priority and Route Profiles
+- the health check, tags and meta of a Static Instance. The Instance keeps its
+  ID.
+- the target of an Alias
+- the definition of a Route Profile
+
+A Container Binding has nothing more to change, so the import always skips it.
+An entry with the same values is a skip in both modes.
+
 A Static Instance without a host is at the LAN address of this Workstation. A
 new Service without a `publication` key stays Unpublished. An existing Service
-without a `publication` key keeps its Publication. A Publication can name a
-Route Profile of the same file.
+without a `publication` key keeps its Publication, in both modes. With
+`--update`, `publication: none` unpublishes an existing Service. A Publication
+can name a Route Profile of the same file.
 
 Before the import changes anything, the dashboard checks the whole file. If one
 entry is wrong, the import changes nothing, prints each problem with its place
@@ -396,7 +414,7 @@ once. So if a write fails halfway, the import stops and says what it wrote
 before.
 
 The API imports a Backup at `POST /api/workstation/backup?mode=add`, with the
-Backup as `application/yaml`. Add `dry-run=true` for the plan only. The answer
+Backup as `application/yaml`. Use `mode=update` to overwrite. Add `dry-run=true` for the plan only. The answer
 is the plan as JSON. A refused file answers 400, with a `problems` list of
 `place` and `reason`:
 
