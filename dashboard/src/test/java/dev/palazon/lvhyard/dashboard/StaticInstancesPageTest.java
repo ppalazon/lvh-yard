@@ -12,6 +12,7 @@ import tools.jackson.databind.JsonNode;
 class StaticInstancesPageTest extends DashboardTest {
 
   private static final String PATH = "/static-instances";
+  private static final String DIALOG = "register-static-instance";
 
   @Test
   void oldRegisterAddressRedirectsHere() {
@@ -19,6 +20,53 @@ class StaticInstancesPageTest extends DashboardTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.MOVED_PERMANENTLY);
     assertThat(response.getHeaders().getLocation()).hasPath(PATH);
+  }
+
+  @Test
+  void registerButtonOpensAClosedDialogThatHoldsTheForm() {
+    String page = getPage(PATH).getBody();
+
+    String button = openingTag(page, "data-dialog-open=\"" + DIALOG + "\"");
+    assertThat(button).startsWith("<button").contains("type=\"button\"");
+    assertThat(page).contains(button + "Register a Static Instance</button>");
+    String dialog = dialog(page, DIALOG);
+    assertThat(openingTag(dialog, "id=\"" + DIALOG + "\""))
+        .contains("class=\"dialog\"")
+        .doesNotContain("data-dialog-shown")
+        .doesNotContain(" open");
+    assertThat(dialog)
+        .contains("<h2")
+        .contains("Register a Static Instance")
+        .contains("method=\"post\"")
+        .contains("action=\"" + PATH + "\"")
+        .contains("name=\"name\"")
+        .contains("name=\"port\"")
+        .contains("type=\"submit\"");
+    assertThat(openingTag(dialog, "data-dialog-close")).contains("type=\"button\"");
+  }
+
+  @Test
+  void listComesBeforeTheDialog() {
+    String grafana = newServiceName("grafana");
+    register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
+
+    String page = getPage(PATH).getBody();
+
+    assertThat(page.indexOf("10.1.2.3:3000")).isLessThan(page.indexOf("<dialog"));
+  }
+
+  @Test
+  void dialogIsShownAgainAfterAnInputError() {
+    ResponseEntity<String> response =
+        postForm(PATH, Map.of("name", "My_API", "host", "10.1.2.3", "port", "8080"));
+
+    String dialog = dialog(response.getBody(), DIALOG);
+    assertThat(openingTag(dialog, "id=\"" + DIALOG + "\"")).contains("data-dialog-shown");
+    assertThat(dialog)
+        .contains("single DNS label")
+        .contains("aria-invalid=\"true\"")
+        .contains("value=\"My_API\"")
+        .contains("value=\"10.1.2.3\"");
   }
 
   @Test

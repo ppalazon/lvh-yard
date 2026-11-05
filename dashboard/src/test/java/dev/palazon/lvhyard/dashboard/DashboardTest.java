@@ -342,6 +342,15 @@ abstract class DashboardTest {
     return page.substring(start, at + "</div>".length());
   }
 
+  /** The whole {@code dialog} element with id {@code id}. A dialog never holds another one. */
+  static String dialog(String page, String id) {
+    int start = page.lastIndexOf("<dialog", page.indexOf("id=\"" + id + "\""));
+    if (start < 0) {
+      throw new AssertionError("No dialog with id " + id);
+    }
+    return page.substring(start, page.indexOf("</dialog>", start) + "</dialog>".length());
+  }
+
   ResponseEntity<JsonNode> get(String path) {
     return http.get().uri(path).retrieve().toEntity(JsonNode.class);
   }
