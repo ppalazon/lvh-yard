@@ -4,13 +4,13 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The Workstation and State selects send an HTMX `GET` on `change`. The answer replaces only the Catalog list region.
-- [ ] `hx-push-url` puts the filters in the page address.
-- [ ] The Apply button is gone.
-- [ ] The 5-second refresh of the list uses the filters of the current address.
-- [ ] A direct load of a filtered address renders the full page with those filters.
-- [ ] The Route Profiles "Example" select does not change.
-- [ ] Page tests cover the HTMX attributes, the missing Apply button, and a filtered address.
+- [x] The Workstation and State selects send an HTMX `GET` on `change`. The answer replaces only the Catalog list region.
+- [x] `hx-push-url` puts the filters in the page address.
+- [x] The Apply button is gone.
+- [x] The 5-second refresh of the list uses the filters of the current address.
+- [x] A direct load of a filtered address renders the full page with those filters.
+- [x] The Route Profiles "Example" select does not change.
+- [x] Page tests cover the HTMX attributes, the missing Apply button, and a filtered address.
 - [ ] You try a filter change, a reload and the Back button by hand on `mise run dev:up`.

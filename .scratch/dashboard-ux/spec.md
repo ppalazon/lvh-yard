@@ -1,6 +1,6 @@
 # A calmer dashboard: Phyxor theme, modals, live filters and a Service dashboard
 
-Status: ready-for-agent
+Status: done
 
 Words follow `GLOSSARY.md`. This spec adds the term Service Warning, with its two levels, error and risk.
 

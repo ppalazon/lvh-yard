@@ -4,12 +4,12 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] One shared view helper makes a link that leaves the dashboard. It sets `target="_blank"` and `rel="noopener noreferrer"`.
-- [ ] The helper adds a small Lucide external-link icon that screen readers do not read.
-- [ ] Service hostnames, on the Catalog and on the Service page, use the helper.
-- [ ] Alias hostnames on the Aliases page use the helper.
-- [ ] Any other link to an `http://` hostname uses the helper.
-- [ ] Links to dashboard pages have no `target` and no `rel`.
-- [ ] Page tests cover a Service hostname, an Alias hostname and a link to a dashboard page.
+- [x] One shared view helper makes a link that leaves the dashboard. It sets `target="_blank"` and `rel="noopener noreferrer"`.
+- [x] The helper adds a small Lucide external-link icon that screen readers do not read.
+- [x] Service hostnames, on the Catalog and on the Service page, use the helper.
+- [x] Alias hostnames on the Aliases page use the helper.
+- [x] Any other link to an `http://` hostname uses the helper.
+- [x] Links to dashboard pages have no `target` and no `rel`.
+- [x] Page tests cover a Service hostname, an Alias hostname and a link to a dashboard page.

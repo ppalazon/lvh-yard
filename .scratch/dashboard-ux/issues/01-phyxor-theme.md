@@ -4,14 +4,14 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The stylesheet source sets the Phyxor color variables over Basecoat's, for the light theme and for the dark theme.
-- [ ] The stylesheet takes Phyxor's radius and shadow values.
-- [ ] The sans-serif stack is `ui-sans-serif, system-ui, sans-serif`. The monospace stack is `ui-monospace, monospace`.
-- [ ] The stylesheet has no font `@import`, no `@font-face`, and no font name such as Inter, JetBrains Mono or Source Serif.
-- [ ] The green success badge stays.
-- [ ] A risk alert style exists. Its orange tone differs from the Phyxor primary amber, in the light and in the dark theme.
-- [ ] The theme toggle still works.
-- [ ] The built stylesheet is generated again with the CSS build.
-- [ ] A dashboard test reads the served stylesheet. It finds the Phyxor variables for both themes, and no font import, `@font-face` or named font.
+- [x] The stylesheet source sets the Phyxor color variables over Basecoat's, for the light theme and for the dark theme.
+- [x] The stylesheet takes Phyxor's radius and shadow values.
+- [x] The sans-serif stack is `ui-sans-serif, system-ui, sans-serif`. The monospace stack is `ui-monospace, monospace`.
+- [x] The stylesheet has no font `@import`, no `@font-face`, and no font name such as Inter, JetBrains Mono or Source Serif.
+- [x] The green success badge stays.
+- [x] A risk alert style exists. Its orange tone differs from the Phyxor primary amber, in the light and in the dark theme.
+- [x] The theme toggle still works.
+- [x] The built stylesheet is generated again with the CSS build.
+- [x] A dashboard test reads the served stylesheet. It finds the Phyxor variables for both themes, and no font import, `@font-face` or named font.
