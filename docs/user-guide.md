@@ -205,6 +205,9 @@ It shows the whole Yard, but it changes only the Services of this Workstation:
 ```sh
 lvh-yard list                               # every Service, by Workstation
 lvh-yard list --workstation ws-b            # the Services of ws-b
+lvh-yard catalog                            # one line per Service, by Workstation
+lvh-yard catalog --workstation ws-b          # one Workstation
+lvh-yard catalog --state degraded            # one Service state
 lvh-yard register static web --port 8080    # at this Workstation's LAN address, and publish a new Service
 lvh-yard register static web --host 127.0.0.1 --port 8080
 lvh-yard register static web --port 8080 --path /health --interval 5s --timeout 1s   # an HTTP check (default: TCP, 10s, 2s)
@@ -246,6 +249,13 @@ lvh-yard test grafana --workstation ws-b    # a Remote Service
 lvh-yard status                             # whether LVH Yard works
 lvh-yard status --strict                    # also exits with 1 on a warning
 ```
+
+`lvh-yard catalog` shows aligned columns for the Service name, state, hostname
+and Instance count. An Unpublished Service has no hostname. It prints no
+Instance IDs or Service Warnings. Use `lvh-yard list` to see those details.
+You can combine `--workstation` and `--state`. The states are `unpublished`,
+`unavailable`, `unhealthy`, `degraded` and `healthy`. An unreachable Workstation
+shows `Workstation unreachable` instead of its Services.
 
 If a command fails, it prints the reason and exits with a code that is not 0.
 
