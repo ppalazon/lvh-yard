@@ -6,11 +6,14 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.stream.Stream;
 import org.springframework.stereotype.Component;
 
 /**
@@ -57,7 +60,7 @@ public class BackupsFolder {
    * @throws FileAlreadyExistsException when {@code name} exists; then the file stays as it was
    */
   public void write(String name, String text) throws FileAlreadyExistsException {
-    if (name.contains("/") || name.contains("\\") || name.startsWith(".")) {
+    if (!isPlainName(name)) {
       throw new IllegalArgumentException("A Backup name has no path: " + name);
     }
     Path file = path.resolve(name);
@@ -74,5 +77,82 @@ public class BackupsFolder {
     } catch (IOException e) {
       throw new UncheckedIOException("Cannot write the Backup " + file + ": " + e.getMessage(), e);
     }
+  }
+
+  /**
+   * Each {@code .yaml} and {@code .yml} file, by name, read as a Backup. A missing folder has none.
+   */
+  public List<BackupFile> list() {
+    if (!Files.isDirectory(path)) {
+      return List.of();
+    }
+    try (Stream<Path> files = Files.list(path)) {
+      return files
+          .filter(Files::isRegularFile)
+          .map(file -> file.getFileName().toString())
+          .filter(BackupsFolder::isBackupName)
+          .sorted()
+          .map(this::read)
+          .toList();
+    } catch (IOException e) {
+      throw new UncheckedIOException(
+          "Cannot list the Backups folder " + path + ": " + e.getMessage(), e);
+    }
+  }
+
+  /**
+   * @throws NoBackupException when the folder has no Backup {@code name}
+   */
+  public BackupFile read(String name) {
+    String text = text(name);
+    try {
+      return new BackupFile(name, BackupFormat.read(text), List.of());
+    } catch (RefusedBackupException e) {
+      return new BackupFile(name, null, e.problems());
+    }
+  }
+
+  /**
+   * The file as it is, such as for a download.
+   *
+   * @throws NoBackupException when the folder has no Backup {@code name}
+   */
+  public String text(String name) {
+    try {
+      return Files.readString(existing(name));
+    } catch (NoSuchFileException e) {
+      throw new NoBackupException(name);
+    } catch (IOException e) {
+      throw new UncheckedIOException("Cannot read the Backup " + name + ": " + e.getMessage(), e);
+    }
+  }
+
+  /**
+   * @throws NoBackupException when the folder has no Backup {@code name}
+   */
+  public void delete(String name) {
+    try {
+      Files.delete(existing(name));
+    } catch (NoSuchFileException e) {
+      throw new NoBackupException(name);
+    } catch (IOException e) {
+      throw new UncheckedIOException("Cannot delete the Backup " + name + ": " + e.getMessage(), e);
+    }
+  }
+
+  /** A name from outside, such as from an address, names only a Backup file of the folder. */
+  private Path existing(String name) {
+    if (!isBackupName(name) || !Files.isRegularFile(path.resolve(name))) {
+      throw new NoBackupException(name);
+    }
+    return path.resolve(name);
+  }
+
+  private static boolean isBackupName(String name) {
+    return isPlainName(name) && (name.endsWith(".yaml") || name.endsWith(".yml"));
+  }
+
+  private static boolean isPlainName(String name) {
+    return !name.isEmpty() && !name.contains("/") && !name.contains("\\") && !name.startsWith(".");
   }
 }

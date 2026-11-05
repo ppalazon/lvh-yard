@@ -453,6 +453,19 @@ To get back the values that an import overwrote, import its safety Backup with
 `lvh-yard import --update`. An import never removes what it added. So to undo
 an add, remove those entries by hand.
 
+### The Backups page
+
+The Backups page of the dashboard, at `/backups`, lists the `.yaml` and `.yml`
+files of the Backups folder. Each row shows the name of the file, the date from
+its `exported-from`, and how many Services, Aliases and Route Profiles it
+holds. If a file is not a Backup, its row shows why instead.
+
+- To make a Backup of the current setup, click **New Backup**. Its name is
+  `<workstation>-<yyyyMMdd-HHmmss>.yaml`, so the names sort by date.
+- To keep a Backup in another place, click **Download** in its row.
+- To delete a Backup, click **Delete** in its row. The page asks you to
+  confirm. Then click **Delete** again.
+
 ## How it works
 
 ### Services and Publications
