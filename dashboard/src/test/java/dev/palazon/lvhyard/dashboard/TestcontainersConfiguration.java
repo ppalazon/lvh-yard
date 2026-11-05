@@ -3,6 +3,8 @@ package dev.palazon.lvhyard.dashboard;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.ServerSocket;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -53,6 +55,9 @@ class TestcontainersConfiguration {
    */
   private static final String CONSUL_HOSTNAME = "consul-" + DashboardTest.WORKSTATION;
 
+  /** The test Workstation's Backups folder, of this JVM's own, as {@code YARD_BACKUPS} sets it. */
+  static final Path BACKUPS = temporaryFolder("lvh-yard-backups");
+
   @Bean(destroyMethod = "close")
   Network yardNetwork() {
     return Network.newNetwork();
@@ -89,7 +94,16 @@ class TestcontainersConfiguration {
       registry.add("lvh-yard.docker.host", TestcontainersConfiguration::dockerHost);
       registry.add("lvh-yard.traefik.port", () -> TRAEFIK_PORT);
       registry.add("lvh-yard.traefik.admin-port", () -> TRAEFIK_ADMIN_PORT);
+      registry.add("lvh-yard.backups.path", BACKUPS::toString);
     };
+  }
+
+  static Path temporaryFolder(String prefix) {
+    try {
+      return Files.createTempDirectory(prefix);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
   }
 
   /** The Docker the tests start their containers on, which the dashboards follow too. */

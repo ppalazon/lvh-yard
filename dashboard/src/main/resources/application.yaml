@@ -33,6 +33,10 @@ lvh-yard:
     ranges: ${YARD_OUT_OF_RANGE:127.0.0.0/8,::1/128,172.17.0.0/16,172.18.0.0/15,172.20.0.0/14,172.24.0.0/13}
   # True logs the stack trace of a failed request. Without it, the log has one line for each failed request.
   stack-traces: ${YARD_STACK_TRACES:false}
+  # The Backups folder, where the Backups page keeps its files and each import writes its safety Backup. The default
+  # is the backups/ folder of the Workstation Folder that lvh-yard init writes.
+  backups:
+    path: ${YARD_BACKUPS:${XDG_CONFIG_HOME:${user.home}/.config}/lvh-yard/backups}
   # The Consul agent of this Workstation. Its HTTP API listens on loopback only (compose.yaml).
   consul:
     url: http://127.0.0.1:${YARD_CONSUL_HTTP_PORT:8500}

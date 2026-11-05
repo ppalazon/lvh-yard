@@ -324,7 +324,11 @@ final class Dashboard {
 
   /** {@code exportedFrom} is left out when the Backup does not say. */
   record ImportResult(
-      ExportedFrom exportedFrom, String mode, boolean dryRun, List<PlanEntry> entries) {}
+      ExportedFrom exportedFrom,
+      String mode,
+      boolean dryRun,
+      List<PlanEntry> entries,
+      String safetyBackup) {}
 
   record ExportedFrom(String workstation, String at) {}
 

@@ -659,6 +659,31 @@ class YardTest {
   }
 
   @Test
+  void importPrintsTheNameOfTheSafetyBackup(@TempDir Path dir) throws Exception {
+    dashboard.answer(
+        "POST",
+        "/api/workstation/backup?mode=add",
+        200,
+        PLAN.formatted(false)
+            .replace(
+                "\"dryRun\": false,",
+                "\"dryRun\": false,"
+                    + " \"safetyBackup\": \"ws-a-20261105-100000-before-import.yaml\","));
+    Path file = dir.resolve("ws-a.yaml");
+    Files.writeString(file, BACKUP);
+
+    Run run = yard("import", file.toString());
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out())
+        .isEqualTo(
+            PLAN_LINES
+                + "Added 2, skipped 2.\n"
+                + "Safety Backup: ws-a-20261105-100000-before-import.yaml, in the Backups"
+                + " folder.\n");
+  }
+
+  @Test
   void importPrintsEachProblemWithItsPlaceWhenTheFileIsRefused(@TempDir Path dir) throws Exception {
     dashboard.answer(
         "POST",
@@ -2918,8 +2943,7 @@ class YardTest {
   }
 
   @Test
-  void initsDashboardSeesItsFolderReadOnlyAndNoRouteProfilesFile(@TempDir Path dir)
-      throws Exception {
+  void initsDashboardWritesOnlyToTheBackupsFolder(@TempDir Path dir) throws Exception {
     assumeTrue(dockerCompose(), "docker compose is not installed");
     yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a");
 
@@ -2936,11 +2960,42 @@ class YardTest {
     assertThat(run.exitCode()).as(run.err()).isZero();
     JsonNode dashboard = new JsonMapper().readTree(run.out()).at("/services/dashboard");
     assertThat(dashboard.at("/environment").has("YARD_ROUTE_PROFILES")).isFalse();
+    String backups = dashboard.at("/environment/YARD_BACKUPS").asString();
     assertThat(dashboard.get("volumes").valueStream())
+        .noneSatisfy(volume ->
+            assertThat(volume.get("source").asString()).isEqualTo(dir.toRealPath().toString()))
         .anySatisfy(volume -> {
-          assertThat(volume.get("source").asString()).isEqualTo(dir.toRealPath().toString());
-          assertThat(volume.get("read_only").asBoolean()).isTrue();
+          assertThat(volume.get("source").asString())
+              .isEqualTo(dir.toRealPath().resolve("backups").toString());
+          assertThat(volume.get("target").asString()).isEqualTo(backups);
+          assertThat(volume.has("read_only")).isFalse();
         });
+  }
+
+  @Test
+  void initAndReinitCreateTheBackupsFolder(@TempDir Path dir) throws Exception {
+    Run init = yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a");
+    assertThat(init.exitCode()).as(init.err()).isZero();
+    assertThat(dir.resolve("backups")).isDirectory();
+
+    Files.delete(dir.resolve("backups"));
+    Run reinit = yardAsTyped("init", "--dir", dir.toString(), "--reinit");
+
+    assertThat(reinit.exitCode()).as(reinit.err()).isZero();
+    assertThat(dir.resolve("backups")).isDirectory();
+    assertThat(Files.readString(dir.resolve("compose.yaml"))).contains("./backups:");
+  }
+
+  @Test
+  void reinitKeepsTheBackupsInTheBackupsFolder(@TempDir Path dir) throws Exception {
+    yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a");
+    Path backup = dir.resolve("backups").resolve("ws-a-20261105-100000.yaml");
+    Files.writeString(backup, "version: 1\n");
+
+    Run run = yardAsTyped("init", "--dir", dir.toString(), "--reinit");
+
+    assertThat(run.exitCode()).as(run.err()).isZero();
+    assertThat(backup).hasContent("version: 1");
   }
 
   @Test

@@ -52,6 +52,9 @@ class Import implements Runnable {
     } else {
       out.println("Added " + added + ", skipped " + skipped + ".");
     }
+    if (result.safetyBackup() != null) {
+      out.println("Safety Backup: " + result.safetyBackup() + ", in the Backups folder.");
+    }
     out.flush();
   }
 

@@ -57,6 +57,11 @@ lvh-yard --dashboard http://127.0.0.1:7780 profiles set profiles.yaml   # ws-a
 lvh-yard --dashboard http://127.0.0.1:7781 profiles set profiles.yaml   # ws-b
 ```
 
+Each one writes its Backups to its own folder, `dev/backups/ws-a` or
+`dev/backups/ws-b`. Git ignores these folders. The dashboard tests use a new
+temporary folder for each test JVM, through the `lvh-yard.backups.path`
+setting.
+
 ## Building the CLI
 
 To build the CLI as a jar or as the executable:

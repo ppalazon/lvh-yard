@@ -220,7 +220,7 @@ class OpenApiTest extends DashboardTest {
     assertThat(answersWithProblem(paths, "/api/workstation/backup", "post", "500")).isTrue();
     JsonNode schemas = docs.get("components").get("schemas");
     assertThat(schemas.get("ImportResult").get("properties").propertyNames())
-        .containsExactlyInAnyOrder("exportedFrom", "mode", "dryRun", "entries");
+        .containsExactlyInAnyOrder("exportedFrom", "mode", "dryRun", "entries", "safetyBackup");
     assertThat(schemas.get("PlanEntry").get("properties").propertyNames())
         .containsExactlyInAnyOrder("kind", "name", "service", "action", "reason");
   }

@@ -131,4 +131,5 @@ run = ["docker compose -p ws-a down", "docker compose -p ws-b down"]
 description = "Run the dashboard of test Workstation ws-a or ws-b: mise run dev:dashboard ws-b"
 depends = ["css"]
 usage = 'arg "<workstation>" help="ws-a or ws-b"'
-run = "set -a; . dev/${usage_workstation}.env; set +a; ./mvnw -q -pl dashboard spring-boot:run"
+# Each test Workstation has its own Backups folder, apart from the Workstation Folder that lvh-yard init writes.
+run = "set -a; . dev/${usage_workstation}.env; YARD_BACKUPS=$PWD/dev/backups/${usage_workstation}; set +a; ./mvnw -q -pl dashboard spring-boot:run"

@@ -2,6 +2,7 @@ package dev.palazon.lvhyard.dashboard;
 
 import static org.awaitility.Awaitility.await;
 
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -30,6 +31,10 @@ import tools.jackson.databind.JsonNode;
 final class RemoteWorkstation implements AutoCloseable {
 
   static final String NAME = "ws-remote";
+
+  /** Its own Backups folder, apart from the test Workstation's. */
+  private static final Path BACKUPS =
+      TestcontainersConfiguration.temporaryFolder("lvh-yard-remote-backups");
 
   /** Where a dashboard writes the time when its first setup is done. */
   static final String FIRST_SETUP = "lvh-yard/first-setup";
@@ -153,6 +158,7 @@ final class RemoteWorkstation implements AutoCloseable {
       "--lvh-yard.workstation.base-domain=" + DashboardTest.BASE_DOMAIN,
       "--lvh-yard.docker.host=" + TestcontainersConfiguration.dockerHost(),
       "--lvh-yard.consul.url=http://" + consul.getHost() + ":" + consulPort(),
+      "--lvh-yard.backups.path=" + BACKUPS,
       // Its real Peer is a name only the Docker network resolves. Not the Peers of a developer's
       // .env.
       "--lvh-yard.consul.peers="

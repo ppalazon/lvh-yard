@@ -1003,6 +1003,10 @@ components:
           type: string
           enum:
           - add
+        safetyBackup:
+          type: string
+          description: "The safety Backup in the Backups folder, with the setup from\
+            \ before the import. Only an import that changed something writes one."
       required:
       - dryRun
       - entries

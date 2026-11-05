@@ -35,7 +35,9 @@ Java or a copy of this repository.
 
    `init` writes `compose.yaml` and `.env` to
    `~/.config/lvh-yard`. If `XDG_CONFIG_HOME` is set, it writes to
-   `$XDG_CONFIG_HOME/lvh-yard`. `--dir` picks another folder.
+   `$XDG_CONFIG_HOME/lvh-yard`. `--dir` picks another folder. It also creates
+   the empty [Backups folder](#the-backups-folder-and-the-safety-backup),
+   `backups/`.
 
    `init` makes a new gossip key and prints it. This Workstation then starts a
    Yard of its own. To join a Yard, see [Joining a Yard](#joining-a-yard).
@@ -97,7 +99,8 @@ install a new `lvh-yard`, use one of these flags:
 - `lvh-yard init --reinit` writes `compose.yaml` and `.env` again from the new
   templates, with the values of the old `.env`. A flag that you give with it
   replaces the old value. The old files stay as
-  `<file>.<yyyyMMdd-HHmmss>.bak`.
+  `<file>.<yyyyMMdd-HHmmss>.bak`. If the `backups/` folder is missing, it
+  creates it. The new `compose.yaml` lets the dashboard write to this folder.
 
 #### An old `route-profiles.yaml`
 
@@ -404,6 +407,33 @@ is the plan as JSON. A refused file answers 400, with a `problems` list of
 curl -X POST -H 'Content-Type: application/yaml' --data-binary @ws-a.yaml \
   'http://127.0.0.1:7780/api/workstation/backup?mode=add&dry-run=true'
 ```
+
+### The Backups folder and the safety Backup
+
+The Backups folder is `backups/` in the folder of this Workstation, such as
+`~/.config/lvh-yard/backups`. `lvh-yard init` creates it. `compose.yaml` lets
+the dashboard write to this folder, and to no other folder of this
+Workstation. Each Backup in it is a plain YAML file. You can copy, move or
+delete the files with normal tools. The dashboard never deletes them by itself.
+
+Before an import changes anything, the dashboard writes a safety Backup: a
+Backup of the setup before the import. Its name is
+`<workstation>-<yyyyMMdd-HHmmss>-before-import.yaml`. If two imports start in
+the same second, the second name ends in `-before-import-2.yaml`. Only you can
+read the file, because it can hold basic-auth hashes. The import prints its
+name after the plan:
+
+```text
+Added 2, skipped 2.
+Safety Backup: ws-a-20261105-101500-before-import.yaml, in the Backups folder.
+```
+
+An import that changes nothing, and a dry run, write no safety Backup. The API
+gives the name as `safetyBackup` in its answer.
+
+To get back the values that an import overwrote, import its safety Backup with
+`lvh-yard import --update`. An import never removes what it added. So to undo
+an add, remove those entries by hand.
 
 ## How it works
 

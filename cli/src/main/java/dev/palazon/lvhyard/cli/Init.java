@@ -390,6 +390,8 @@ class Init implements Runnable {
     Path current = null;
     try {
       Files.createDirectories(folder);
+      // Before Compose starts, or Docker creates it, owned by root.
+      Files.createDirectories(folder.resolve("backups"));
       for (Map.Entry<String, String> file : files.entrySet()) {
         current = folder.resolve(file.getKey());
         if (mode.force) {

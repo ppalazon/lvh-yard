@@ -144,10 +144,12 @@ services:
       YARD_CONSUL_HTTP_PORT: ${YARD_CONSUL_HTTP_PORT:-8500}
       YARD_PEERS: ${YARD_PEERS:-}
       YARD_STACK_TRACES: ${YARD_STACK_TRACES:-false}
-    # The Container Bindings follow the containers of this Workstation. The dashboard sees this folder read-only.
+      YARD_BACKUPS: /var/lib/lvh-yard/backups
+    # The Container Bindings follow the containers of this Workstation. The dashboard writes Backups to backups/, and
+    # lvh-yard init creates that folder, so that it belongs to the user and not to root.
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./:/etc/lvh-yard:ro
+      - ./backups:/var/lib/lvh-yard/backups
 
 volumes:
   consul-data:
