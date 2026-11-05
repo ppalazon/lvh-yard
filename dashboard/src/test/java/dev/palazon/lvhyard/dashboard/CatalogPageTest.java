@@ -61,6 +61,22 @@ class CatalogPageTest extends DashboardTest {
   }
 
   @Test
+  void serviceHostnameOpensInANewTabAndTheServicePageDoesNot() {
+    String api = newServiceName("api");
+    register(api, Map.of("host", "10.1.2.3", "port", 9090));
+    publish(api);
+
+    String page = getPage("/").getBody();
+
+    assertThat(openingTag(page, "href=\"http://" + api + ".lvh.test\""))
+        .contains("target=\"_blank\"")
+        .contains("rel=\"noopener noreferrer\"");
+    assertThat(openingTag(page, "href=\"/services/ws-test/" + api + "\""))
+        .doesNotContain("target=")
+        .doesNotContain("rel=");
+  }
+
+  @Test
   void showsGoodStatesWithGreenBadges() {
     String web = newServiceName("web");
     int port = newLanPort();

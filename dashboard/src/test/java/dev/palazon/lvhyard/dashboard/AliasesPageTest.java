@@ -51,6 +51,24 @@ class AliasesPageTest extends DashboardTest {
   }
 
   @Test
+  void aliasHostnameOpensInANewTabAndTheRemoteServiceDoesNot() {
+    String grafana = newServiceName("grafana");
+    remote.register(grafana, Map.of("host", "10.9.8.7", "port", 3000));
+    remote.publish(grafana, "yard");
+    postForm("/aliases", Map.of("name", grafana, "target", RemoteWorkstation.NAME + "/" + grafana));
+
+    String page = getPage("/aliases").getBody();
+
+    assertThat(openingTag(page, "href=\"http://" + grafana + ".lvh.test\""))
+        .contains("target=\"_blank\"")
+        .contains("rel=\"noopener noreferrer\"");
+    assertThat(
+            openingTag(page, "href=\"/services/" + RemoteWorkstation.NAME + "/" + grafana + "\""))
+        .doesNotContain("target=")
+        .doesNotContain("rel=");
+  }
+
+  @Test
   void invalidNameIsShownInTheFormWithWhatWasTyped() {
     String grafana = newServiceName("grafana");
     remote.register(grafana, Map.of("host", "10.9.8.7", "port", 3000));

@@ -33,11 +33,6 @@ final class ServiceViews {
     if (service.hostname() == null) {
       return;
     }
-    parent
-        .a()
-        .attrHref(Layout.attr("http://" + service.hostname()))
-        .attrClass("underline")
-        .text(service.hostname())
-        .__();
+    Layout.externalLink(parent, service.hostname());
   }
 }
