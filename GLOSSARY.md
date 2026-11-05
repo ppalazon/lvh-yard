@@ -94,6 +94,10 @@ _Avoid_: Component, subsystem, check
 Whether the Workstation you are using can actually connect to an Instance, directly and through its Route. It is tested on demand and never stored.
 _Avoid_: Connectivity, health, availability
 
+**Service Warning**:
+A problem that the Home Workstation's setup of a Service causes, found from that setup alone. It has one of two levels. If the hostname does not work, the level is **error**. If the hostname works but other Workstations or users can meet a problem, the level is **risk**. The Service's state is not a Service Warning.
+_Avoid_: Alert, issue, Health warning, Status warning
+
 **Publication**:
 The Home Workstation's opt-in choice to make a Service reachable under a hostname, with a Scope. It also says whether Traefik logs the requests to its Route. It belongs to the Service, not to its Instances, and never starts or stops a process.
 _Avoid_: Exposure, routing enabled, enabled
