@@ -46,21 +46,22 @@ A new command, `lvh-yard catalog`, prints the Catalog view: one line for each Se
 16. As a developer, I want to keep the message for a Binding that matches no container, so that I know why it has no Instances.
 17. As a developer, I want a Container column in the Instances card, so that I know which container gives each Bound Instance.
 18. As a developer, I want a Container Port column, so that I see the port that the process listens on.
-19. As a developer, I want a Host Port column, so that I see the port that Docker maps on the Workstation.
+19. As a developer, I want a Host Port column, so that I see the port that is open on the Workstation.
 20. As a developer, I want "Not published" in the Host Port cell of an Instance with no Host Port. Then I know that the Instance is at the container's own address.
-21. As a developer, I want empty container cells for a Static Instance, so that a Static Instance shows no false container.
-22. As a developer, I want the container columns on a Remote Service too, so that I see a teammate's containers the same way.
-23. As a developer, I want `lvh-yard catalog`, so that I get the Catalog view in a terminal.
-24. As a developer, I want `lvh-yard catalog` to group Services by Workstation, so that it reads like `lvh-yard list`.
-25. As a developer, I want one line for each Service with state, hostname and count, so that the output stays short.
-26. As a developer, I want `--workstation <name>` on `lvh-yard catalog`, so that I see one Workstation.
-27. As a developer, I want `--state <state>` on `lvh-yard catalog`, so that I see, for example, only Degraded Services.
-28. As a developer, I want one line for an unreachable Workstation, so that I know why its Services are missing.
-29. As a developer, I want no Service Warnings in `lvh-yard catalog`, so that each Service stays one line.
-30. As a developer, I want `lvh-yard list` to keep its Instance lines, IDs and Service Warnings, so that `lvh-yard remove --id` still works.
-31. As a developer, I want `lvh-yard list` to show the Degraded state, so that both commands agree.
-32. As an API client, I want `degraded` as a state value, so that I get the same state as the dashboard.
-33. As an API client, I want the container name, Container Port and Host Port of a Bound Instance, so that I can show them too.
+21. As a developer, I want the Container Port as the Host Port of a container on the host network, so that its open port does not show as "Not published".
+22. As a developer, I want empty container cells for a Static Instance, so that a Static Instance shows no false container.
+23. As a developer, I want the container columns on a Remote Service too, so that I see a teammate's containers the same way.
+24. As a developer, I want `lvh-yard catalog`, so that I get the Catalog view in a terminal.
+25. As a developer, I want `lvh-yard catalog` to group Services by Workstation, so that it reads like `lvh-yard list`.
+26. As a developer, I want one line for each Service with state, hostname and count, so that the output stays short.
+27. As a developer, I want `--workstation <name>` on `lvh-yard catalog`, so that I see one Workstation.
+28. As a developer, I want `--state <state>` on `lvh-yard catalog`, so that I see, for example, only Degraded Services.
+29. As a developer, I want one line for an unreachable Workstation, so that I know why its Services are missing.
+30. As a developer, I want no Service Warnings in `lvh-yard catalog`, so that each Service stays one line.
+31. As a developer, I want `lvh-yard list` to keep its Instance lines, IDs and Service Warnings, so that `lvh-yard remove --id` still works.
+32. As a developer, I want `lvh-yard list` to show the Degraded state, so that both commands agree.
+33. As an API client, I want `degraded` as a state value, so that I get the same state as the dashboard.
+34. As an API client, I want the container name, Container Port and Host Port of a Bound Instance, so that I can show them too.
 
 ## Implementation Decisions
 
@@ -89,7 +90,7 @@ A new command, `lvh-yard catalog`, prints the Catalog view: one line for each Se
 ### Instance fields and the Instances card
 
 - A Bound Instance stores its container name and Container Port in its Consul meta, next to the Binding that it stores today.
-- `Instance` in the API gets `container`, `containerPort` and `hostPort`. All three are left out of the JSON for a Static Instance. `hostPort` is also left out for a Bound Instance with no Host Port.
+- `Instance` in the API gets `container`, `containerPort` and `hostPort`. All three are left out of the JSON for a Static Instance. `hostPort` is also left out for a Bound Instance with no Host Port. A container on the host network has no port mapping and no address of its own. Its `hostPort` is its Container Port, because its Bound Instance is at the Workstation's address and that port.
 - The Instances card columns are Instance (the address), Container, Container Port, Host Port, Health, then the actions.
 - For a Static Instance, the three container cells stay empty. For a Bound Instance with no Host Port, the Host Port cell says "Not published".
 - A Remote Service shows the same columns, from the meta of its Home Workstation.
@@ -115,7 +116,7 @@ A new command, `lvh-yard catalog`, prints the Catalog view: one line for each Se
 - A good test acts as a user or an API client. It looks only at what they can see: API answers, the HTML of a page, and CLI output.
 - Seam 1 is the dashboard test, through `DashboardTest`, with a real Consul and Docker from Testcontainers.
 - Seam 1 covers the state. One passing and one critical Instance give `degraded`. One passing and one warning Instance give `degraded`. All passing give `healthy`, and none passing give `unhealthy`. A Service where only the Static Instance passes, under the default Instance Priority, is `degraded`. An Unpublished Service with a failing Instance stays `unpublished`.
-- Seam 1 covers the API fields `container`, `containerPort` and `hostPort`. It tests a Bound Instance with a Host Port and one without. A Static Instance has none of them. The OpenAPI document shows them and the `degraded` value.
+- Seam 1 covers the API fields `container`, `containerPort` and `hostPort`. It tests a Bound Instance with a mapped Host Port, one on the host network, and one with no Host Port. A Static Instance has none of them. The OpenAPI document shows them and the `degraded` value.
 - Seam 1 covers the Catalog: one row for each Service, the count text, "No Instances", the Degraded filter, and the orange badge variant.
 - Seam 1 covers the Service page: the Container Bindings summary for a Compose service with several containers, and the new Instances card columns with "Not published".
 - Seam 2 is the CLI test `YardTest` with its stub dashboard. It covers `lvh-yard catalog` with and without filters, an unreachable Workstation, an unknown state, and the Degraded state in `lvh-yard list`.

@@ -1,6 +1,6 @@
 # 03: The lvh-yard catalog command
 
-**What to build:** `lvh-yard catalog` prints one line for each Service, grouped by Workstation, with state, hostname and the Instances count. It takes `--workstation` and `--state`. See `.scratch/catalog-per-service/spec.md`, user stories 23 to 30.
+**What to build:** `lvh-yard catalog` prints one line for each Service, grouped by Workstation, with state, hostname and the Instances count. It takes `--workstation` and `--state`. See `.scratch/catalog-per-service/spec.md`, user stories 24 to 31.
 
 **Blocked by:** 01
 

@@ -1,6 +1,6 @@
 # 01: The Degraded state
 
-**What to build:** A published Service with at least one passing Instance and at least one Instance that does not pass is Degraded. Healthy now means that every Instance passes. The Degraded and warning badges use the risk orange. See `.scratch/catalog-per-service/spec.md`, user stories 1 to 9, 31 and 32.
+**What to build:** A published Service with at least one passing Instance and at least one Instance that does not pass is Degraded. Healthy now means that every Instance passes. The Degraded and warning badges use the risk orange. See `.scratch/catalog-per-service/spec.md`, user stories 1 to 9, 32 and 33.
 
 **Blocked by:** None (can start immediately).
 

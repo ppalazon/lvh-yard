@@ -47,7 +47,7 @@ The port a process listens on inside a container. A Container Binding names one.
 _Avoid_: Internal port, exposed port
 
 **Host Port**:
-The port on a Workstation that Docker maps to a Container Port. When a Container Port has one, its Bound Instance is at the Workstation's address and the Host Port.
+The port on a Workstation where a Container Port is open. It is the port that Docker maps to the Container Port. For a container on the host network, it is the Container Port itself. When a Container Port has a Host Port, its Bound Instance is at the Workstation's address and the Host Port.
 _Avoid_: Exposed port, public port, mapped port
 
 **Unfollowed Container**:
