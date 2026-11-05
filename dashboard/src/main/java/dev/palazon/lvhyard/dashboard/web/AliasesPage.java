@@ -6,6 +6,7 @@ import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import dev.palazon.lvhyard.dashboard.services.Yard;
 import java.util.List;
+import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
 import org.xmlet.htmlapifaster.Main;
 import org.xmlet.htmlapifaster.Td;
@@ -14,6 +15,8 @@ import org.xmlet.htmlapifaster.Tr;
 final class AliasesPage {
 
   static final String PATH = "/aliases";
+
+  private static final String ADD_DIALOG = "add-alias";
 
   private AliasesPage() {}
 
@@ -50,11 +53,29 @@ final class AliasesPage {
                         + workstation.baseDomain()
                         + ".")
                 .__()
+                .of(content -> {
+                  if (shared.isEmpty()) {
+                    content
+                        .p()
+                        .text(
+                            "No Remote Service is shared with the Yard yet: an Alias needs one"
+                                + " with Yard Scope.")
+                        .__();
+                  } else {
+                    Dialogs.openButton(content, ADD_DIALOG, "Add an Alias");
+                  }
+                })
                 .of(content -> list(content, aliases))
-                .h2()
-                .text("Add an Alias")
-                .__()
-                .of(content -> form(content, shared, name, target, error)));
+                .of(content -> {
+                  if (!shared.isEmpty()) {
+                    Dialogs.modal(
+                        content,
+                        ADD_DIALOG,
+                        "Add an Alias",
+                        error != null,
+                        body -> form(body, shared, name, target, error));
+                  }
+                }));
   }
 
   private static void list(Main<?> main, List<Alias> aliases) {
@@ -150,20 +171,13 @@ final class AliasesPage {
   }
 
   private static void form(
-      Main<?> main,
+      Div<?> body,
       List<Service> shared,
       String name,
       String target,
       InvalidRegistrationException error) {
-    if (shared.isEmpty()) {
-      main.p()
-          .text(
-              "No Remote Service is shared with the Yard yet: an Alias needs one with Yard Scope.")
-          .__();
-      return;
-    }
-    main.form()
-        .attrClass("form flex max-w-md flex-col gap-6")
+    body.form()
+        .attrClass("form flex flex-col gap-6")
         .addAttr("method", "post")
         .addAttr("action", PATH)
         .of(form ->
@@ -191,11 +205,7 @@ final class AliasesPage {
             }))
         .__()
         .__()
-        .button()
-        .attrType(EnumTypeButtonType.SUBMIT)
-        .attrClass("btn w-fit")
-        .text("Add")
-        .__()
+        .of(form -> Dialogs.actions(form, "Add"))
         .__();
   }
 }

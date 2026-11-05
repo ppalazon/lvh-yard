@@ -485,11 +485,14 @@ holds. If a file is not a Backup, its row shows why instead.
 - To keep a Backup in another place, click **Download** in its row.
 - To delete a Backup, click **Delete** in its row. The page asks you to
   confirm. Then click **Delete** again.
-- To add a Backup from your computer, such as a file from a teammate, choose
-  the file next to **Upload** and click **Upload**. The file keeps its name.
-  The page refuses a name with a folder in it, a name that starts with a dot, a
-  name that does not end in `.yaml` or `.yml`, a name that is already in the
-  Backups folder, and a file that is not a Backup.
+- To add a Backup from your computer, such as a file from a teammate, click
+  **Upload a Backup**. A modal opens: a window over the page. Choose the file
+  and click **Upload**. The file keeps its name. The page refuses a name with a
+  folder in it, a name that starts with a dot, a name that does not end in
+  `.yaml` or `.yml`, a name that is already in the Backups folder, and a file
+  that is not a Backup. If the page refuses the file, the modal opens again and
+  shows why under the file field. The browser does not keep the file, so
+  choose it again.
 
 To import a Backup from the page, do these steps:
 
@@ -677,6 +680,11 @@ An Alias gives a Remote Service a short hostname on this Workstation only, for
 example `grafana.<base-domain>` for `grafana.ws-b.<base-domain>`. Add and
 remove Aliases on the Aliases page or with `lvh-yard alias`. The Aliases are in
 the Consul KV of this Workstation, under `lvh-yard/aliases/`.
+
+To add an Alias on the Aliases page, click "Add an Alias". The form opens in a
+modal, a window over the page. Cancel or the Escape key closes it. If a value
+is wrong, the modal opens again with your input and the error under its field.
+The button shows only when a Remote Service has Yard Scope.
 
 The name of an Alias follows the rules for a Service name, so it cannot be
 `consul`. The Workstation and the Service that it names must each be a DNS
@@ -899,14 +907,16 @@ without it, the registration is refused with 400, and the `field` of the
 error is `port`. The Service gets the cleaned container name. The Service gets
 its Bound Instance when the container starts.
 
-Below the list, a form binds a container name or a Compose service. The
-container or Compose service does not need to run. Choose "Container name" or
+To bind a container name or a Compose service, click "Bind a container" above
+the list. The form opens in a modal, a window over the page. Cancel or the
+Escape key closes it. The container or Compose service does not need to run.
+Choose "Container name" or
 "Compose service", and fill in its names and the container port. If you leave
 the Service name empty, LVH Yard uses the cleaned container name or the cleaned
 Compose service name. If the Service is new, LVH Yard
 publishes it with Local Scope. To keep it Unpublished, clear "Publish a new
 Service". Then click Bind. The page of the Service opens. If the binding
-fails, the form shows why next to the field.
+fails, the modal opens again with your input and the error under its field.
 
 `POST /api/workstation/services/<service>/container-bindings` does the same.
 The body gives `container`, or `composeProject` and `composeService`, and

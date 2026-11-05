@@ -14,7 +14,6 @@ import java.util.stream.Collectors;
 import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
 import org.xmlet.htmlapifaster.EnumTypeInputType;
-import org.xmlet.htmlapifaster.Main;
 import org.xmlet.htmlapifaster.Td;
 import org.xmlet.htmlapifaster.Tr;
 
@@ -24,6 +23,8 @@ final class ContainersPage {
   static final String PATH = "/containers";
 
   static final String BIND_PATH = PATH + "/bind";
+
+  private static final String BIND_DIALOG = "bind-container";
 
   /** What the binding form binds. The form sends its name, as Spring binds an enum by name. */
   enum Kind {
@@ -128,6 +129,7 @@ final class ContainersPage {
                         .__();
                   }
                 })
+                .of(content -> Dialogs.openButton(content, BIND_DIALOG, "Bind a container"))
                 .of(content -> {
                   if (failure == null) {
                     Layout.refreshed(
@@ -145,24 +147,29 @@ final class ContainersPage {
                       .of(region -> list(region, containers, dockerProblem, failure))
                       .__();
                 })
-                .of(content -> bindForm(content, bind)));
+                .of(content ->
+                    Dialogs.modal(
+                        content,
+                        BIND_DIALOG,
+                        "Bind a container",
+                        bind.error() != null,
+                        body -> bindForm(body, bind))));
   }
 
   /**
    * Outside the refreshed list, so the refresh cannot reset what is typed. app.css hides the fields
    * of the kind that is not chosen, so the choice works without JavaScript.
    */
-  private static void bindForm(Main<?> main, BindForm bind) {
+  private static void bindForm(Div<?> body, BindForm bind) {
     Binding binding = bind.binding();
     InvalidRegistrationException error = bind.error();
-    main.h2()
-        .text("Bind a container or a Compose service")
-        .__()
-        .p()
-        .text("The container does not need to run. Each container that matches gets an Instance.")
+    body.p()
+        .text(
+            "Bind a container or a Compose service. The container does not need to run. Each"
+                + " container that matches gets an Instance.")
         .__()
         .form()
-        .attrClass("form flex max-w-md flex-col gap-6")
+        .attrClass("form flex flex-col gap-6")
         .addAttr("data-bind-form", "")
         .addAttr("method", "post")
         .addAttr("action", BIND_PATH)
@@ -219,11 +226,7 @@ final class ContainersPage {
                 "Lowercase letters, digits and -. If empty, the container or Compose service name.",
                 error))
         .of(form -> InstanceForm.publish(form, bind.publish()))
-        .button()
-        .attrType(EnumTypeButtonType.SUBMIT)
-        .attrClass("btn w-fit")
-        .text("Bind")
-        .__()
+        .of(form -> Dialogs.actions(form, "Bind"))
         .__();
   }
 

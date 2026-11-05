@@ -24,6 +24,8 @@ final class BackupsPage {
 
   static final String UPLOAD_PATH = PATH + "/upload";
 
+  private static final String UPLOAD_DIALOG = "upload-backup";
+
   private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm xxx");
 
   private BackupsPage() {}
@@ -60,9 +62,8 @@ final class BackupsPage {
                         + ", in the Backups folder of its Workstation Folder. They hold basic-auth"
                         + " hashes, so keep them private.")
                 .__()
-                .of(content -> alert(content, "Not uploaded", uploadProblems))
                 .div()
-                .attrClass("flex flex-wrap items-end gap-4")
+                .attrClass("flex flex-wrap items-end gap-2")
                 .form()
                 .addAttr("method", "post")
                 .addAttr("action", NEW_PATH)
@@ -72,35 +73,67 @@ final class BackupsPage {
                 .text("New Backup")
                 .__()
                 .__()
-                .form()
-                .attrClass("flex flex-wrap items-end gap-2")
-                .addAttr("method", "post")
-                .addAttr("action", UPLOAD_PATH)
-                .addAttr("enctype", "multipart/form-data")
-                .div()
-                .attrClass("field")
-                .label()
-                .attrFor("file")
-                .text("Backup file")
+                .of(buttons -> Dialogs.openButton(buttons, UPLOAD_DIALOG, "Upload a Backup"))
                 .__()
-                .input()
-                .attrType(EnumTypeInputType.FILE)
-                .attrClass("input")
-                .attrId("file")
-                .attrName("file")
-                .attrAccept(".yaml,.yml")
-                .addAttr("required", "")
-                .__()
-                .__()
-                .button()
-                .attrType(EnumTypeButtonType.SUBMIT)
-                .attrClass("btn")
-                .addAttr("data-variant", "outline")
-                .text("Upload")
-                .__()
-                .__()
-                .__()
-                .of(content -> list(content, backups)));
+                .of(content -> list(content, backups))
+                .of(content ->
+                    Dialogs.modal(
+                        content,
+                        UPLOAD_DIALOG,
+                        "Upload a Backup",
+                        !uploadProblems.isEmpty(),
+                        body -> uploadForm(body, uploadProblems))));
+  }
+
+  /** A browser does not keep a chosen file, so after a refusal the file is chosen again. */
+  private static void uploadForm(Div<?> body, List<String> problems) {
+    body.form()
+        .attrClass("form flex flex-col gap-6")
+        .addAttr("method", "post")
+        .addAttr("action", UPLOAD_PATH)
+        .addAttr("enctype", "multipart/form-data")
+        .div()
+        .attrClass("field")
+        .label()
+        .attrFor("file")
+        .text("Backup file")
+        .__()
+        .input()
+        .attrType(EnumTypeInputType.FILE)
+        .attrClass("input")
+        .attrId("file")
+        .attrName("file")
+        .attrAccept(".yaml,.yml")
+        .addAttr("required", "")
+        .of(input -> {
+          if (!problems.isEmpty()) {
+            input.addAttr("aria-invalid", "true");
+          }
+        })
+        .__()
+        .of(field -> {
+          if (problems.isEmpty()) {
+            return;
+          }
+          field
+              .div()
+              .attrClass("alert")
+              .addAttr("data-variant", "destructive")
+              .addAttr("role", "alert")
+              .h3()
+              .text("Not uploaded")
+              .__()
+              .section()
+              .ul()
+              .attrClass("list-disc pl-5")
+              .of(list -> problems.forEach(problem -> list.li().text(problem).__()))
+              .__()
+              .__()
+              .__();
+        })
+        .__()
+        .of(form -> Dialogs.actions(form, "Upload"))
+        .__();
   }
 
   /** The confirmation step before a delete, so a click alone deletes nothing. */
