@@ -1,7 +1,6 @@
 package dev.palazon.lvhyard.dashboard.profiles;
 
 import dev.palazon.lvhyard.dashboard.consul.Consul;
-import dev.palazon.lvhyard.dashboard.services.OutOfRange;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
@@ -34,7 +33,7 @@ public class RouteProfiles {
 
   private final Path path;
 
-  private final OutOfRange outOfRange;
+  private final RouteProfileChecks checks;
 
   private final Consul consul;
 
@@ -43,9 +42,9 @@ public class RouteProfiles {
   /** The file's text the Consul KV holds the profiles of; {@code ""} for no file. */
   private String synced;
 
-  RouteProfiles(RouteProfilesSettings settings, OutOfRange outOfRange, Consul consul) {
+  RouteProfiles(RouteProfilesSettings settings, RouteProfileChecks checks, Consul consul) {
     this.path = settings.path();
-    this.outOfRange = outOfRange;
+    this.checks = checks;
     this.consul = consul;
   }
 
@@ -95,7 +94,7 @@ public class RouteProfiles {
     if (text.equals(synced)) {
       return;
     }
-    RouteProfileReader.Reading reading = RouteProfileReader.read(text, outOfRange);
+    RouteProfileReader.Reading reading = RouteProfileReader.read(text, checks);
     if (reading.error() != null) {
       file = new RouteProfilesFile(reading.error(), file.profiles());
       synced = text;
