@@ -5,7 +5,6 @@ import dev.palazon.lvhyard.dashboard.services.Instance;
 import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import java.util.List;
-import org.xmlet.htmlapifaster.EnumTypeButtonType;
 import org.xmlet.htmlapifaster.Main;
 
 final class StaticInstancesPage {
@@ -14,6 +13,8 @@ final class StaticInstancesPage {
 
   /** The address of the Register page, which this page replaces. */
   static final String OLD_PATH = "/register";
+
+  private static final String REGISTER_DIALOG = "register-static-instance";
 
   private StaticInstancesPage() {}
 
@@ -41,31 +42,33 @@ final class StaticInstancesPage {
                 .p()
                 .text("Instances at a fixed host and port, on " + workstation.name() + ".")
                 .__()
+                .of(content ->
+                    Dialogs.openButton(content, REGISTER_DIALOG, "Register a Static Instance"))
                 .of(content -> list(content, services))
-                .h2()
-                .text("Register a Static Instance")
-                .__()
-                .form()
-                .attrClass("form flex max-w-md flex-col gap-6")
-                .addAttr("method", "post")
-                .addAttr("action", PATH)
-                .of(form ->
-                    InstanceForm.text(
-                        form,
-                        "name",
-                        "Service name",
-                        name,
-                        "grafana",
-                        "Lowercase letters, digits and -.",
-                        error))
-                .of(form -> InstanceForm.fields(form, fields, defaultHost, error))
-                .of(form -> InstanceForm.publish(form, publish))
-                .button()
-                .attrType(EnumTypeButtonType.SUBMIT)
-                .attrClass("btn w-fit")
-                .text("Register")
-                .__()
-                .__());
+                .of(content ->
+                    Dialogs.modal(
+                        content,
+                        REGISTER_DIALOG,
+                        "Register a Static Instance",
+                        error != null,
+                        body ->
+                            body.form()
+                                .attrClass("form flex flex-col gap-6")
+                                .addAttr("method", "post")
+                                .addAttr("action", PATH)
+                                .of(form ->
+                                    InstanceForm.text(
+                                        form,
+                                        "name",
+                                        "Service name",
+                                        name,
+                                        "grafana",
+                                        "Lowercase letters, digits and -.",
+                                        error))
+                                .of(form -> InstanceForm.fields(form, fields, defaultHost, error))
+                                .of(form -> InstanceForm.publish(form, publish))
+                                .of(form -> Dialogs.actions(form, "Register"))
+                                .__())));
   }
 
   private record Row(Service service, Instance instance) {}

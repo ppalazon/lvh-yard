@@ -784,7 +784,10 @@ Instances of this Workstation, with their Service, address and Health. Each row
 links to the form that edits the Instance. The old address `/register` leads to
 this page.
 
-Register a Static Instance with the form on that page, or with
+To register a Static Instance on that page, click "Register a Static
+Instance". The form opens in a modal, a window over the page. Cancel or the
+Escape key closes it. If a value is wrong, the modal opens again with your
+input and the error under its field. You can also run
 `lvh-yard register static`. If the Service is new, it gets a Publication with
 Local Scope. To keep a new Service Unpublished, clear "Publish a new Service" in
 the form, or add `--no-publish`. A Service that exists keeps its Publication, or
