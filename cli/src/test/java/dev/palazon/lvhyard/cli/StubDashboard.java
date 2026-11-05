@@ -107,6 +107,10 @@ final class StubDashboard implements AutoCloseable {
     server.verify(0, WireMock.anyRequestedFor(WireMock.anyUrl()));
   }
 
+  void verifyNotCalled(String method, String path) {
+    server.verify(0, called(method, path));
+  }
+
   private static RequestPatternBuilder called(String method, String path) {
     return new RequestPatternBuilder(
         RequestMethod.fromString(method), WireMock.urlPathEqualTo(path));

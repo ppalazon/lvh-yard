@@ -321,6 +321,15 @@ final class Dashboard {
     return read(send(request), new TypeReference<>() {});
   }
 
+  /** Adds or replaces the profile {@code name} with {@code middleware}, Traefik's middleware. */
+  RouteProfileDetail putRouteProfile(String name, Object middleware) {
+    HttpRequest.Builder request =
+        HttpRequest.newBuilder(url.resolve(routeProfilePath(name)))
+            .header("Content-Type", "application/json")
+            .PUT(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(middleware)));
+    return read(send(request), new TypeReference<>() {});
+  }
+
   void removeRouteProfile(String name) {
     send(HttpRequest.newBuilder(url.resolve(routeProfilePath(name))).DELETE());
   }

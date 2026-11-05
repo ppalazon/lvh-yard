@@ -739,6 +739,136 @@ class YardTest {
     assertThat(run.err()).contains("missing.yaml");
   }
 
+  /** {@code GET} of {@code team} answers a headers profile that sets {@code X-Team: a}. */
+  private void answerTeamProfile() {
+    dashboard.answer(
+        "GET",
+        "/api/workstation/route-profiles/team",
+        200,
+        """
+        {"name": "team", "type": "headers", "services": [],
+         "definition": {"headers": {"customRequestHeaders": {"X-Team": "a"}}}}
+        """);
+  }
+
+  private void answerTeamProfileSaved() {
+    dashboard.answer(
+        "PUT",
+        "/api/workstation/route-profiles/team",
+        200,
+        """
+        {"name": "team", "type": "headers", "services": [],
+         "definition": {"headers": {"customRequestHeaders": {"X-Team": "b"}}}}
+        """);
+  }
+
+  @Test
+  void profilesEditSendsTheChangedProfile() throws Exception {
+    answerTeamProfile();
+    answerTeamProfileSaved();
+
+    Run run =
+        yardWithEditor("sed -i 's/X-Team: a/X-Team: b/' \"$1\"\n", "", "profiles", "edit", "team");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).isEqualTo("Saved the Route Profile team.\n");
+    dashboard.verifyCalled(
+        "PUT",
+        "/api/workstation/route-profiles/team",
+        "{\"headers\": {\"customRequestHeaders\": {\"X-Team\": \"b\"}}}");
+  }
+
+  @Test
+  void profilesEditDoesNothingWhenTheTextIsTheSame() throws Exception {
+    answerTeamProfile();
+
+    Run run = yardWithEditor("true\n", "", "profiles", "edit", "team");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).isEqualTo("No change to the Route Profile team.\n");
+    dashboard.verifyNotCalled("PUT", "/api/workstation/route-profiles/team");
+  }
+
+  @Test
+  void profilesEditRefusesAnotherNameAndKeepsTheTextWhenAskedNotToEditAgain() throws Exception {
+    answerTeamProfile();
+
+    Run run = yardWithEditor("sed -i 's/team:/crew:/' \"$1\"\n", "n\n", "profiles", "edit", "team");
+
+    assertThat(run.exitCode()).isNotZero();
+    assertThat(run.err())
+        .startsWith("The file must hold only the Route Profile team. It holds crew.\n")
+        .contains("Edit again? [Y/n] ")
+        .contains("Did not save the Route Profile team. Your text is in ");
+    dashboard.verifyNotCalled("PUT", "/api/workstation/route-profiles/team");
+  }
+
+  @Test
+  void profilesEditRefusesASecondProfile() throws Exception {
+    answerTeamProfile();
+
+    Run run =
+        yardWithEditor(
+            "printf '    gzip:\\n      compress: {}\\n' >> \"$1\"\n",
+            "n\n",
+            "profiles",
+            "edit",
+            "team");
+
+    assertThat(run.exitCode()).isNotZero();
+    assertThat(run.err())
+        .startsWith("The file must hold only the Route Profile team. It holds team, gzip.\n");
+    dashboard.verifyNotCalled("PUT", "/api/workstation/route-profiles/team");
+  }
+
+  @Test
+  void profilesEditOffersTheSameTextAgainAfterARefusal() throws Exception {
+    answerTeamProfile();
+    answerTeamProfileSaved();
+
+    // The first run renames the profile. The second finds that name, so the text is the same.
+    Run run =
+        yardWithEditor(
+            """
+            if grep -q crew: "$1"; then
+              sed -i 's/crew:/team:/; s/X-Team: a/X-Team: b/' "$1"
+            else
+              sed -i 's/team:/crew:/' "$1"
+            fi
+            """,
+            "\n",
+            "profiles",
+            "edit",
+            "team");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).endsWith("Saved the Route Profile team.\n");
+    dashboard.verifyCalled(
+        "PUT",
+        "/api/workstation/route-profiles/team",
+        "{\"headers\": {\"customRequestHeaders\": {\"X-Team\": \"b\"}}}");
+  }
+
+  @Test
+  void profilesEditPrintsEachReasonWhenTheDashboardRefusesTheProfile() throws Exception {
+    answerTeamProfile();
+    dashboard.answer(
+        "PUT",
+        "/api/workstation/route-profiles/team",
+        400,
+        """
+        {"title": "Bad Request", "status": 400,
+         "detail": "team has the type headerz.",
+         "problems": [{"profile": "team", "reason": "team has the type headerz."}]}
+        """);
+
+    Run run =
+        yardWithEditor("sed -i 's/headers:/headerz:/' \"$1\"\n", "n\n", "profiles", "edit", "team");
+
+    assertThat(run.exitCode()).isNotZero();
+    assertThat(run.err()).startsWith("team has the type headerz.\nEdit again? [Y/n] ");
+  }
+
   @Test
   void profilesRemoveRemovesTheProfile() {
     dashboard.answer("DELETE", "/api/workstation/route-profiles/gzip", 204, null);
@@ -2879,6 +3009,29 @@ class YardTest {
     builder.environment().put("HOME", home.toString());
     builder.environment().putAll(environment);
     return run(builder);
+  }
+
+  /**
+   * Runs {@code lvh-yard} against the stub dashboard in a process of its own, with {@code editor},
+   * a shell script that gets the file as $1, as $EDITOR, and {@code input} on its standard input.
+   */
+  private Run yardWithEditor(String editor, String input, String... args) throws Exception {
+    Path script = Files.createTempFile(home, "editor", ".sh");
+    Files.writeString(script, "#!/bin/sh\n" + editor);
+    script.toFile().setExecutable(true);
+    List<String> withDashboard =
+        new ArrayList<>(List.of("--dashboard", dashboard.url().toString()));
+    withDashboard.addAll(List.of(args));
+    ProcessBuilder builder = new ProcessBuilder(command(withDashboard.toArray(String[]::new)));
+    builder.environment().put("HOME", home.toString());
+    builder.environment().put("EDITOR", script.toString());
+    Process process = builder.start();
+    try (var in = process.getOutputStream()) {
+      in.write(input.getBytes(StandardCharsets.UTF_8));
+    }
+    String out = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+    String err = new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
+    return new Run(process.waitFor(), out, err);
   }
 
   /** Runs {@code lvh-yard} in a process of its own, with {@code input} on its standard input. */

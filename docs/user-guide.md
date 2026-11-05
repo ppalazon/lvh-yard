@@ -217,6 +217,7 @@ lvh-yard profiles                           # the Route Profiles, with their typ
 lvh-yard profiles show basic-auth           # one Route Profile, in Traefik's file format
 lvh-yard profiles set profiles.yaml        # add or replace each Route Profile of the file
 lvh-yard profiles show basic-auth | lvh-yard profiles set -   # - reads standard input
+lvh-yard profiles edit basic-auth           # change one Route Profile in $EDITOR
 lvh-yard profiles remove basic-auth
 lvh-yard test web                           # tests whether this Workstation reaches web
 lvh-yard test grafana --workstation ws-b    # a Remote Service
@@ -248,6 +249,15 @@ name a profile of the same file. The profiles that the file does not name stay.
 If the dashboard refuses the file, the command prints each reason. If a
 Publication or a chain names a profile, `lvh-yard profiles remove` refuses and
 names each Service and chain.
+
+`lvh-yard profiles edit <name>` opens the profile in `$EDITOR`, in the format of
+`show`. If `$EDITOR` is not set, it opens `vi`. After you close the editor, the
+command saves the profile. If you did not change the text, it saves nothing.
+The file must hold only that one profile, with the same name. If LVH Yard
+refuses your change, the command prints the reason and asks
+`Edit again? [Y/n]`. Press Enter to open your text again. Answer `n` to stop:
+the command then prints the path of the file that holds your text.
+
 The `/status` page of the dashboard and `GET /api/status` show the same status
 as `lvh-yard status`.
 
