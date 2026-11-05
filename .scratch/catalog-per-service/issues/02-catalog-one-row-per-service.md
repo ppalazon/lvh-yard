@@ -4,12 +4,16 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Each Service has one row, whatever its number of Instances.
-- [ ] The Instances cell says "N of M passing", or "No Instances".
-- [ ] An Unpublished Service shows its count too.
-- [ ] The Instance and Health columns are gone.
-- [ ] Filters, the 5-second refresh and the Workstation headings work as before.
-- [ ] `docs/user-guide.md` describes the new Catalog columns.
-- [ ] `CatalogPageTest` covers one row for a Service with several Instances, the count text and "No Instances".
+- [x] Each Service has one row, whatever its number of Instances.
+- [x] The Instances cell says "N of M passing", or "No Instances".
+- [x] An Unpublished Service shows its count too.
+- [x] The Instance and Health columns are gone.
+- [x] Filters, the 5-second refresh and the Workstation headings work as before.
+- [x] `docs/user-guide.md` describes the new Catalog columns.
+- [x] `CatalogPageTest` covers one row for a Service with several Instances, the count text and "No Instances".
+
+## Comments
+
+Implemented in `b2dc430`, merged in `38440ab`. The integration check passed. Browser smoke checks showed the four columns, one row for two Instances, passing counts, No Instances, an Unpublished count and the live Degraded filter. Standards and Spec reviews found no Catalog page issues.

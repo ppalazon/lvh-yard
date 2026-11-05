@@ -1,6 +1,6 @@
 # One row per Service: the Degraded state, a Catalog without repeats, and container ports
 
-Status: ready-for-agent
+Status: done
 
 Words follow `GLOSSARY.md`. This spec adds the terms Degraded, Container Port and Host Port. It also changes Healthy: a Healthy Service now has only passing Instances.
 
