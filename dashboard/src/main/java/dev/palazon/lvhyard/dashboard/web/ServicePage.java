@@ -15,10 +15,13 @@ import dev.palazon.lvhyard.dashboard.services.ServiceState;
 import dev.palazon.lvhyard.dashboard.services.ServiceWarning;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.xmlet.htmlapifaster.Div;
+import org.xmlet.htmlapifaster.Element;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
 import org.xmlet.htmlapifaster.EnumTypeInputType;
 import org.xmlet.htmlapifaster.Td;
@@ -103,19 +106,15 @@ final class ServicePage {
                                 .div()
                                 .attrId("sections")
                                 .attrClass("grid grid-cols-1 items-start gap-4 lg:grid-cols-2")
-                                .div()
-                                .attrClass(CARD)
-                                .h2()
-                                .attrClass("text-lg font-semibold")
-                                .text("Publication")
-                                .__()
-                                .of(card -> publication(card, workstation, service, own))
-                                .of(card -> {
-                                  if (own) {
-                                    publicationForms(card, service);
-                                  }
-                                })
-                                .__()
+                                .of(grid ->
+                                    card(grid, null, "Publication")
+                                        .of(card -> publication(card, workstation, service, own))
+                                        .of(card -> {
+                                          if (own) {
+                                            publicationForms(card, service);
+                                          }
+                                        })
+                                        .__())
                                 .of(grid -> {
                                   if (own && service.published()) {
                                     instancePriority(grid, service);
@@ -127,71 +126,7 @@ final class ServicePage {
                                   }
                                 })
                                 .__()
-                                .div()
-                                .attrId("instances")
-                                .attrClass(CARD)
-                                .h2()
-                                .attrClass("text-lg font-semibold")
-                                .text("Instances")
-                                .__()
-                                .div()
-                                .attrClass("table-container")
-                                .table()
-                                .attrClass("table")
-                                .thead()
-                                .tr()
-                                .th()
-                                .text("Instance")
-                                .__()
-                                .th()
-                                .text("Health")
-                                .__()
-                                .th()
-                                .text("Checks")
-                                .__()
-                                .of(row -> {
-                                  if (own) {
-                                    row.th()
-                                        .of(cell ->
-                                            cell.span().attrClass("sr-only").text("Actions").__())
-                                        .__();
-                                  }
-                                })
-                                .__()
-                                .__()
-                                .tbody()
-                                .of(body ->
-                                    service
-                                        .instances()
-                                        .forEach(instance ->
-                                            body.tr()
-                                                .td()
-                                                .attrClass("align-top")
-                                                .of(cell ->
-                                                    InstanceViews.description(
-                                                        cell, service, instance))
-                                                .__()
-                                                .td()
-                                                .attrClass("align-top")
-                                                .of(cell ->
-                                                    InstanceViews.health(cell, instance.health()))
-                                                .__()
-                                                .td()
-                                                .attrClass("align-top")
-                                                .of(cell -> InstanceViews.checks(cell, instance))
-                                                .__()
-                                                .of(row -> {
-                                                  if (own && instance.bound()) {
-                                                    row.td().__();
-                                                  } else if (own) {
-                                                    actions(row, service, instance);
-                                                  }
-                                                })
-                                                .__()))
-                                .__()
-                                .__()
-                                .__()
-                                .__()
+                                .of(content -> instances(content, service, own))
                                 .of(content -> {
                                   if (!service.containerBindings().isEmpty()) {
                                     containerBindings(content, service, own);
@@ -202,6 +137,75 @@ final class ServicePage {
                 .attrClass(CARD)
                 .of(card -> reachability(card, workstation, service, reachability))
                 .__());
+  }
+
+  /** A section card, with its heading written. The caller closes it. */
+  private static <Z extends Element> Div<Div<Z>> card(Div<Z> parent, String id, String heading) {
+    Div<Div<Z>> card = parent.div();
+    if (id != null) {
+      card.attrId(id);
+    }
+    return card.attrClass(CARD).h2().attrClass("text-lg font-semibold").text(heading).__();
+  }
+
+  private static void instances(Div<?> content, Service service, boolean own) {
+    Div<?> card = card(content, "instances", "Instances");
+    if (service.instances().isEmpty()) {
+      card.p().text("No Instances are registered.").__().__();
+      return;
+    }
+    card.div()
+        .attrClass("table-container")
+        .table()
+        .attrClass("table")
+        .thead()
+        .tr()
+        .th()
+        .text("Instance")
+        .__()
+        .th()
+        .text("Health")
+        .__()
+        .th()
+        .text("Checks")
+        .__()
+        .of(row -> {
+          if (own) {
+            row.th().of(cell -> cell.span().attrClass("sr-only").text("Actions").__()).__();
+          }
+        })
+        .__()
+        .__()
+        .tbody()
+        .of(body ->
+            service
+                .instances()
+                .forEach(instance ->
+                    body.tr()
+                        .td()
+                        .attrClass("align-top")
+                        .of(cell -> InstanceViews.description(cell, service, instance))
+                        .__()
+                        .td()
+                        .attrClass("align-top")
+                        .of(cell -> InstanceViews.health(cell, instance.health()))
+                        .__()
+                        .td()
+                        .attrClass("align-top")
+                        .of(cell -> InstanceViews.checks(cell, instance))
+                        .__()
+                        .of(row -> {
+                          if (own && instance.bound()) {
+                            row.td().__();
+                          } else if (own) {
+                            actions(row, service, instance);
+                          }
+                        })
+                        .__()))
+        .__()
+        .__()
+        .__()
+        .__();
   }
 
   private static void reachability(
@@ -349,14 +353,7 @@ final class ServicePage {
   }
 
   private static void containerBindings(Div<?> content, Service service, boolean own) {
-    content
-        .div()
-        .attrId("container-bindings")
-        .attrClass(CARD)
-        .h2()
-        .attrClass("text-lg font-semibold")
-        .text("Container Bindings")
-        .__()
+    card(content, "container-bindings", "Container Bindings")
         .div()
         .attrClass("table-container")
         .table()
@@ -499,13 +496,7 @@ final class ServicePage {
   private static void instancePriority(Div<?> content, Service service) {
     List<InstanceKind> order = service.priority();
     if (order.isEmpty()) {
-      content
-          .div()
-          .attrClass(CARD)
-          .h2()
-          .attrClass("text-lg font-semibold")
-          .text("Instance Priority")
-          .__()
+      card(content, null, "Instance Priority")
           .p()
           .attrClass("text-muted-foreground")
           .text("Off: the passing Static and Bound Instances share the Route.")
@@ -519,13 +510,7 @@ final class ServicePage {
           .__();
       return;
     }
-    content
-        .div()
-        .attrClass(CARD)
-        .h2()
-        .attrClass("text-lg font-semibold")
-        .text("Instance Priority")
-        .__()
+    card(content, null, "Instance Priority")
         .p()
         .attrClass("text-muted-foreground")
         .text("The Route uses the first kind that has a passing Instance.")
@@ -623,13 +608,7 @@ final class ServicePage {
       Div<?> content, Service service, boolean own, List<String> profileNames) {
     List<String> chosen = service.profiles();
     List<String> addable = profileNames.stream().filter(name -> !chosen.contains(name)).toList();
-    content
-        .div()
-        .attrClass(CARD)
-        .h2()
-        .attrClass("text-lg font-semibold")
-        .text("Route Profiles")
-        .__()
+    card(content, null, "Route Profiles")
         .p()
         .attrClass("text-muted-foreground")
         .text(
@@ -737,11 +716,15 @@ final class ServicePage {
    * has an id so that risks.js can open it again after each refresh.
    */
   private static void alerts(Div<?> content, Service service) {
-    Stream.concat(
-            stateAlert(service.state()).stream(),
-            service.warnings().stream()
-                .filter(warning -> warning.severity() == ServiceWarning.Severity.ERROR)
-                .map(ServiceWarning::message))
+    Map<ServiceWarning.Severity, List<String>> bySeverity =
+        service.warnings().stream()
+            .collect(
+                Collectors.groupingBy(
+                    ServiceWarning::severity,
+                    Collectors.mapping(ServiceWarning::message, Collectors.toList())));
+    List<String> errors = bySeverity.getOrDefault(ServiceWarning.Severity.ERROR, List.of());
+    List<String> risks = bySeverity.getOrDefault(ServiceWarning.Severity.RISK, List.of());
+    Stream.concat(stateAlert(service.state()).stream(), errors.stream())
         .forEach(message ->
             content
                 .div()
@@ -752,11 +735,6 @@ final class ServicePage {
                 .text(message)
                 .__()
                 .__());
-    List<String> risks =
-        service.warnings().stream()
-            .filter(warning -> warning.severity() == ServiceWarning.Severity.RISK)
-            .map(ServiceWarning::message)
-            .toList();
     if (risks.isEmpty()) {
       return;
     }
@@ -853,7 +831,6 @@ final class ServicePage {
         .__();
   }
 
-  /** The row of cards that gives the state of the Service at a glance. */
   private static void summary(Div<?> content, Service service) {
     long passing =
         service.instances().stream()
@@ -882,7 +859,8 @@ final class ServicePage {
         .__();
   }
 
-  private static void summaryCard(Div<?> grid, String name, String label, Consumer<Div<?>> body) {
+  private static <Z extends Element> void summaryCard(
+      Div<Z> grid, String name, String label, Consumer<Div<Div<Z>>> body) {
     grid.div()
         .attrClass("card flex flex-col items-start gap-1 p-4")
         .addAttr("data-summary", name)
@@ -890,7 +868,7 @@ final class ServicePage {
         .attrClass("text-sm text-muted-foreground")
         .text(label)
         .__()
-        .of(card -> body.accept(card))
+        .of(body)
         .__();
   }
 

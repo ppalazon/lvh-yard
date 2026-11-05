@@ -85,10 +85,7 @@ final class CatalogPage {
     }
   }
 
-  /**
-   * On each change it loads the Catalog with the new filters, swaps only the {@code catalog} region
-   * and puts the filters in the page address. The swapped region then refreshes with them.
-   */
+  /** After a change, the swapped catalog region refreshes with the new filters. */
   private static void filterForm(Main<?> main, Yard yard, Filters filters) {
     List<String> names =
         Stream.concat(

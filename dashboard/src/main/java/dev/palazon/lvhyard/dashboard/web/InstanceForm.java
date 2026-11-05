@@ -9,7 +9,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeInputType;
-import org.xmlet.htmlapifaster.Form;
+import org.xmlet.htmlapifaster.FlowContent;
 
 /** Fields shared by the Static Instances form, the edit form and the binding form. */
 final class InstanceForm {
@@ -78,18 +78,21 @@ final class InstanceForm {
    * @param defaultHost the host an Instance gets when none is typed
    */
   static void fields(
-      Form<?> form, Fields fields, String defaultHost, InvalidRegistrationException error) {
+      FlowContent<?, ?> parent,
+      Fields fields,
+      String defaultHost,
+      InvalidRegistrationException error) {
     text(
-        form,
+        parent,
         "host",
         "Host",
         fields.host(),
         defaultHost,
         "Empty: this Workstation's LAN address, " + defaultHost + ".",
         error);
-    text(form, "port", "Port", fields.port(), "3000", null, error);
+    text(parent, "port", "Port", fields.port(), "3000", null, error);
     field(
-        form,
+        parent,
         "check",
         "Health check",
         "TCP connects to the port. HTTP passes on a 2xx answer.",
@@ -111,9 +114,16 @@ final class InstanceForm {
                 .text("HTTP")
                 .__()
                 .__());
-    text(form, "path", "HTTP path", fields.path(), "/", "Only for an HTTP check. Empty: /.", error);
     text(
-        form,
+        parent,
+        "path",
+        "HTTP path",
+        fields.path(),
+        "/",
+        "Only for an HTTP check. Empty: /.",
+        error);
+    text(
+        parent,
         "interval",
         "Interval",
         fields.interval(),
@@ -121,16 +131,16 @@ final class InstanceForm {
         "Such as 5s or 1m, at least 1s. Empty: 10s.",
         error);
     text(
-        form,
+        parent,
         "timeout",
         "Timeout",
         fields.timeout(),
         "2s",
         "Such as 500ms or 2s. Empty: 2s.",
         error);
-    text(form, "tags", "Tags", fields.tags(), "backend, v2", "Separated by commas.", error);
+    text(parent, "tags", "Tags", fields.tags(), "backend, v2", "Separated by commas.", error);
     field(
-        form,
+        parent,
         "meta",
         "Meta",
         "One key=value on each line.",
@@ -155,7 +165,7 @@ final class InstanceForm {
   }
 
   static void text(
-      Form<?> form,
+      FlowContent<?, ?> parent,
       String name,
       String label,
       String value,
@@ -163,7 +173,7 @@ final class InstanceForm {
       String help,
       InvalidRegistrationException error) {
     field(
-        form,
+        parent,
         name,
         label,
         help,
@@ -189,14 +199,15 @@ final class InstanceForm {
 
   /** Shows the error, or else the help, below the control. */
   private static void field(
-      Form<?> form,
+      FlowContent<?, ?> parent,
       String name,
       String label,
       String help,
       InvalidRegistrationException error,
       Consumer<Div<?>> control) {
     boolean invalid = isAbout(error, name);
-    form.div()
+    parent
+        .div()
         .attrClass("field")
         .of(field -> {
           if (invalid) {
@@ -228,8 +239,9 @@ final class InstanceForm {
   }
 
   /** A cleared checkbox sends nothing, so the form sends {@code publish} only when it is on. */
-  static void publish(Form<?> form, boolean checked) {
-    form.label()
+  static void publish(FlowContent<?, ?> parent, boolean checked) {
+    parent
+        .label()
         .attrClass("label gap-3")
         .input()
         .attrType(EnumTypeInputType.CHECKBOX)

@@ -460,6 +460,18 @@ class ServicePageTest extends DashboardTest {
   }
 
   @Test
+  void instancesCardOfAServiceWithoutInstancesSaysSoInsteadOfAnEmptyTable() {
+    String web = newServiceName("web");
+    String id = register(web, Map.of("host", "10.1.2.3", "port", 8080)).get("id").asString();
+    publish(web);
+    delete(instancesPath(web) + "/" + id);
+
+    String instances = div(getPage("/services/ws-test/" + web).getBody(), "id=\"instances\"");
+
+    assertThat(instances).contains("No Instances are registered.").doesNotContain("<table");
+  }
+
+  @Test
   void unhealthyServiceShowsARedAlert() {
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));

@@ -13,6 +13,7 @@ import java.util.List;
 import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
 import org.xmlet.htmlapifaster.EnumTypeInputType;
+import org.xmlet.htmlapifaster.FlowContent;
 import org.xmlet.htmlapifaster.Main;
 import org.xmlet.htmlapifaster.Tr;
 
@@ -24,7 +25,7 @@ final class BackupsPage {
 
   static final String UPLOAD_PATH = PATH + "/upload";
 
-  private static final String UPLOAD_DIALOG = "upload-backup";
+  private static final Dialogs.Modal UPLOAD = new Dialogs.Modal("upload-backup", "Upload a Backup");
 
   private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm xxx");
 
@@ -73,25 +74,24 @@ final class BackupsPage {
                 .text("New Backup")
                 .__()
                 .__()
-                .of(buttons -> Dialogs.openButton(buttons, UPLOAD_DIALOG, "Upload a Backup"))
+                .of(buttons -> Dialogs.openButton(buttons, UPLOAD))
                 .__()
                 .of(content -> list(content, backups))
                 .of(content ->
                     Dialogs.modal(
                         content,
-                        UPLOAD_DIALOG,
-                        "Upload a Backup",
+                        UPLOAD,
                         !uploadProblems.isEmpty(),
-                        body -> uploadForm(body, uploadProblems))));
+                        form ->
+                            form.addAttr("action", UPLOAD_PATH)
+                                .addAttr("enctype", "multipart/form-data"),
+                        fields -> uploadField(fields, uploadProblems),
+                        "Upload")));
   }
 
   /** A browser does not keep a chosen file, so after a refusal the file is chosen again. */
-  private static void uploadForm(Div<?> body, List<String> problems) {
-    body.form()
-        .attrClass("form flex flex-col gap-6")
-        .addAttr("method", "post")
-        .addAttr("action", UPLOAD_PATH)
-        .addAttr("enctype", "multipart/form-data")
+  private static void uploadField(FlowContent<?, ?> fields, List<String> problems) {
+    fields
         .div()
         .attrClass("field")
         .label()
@@ -111,28 +111,7 @@ final class BackupsPage {
           }
         })
         .__()
-        .of(field -> {
-          if (problems.isEmpty()) {
-            return;
-          }
-          field
-              .div()
-              .attrClass("alert")
-              .addAttr("data-variant", "destructive")
-              .addAttr("role", "alert")
-              .h3()
-              .text("Not uploaded")
-              .__()
-              .section()
-              .ul()
-              .attrClass("list-disc pl-5")
-              .of(list -> problems.forEach(problem -> list.li().text(problem).__()))
-              .__()
-              .__()
-              .__();
-        })
-        .__()
-        .of(form -> Dialogs.actions(form, "Upload"))
+        .of(field -> alert(field, "Not uploaded", problems))
         .__();
   }
 
@@ -169,11 +148,12 @@ final class BackupsPage {
   }
 
   /** Nothing when {@code problems} is empty. */
-  private static void alert(Main<?> main, String title, List<String> problems) {
+  private static void alert(FlowContent<?, ?> parent, String title, List<String> problems) {
     if (problems.isEmpty()) {
       return;
     }
-    main.div()
+    parent
+        .div()
         .attrClass("alert")
         .addAttr("data-variant", "destructive")
         .addAttr("role", "alert")

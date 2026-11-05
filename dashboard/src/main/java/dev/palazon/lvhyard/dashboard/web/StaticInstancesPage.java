@@ -14,7 +14,8 @@ final class StaticInstancesPage {
   /** The address of the Register page, which this page replaces. */
   static final String OLD_PATH = "/register";
 
-  private static final String REGISTER_DIALOG = "register-static-instance";
+  private static final Dialogs.Modal REGISTER =
+      new Dialogs.Modal("register-static-instance", "Register a Static Instance");
 
   private StaticInstancesPage() {}
 
@@ -42,33 +43,27 @@ final class StaticInstancesPage {
                 .p()
                 .text("Instances at a fixed host and port, on " + workstation.name() + ".")
                 .__()
-                .of(content ->
-                    Dialogs.openButton(content, REGISTER_DIALOG, "Register a Static Instance"))
+                .of(content -> Dialogs.openButton(content, REGISTER))
                 .of(content -> list(content, services))
                 .of(content ->
                     Dialogs.modal(
                         content,
-                        REGISTER_DIALOG,
-                        "Register a Static Instance",
+                        REGISTER,
                         error != null,
-                        body ->
-                            body.form()
-                                .attrClass("form flex flex-col gap-6")
-                                .addAttr("method", "post")
-                                .addAttr("action", PATH)
-                                .of(form ->
-                                    InstanceForm.text(
-                                        form,
-                                        "name",
-                                        "Service name",
-                                        name,
-                                        "grafana",
-                                        "Lowercase letters, digits and -.",
-                                        error))
-                                .of(form -> InstanceForm.fields(form, fields, defaultHost, error))
-                                .of(form -> InstanceForm.publish(form, publish))
-                                .of(form -> Dialogs.actions(form, "Register"))
-                                .__())));
+                        form -> form.addAttr("action", PATH),
+                        section -> {
+                          InstanceForm.text(
+                              section,
+                              "name",
+                              "Service name",
+                              name,
+                              "grafana",
+                              "Lowercase letters, digits and -.",
+                              error);
+                          InstanceForm.fields(section, fields, defaultHost, error);
+                          InstanceForm.publish(section, publish);
+                        },
+                        "Register")));
   }
 
   private record Row(Service service, Instance instance) {}

@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
 import org.xmlet.htmlapifaster.EnumTypeInputType;
+import org.xmlet.htmlapifaster.Section;
 import org.xmlet.htmlapifaster.Td;
 import org.xmlet.htmlapifaster.Tr;
 
@@ -24,7 +25,9 @@ final class ContainersPage {
 
   static final String BIND_PATH = PATH + "/bind";
 
-  private static final String BIND_DIALOG = "bind-container";
+  private static final Dialogs.Modal BIND =
+      new Dialogs.Modal(
+          "bind-container", "Bind a container", "The container does not need to run.");
 
   /** What the binding form binds. The form sends its name, as Spring binds an enum by name. */
   enum Kind {
@@ -129,7 +132,7 @@ final class ContainersPage {
                         .__();
                   }
                 })
-                .of(content -> Dialogs.openButton(content, BIND_DIALOG, "Bind a container"))
+                .of(content -> Dialogs.openButton(content, BIND))
                 .of(content -> {
                   if (failure == null) {
                     Layout.refreshed(
@@ -150,29 +153,21 @@ final class ContainersPage {
                 .of(content ->
                     Dialogs.modal(
                         content,
-                        BIND_DIALOG,
-                        "Bind a container",
+                        BIND,
                         bind.error() != null,
-                        body -> bindForm(body, bind))));
+                        form -> form.addAttr("data-bind-form", "").addAttr("action", BIND_PATH),
+                        section -> bindFields(section, bind),
+                        "Bind")));
   }
 
   /**
    * Outside the refreshed list, so the refresh cannot reset what is typed. app.css hides the fields
    * of the kind that is not chosen, so the choice works without JavaScript.
    */
-  private static void bindForm(Div<?> body, BindForm bind) {
+  private static void bindFields(Section<?> section, BindForm bind) {
     Binding binding = bind.binding();
     InvalidRegistrationException error = bind.error();
-    body.p()
-        .text(
-            "Bind a container or a Compose service. The container does not need to run. Each"
-                + " container that matches gets an Instance.")
-        .__()
-        .form()
-        .attrClass("form flex flex-col gap-6")
-        .addAttr("data-bind-form", "")
-        .addAttr("method", "post")
-        .addAttr("action", BIND_PATH)
+    section
         .div()
         .attrClass("flex flex-col gap-3")
         .addAttr("role", "radiogroup")
@@ -180,54 +175,52 @@ final class ContainersPage {
         .of(group -> kind(group, Kind.CONTAINER, "Container name", binding.kind()))
         .of(group -> kind(group, Kind.COMPOSE, "Compose service", binding.kind()))
         .__()
-        .of(form ->
+        .of(fields ->
             InstanceForm.text(
-                form,
+                fields,
                 "container",
                 "Container name",
                 binding.container(),
                 "grafana",
                 "As docker run --name gives it.",
                 error))
-        .of(form ->
+        .of(fields ->
             InstanceForm.text(
-                form,
+                fields,
                 "composeProject",
                 "Compose project",
                 binding.composeProject(),
                 "shop",
                 null,
                 error))
-        .of(form ->
+        .of(fields ->
             InstanceForm.text(
-                form,
+                fields,
                 "composeService",
                 "Compose service",
                 binding.composeService(),
                 "web",
                 "Each of its containers gets an Instance.",
                 error))
-        .of(form ->
+        .of(fields ->
             InstanceForm.text(
-                form,
+                fields,
                 "containerPort",
                 "Container port",
                 binding.containerPort(),
                 "80",
                 "The port inside the container.",
                 error))
-        .of(form ->
+        .of(fields ->
             InstanceForm.text(
-                form,
+                fields,
                 "name",
                 "Service name",
                 binding.name(),
                 "web",
                 "Lowercase letters, digits and -. If empty, the container or Compose service name.",
                 error))
-        .of(form -> InstanceForm.publish(form, bind.publish()))
-        .of(form -> Dialogs.actions(form, "Bind"))
-        .__();
+        .of(fields -> InstanceForm.publish(fields, bind.publish()));
   }
 
   private static void kind(Div<?> group, Kind kind, String label, Kind chosen) {

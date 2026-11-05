@@ -6,8 +6,8 @@ import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import dev.palazon.lvhyard.dashboard.services.Yard;
 import java.util.List;
-import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
+import org.xmlet.htmlapifaster.FlowContent;
 import org.xmlet.htmlapifaster.Main;
 import org.xmlet.htmlapifaster.Td;
 import org.xmlet.htmlapifaster.Tr;
@@ -16,7 +16,7 @@ final class AliasesPage {
 
   static final String PATH = "/aliases";
 
-  private static final String ADD_DIALOG = "add-alias";
+  private static final Dialogs.Modal ADD = new Dialogs.Modal("add-alias", "Add an Alias");
 
   private AliasesPage() {}
 
@@ -62,7 +62,7 @@ final class AliasesPage {
                                 + " with Yard Scope.")
                         .__();
                   } else {
-                    Dialogs.openButton(content, ADD_DIALOG, "Add an Alias");
+                    Dialogs.openButton(content, ADD);
                   }
                 })
                 .of(content -> list(content, aliases))
@@ -70,10 +70,11 @@ final class AliasesPage {
                   if (!shared.isEmpty()) {
                     Dialogs.modal(
                         content,
-                        ADD_DIALOG,
-                        "Add an Alias",
+                        ADD,
                         error != null,
-                        body -> form(body, shared, name, target, error));
+                        form -> form.addAttr("action", PATH),
+                        section -> fields(section, shared, name, target, error),
+                        "Add");
                   }
                 }));
   }
@@ -170,19 +171,15 @@ final class AliasesPage {
         .__();
   }
 
-  private static void form(
-      Div<?> body,
+  private static void fields(
+      FlowContent<?, ?> section,
       List<Service> shared,
       String name,
       String target,
       InvalidRegistrationException error) {
-    body.form()
-        .attrClass("form flex flex-col gap-6")
-        .addAttr("method", "post")
-        .addAttr("action", PATH)
-        .of(form ->
-            InstanceForm.text(
-                form, "name", "Alias", name, "grafana", "Lowercase letters, digits and -.", error))
+    InstanceForm.text(
+        section, "name", "Alias", name, "grafana", "Lowercase letters, digits and -.", error);
+    section
         .div()
         .attrClass("field")
         .label()
@@ -204,8 +201,6 @@ final class AliasesPage {
                   .__();
             }))
         .__()
-        .__()
-        .of(form -> Dialogs.actions(form, "Add"))
         .__();
   }
 }
