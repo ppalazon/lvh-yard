@@ -42,6 +42,14 @@ _Avoid_: Docker registration, container mapping
 An Instance created and removed by a Container Binding, at the matching container's current address and port.
 _Avoid_: Dynamic instance, container instance
 
+**Container Port**:
+The port a process listens on inside a container. A Container Binding names one.
+_Avoid_: Internal port, exposed port
+
+**Host Port**:
+The port on a Workstation that Docker maps to a Container Port. When a Container Port has one, its Bound Instance is at the Workstation's address and the Host Port.
+_Avoid_: Exposed port, public port, mapped port
+
 **Unfollowed Container**:
 A running container on this Workstation that no Container Binding matches, whatever the Binding's port. The Containers page and `lvh-yard containers` list them.
 _Avoid_: Unbound container, new container, orphan container
@@ -143,3 +151,11 @@ _Avoid_: Down, offline
 **Unhealthy**:
 A published Service whose registered Instances have no passing Health.
 _Avoid_: Down, failing, broken
+
+**Degraded**:
+A published Service with at least one passing Instance and at least one Instance that does not pass. Its hostname still works, because the Route uses only passing Instances. It is a Service state, not a Status.
+_Avoid_: Partial, partly down, degraded Status
+
+**Healthy**:
+A published Service whose registered Instances all pass.
+_Avoid_: Up, OK, online
