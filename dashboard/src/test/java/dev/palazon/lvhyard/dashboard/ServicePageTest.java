@@ -257,11 +257,45 @@ class ServicePageTest extends DashboardTest {
 
     put(publicationPath(web), Map.of("scope", "yard"));
 
-    assertThat(getPage(page).getBody())
-        .contains("role=\"alert\"")
+    String body = getPage(page).getBody();
+    assertThat(risks(body))
+        .contains("1 risk to keep in mind")
+        .contains("127.0.0.1:8080 is on loopback");
+    assertThat(body).as("its Home Workstation reaches it").doesNotContain("Out of range");
+  }
+
+  @Test
+  void risksSitInOneClosedBoxWithTheirCount() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "127.0.0.1", "port", 8080));
+    register(web, Map.of("host", "127.0.0.1", "port", 8081));
+    put(publicationPath(web), Map.of("scope", "yard"));
+
+    String body = getPage("/services/ws-test/" + web).getBody();
+
+    assertThat(openingTag(body, "id=\"risks\""))
+        .startsWith("<details")
+        .contains("data-variant=\"risk\"")
+        .doesNotContain("open");
+    assertThat(risks(body))
+        .contains("2 risks to keep in mind")
         .contains("127.0.0.1:8080 is on loopback")
-        .as("its Home Workstation reaches it")
-        .doesNotContain("Out of range");
+        .contains("127.0.0.1:8081 is on loopback");
+    assertThat(body).containsOnlyOnce("<details");
+    assertThat(div(body, "role=\"alert\""))
+        .as("a risk is not a red alert")
+        .doesNotContain("loopback");
+  }
+
+  @Test
+  void serviceWithoutRisksHasNoRisksBox() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+    publish(web);
+
+    assertThat(getPage("/services/ws-test/" + web).getBody())
+        .doesNotContain("id=\"risks\"")
+        .doesNotContain("to keep in mind");
   }
 
   @Test
@@ -276,8 +310,7 @@ class ServicePageTest extends DashboardTest {
 
     put(publicationPath(web), Map.of("scope", "yard"));
 
-    assertThat(getPage(page).getBody())
-        .contains("role=\"alert\"")
+    assertThat(risks(getPage(page).getBody()))
         .contains(address + " is on a container port that is not published");
   }
 
@@ -322,6 +355,33 @@ class ServicePageTest extends DashboardTest {
     ResponseEntity<String> response = postForm("/services/ws-test/" + web + "/unpublish", Map.of());
 
     assertThat(response.getHeaders().getLocation()).hasPath("/");
+  }
+
+  @Test
+  void unavailableServiceShowsARedAlert() {
+    String web = newServiceName("web");
+    String id = register(web, Map.of("host", "10.1.2.3", "port", 8080)).get("id").asString();
+    publish(web);
+    delete(instancesPath(web) + "/" + id);
+
+    String page = getPage("/services/ws-test/" + web).getBody();
+
+    assertThat(div(page, "role=\"alert\""))
+        .contains("data-variant=\"destructive\"")
+        .contains("No Instances are registered");
+  }
+
+  @Test
+  void unhealthyServiceShowsARedAlert() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+    publish(web);
+
+    String page = getPage("/services/ws-test/" + web).getBody();
+
+    assertThat(div(page, "role=\"alert\""))
+        .contains("data-variant=\"destructive\"")
+        .contains("No Instance passes its checks");
   }
 
   @Test
@@ -609,5 +669,14 @@ class ServicePageTest extends DashboardTest {
         .contains("10.1.2.3:8080")
         .doesNotContain("Reachability from");
     assertThat(page).contains("Reachability from").contains("Test again");
+  }
+
+  /** The risks box, up to its own closing tag. */
+  private static String risks(String page) {
+    int start = page.lastIndexOf("<details", page.indexOf("id=\"risks\""));
+    if (start < 0) {
+      throw new AssertionError("No risks box");
+    }
+    return page.substring(start, page.indexOf("</details>", start) + "</details>".length());
   }
 }
