@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.LinkedMultiValueMap;
@@ -409,6 +411,28 @@ abstract class DashboardTest {
     return http.post()
         .uri(path)
         .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+        .body(form)
+        .retrieve()
+        .toEntity(String.class);
+  }
+
+  /**
+   * A form with one file, as a browser uploads it. Redirects are not followed, so the answer to the
+   * post itself is seen.
+   */
+  ResponseEntity<String> postFile(String path, String field, String filename, String text) {
+    MultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
+    form.add(
+        field,
+        new ByteArrayResource(text.getBytes(StandardCharsets.UTF_8)) {
+          @Override
+          public String getFilename() {
+            return filename;
+          }
+        });
+    return http.post()
+        .uri(path)
+        .contentType(MediaType.MULTIPART_FORM_DATA)
         .body(form)
         .retrieve()
         .toEntity(String.class);

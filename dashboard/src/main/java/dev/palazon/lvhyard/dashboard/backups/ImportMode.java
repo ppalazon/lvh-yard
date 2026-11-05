@@ -15,7 +15,7 @@ public enum ImportMode {
   /**
    * @throws UnknownImportModeException when no mode has this value
    */
-  static ImportMode of(String value) {
+  public static ImportMode of(String value) {
     return Arrays.stream(values())
         .filter(mode -> mode.value().equals(value))
         .findFirst()

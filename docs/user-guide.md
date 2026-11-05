@@ -465,6 +465,22 @@ holds. If a file is not a Backup, its row shows why instead.
 - To keep a Backup in another place, click **Download** in its row.
 - To delete a Backup, click **Delete** in its row. The page asks you to
   confirm. Then click **Delete** again.
+- To add a Backup from your computer, such as a file from a teammate, choose
+  the file next to **Upload** and click **Upload**. The file keeps its name.
+  The page refuses a name with a folder in it, a name that does not end in
+  `.yaml` or `.yml`, a name that is already in the Backups folder, and a file
+  that is not a Backup.
+
+To import a Backup from the page, do these steps:
+
+1. Click **Import** in its row. A file that is not a Backup has no **Import**.
+2. Choose the mode. **Add** adds what is new and skips what exists. **Update**
+   also overwrites what exists with the values of the file.
+3. Click **Show the plan**. The page shows the plan, as a dry run. Nothing
+   changes yet. If the file has problems, the page shows each one, and you
+   cannot import it.
+4. To import, click **Import**. The page shows what the import did and the name
+   of the safety Backup. To go back, import that safety Backup in update mode.
 
 ## How it works
 

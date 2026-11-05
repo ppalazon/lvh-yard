@@ -3,9 +3,20 @@ package dev.palazon.lvhyard.dashboard.web;
 import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.backups.BackupExport;
 import dev.palazon.lvhyard.dashboard.backups.BackupFormat;
+import dev.palazon.lvhyard.dashboard.backups.BackupImport;
+import dev.palazon.lvhyard.dashboard.backups.BackupProblem;
 import dev.palazon.lvhyard.dashboard.backups.BackupsFolder;
+import dev.palazon.lvhyard.dashboard.backups.ImportFailedException;
+import dev.palazon.lvhyard.dashboard.backups.ImportMode;
+import dev.palazon.lvhyard.dashboard.backups.ImportResult;
 import dev.palazon.lvhyard.dashboard.backups.NoBackupException;
+import dev.palazon.lvhyard.dashboard.backups.RefusedBackupException;
+import dev.palazon.lvhyard.dashboard.backups.UnknownImportModeException;
+import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.FileAlreadyExistsException;
+import java.util.List;
 import java.util.function.Supplier;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -16,12 +27,14 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * The Backups page. It only translates to views. Nothing here deletes a Backup unless a person
- * confirms it.
+ * The Backups page. It only translates to views. Nothing here deletes or imports a Backup unless a
+ * person confirms it.
  */
 @Controller
 class BackupsPagesController {
@@ -34,22 +47,63 @@ class BackupsPagesController {
 
   private final BackupExport export;
 
-  BackupsPagesController(Workstation workstation, BackupsFolder folder, BackupExport export) {
+  private final BackupImport backupImport;
+
+  BackupsPagesController(
+      Workstation workstation,
+      BackupsFolder folder,
+      BackupExport export,
+      BackupImport backupImport) {
     this.workstation = workstation;
     this.folder = folder;
     this.export = export;
+    this.backupImport = backupImport;
   }
 
   @GetMapping(path = BackupsPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
   @ResponseBody
   String backups() {
-    return BackupsPage.render(workstation, folder.list());
+    return BackupsPage.render(workstation, folder.list(), List.of());
   }
 
   @PostMapping(path = BackupsPage.NEW_PATH, produces = MediaType.TEXT_HTML_VALUE)
   ResponseEntity<String> create() {
     folder.writeNew("", BackupFormat.write(export.backup()));
     return seeOther(BackupsPage.PATH);
+  }
+
+  @PostMapping(
+      path = BackupsPage.UPLOAD_PATH,
+      consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+      produces = MediaType.TEXT_HTML_VALUE)
+  ResponseEntity<String> upload(@RequestParam MultipartFile file) throws IOException {
+    String name = file.getOriginalFilename() == null ? "" : file.getOriginalFilename();
+    String text = new String(file.getBytes(), StandardCharsets.UTF_8);
+    if (name.isEmpty() || name.contains("/") || name.contains("\\") || name.startsWith(".")) {
+      return uploadRefused("The file name has no folder and does not start with a dot: " + name);
+    }
+    if (!name.endsWith(".yaml") && !name.endsWith(".yml")) {
+      return uploadRefused("A Backup file name ends with .yaml or .yml: " + name);
+    }
+    try {
+      BackupFormat.read(text);
+    } catch (RefusedBackupException e) {
+      return uploadRefused(texts(e));
+    }
+    try {
+      folder.write(name, text);
+    } catch (FileAlreadyExistsException e) {
+      return uploadRefused("The backups folder already has a file " + name + ".");
+    }
+    return seeOther(BackupsPage.PATH);
+  }
+
+  private ResponseEntity<String> uploadRefused(String problem) {
+    return uploadRefused(List.of(problem));
+  }
+
+  private ResponseEntity<String> uploadRefused(List<String> problems) {
+    return html(HttpStatus.BAD_REQUEST, BackupsPage.render(workstation, folder.list(), problems));
   }
 
   @GetMapping(path = BackupsPage.PATH + "/{backup}/download")
@@ -77,6 +131,61 @@ class BackupsPagesController {
       return null;
     });
     return seeOther(BackupsPage.PATH);
+  }
+
+  /** The first step of an import: without a mode it asks for one, with a mode it shows the plan. */
+  @GetMapping(path = BackupsPage.PATH + "/{backup}/import", produces = MediaType.TEXT_HTML_VALUE)
+  ResponseEntity<String> importPlan(
+      @PathVariable String backup, @RequestParam(required = false) String mode) {
+    String text = found(() -> folder.text(backup));
+    ImportMode chosen = mode == null ? null : mode(mode);
+    try {
+      ImportResult plan = chosen == null ? null : backupImport.run(text, chosen, true);
+      if (plan == null) {
+        BackupFormat.read(text);
+      }
+      return html(
+          HttpStatus.OK, BackupsPage.importPlan(workstation, backup, chosen, plan, List.of()));
+    } catch (RefusedBackupException e) {
+      return html(
+          HttpStatus.BAD_REQUEST,
+          BackupsPage.importPlan(workstation, backup, chosen, null, texts(e)));
+    }
+  }
+
+  @PostMapping(path = BackupsPage.PATH + "/{backup}/import", produces = MediaType.TEXT_HTML_VALUE)
+  ResponseEntity<String> importBackup(@PathVariable String backup, @RequestParam String mode) {
+    String text = found(() -> folder.text(backup));
+    ImportMode chosen = mode(mode);
+    try {
+      return html(
+          HttpStatus.OK,
+          BackupsPage.imported(workstation, backup, backupImport.run(text, chosen, false)));
+    } catch (RefusedBackupException e) {
+      return html(
+          HttpStatus.BAD_REQUEST,
+          BackupsPage.importPlan(workstation, backup, chosen, null, texts(e)));
+    } catch (ImportFailedException e) {
+      return html(
+          HttpStatus.INTERNAL_SERVER_ERROR,
+          BackupsPage.importPlan(workstation, backup, chosen, null, List.of(e.getMessage())));
+    }
+  }
+
+  private static ImportMode mode(String mode) {
+    try {
+      return ImportMode.of(mode);
+    } catch (UnknownImportModeException e) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+    }
+  }
+
+  private static List<String> texts(RefusedBackupException refused) {
+    return refused.problems().stream().map(BackupProblem::text).toList();
+  }
+
+  private static ResponseEntity<String> html(HttpStatus status, String page) {
+    return ResponseEntity.status(status).contentType(MediaType.TEXT_HTML).body(page);
   }
 
   private static <T> T found(Supplier<T> read) {
