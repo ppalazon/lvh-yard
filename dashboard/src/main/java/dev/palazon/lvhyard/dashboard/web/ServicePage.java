@@ -575,8 +575,9 @@ final class ServicePage {
 
   /**
    * Like the Instance Priority, each button posts the whole new list, so the page needs no script.
-   * Only names from this Workstation's file can be added. A Remote Service shows its names only:
-   * they are chosen on its Home Workstation, from that Workstation's file.
+   * Only this Workstation's Route Profiles can be added, and each name links to its row on the
+   * Route Profiles page. A Remote Service shows its names only: they are chosen on its Home
+   * Workstation, and its profiles are on that Workstation's page.
    */
   private static void routeProfiles(
       Div<?> content, Service service, boolean own, List<String> profileNames) {
@@ -607,7 +608,19 @@ final class ServicePage {
                 .attrClass("flex flex-wrap items-center gap-2")
                 .span()
                 .attrClass("min-w-16")
-                .text((at + 1) + ". " + name)
+                .of(label -> {
+                  if (own) {
+                    label
+                        .text((at + 1) + ". ")
+                        .a()
+                        .attrHref(Layout.attr(RouteProfilesPage.path(name)))
+                        .attrClass("underline")
+                        .text(name)
+                        .__();
+                  } else {
+                    label.text((at + 1) + ". " + name);
+                  }
+                })
                 .__()
                 .of(buttons -> {
                   if (!own) {

@@ -14,8 +14,8 @@ Each Workstation runs three things:
   ([ADR-0002](adr/0002-traefik-reads-routes-from-lvh-yard.md))
 
 Each page of the dashboard has a navigation bar at the top. It links to the
-Catalog, Containers, Aliases and Static Instances pages, and it highlights the
-current page.
+Catalog, Containers, Aliases, Static Instances and Route Profiles pages, and it
+highlights the current page.
 
 ## Running on a Workstation
 
@@ -417,8 +417,25 @@ The Consul KV of this Workstation holds its Route Profiles, under
 A profile is one middleware in the format of Traefik, such as
 `{"headers": {"customRequestHeaders": {"X-Forwarded-Proto": "https"}}}`.
 
-You add, replace and remove Route Profiles through the API of the dashboard,
-under `/api/workstation/route-profiles`:
+The Route Profiles page of the dashboard lists each profile with its name, its
+Traefik type and the Services whose Publications name it.
+
+- To add a profile, type its name, and write its middleware as YAML in the text
+  box, such as `headers:` with its options below it. Then click Save.
+- To start from an example, choose one and click New profile. The examples are
+  basic auth, an IP allow list, headers, CORS and a chain. Change the example
+  before you save it: the basic auth example has no real password hash.
+- To change a profile, click Change in its row. The form then shows its YAML.
+  A save with the same name replaces the profile.
+- To remove a profile, click Remove in its row. If a Publication or a chain
+  names it, the page refuses and names each Service and chain.
+
+If the dashboard refuses a save, the page shows the reason and keeps your text
+in the form. The Service page links each Route Profile of a Publication to its
+row on this page.
+
+You can also add, replace and remove Route Profiles through the API of the
+dashboard, under `/api/workstation/route-profiles`:
 
 ```sh
 dashboard=http://127.0.0.1:7780/api/workstation/route-profiles

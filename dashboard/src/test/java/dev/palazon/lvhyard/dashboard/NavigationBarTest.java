@@ -18,7 +18,9 @@ class NavigationBarTest extends DashboardTest {
         .contains("href=\"/aliases\"")
         .contains(">Aliases<")
         .contains("href=\"/static-instances\"")
-        .contains(">Static Instances<");
+        .contains(">Static Instances<")
+        .contains("href=\"/route-profiles\"")
+        .contains(">Route Profiles<");
   }
 
   @Test
@@ -27,6 +29,7 @@ class NavigationBarTest extends DashboardTest {
     assertThat(currentLinkOf("/containers")).isEqualTo("/containers");
     assertThat(currentLinkOf("/aliases")).isEqualTo("/aliases");
     assertThat(currentLinkOf("/static-instances")).isEqualTo("/static-instances");
+    assertThat(currentLinkOf("/route-profiles")).isEqualTo("/route-profiles");
   }
 
   @Test
