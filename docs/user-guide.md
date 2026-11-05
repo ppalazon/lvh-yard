@@ -188,6 +188,10 @@ lvh-yard alias add db --workstation ws-b --service postgres   # a name that diff
 lvh-yard alias list
 lvh-yard alias remove grafana
 lvh-yard profiles                           # the Route Profiles, with their types and the Services that use them
+lvh-yard profiles show basic-auth           # one Route Profile, in Traefik's file format
+lvh-yard profiles set profiles.yaml        # add or replace each Route Profile of the file
+lvh-yard profiles show basic-auth | lvh-yard profiles set -   # - reads standard input
+lvh-yard profiles remove basic-auth
 lvh-yard test web                           # tests whether this Workstation reaches web
 lvh-yard test grafana --workstation ws-b    # a Remote Service
 lvh-yard status                             # whether LVH Yard works
@@ -195,6 +199,29 @@ lvh-yard status --strict                    # also exits with 1 on a warning
 ```
 
 If a command fails, it prints the reason and exits with a code that is not 0.
+
+`lvh-yard profiles show` and `lvh-yard profiles set` use Traefik's file format:
+a YAML document with `http.middlewares.<name>`. So the output of `show` works as
+input to `set`:
+
+```yaml
+http:
+  middlewares:
+    office-only:
+      ipAllowList:
+        sourceRange:
+          - 192.168.1.0/24
+    protected:
+      chain:
+        middlewares:
+          - office-only
+```
+
+`lvh-yard profiles set` saves all profiles of the file, or none. A chain can
+name a profile of the same file. The profiles that the file does not name stay.
+If the dashboard refuses the file, the command prints each reason. If a
+Publication or a chain names a profile, `lvh-yard profiles remove` refuses and
+names each Service and chain.
 The `/status` page of the dashboard and `GET /api/status` show the same status
 as `lvh-yard status`.
 
