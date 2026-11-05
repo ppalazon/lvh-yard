@@ -8,8 +8,8 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * {@code checks} include its Workstation's own. {@code containerBinding} and {@code
- * unpublishedContainerPort} are left out of the JSON when null or false.
+ * {@code checks} include its Workstation's own. Container fields are left out of the JSON for a
+ * Static Instance. {@code hostPort} is left out when the Container Port has no Host Port.
  */
 public record Instance(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String id,
@@ -22,6 +22,9 @@ public record Instance(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<CheckResult> checks,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean outOfRange,
     @JsonInclude(JsonInclude.Include.NON_NULL) String containerBinding,
+    @JsonInclude(JsonInclude.Include.NON_NULL) String container,
+    @JsonInclude(JsonInclude.Include.NON_NULL) Integer containerPort,
+    @JsonInclude(JsonInclude.Include.NON_NULL) Integer hostPort,
     @JsonInclude(JsonInclude.Include.NON_DEFAULT) boolean unpublishedContainerPort) {
 
   /** So it comes and goes with its container, and cannot be edited. */

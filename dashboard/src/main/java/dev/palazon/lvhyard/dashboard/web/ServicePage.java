@@ -164,10 +164,16 @@ final class ServicePage {
         .text("Instance")
         .__()
         .th()
-        .text("Health")
+        .text("Container")
         .__()
         .th()
-        .text("Checks")
+        .text("Container Port")
+        .__()
+        .th()
+        .text("Host Port")
+        .__()
+        .th()
+        .text("Health")
         .__()
         .of(row -> {
           if (own) {
@@ -187,11 +193,25 @@ final class ServicePage {
                         .of(cell -> InstanceViews.description(cell, service, instance))
                         .__()
                         .td()
-                        .attrClass("align-top")
-                        .of(cell -> InstanceViews.health(cell, instance.health()))
+                        .text(instance.container() == null ? "" : instance.container())
+                        .__()
+                        .td()
+                        .text(
+                            instance.containerPort() == null
+                                ? ""
+                                : instance.containerPort().toString())
+                        .__()
+                        .td()
+                        .text(
+                            !instance.bound()
+                                ? ""
+                                : instance.hostPort() == null
+                                    ? "Not published"
+                                    : instance.hostPort().toString())
                         .__()
                         .td()
                         .attrClass("align-top")
+                        .of(cell -> InstanceViews.health(cell, instance.health()))
                         .of(cell -> InstanceViews.checks(cell, instance))
                         .__()
                         .of(row -> {
@@ -398,10 +418,19 @@ final class ServicePage {
                                         ? "No container of this name runs."
                                         : "No container of this Compose service runs.")
                                 .__();
+                          } else {
+                            long passing =
+                                service.instances().stream()
+                                    .filter(instance -> binding.instances().contains(instance.id()))
+                                    .filter(instance -> instance.health() == Health.PASSING)
+                                    .count();
+                            int count = binding.instances().size();
+                            cell.text(
+                                count
+                                    + (count == 1 ? " container, " : " containers, ")
+                                    + passing
+                                    + " passing");
                           }
-                          service.instances().stream()
-                              .filter(instance -> binding.instances().contains(instance.id()))
-                              .forEach(instance -> cell.div().text(instance.address()).__());
                         })
                         .__()
                         .of(row -> {

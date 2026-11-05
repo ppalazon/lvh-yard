@@ -352,6 +352,8 @@ public class YardReader {
             .orElse(null);
     Map<String, String> meta = new TreeMap<>(registration.meta());
     meta.keySet().removeIf(key -> key.startsWith(Registrations.RESERVED_META));
+    String binding = registration.meta().get(Registrations.CONTAINER_BINDING);
+    boolean unpublished = registration.meta().containsKey(Registrations.UNPUBLISHED_CONTAINER_PORT);
     return new Instance(
         registration.id(),
         registration.address(),
@@ -362,8 +364,13 @@ public class YardReader {
         meta,
         checks,
         remote && outOfRange.contains(registration.address()),
-        registration.meta().get(Registrations.CONTAINER_BINDING),
-        registration.meta().containsKey(Registrations.UNPUBLISHED_CONTAINER_PORT));
+        binding,
+        binding == null ? null : registration.meta().get(Registrations.CONTAINER),
+        binding == null
+            ? null
+            : Integer.valueOf(registration.meta().get(Registrations.CONTAINER_PORT)),
+        binding == null || unpublished ? null : registration.port(),
+        unpublished);
   }
 
   /** A duration as Consul writes it, in Go's way, such as {@code 1m30s} or {@code 1.5s}. */
