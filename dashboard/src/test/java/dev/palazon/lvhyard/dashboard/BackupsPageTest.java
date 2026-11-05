@@ -24,6 +24,8 @@ import org.springframework.http.ResponseEntity;
 /** The Backups page, where the files of the Backups folder are seen, made and deleted. */
 class BackupsPageTest extends DashboardTest {
 
+  private static final String UPLOAD_DIALOG = "upload-backup";
+
   /** Every test class of this JVM shares the Backups folder, so each test names its own files. */
   private final List<Path> files = new ArrayList<>();
 
@@ -162,6 +164,47 @@ class BackupsPageTest extends DashboardTest {
   void deleteOfAMissingBackupIsNotFound() {
     assertThat(postForm("/backups/page-missing.yaml/delete", Map.of()).getStatusCode())
         .isEqualTo(HttpStatus.NOT_FOUND);
+  }
+
+  @Test
+  void uploadButtonOpensAClosedDialogThatHoldsTheUploadForm() {
+    String page = getPage("/backups").getBody();
+
+    String button = openingTag(page, "data-dialog-open=\"" + UPLOAD_DIALOG + "\"");
+    assertThat(button).startsWith("<button").contains("type=\"button\"");
+    assertThat(page).contains(button + "Upload a Backup</button>");
+    String dialog = dialog(page, UPLOAD_DIALOG);
+    assertThat(openingTag(dialog, "id=\"" + UPLOAD_DIALOG + "\""))
+        .contains("class=\"dialog\"")
+        .doesNotContain("data-dialog-shown");
+    assertThat(openingTag(dialog, "action=\"/backups/upload\""))
+        .contains("method=\"post\"")
+        .contains("enctype=\"multipart/form-data\"");
+    assertThat(openingTag(dialog, "name=\"file\"")).contains("type=\"file\"");
+    assertThat(dialog).contains("type=\"submit\"");
+    assertThat(openingTag(dialog, "data-dialog-close")).contains("type=\"button\"");
+  }
+
+  @Test
+  void listAndTheNewBackupButtonComeBeforeTheUploadDialog() throws IOException {
+    String name = newFile(".yaml");
+    write(name, oneInstance("grafana", 3000));
+
+    String page = getPage("/backups").getBody();
+
+    assertThat(page.indexOf("action=\"/backups/new\"")).isLessThan(page.indexOf("<dialog"));
+    assertThat(page.indexOf("id=\"backup-" + name + "\"")).isLessThan(page.indexOf("<dialog"));
+  }
+
+  @Test
+  void uploadDialogIsShownAgainWithWhyTheUploadWasRefused() {
+    ResponseEntity<String> response =
+        postFile("/backups/upload", "file", ".page-hidden.yaml", "version: 1\n");
+
+    String dialog = dialog(response.getBody(), UPLOAD_DIALOG);
+    assertThat(openingTag(dialog, "id=\"" + UPLOAD_DIALOG + "\"")).contains("data-dialog-shown");
+    assertThat(dialog.indexOf("name=\"file\""))
+        .isLessThan(dialog.indexOf(".page-hidden.yaml starts with a dot"));
   }
 
   @Test

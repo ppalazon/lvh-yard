@@ -28,6 +28,8 @@ class ContainersTest extends DashboardTest {
 
   private static final String PATH = "/api/workstation/containers";
 
+  private static final String BIND_DIALOG = "bind-container";
+
   /** Busybox has {@code nc}, and, unlike the Consul image, exposes no port of its own. */
   private static final DockerImageName BUSYBOX = DockerImageName.parse("busybox:1.37");
 
@@ -560,19 +562,49 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void pageHasABindingFormBelowTheListThatPublishesANewServiceByDefault() {
+  void bindButtonOpensAClosedDialogThatHoldsTheBindingForm() {
     String page = getPage("/containers").getBody();
 
-    assertThat(page.indexOf("action=\"/containers/bind\""))
-        .isGreaterThan(page.indexOf("id=\"containers\""));
-    assertThat(openingTag(page, "value=\"CONTAINER\"")).contains("type=\"radio\"");
-    assertThat(openingTag(page, "value=\"COMPOSE\"")).contains("type=\"radio\"");
-    assertThat(page)
+    String button = openingTag(page, "data-dialog-open=\"" + BIND_DIALOG + "\"");
+    assertThat(button).startsWith("<button").contains("type=\"button\"");
+    assertThat(page).contains(button + "Bind a container</button>");
+    assertThat(page.indexOf(button)).isLessThan(page.indexOf("id=\"containers\""));
+    String dialog = dialog(page, BIND_DIALOG);
+    assertThat(openingTag(dialog, "id=\"" + BIND_DIALOG + "\""))
+        .contains("class=\"dialog\"")
+        .doesNotContain("data-dialog-shown");
+    assertThat(openingTag(dialog, "data-dialog-close")).contains("type=\"button\"");
+  }
+
+  @Test
+  void listComesBeforeTheBindingDialog() {
+    String page = getPage("/containers").getBody();
+
+    assertThat(page.indexOf("<dialog")).isGreaterThan(page.indexOf("id=\"containers\""));
+  }
+
+  @Test
+  void bindingFormPublishesANewServiceByDefault() {
+    String dialog = dialog(getPage("/containers").getBody(), BIND_DIALOG);
+
+    // app.css shows the fields of the chosen kind by these attributes and ids.
+    assertThat(openingTag(dialog, "action=\"/containers/bind\"")).contains("data-bind-form");
+    assertThat(openingTag(dialog, "value=\"CONTAINER\""))
+        .contains("type=\"radio\"")
+        .contains("id=\"kind-container\"");
+    assertThat(openingTag(dialog, "value=\"COMPOSE\""))
+        .contains("type=\"radio\"")
+        .contains("id=\"kind-compose\"");
+    assertThat(dialog)
         .contains("Container name")
         .contains("Compose service")
+        .contains("id=\"container\"")
+        .contains("id=\"composeProject\"")
+        .contains("id=\"composeService\"")
         .contains("name=\"containerPort\"")
-        .contains("name=\"name\"");
-    assertThat(openingTag(page, "name=\"publish\"")).contains("checked");
+        .contains("name=\"name\"")
+        .contains("type=\"submit\"");
+    assertThat(openingTag(dialog, "name=\"publish\"")).contains("checked");
   }
 
   @Test
@@ -640,8 +672,9 @@ class ContainersTest extends DashboardTest {
             Map.of("kind", "CONTAINER", "container", name, "containerPort", "", "name", "web"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(openingTag(response.getBody(), "name=\"containerPort\""))
-        .contains("aria-invalid=\"true\"");
+    String dialog = dialog(response.getBody(), BIND_DIALOG);
+    assertThat(openingTag(dialog, "id=\"" + BIND_DIALOG + "\"")).contains("data-dialog-shown");
+    assertThat(openingTag(dialog, "name=\"containerPort\"")).contains("aria-invalid=\"true\"");
     assertThat(openingTag(response.getBody(), "name=\"container\""))
         .contains("value=\"" + name + "\"");
     assertThat(openingTag(response.getBody(), "name=\"publish\"")).doesNotContain("checked");
@@ -663,6 +696,8 @@ class ContainersTest extends DashboardTest {
                 "web"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(openingTag(response.getBody(), "id=\"" + BIND_DIALOG + "\""))
+        .contains("data-dialog-shown");
     assertThat(openingTag(response.getBody(), "value=\"COMPOSE\"")).contains("checked");
     assertThat(openingTag(response.getBody(), "name=\"composeProject\""))
         .contains("aria-invalid=\"true\"");
