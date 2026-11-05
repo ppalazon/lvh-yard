@@ -22,6 +22,7 @@ import picocli.CommandLine.Spec;
     subcommands = {
       Init.class,
       ListServices.class,
+      Catalog.class,
       Register.class,
       Containers.class,
       Remove.class,

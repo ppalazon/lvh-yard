@@ -76,6 +76,96 @@ class YardTest {
   }
 
   @Test
+  void catalogGroupsServicesInAlignedColumnsWithoutInstanceIdsOrWarnings() {
+    catalogAnswer();
+
+    Run run = yard("catalog");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.lines())
+        .containsExactly(
+            "ws-a (this Workstation)",
+            "  web       degraded     web.lvh.me  2",
+            "  worker    unpublished              0",
+            "ws-b",
+            "  database  healthy      db.lvh.me   0",
+            "ws-c: Workstation unreachable",
+            "ws-d: no Services");
+  }
+
+  @Test
+  void catalogFiltersWorkstationsAndStatesThroughTheYardApi() {
+    catalogAnswer();
+
+    Run run = yard("catalog", "--workstation", "ws-a", "--state", "degraded");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.lines())
+        .containsExactly("ws-a (this Workstation)", "  web  degraded  web.lvh.me  2");
+  }
+
+  @Test
+  void catalogStateFilterKeepsUnreachableWorkstations() {
+    catalogAnswer();
+
+    Run run = yard("catalog", "--state", "unpublished");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.lines())
+        .containsExactly(
+            "ws-a (this Workstation)",
+            "  worker  unpublished     0",
+            "ws-b: no Services",
+            "ws-c: Workstation unreachable",
+            "ws-d: no Services");
+  }
+
+  @Test
+  void catalogWorkstationFilterKeepsAnUnreachableWorkstation() {
+    catalogAnswer();
+
+    Run run = yard("catalog", "--workstation", "ws-c");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.lines()).containsExactly("ws-c: Workstation unreachable");
+  }
+
+  @Test
+  void catalogRejectsUnknownStatesAndListsEveryState() {
+    Run run = yard("catalog", "--state", "broken");
+
+    assertThat(run.exitCode()).isEqualTo(2);
+    assertThat(run.err())
+        .contains("broken", "unpublished", "unavailable", "unhealthy", "degraded", "healthy");
+  }
+
+  private void catalogAnswer() {
+    dashboard.answer(
+        "GET",
+        "/api/yard",
+        200,
+        """
+        {"home": {"name": "ws-a", "services": [
+          {"workstation": "ws-a", "name": "web", "state": "degraded",
+           "hostname": "web.lvh.me", "containerBindings": [],
+           "warnings": [{"kind": "loopback-instance", "severity": "risk", "message": "Hidden warning."}],
+           "instances": [
+             {"id": "hidden-good", "host": "10.1.2.3", "port": 8080, "health": "passing",
+              "tags": [], "meta": {}, "checks": [], "outOfRange": false},
+             {"id": "hidden-bad", "host": "127.0.0.1", "port": 8081, "health": "critical",
+              "tags": [], "meta": {}, "checks": [], "outOfRange": false}]},
+          {"workstation": "ws-a", "name": "worker", "state": "unpublished",
+           "containerBindings": [], "warnings": [], "instances": []}]},
+         "remotes": [
+          {"name": "ws-b", "unreachable": false, "services": [
+            {"workstation": "ws-b", "name": "database", "state": "healthy",
+             "hostname": "db.lvh.me", "containerBindings": [], "warnings": [], "instances": []}]},
+          {"name": "ws-c", "unreachable": true, "services": []},
+          {"name": "ws-d", "unreachable": false, "services": []}]}
+        """);
+  }
+
+  @Test
   void listShowsThisWorkstationThenTheOthersWithTheirStateHostnameInstancesAndHealth() {
     dashboard.answer(
         "GET",
