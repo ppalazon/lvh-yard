@@ -159,14 +159,27 @@ class CatalogPageTest extends DashboardTest {
 
     String form = page.substring(page.indexOf("<form"), page.indexOf("</form>"));
     assertThat(form)
-        .contains("method=\"get\"")
-        .contains("action=\"/\"")
         .contains("name=\"workstation\"")
         .contains("name=\"state\"")
         .contains("<option value=\"ws-test\">ws-test</option>")
         .contains("<option value=\"" + RemoteWorkstation.NAME + "\" selected=\"selected\">")
         .contains("<option value=\"healthy\" selected=\"selected\">Healthy</option>")
         .contains("<option value=\"unpublished\">Unpublished</option>");
+  }
+
+  @Test
+  void filterFormLoadsTheServicesOnEachChangeWithoutAButton() {
+    String page = getPage("/").getBody();
+
+    assertThat(openingTag(page, "<form"))
+        .contains("hx-get=\"/\"")
+        .contains("hx-trigger=\"change\"")
+        .contains("hx-target=\"#catalog\"")
+        .contains("hx-select=\"#catalog\"")
+        .contains("hx-swap=\"outerHTML\"")
+        .contains("hx-push-url=\"true\"");
+    assertThat(page.substring(page.indexOf("<form"), page.indexOf("</form>")))
+        .doesNotContain("<button");
   }
 
   @Test
