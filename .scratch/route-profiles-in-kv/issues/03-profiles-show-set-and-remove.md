@@ -4,7 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] `lvh-yard profiles show <name>` prints a YAML document with `http.middlewares.<name>`.
 - [ ] `lvh-yard profiles set <file>` sends every profile of the file as one set. `-` reads standard input.

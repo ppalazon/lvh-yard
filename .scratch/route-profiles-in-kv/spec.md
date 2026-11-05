@@ -1,6 +1,6 @@
 # Route Profiles live in Consul KV, and you edit them from the dashboard and the CLI
 
-Status: ready-for-agent
+Status: done
 
 Words follow `GLOSSARY.md`. This spec follows ADR 0004 as rewritten on 2026-11-05. It replaces the `route-profiles.yaml` parts of `.scratch/route-profiles/spec.md`. The Backups spec in `.scratch/backups/spec.md` comes after this one and needs it.
 

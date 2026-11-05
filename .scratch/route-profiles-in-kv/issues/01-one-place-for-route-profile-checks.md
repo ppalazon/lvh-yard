@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] One unit checks a set of profiles and answers each problem with the profile name and the reason.
 - [ ] It refuses `basicAuth.usersFile`, plugins and `forwardAuth` to an Out-of-range address. It refuses an unknown Traefik type and a name that Traefik does not accept. It refuses a chain that names a profile outside the set and outside Consul KV.

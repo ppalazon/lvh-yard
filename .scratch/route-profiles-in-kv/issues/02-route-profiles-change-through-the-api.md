@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] `GET /api/workstation/route-profiles` answers a list. Each item has the name, the Traefik type and the Services whose Publications name it. A profile with no single type has no type field.
 - [ ] `GET` on one name answers the item and its definition in Traefik's format.

@@ -4,7 +4,7 @@
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] `lvh-yard profiles edit <name>` writes the `profiles show` output to a temporary file and runs `$EDITOR` on it, else `vi`.
 - [ ] If the text did not change, the command does nothing.

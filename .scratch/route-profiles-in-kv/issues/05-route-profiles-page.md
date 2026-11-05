@@ -4,7 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] The navigation bar has a Route Profiles link, highlighted on the page.
 - [ ] The page lists each profile with its name, its Traefik type and the Services that use it.

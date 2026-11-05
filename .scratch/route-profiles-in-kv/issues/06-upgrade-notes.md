@@ -4,7 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] `docs/user-guide.md` says that valid profiles stay in Consul KV after the upgrade.
 - [ ] It says that a profile that the old dashboard refused did not reach Consul KV.
