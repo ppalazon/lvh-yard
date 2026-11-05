@@ -15,7 +15,10 @@ public enum ServiceState {
   /** No passing Instance. */
   UNHEALTHY,
 
-  /** At least one passing Instance. */
+  /** Some Instances pass and some do not. */
+  DEGRADED,
+
+  /** Every Instance passes. */
   HEALTHY;
 
   static ServiceState of(Publication publication, List<Instance> instances) {
@@ -25,9 +28,12 @@ public enum ServiceState {
     if (instances.isEmpty()) {
       return UNAVAILABLE;
     }
-    return instances.stream().anyMatch(instance -> instance.health() == Health.PASSING)
-        ? HEALTHY
-        : UNHEALTHY;
+    long passing =
+        instances.stream().filter(instance -> instance.health() == Health.PASSING).count();
+    if (passing == 0) {
+      return UNHEALTHY;
+    }
+    return passing == instances.size() ? HEALTHY : DEGRADED;
   }
 
   public static ServiceState parse(String value) {

@@ -12,6 +12,7 @@ final class ServiceViews {
     String variant =
         switch (state) {
           case HEALTHY -> "success";
+          case DEGRADED -> "risk";
           case UNHEALTHY -> "destructive";
           case UNAVAILABLE -> "outline";
           case UNPUBLISHED -> "secondary";
@@ -22,6 +23,7 @@ final class ServiceViews {
   static String label(ServiceState state) {
     return switch (state) {
       case HEALTHY -> "Healthy";
+      case DEGRADED -> "Degraded";
       case UNHEALTHY -> "Unhealthy";
       case UNAVAILABLE -> "Unavailable";
       case UNPUBLISHED -> "Unpublished";

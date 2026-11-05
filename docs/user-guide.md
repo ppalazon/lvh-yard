@@ -515,10 +515,15 @@ what the import applied and gives the name of the safety Backup.
 ### Services and Publications
 
 A Service is `unpublished`, `unavailable` (published, no Instances), `unhealthy`
-(published, no passing Instance) or `healthy` (published, with a passing
-Instance). A Publication covers every Instance of the Service, also the ones
-that you register later. The Publications are in the Consul KV of this
-Workstation, under `lvh-yard/publications/`.
+(published, no passing Instance), `degraded` (published, some Instances pass and
+some do not) or `healthy` (published, every Instance passes). Warning and critical
+Health both count as not passing. The state counts every Instance, whatever its
+Instance Priority or Out-of-range mark. Degraded and warning Health have orange
+badges. A Degraded Service still routes to its passing Instances.
+
+A Publication covers every Instance of the Service, also the ones that you
+register later. The Publications are in the Consul KV of this Workstation,
+under `lvh-yard/publications/`.
 
 A Service name is the first part of its hostname, so it is a single DNS label:
 1 to 63 lowercase letters, digits and `-`. The dashboard refuses the name
@@ -578,7 +583,7 @@ closed again on your next visit. A Service without risks has no box.
 
 Under the alerts, a row of cards shows the Service at a glance:
 
-- State: Healthy, Unhealthy, Unavailable or Unpublished.
+- State: Healthy, Degraded, Unhealthy, Unavailable or Unpublished.
 - Publication: the hostname, the Scope and the access log, or "Not published".
 - Passing Instances: the Instances that pass their checks, out of all
   Instances, for example "1 of 2".

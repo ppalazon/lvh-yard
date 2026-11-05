@@ -22,6 +22,34 @@ class OpenApiTest extends DashboardTest {
   private static final boolean UPDATE = Boolean.getBoolean("openapi.update");
 
   @Test
+  void serviceStateAndFilterIncludeDegradedInStateOrder() {
+    JsonNode document = get("/v3/api-docs").getBody();
+    assertThat(
+            document
+                .get("components")
+                .get("schemas")
+                .get("Service")
+                .get("properties")
+                .get("state")
+                .get("enum")
+                .valueStream()
+                .map(JsonNode::asString))
+        .containsExactly("unpublished", "unavailable", "unhealthy", "degraded", "healthy");
+    JsonNode state =
+        document
+            .get("paths")
+            .get("/api/services")
+            .get("get")
+            .get("parameters")
+            .valueStream()
+            .filter(parameter -> parameter.get("name").asString().equals("state"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(state.get("schema").get("enum").valueStream().map(JsonNode::asString))
+        .containsExactly("unpublished", "unavailable", "unhealthy", "degraded", "healthy");
+  }
+
+  @Test
   void documentListsEveryApiPath() {
     ResponseEntity<JsonNode> response = get("/v3/api-docs");
 

@@ -45,7 +45,8 @@ class ServiceFiltersTest extends DashboardTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody().get("detail").asString())
-        .isEqualTo("The state is unpublished, unavailable, unhealthy or healthy, not sleepy.");
+        .isEqualTo(
+            "The state is unpublished, unavailable, unhealthy, degraded or healthy, not sleepy.");
   }
 
   private static List<String> names(ResponseEntity<JsonNode> services) {

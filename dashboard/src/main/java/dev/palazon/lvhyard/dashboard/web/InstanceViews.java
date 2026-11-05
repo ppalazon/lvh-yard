@@ -87,7 +87,7 @@ final class InstanceViews {
     String variant =
         switch (health) {
           case PASSING -> "success";
-          case WARNING -> "secondary";
+          case WARNING -> "risk";
           case CRITICAL -> "destructive";
         };
     parent.span().attrClass("badge").addAttr("data-variant", variant).text(health.value()).__();

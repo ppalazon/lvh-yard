@@ -125,6 +125,10 @@
   .badge[data-variant="success"] {
     @apply bg-green-600 text-white;
   }
+
+  .badge[data-variant="risk"] {
+    @apply border-risk text-risk bg-risk/10;
+  }
 }
 
 /* Basecoat has no warning alert. A Service Warning of level risk uses this one. */
