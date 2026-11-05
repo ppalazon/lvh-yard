@@ -25,6 +25,11 @@ class RouteProfileProblems extends ResponseEntityExceptionHandler {
   }
 
   @ExceptionHandler
+  ProblemDetail tooMany(TooManyRouteProfileWritesException exception) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+  }
+
+  @ExceptionHandler
   ProblemDetail inUse(RouteProfileInUseException exception) {
     ProblemDetail problem =
         ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());

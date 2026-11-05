@@ -7,6 +7,7 @@ import dev.palazon.lvhyard.dashboard.profiles.RouteProfileChecks;
 import dev.palazon.lvhyard.dashboard.profiles.RouteProfileDetail;
 import dev.palazon.lvhyard.dashboard.profiles.RouteProfileEditor;
 import dev.palazon.lvhyard.dashboard.profiles.RouteProfileInUseException;
+import dev.palazon.lvhyard.dashboard.profiles.TooManyRouteProfileWritesException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -50,24 +51,26 @@ class RouteProfilesPagesController {
 
   /** Adds the profile, or replaces the one of the same name. */
   @PostMapping(path = RouteProfilesPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
-  ResponseEntity<String> save(@RequestParam String name, @RequestParam String definition) {
+  ResponseEntity<String> save(@RequestParam String name, @RequestParam("definition") String yaml) {
     String profile = name.strip();
     List<String> errors;
     if (profile.isEmpty()) {
       errors = List.of("A Route Profile needs a name.");
     } else {
       try {
-        profiles.save(Map.of(profile, RouteProfileYaml.read(definition)));
+        profiles.save(Map.of(profile, RouteProfileYaml.read(yaml)));
         return seeOther(RouteProfilesPage.PATH);
       } catch (IllegalArgumentException e) {
         errors = List.of(e.getMessage());
       } catch (RefusedRouteProfilesException e) {
         errors = e.problems().stream().map(RouteProfileChecks.Problem::reason).toList();
+      } catch (TooManyRouteProfileWritesException e) {
+        errors = List.of(e.getMessage());
       }
     }
     return ResponseEntity.badRequest()
         .contentType(Layout.HTML)
-        .body(page(new RouteProfilesPage.Form(name, definition, errors)));
+        .body(page(new RouteProfilesPage.Form(name, yaml, errors)));
   }
 
   @GetMapping(
@@ -79,7 +82,7 @@ class RouteProfilesPagesController {
     try {
       found = profiles.find(profile);
     } catch (NoRouteProfileException e) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+      throw notFound(e);
     }
     return page(
         new RouteProfilesPage.Form(
@@ -93,13 +96,17 @@ class RouteProfilesPagesController {
     try {
       profiles.remove(profile);
     } catch (NoRouteProfileException e) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+      throw notFound(e);
     } catch (RouteProfileInUseException e) {
       return ResponseEntity.status(HttpStatus.CONFLICT)
           .contentType(Layout.HTML)
           .body(page(RouteProfilesPage.Form.EMPTY, e.getMessage()));
     }
     return seeOther(RouteProfilesPage.PATH);
+  }
+
+  private static ResponseStatusException notFound(NoRouteProfileException e) {
+    return new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
   }
 
   private String page(RouteProfilesPage.Form form) {

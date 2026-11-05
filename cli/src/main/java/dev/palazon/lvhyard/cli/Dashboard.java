@@ -314,20 +314,13 @@ final class Dashboard {
    * are saved, and the others stay. Answers the whole list.
    */
   List<RouteProfile> putRouteProfiles(Map<String, Object> profiles) {
-    HttpRequest.Builder request =
-        HttpRequest.newBuilder(url.resolve("api/workstation/route-profiles"))
-            .header("Content-Type", "application/json")
-            .PUT(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(profiles)));
-    return read(send(request), new TypeReference<>() {});
+    return read(
+        send(putJson("api/workstation/route-profiles", profiles)), new TypeReference<>() {});
   }
 
   /** Adds or replaces the profile {@code name} with {@code middleware}, Traefik's middleware. */
   RouteProfileDetail putRouteProfile(String name, Object middleware) {
-    HttpRequest.Builder request =
-        HttpRequest.newBuilder(url.resolve(routeProfilePath(name)))
-            .header("Content-Type", "application/json")
-            .PUT(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(middleware)));
-    return read(send(request), new TypeReference<>() {});
+    return read(send(putJson(routeProfilePath(name), middleware)), new TypeReference<>() {});
   }
 
   void removeRouteProfile(String name) {
@@ -436,6 +429,12 @@ final class Dashboard {
 
   private HttpRequest.Builder get(String path) {
     return HttpRequest.newBuilder(url.resolve(path)).GET();
+  }
+
+  private HttpRequest.Builder putJson(String path, Object body) {
+    return HttpRequest.newBuilder(url.resolve(path))
+        .header("Content-Type", "application/json")
+        .PUT(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body)));
   }
 
   /** {@code value} as one segment of a path, so a / or a space in a name cannot change the path. */

@@ -347,8 +347,9 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: "A profile is refused, and nothing changes. The detail and\
-            \ the problems give each reason"
+          description: "A profile is refused, or the save writes more profiles than\
+            \ Consul takes at once, and nothing changes. The detail gives the reason,\
+            \ and the problems give each refused profile"
       summary: Adds or replaces a set of Route Profiles
       tags:
       - route-profiles-controller
@@ -433,8 +434,9 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: "A profile is refused, and nothing changes. The detail and\
-            \ the problems give each reason"
+          description: "A profile is refused, or the save writes more profiles than\
+            \ Consul takes at once, and nothing changes. The detail gives the reason,\
+            \ and the problems give each refused profile"
       summary: Adds or replaces one Route Profile
       tags:
       - route-profiles-controller

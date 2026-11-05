@@ -53,6 +53,19 @@ class Profiles implements Runnable {
     out.flush();
   }
 
+  /** {@code edit} compares the edited text with this, so {@code show} must print the same. */
+  private static String fileText(Dashboard.RouteProfileDetail profile) {
+    return RouteProfileFile.write(Map.of(profile.name(), profile.definition()));
+  }
+
+  private static String read(Path file) {
+    try {
+      return Files.readString(file);
+    } catch (IOException e) {
+      throw new YardException("Cannot read " + file + ": " + e.getMessage());
+    }
+  }
+
   @Command(
       name = "show",
       mixinStandardHelpOptions = true,
@@ -70,7 +83,7 @@ class Profiles implements Runnable {
     public void run() {
       Dashboard.RouteProfileDetail profile = profiles.yard.dashboard().routeProfile(name);
       PrintWriter out = spec.commandLine().getOut();
-      out.print(RouteProfileFile.write(Map.of(profile.name(), profile.definition())));
+      out.print(fileText(profile));
       out.flush();
     }
   }
@@ -104,9 +117,9 @@ class Profiles implements Runnable {
       try {
         return file.equals("-")
             ? new String(System.in.readAllBytes(), StandardCharsets.UTF_8)
-            : Files.readString(Path.of(file));
+            : read(Path.of(file));
       } catch (IOException e) {
-        throw new YardException("Cannot read " + file + ": " + e.getMessage());
+        throw new YardException("Cannot read the standard input: " + e.getMessage());
       }
     }
   }
@@ -131,7 +144,7 @@ class Profiles implements Runnable {
     public void run() {
       Dashboard dashboard = profiles.yard.dashboard();
       Dashboard.RouteProfileDetail profile = dashboard.routeProfile(name);
-      String original = RouteProfileFile.write(Map.of(profile.name(), profile.definition()));
+      String original = fileText(profile);
       Path file = newFile(original);
       PrintWriter out = spec.commandLine().getOut();
       while (true) {
@@ -232,14 +245,6 @@ class Profiles implements Runnable {
         return file;
       } catch (IOException e) {
         throw new YardException("Cannot write a temporary file: " + e.getMessage());
-      }
-    }
-
-    private static String read(Path file) {
-      try {
-        return Files.readString(file);
-      } catch (IOException e) {
-        throw new YardException("Cannot read " + file + ": " + e.getMessage());
       }
     }
 

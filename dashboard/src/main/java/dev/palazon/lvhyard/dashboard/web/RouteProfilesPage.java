@@ -34,16 +34,16 @@ final class RouteProfilesPage {
   /**
    * What the form shows, as typed.
    *
-   * @param definition the middleware in Traefik's format, as YAML
+   * @param yaml the profile in Traefik's format, as YAML
    * @param errors why the last save was refused, each a full sentence
    */
-  record Form(String name, String definition, List<String> errors) {
+  record Form(String name, String yaml, List<String> errors) {
 
     static final Form EMPTY = new Form("", "", List.of());
 
     Form {
       name = name == null ? "" : name;
-      definition = definition == null ? "" : definition;
+      yaml = yaml == null ? "" : yaml;
       errors = List.copyOf(errors);
     }
   }
@@ -63,7 +63,8 @@ final class RouteProfilesPage {
                 .__()
                 .p()
                 .text(
-                    "Traefik middlewares that the Publications of "
+                    "Reusable Route options, such as authentication or added headers, that the"
+                        + " Publications of "
                         + workstation.name()
                         + " can name.")
                 .__()
@@ -257,7 +258,7 @@ final class RouteProfilesPage {
         .attrClass("field")
         .label()
         .attrFor("definition")
-        .text("Middleware")
+        .text("Route options")
         .__()
         .textarea()
         .attrClass("textarea font-mono")
@@ -265,11 +266,13 @@ final class RouteProfilesPage {
         .attrName("definition")
         .attrRows(12)
         .addAttr("spellcheck", "false")
-        .text(form.definition())
+        .text(form.yaml())
         .__()
         .p()
         .attrClass("text-muted-foreground text-sm")
-        .text("One Traefik middleware in YAML, such as headers: with its options below it.")
+        .text(
+            "One type of Route option in Traefik's YAML, such as headers: with its options below"
+                + " it.")
         .__()
         .__()
         .button()

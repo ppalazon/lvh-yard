@@ -26,7 +26,7 @@ final class RouteProfileYaml {
       throw new IllegalArgumentException("The text is not valid YAML: " + e.getMessage(), e);
     }
     if (root == null) {
-      throw new IllegalArgumentException("Write the middleware in the text box.");
+      throw new IllegalArgumentException("Write the Route options in the text box.");
     }
     if (!(root instanceof Map<?, ?> map)) {
       throw new IllegalArgumentException(

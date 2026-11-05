@@ -49,8 +49,13 @@ mise run dev:dashboard ws-b     # http://yard.localhost:8081
 mise run dev:down
 ```
 
-Each one keeps its Route Profiles in its own Consul KV. Add them through the
-API of its dashboard.
+Each one keeps its Route Profiles in its own Consul KV. To add test profiles,
+use the Route Profiles page of its dashboard, or `lvh-yard profiles set`:
+
+```sh
+lvh-yard --dashboard http://127.0.0.1:7780 profiles set profiles.yaml   # ws-a
+lvh-yard --dashboard http://127.0.0.1:7781 profiles set profiles.yaml   # ws-b
+```
 
 ## Building the CLI
 

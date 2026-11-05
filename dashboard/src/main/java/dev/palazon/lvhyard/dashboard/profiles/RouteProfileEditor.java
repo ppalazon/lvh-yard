@@ -38,7 +38,7 @@ public class RouteProfileEditor {
         .map(definition ->
             new RouteProfile(
                 definition.name(),
-                RouteProfileChecks.type(own(definition)),
+                RouteProfileChecks.type(withoutChainCopies(definition)),
                 services.getOrDefault(definition.name(), List.of())))
         .toList();
   }
@@ -51,12 +51,12 @@ public class RouteProfileEditor {
     if (definition == null) {
       throw new NoRouteProfileException(name);
     }
-    Map<String, Object> own = own(definition);
+    Map<String, Object> middleware = withoutChainCopies(definition);
     return new RouteProfileDetail(
         name,
-        RouteProfileChecks.type(own),
+        RouteProfileChecks.type(middleware),
         publications.servicesByProfile().getOrDefault(name, List.of()),
-        own);
+        middleware);
   }
 
   /**
@@ -64,7 +64,10 @@ public class RouteProfileEditor {
    * may name a profile of the set or one already stored.
    *
    * @param set each profile's middleware in Traefik's format, by name
-   * @throws RefusedRouteProfilesException when one profile is refused; then nothing is written
+   * @throws RefusedRouteProfilesException when one profile, or a stored chain it changes, is
+   *     refused; then nothing is written
+   * @throws TooManyRouteProfileWritesException when the save needs more writes than one Consul
+   *     transaction takes; then nothing is written
    */
   public synchronized void save(Map<String, ?> set) {
     Map<String, RouteProfileDefinition> stored = profiles.stored(null);
@@ -81,21 +84,28 @@ public class RouteProfileEditor {
     // profile is written again with the new copy.
     Map<String, Object> chains = new LinkedHashMap<>();
     stored.forEach((name, definition) -> {
-      Map<String, Object> own = own(definition);
-      if (!set.containsKey(name) && "chain".equals(RouteProfileChecks.type(own))) {
-        chains.put(name, own);
+      Map<String, Object> middleware = withoutChainCopies(definition);
+      if (!set.containsKey(name) && RouteProfileChecks.isChain(middleware)) {
+        chains.put(name, middleware);
       }
     });
+    RouteProfileChecks.Checked rechecked = checks.check(chains, after);
+    if (!rechecked.problems().isEmpty()) {
+      throw new RefusedRouteProfilesException(rechecked.problems());
+    }
     Map<String, Map<String, Object>> written = new LinkedHashMap<>(checked.definitions());
-    written.putAll(checks.check(chains, after).definitions());
+    written.putAll(rechecked.definitions());
     Map<String, String> values = new LinkedHashMap<>();
     written.forEach((name, middlewares) -> {
       RouteProfileDefinition before = stored.get(name);
       if (before == null || !before.middlewares().equals(middlewares)) {
-        values.put(
-            RouteProfiles.KEY_PREFIX + name, RouteProfiles.JSON.writeValueAsString(middlewares));
+        values.put(RouteProfiles.key(name), RouteProfiles.value(middlewares));
       }
     });
+    // Several transactions would not be all or nothing.
+    if (values.size() > Consul.TRANSACTION_SIZE) {
+      throw new TooManyRouteProfileWritesException(values.size(), Consul.TRANSACTION_SIZE);
+    }
     consul.putValues(values);
   }
 
@@ -111,17 +121,18 @@ public class RouteProfileEditor {
     List<String> services = publications.servicesByProfile().getOrDefault(name, List.of());
     List<String> chains =
         stored.values().stream()
-            .filter(definition -> chainMembers(own(definition)).contains(name))
+            .filter(definition ->
+                RouteProfileChecks.chainMembers(withoutChainCopies(definition)).contains(name))
             .map(RouteProfileDefinition::name)
             .toList();
     if (!services.isEmpty() || !chains.isEmpty()) {
       throw new RouteProfileInUseException(name, services, chains);
     }
-    consul.deleteValue(RouteProfiles.KEY_PREFIX + name);
+    consul.deleteValue(RouteProfiles.key(name));
   }
 
   /** The profile's own middleware, without the chain members its value copies. */
-  private static Map<String, Object> own(RouteProfileDefinition definition) {
+  private static Map<String, Object> withoutChainCopies(RouteProfileDefinition definition) {
     return definition.middlewares().getOrDefault(definition.name(), Map.of());
   }
 
@@ -132,12 +143,5 @@ public class RouteProfileEditor {
     definition.forEach(
         (name, middleware) -> middlewares.put(name, (Map<String, Object>) middleware));
     return middlewares;
-  }
-
-  private static List<?> chainMembers(Map<String, Object> middleware) {
-    return middleware.get("chain") instanceof Map<?, ?> chain
-            && chain.get("middlewares") instanceof List<?> members
-        ? members
-        : List.of();
   }
 }

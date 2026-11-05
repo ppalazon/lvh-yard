@@ -453,6 +453,11 @@ curl -X DELETE "$dashboard/protected"
 - `PUT` on the collection adds or replaces each profile of the body. The
   profiles that the body does not name stay. If one profile is refused, the
   dashboard saves none of them.
+- A chain keeps a copy of its members. When you change a profile, the
+  dashboard also saves each chain that names it. If one of those chains is now
+  refused, the dashboard saves nothing.
+- One save writes at most 64 profiles, with those chains. If a save needs
+  more, the dashboard refuses it. Save fewer profiles at a time.
 - `DELETE` on a name removes that profile. If a Publication or a chain names
   it, the dashboard refuses with 409 and names each Service and chain.
 

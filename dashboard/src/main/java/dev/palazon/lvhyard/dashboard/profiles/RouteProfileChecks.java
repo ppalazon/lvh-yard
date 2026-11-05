@@ -72,8 +72,9 @@ public class RouteProfileChecks {
    *     the set replaces the stored one of the same name.
    */
   public Checked check(Map<String, ?> profiles, Map<String, RouteProfileDefinition> stored) {
+    // Only a profile's own key makes it known. A chain's value also holds copies of its members,
+    // but a copy can outlive its profile.
     Map<String, Object> known = new LinkedHashMap<>();
-    stored.values().forEach(definition -> definition.middlewares().forEach(known::putIfAbsent));
     stored.forEach((name, definition) -> {
       if (definition.middlewares().containsKey(name)) {
         known.put(name, definition.middlewares().get(name));
@@ -129,6 +130,19 @@ public class RouteProfileChecks {
         : null;
   }
 
+  static boolean isChain(Object middleware) {
+    return "chain".equals(type(middleware));
+  }
+
+  /** The names a chain lists, else none. */
+  static List<String> chainMembers(Object middleware) {
+    return isChain(middleware)
+            && ((Map<?, ?>) middleware).get("chain") instanceof Map<?, ?> chain
+            && chain.get("middlewares") instanceof List<?> members
+        ? members.stream().filter(String.class::isInstance).map(String.class::cast).toList()
+        : List.of();
+  }
+
   private static final class Checker {
 
     private final Map<String, Object> middlewares;
@@ -154,7 +168,7 @@ public class RouteProfileChecks {
 
     private void reach(String name, SequencedSet<String> reached) {
       if (reached.add(name)) {
-        members(name).forEach(member -> reach(member, reached));
+        chainMembers(middlewares.get(name)).forEach(member -> reach(member, reached));
       }
     }
 
@@ -240,16 +254,6 @@ public class RouteProfileChecks {
       } finally {
         chain.remove(name);
       }
-    }
-
-    private List<String> members(String name) {
-      Object middleware = middlewares.get(name);
-      if (!"chain".equals(type(middleware))) {
-        return List.of();
-      }
-      Object chain = ((Map<?, ?>) middleware).get("chain");
-      return ((List<?>) ((Map<?, ?>) chain).get("middlewares"))
-          .stream().map(String.class::cast).toList();
     }
   }
 }

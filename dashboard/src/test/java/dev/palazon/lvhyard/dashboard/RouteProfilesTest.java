@@ -2,6 +2,7 @@ package dev.palazon.lvhyard.dashboard;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -184,6 +185,68 @@ class RouteProfilesTest extends DashboardTest {
                 {"protected": {"chain": {"middlewares": ["stored"]}},
                  "stored": {"headers": {"customRequestHeaders": {"X-V": "2"}}}}
                 """));
+  }
+
+  @Test
+  void chainCannotNameAMiddlewareThatIsOnlyACopyInsideAnotherProfile() throws Exception {
+    consulContainer.execInContainer(
+        "consul",
+        "kv",
+        "put",
+        "lvh-yard/route-profiles/holder",
+        "{\"holder\": {\"compress\": {}}, \"copy-only\": {\"compress\": {}}}");
+
+    ResponseEntity<JsonNode> refused =
+        put(
+            ROUTE_PROFILES_PATH + "/names-a-copy",
+            json("{\"chain\": {\"middlewares\": [\"copy-only\"]}}"));
+
+    assertThat(refused.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(refused.getBody().get("detail").asString())
+        .contains("copy-only, which is not a Route Profile of this Workstation");
+    assertThat(names()).containsExactly("holder");
+  }
+
+  @Test
+  void saveIsRefusedWhenAStoredChainNoLongerPassesTheChecks() throws Exception {
+    consulContainer.execInContainer(
+        "consul",
+        "kv",
+        "put",
+        "lvh-yard/route-profiles/outside",
+        "{\"outside\": {\"chain\": {\"middlewares\": [\"other@file\"]}}}");
+
+    ResponseEntity<JsonNode> refused =
+        put(ROUTE_PROFILES_PATH, json("{\"fresh\": {\"compress\": {}}}"));
+
+    assertThat(refused.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(refused.getBody().get("problems").get(0).get("profile").asString())
+        .isEqualTo("outside");
+    assertThat(refused.getBody().get("detail").asString()).contains("other@file");
+    assertThat(names()).containsExactly("outside");
+  }
+
+  @Test
+  void saveThatNeedsMoreWritesThanOneConsulTransactionIsRefused() throws Exception {
+    putRouteProfiles(
+        json(
+            """
+            {"base": {"headers": {"customRequestHeaders": {"X-V": "1"}}},
+             "protected": {"chain": {"middlewares": ["base"]}}}
+            """));
+    // 64 profiles fit in one transaction, but the chain that names base is written again too.
+    Map<String, Object> set = new LinkedHashMap<>();
+    set.put("base", Map.of("headers", Map.of("customRequestHeaders", Map.of("X-V", "2"))));
+    for (int i = 1; i < 64; i++) {
+      set.put("many-" + i, Map.of("compress", Map.of()));
+    }
+
+    ResponseEntity<JsonNode> refused = put(ROUTE_PROFILES_PATH, set);
+
+    assertThat(refused.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(refused.getBody().get("detail").asString()).contains("65", "64");
+    assertThat(names()).containsExactly("base", "protected");
+    assertThat(kv("base")).contains("\"1\"");
   }
 
   @Test

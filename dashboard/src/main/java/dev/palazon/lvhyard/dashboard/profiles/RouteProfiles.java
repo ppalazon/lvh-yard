@@ -18,9 +18,9 @@ import tools.jackson.databind.json.JsonMapper;
 @Component
 public class RouteProfiles {
 
-  public static final String KEY_PREFIX = "lvh-yard/route-profiles/";
+  private static final String KEY_PREFIX = "lvh-yard/route-profiles/";
 
-  static final ObjectMapper JSON = JsonMapper.builder().build();
+  private static final ObjectMapper JSON = JsonMapper.builder().build();
 
   private static final TypeReference<Map<String, Map<String, Object>>> STORED =
       new TypeReference<>() {};
@@ -50,5 +50,19 @@ public class RouteProfiles {
           stored.put(name, new RouteProfileDefinition(name, JSON.readValue(value, STORED)));
         });
     return stored;
+  }
+
+  /** The Consul KV key of the profile. */
+  static String key(String name) {
+    return KEY_PREFIX + name;
+  }
+
+  /**
+   * The Consul KV value of a profile.
+   *
+   * @param middlewares the profile and every chain member it reaches
+   */
+  static String value(Map<String, ?> middlewares) {
+    return JSON.writeValueAsString(middlewares);
   }
 }

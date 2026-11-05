@@ -23,7 +23,9 @@ import org.springframework.web.bind.annotation.RestController;
 class RouteProfilesController {
 
   private static final String REFUSED =
-      "A profile is refused, and nothing changes. The detail and the problems give each reason";
+      "A profile is refused, or the save writes more profiles than Consul takes at once, and"
+          + " nothing changes. The detail gives the reason, and the problems give each refused"
+          + " profile";
 
   private final RouteProfileEditor editor;
 
