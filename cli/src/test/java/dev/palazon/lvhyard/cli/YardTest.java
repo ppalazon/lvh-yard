@@ -85,10 +85,11 @@ class YardTest {
     assertThat(run.lines())
         .containsExactly(
             "ws-a (this Workstation)",
-            "  web       degraded     web.lvh.me  2",
-            "  worker    unpublished              0",
+            "  web       degraded     web.lvh.me  1 of 3 passing",
+            "  worker    unpublished              0 of 2 passing",
             "ws-b",
-            "  database  healthy      db.lvh.me   0",
+            "  database  healthy      db.lvh.me   2 of 2 passing",
+            "  cache     unavailable              No Instances",
             "ws-c: Workstation unreachable",
             "ws-d: no Services");
   }
@@ -101,7 +102,7 @@ class YardTest {
 
     assertThat(run.exitCode()).isZero();
     assertThat(run.lines())
-        .containsExactly("ws-a (this Workstation)", "  web  degraded  web.lvh.me  2");
+        .containsExactly("ws-a (this Workstation)", "  web  degraded  web.lvh.me  1 of 3 passing");
   }
 
   @Test
@@ -114,7 +115,7 @@ class YardTest {
     assertThat(run.lines())
         .containsExactly(
             "ws-a (this Workstation)",
-            "  worker  unpublished     0",
+            "  worker  unpublished     0 of 2 passing",
             "ws-b: no Services",
             "ws-c: Workstation unreachable",
             "ws-d: no Services");
@@ -151,15 +152,27 @@ class YardTest {
            "warnings": [{"kind": "loopback-instance", "severity": "risk", "message": "Hidden warning."}],
            "instances": [
              {"id": "hidden-good", "host": "10.1.2.3", "port": 8080, "health": "passing",
-              "tags": [], "meta": {}, "checks": [], "outOfRange": false},
+              "tags": [], "meta": {}, "checks": [], "outOfRange": true},
              {"id": "hidden-bad", "host": "127.0.0.1", "port": 8081, "health": "critical",
+              "tags": [], "meta": {}, "checks": [], "outOfRange": false},
+             {"id": "hidden-warning", "host": "10.1.2.3", "port": 8082, "health": "warning",
               "tags": [], "meta": {}, "checks": [], "outOfRange": false}]},
           {"workstation": "ws-a", "name": "worker", "state": "unpublished",
-           "containerBindings": [], "warnings": [], "instances": []}]},
+           "containerBindings": [], "warnings": [], "instances": [
+             {"id": "worker-critical", "host": "10.1.2.3", "port": 8083, "health": "critical",
+              "tags": [], "meta": {}, "checks": [], "outOfRange": false},
+             {"id": "worker-warning", "host": "10.1.2.3", "port": 8084, "health": "warning",
+              "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}]},
          "remotes": [
           {"name": "ws-b", "unreachable": false, "services": [
             {"workstation": "ws-b", "name": "database", "state": "healthy",
-             "hostname": "db.lvh.me", "containerBindings": [], "warnings": [], "instances": []}]},
+             "hostname": "db.lvh.me", "containerBindings": [], "warnings": [], "instances": [
+               {"id": "db-first", "host": "10.1.2.4", "port": 5432, "health": "passing",
+                "tags": [], "meta": {}, "checks": [], "outOfRange": false},
+               {"id": "db-second", "host": "10.1.2.4", "port": 5433, "health": "passing",
+                "tags": [], "meta": {}, "checks": [], "outOfRange": false}]},
+            {"workstation": "ws-b", "name": "cache", "state": "unavailable",
+             "containerBindings": [], "warnings": [], "instances": []}]},
           {"name": "ws-c", "unreachable": true, "services": []},
           {"name": "ws-d", "unreachable": false, "services": []}]}
         """);

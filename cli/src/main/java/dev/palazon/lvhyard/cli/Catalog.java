@@ -66,7 +66,7 @@ class Catalog implements Runnable {
         hostnameWidth = Math.max(hostnameWidth, hostname(service).length());
       }
     }
-    String format = "  %-" + nameWidth + "s  %-" + stateWidth + "s  %-" + hostnameWidth + "s  %d%n";
+    String format = "  %-" + nameWidth + "s  %-" + stateWidth + "s  %-" + hostnameWidth + "s  %s%n";
     PrintWriter out = spec.commandLine().getOut();
     for (Dashboard.YardWorkstation workstation : workstations) {
       String heading =
@@ -79,12 +79,16 @@ class Catalog implements Runnable {
       } else {
         out.println(heading);
         for (Dashboard.Service service : workstation.services()) {
-          out.printf(
-              format,
-              service.name(),
-              service.state(),
-              hostname(service),
-              service.instances().size());
+          String instances =
+              service.instances().isEmpty()
+                  ? "No Instances"
+                  : service.instances().stream()
+                          .filter(instance -> "passing".equals(instance.health()))
+                          .count()
+                      + " of "
+                      + service.instances().size()
+                      + " passing";
+          out.printf(format, service.name(), service.state(), hostname(service), instances);
         }
       }
     }
