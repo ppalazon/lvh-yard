@@ -342,6 +342,14 @@ abstract class DashboardTest {
     return page.substring(start, at + "</div>".length());
   }
 
+  /**
+   * The Service page's summary card {@code name}: {@code state}, {@code publication}, {@code
+   * passing} or {@code routing}.
+   */
+  static String summaryCard(String page, String name) {
+    return div(page, "data-summary=\"" + name + "\"");
+  }
+
   /** The whole {@code dialog} element with id {@code id}. A dialog never holds another one. */
   static String dialog(String page, String id) {
     int start = page.lastIndexOf("<dialog", page.indexOf("id=\"" + id + "\""));

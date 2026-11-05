@@ -18,8 +18,9 @@ class InstancePriorityOrderTest extends InstancePriorityTestSupport {
     put(publicationPath(web), Map.of("priority", List.of("bound", "static")));
 
     awaitRoutedTo(web, bound);
-    assertThat(getPage("/services/ws-test/" + web).getBody())
-        .contains("Routing to: Bound (Static waiting)");
+    assertThat(summaryCard(getPage("/services/ws-test/" + web).getBody(), "routing"))
+        .contains("Bound")
+        .contains("Static waiting");
   }
 
   @Test
@@ -43,8 +44,8 @@ class InstancePriorityOrderTest extends InstancePriorityTestSupport {
     put(publicationPath(web), Map.of("priority", List.of("bound")));
 
     awaitRoutedTo(web, bound);
-    assertThat(getPage("/services/ws-test/" + web).getBody())
-        .contains("Routing to: Bound")
-        .doesNotContain("Static waiting");
+    assertThat(summaryCard(getPage("/services/ws-test/" + web).getBody(), "routing"))
+        .contains("Bound")
+        .doesNotContain("waiting");
   }
 }
