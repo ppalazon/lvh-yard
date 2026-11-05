@@ -55,7 +55,9 @@ class PublicationsTest extends DashboardTest {
 
     publish(postgres);
 
-    assertThat(get(servicePath(postgres)).getBody().get("state").asString()).isEqualTo("unhealthy");
+    JsonNode service = get(servicePath(postgres)).getBody();
+    assertThat(service.get("state").asString()).isEqualTo("unhealthy");
+    assertThat(service.get("warnings")).isEmpty();
   }
 
   @Test
@@ -84,6 +86,7 @@ class PublicationsTest extends DashboardTest {
     JsonNode service = StaticInstancesTest.findService(get("/api/services").getBody(), web);
     assertThat(service.get("state").asString()).isEqualTo("unavailable");
     assertThat(service.get("instances")).isEmpty();
+    assertThat(service.get("warnings")).isEmpty();
   }
 
   @Test
@@ -193,6 +196,12 @@ class PublicationsTest extends DashboardTest {
 
     assertThat(service.get("warnings").valueStream().map(warning -> warning.get("kind").asString()))
         .containsExactly("loopback-instance", "loopback-instance", "loopback-instance");
+    assertThat(
+            service
+                .get("warnings")
+                .valueStream()
+                .map(warning -> warning.get("severity").asString()))
+        .containsExactly("risk", "risk", "risk");
     assertThat(
             service.get("warnings").valueStream().map(warning -> warning.get("message").asString()))
         .anySatisfy(message -> assertThat(message).contains("127.0.0.1:8080"))

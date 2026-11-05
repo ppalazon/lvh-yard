@@ -13,23 +13,52 @@ import java.util.stream.Stream;
  */
 public record ServiceWarning(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Kind kind,
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Severity severity,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String message) {
+
+  ServiceWarning(Kind kind, String message) {
+    this(kind, kind.severity(), message);
+  }
+
+  public enum Severity {
+
+    /** The hostname does not work. */
+    ERROR,
+
+    /** The hostname works, but other Workstations or users can meet a problem. */
+    RISK;
+
+    @JsonValue
+    public String value() {
+      return name().toLowerCase();
+    }
+  }
 
   public enum Kind {
 
     /** Only its own Workstation can connect to a loopback address. */
-    LOOPBACK_INSTANCE,
+    LOOPBACK_INSTANCE(Severity.RISK),
 
-    UNPUBLISHED_CONTAINER_PORT,
+    UNPUBLISHED_CONTAINER_PORT(Severity.RISK),
 
     /**
      * A Route Profile asks who the user is, but only Traefik applies it, so a connection straight
      * to an Instance skips it.
      */
-    ROUTE_PROFILE_AUTH,
+    ROUTE_PROFILE_AUTH(Severity.RISK),
 
     /** Its Home Workstation does not hold the Route Profile, so Traefik refuses the Route. */
-    UNKNOWN_ROUTE_PROFILE;
+    UNKNOWN_ROUTE_PROFILE(Severity.ERROR);
+
+    private final Severity severity;
+
+    Kind(Severity severity) {
+      this.severity = severity;
+    }
+
+    public Severity severity() {
+      return severity;
+    }
 
     @JsonValue
     public String value() {

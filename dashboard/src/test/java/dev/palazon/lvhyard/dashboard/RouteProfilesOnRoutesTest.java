@@ -130,6 +130,8 @@ class RouteProfilesOnRoutesTest extends DashboardTest {
     assertThat(warning(get(servicePath(web)).getBody(), "unknown-route-profile"))
         .contains("team-login")
         .doesNotContain("behind-https");
+    assertThat(severity(get(servicePath(web)).getBody(), "unknown-route-profile"))
+        .isEqualTo("error");
     assertThat(getPage("/services/ws-test/" + web).getBody())
         .contains("The Route Profile team-login does not exist");
   }
@@ -209,6 +211,7 @@ class RouteProfilesOnRoutesTest extends DashboardTest {
         .contains("team-login")
         .contains("10.1.2.3:8080")
         .contains("check its users itself");
+    assertThat(severity(withLogin, "route-profile-auth")).isEqualTo("risk");
     assertThat(warning(withChain, "route-profile-auth")).contains("protected");
     assertThat(warning(withHeaders, "route-profile-auth")).isNull();
   }
@@ -260,6 +263,17 @@ class RouteProfilesOnRoutesTest extends DashboardTest {
         .valueStream()
         .filter(warning -> warning.get("kind").asString().equals(kind))
         .map(warning -> warning.get("message").asString())
+        .findFirst()
+        .orElse(null);
+  }
+
+  /** The severity of {@code service}'s warning of {@code kind}, or {@code null}. */
+  private static String severity(JsonNode service, String kind) {
+    return service
+        .get("warnings")
+        .valueStream()
+        .filter(warning -> warning.get("kind").asString().equals(kind))
+        .map(warning -> warning.get("severity").asString())
         .findFirst()
         .orElse(null);
   }

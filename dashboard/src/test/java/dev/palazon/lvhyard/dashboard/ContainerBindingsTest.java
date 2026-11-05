@@ -145,6 +145,7 @@ class ContainerBindingsTest extends DashboardTest {
 
     assertThat(warnings.valueStream().map(warning -> warning.get("kind").asString()))
         .containsExactly("unpublished-container-port");
+    assertThat(warnings.get(0).get("severity").asString()).isEqualTo("risk");
     assertThat(warnings.get(0).get("message").asString())
         .contains(containerAddress(container) + ":80")
         .contains("not published");

@@ -86,7 +86,7 @@ class RegisterContainer implements Runnable {
                 : ""));
     out.flush();
     PrintWriter err = spec.commandLine().getErr();
-    registered.warnings().forEach(warning -> err.println("Warning: " + warning.message()));
+    registered.warnings().forEach(warning -> err.println(warning.line()));
     err.flush();
   }
 

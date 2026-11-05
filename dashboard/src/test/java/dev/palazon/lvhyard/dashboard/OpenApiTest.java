@@ -152,6 +152,17 @@ class OpenApiTest extends DashboardTest {
   }
 
   @Test
+  void serviceWarningHasARequiredSeverityOfErrorOrRisk() {
+    JsonNode warning =
+        get("/v3/api-docs").getBody().get("components").get("schemas").get("ServiceWarning");
+
+    assertThat(warning.get("required").valueStream().map(JsonNode::asString)).contains("severity");
+    assertThat(warning.get("properties").get("severity").get("enum").valueStream())
+        .map(JsonNode::asString)
+        .containsExactly("error", "risk");
+  }
+
+  @Test
   void publishingTakesRouteProfilesAndServicesShowThem() {
     JsonNode docs = get("/v3/api-docs").getBody();
     JsonNode schemas = docs.get("components").get("schemas");

@@ -1321,9 +1321,15 @@ components:
           - unknown-route-profile
         message:
           type: string
+        severity:
+          type: string
+          enum:
+          - error
+          - risk
       required:
       - kind
       - message
+      - severity
     StaticInstanceRequest:
       type: object
       properties:

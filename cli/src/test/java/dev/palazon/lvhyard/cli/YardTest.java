@@ -208,8 +208,10 @@ class YardTest {
         """
         [{"workstation": "ws-b", "name": "api", "state": "healthy", "publication": {"scope": "yard", "accessLog": false},
           "hostname": "api.ws-b.lvh.me", "containerBindings": [], "profiles": ["team-login"],
-          "warnings": [{"kind": "unknown-route-profile",
-                        "message": "The Route Profile team-login does not exist."}],
+          "warnings": [{"kind": "unknown-route-profile", "severity": "error",
+                        "message": "The Route Profile team-login does not exist."},
+                       {"kind": "route-profile-auth", "severity": "risk",
+                        "message": "The Route Profile basic-auth asks who the user is only on the hostname."}],
           "instances": [
             {"id": "1a2b", "host": "10.1.2.4", "port": 9090, "health": "passing",
              "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}]
@@ -222,7 +224,8 @@ class YardTest {
             "ws-b",
             "  api: healthy at api.ws-b.lvh.me",
             "    10.1.2.4:9090  passing   1a2b",
-            "    Warning: The Route Profile team-login does not exist.");
+            "    error: The Route Profile team-login does not exist.",
+            "    risk: The Route Profile basic-auth asks who the user is only on the hostname.");
   }
 
   @Test
@@ -1314,7 +1317,7 @@ class YardTest {
         {"workstation": "ws-a", "name": "web", "state": "healthy",
          "publication": {"scope": "yard", "accessLog": false}, "hostname": "web.lvh.me",
          "containerBindings": [], "warnings": [
-            {"kind": "unpublished-container-port",
+            {"kind": "unpublished-container-port", "severity": "risk",
              "message": "The Bound Instance at 172.17.0.2:80 is on a container port that is not published."}],
          "instances": [{"id": "web:web-1:80", "host": "172.17.0.2", "port": 80,
                         "health": "passing", "outOfRange": false,
@@ -1326,7 +1329,7 @@ class YardTest {
     assertThat(run.exitCode()).isZero();
     assertThat(run.err())
         .isEqualTo(
-            "Warning: The Bound Instance at 172.17.0.2:80 is on a container port that is not"
+            "risk: The Bound Instance at 172.17.0.2:80 is on a container port that is not"
                 + " published.\n");
   }
 
@@ -1749,7 +1752,7 @@ class YardTest {
          "publication": {"scope": "local", "accessLog": false}, "hostname": "admin.lvh.me", "containerBindings": [],
          "profiles": ["basic-auth", "cors"],
          "warnings": [
-            {"kind": "route-profile-auth",
+            {"kind": "route-profile-auth", "severity": "risk",
              "message": "The Route Profile basic-auth asks who the user is only on the hostname."}],
          "instances": []}
         """);
@@ -1760,7 +1763,7 @@ class YardTest {
     assertThat(run.out()).contains("Route Profiles: basic-auth, cors.");
     assertThat(run.err())
         .isEqualTo(
-            "Warning: The Route Profile basic-auth asks who the user is only on the hostname.\n");
+            "risk: The Route Profile basic-auth asks who the user is only on the hostname.\n");
     dashboard.verifyCalled(
         "PUT",
         "/api/workstation/services/admin/publication",
@@ -1834,7 +1837,9 @@ class YardTest {
         """
         {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "yard", "accessLog": false},
          "hostname": "web.lvh.me", "containerBindings": [], "warnings": [
-            {"kind": "loopback-instance",
+            {"kind": "unknown-route-profile", "severity": "error",
+             "message": "The Route Profile team-login does not exist."},
+            {"kind": "loopback-instance", "severity": "risk",
              "message": "The Instance at 127.0.0.1:8080 is on a loopback address."}],
          "instances": [
             {"id": "7b1c", "host": "127.0.0.1", "port": 8080, "health": "passing",
@@ -1845,7 +1850,9 @@ class YardTest {
 
     assertThat(run.exitCode()).isZero();
     assertThat(run.err())
-        .isEqualTo("Warning: The Instance at 127.0.0.1:8080 is on a loopback address.\n");
+        .isEqualTo(
+            "error: The Route Profile team-login does not exist.\n"
+                + "risk: The Instance at 127.0.0.1:8080 is on a loopback address.\n");
   }
 
   @Test

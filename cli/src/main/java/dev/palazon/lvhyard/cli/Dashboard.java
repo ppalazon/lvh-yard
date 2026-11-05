@@ -90,7 +90,13 @@ final class Dashboard {
     }
   }
 
-  record Warning(String kind, String message) {}
+  /** {@code severity} is error or risk. */
+  record Warning(String kind, String severity, String message) {
+
+    String line() {
+      return severity + ": " + message;
+    }
+  }
 
   /**
    * The API leaves {@code composeProject}, {@code composeService} and {@code health} out when the

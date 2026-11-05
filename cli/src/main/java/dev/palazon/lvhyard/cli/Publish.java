@@ -132,7 +132,7 @@ class Publish implements Runnable {
             + (published.publication().accessLog() ? " Access log: on." : ""));
     out.flush();
     PrintWriter err = spec.commandLine().getErr();
-    published.warnings().forEach(warning -> err.println("Warning: " + warning.message()));
+    published.warnings().forEach(warning -> err.println(warning.line()));
     err.flush();
   }
 }

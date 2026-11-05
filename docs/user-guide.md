@@ -527,9 +527,9 @@ A new Publication has Local Scope: only this Workstation routes it, at
 it, at `<service>.<workstation>.<base-domain>`. If you publish again without
 `--scope`, the Scope does not change.
 
-A Service with Yard Scope shows a warning for each Instance on loopback, because
+A Service with Yard Scope shows a risk for each Instance on loopback, because
 other Workstations cannot reach it. The page, the API and `lvh-yard publish`
-show this warning.
+show this risk.
 
 Traefik does not log the requests to a new Publication. To see them in the
 Traefik access log, turn the access log on. Use the Service page or
@@ -539,6 +539,29 @@ again without `--access-log`, the setting does not change.
 
 You can see a Remote Service, but only its Home Workstation can change it. Its
 page has no forms, and the API answers 405 to a change under `/api/services`.
+
+### Service Warnings
+
+A Service Warning is a problem that the setup of a Service causes. Each one has
+one of two levels:
+
+- **error**: the hostname does not work. An unknown Route Profile is an error.
+- **risk**: the hostname works, but other Workstations or users can meet a
+  problem. An Instance on loopback, a container port that is not published, and
+  a Route Profile that asks who the user is are risks.
+
+The API sends each Service Warning in `warnings`, with its `kind`, its
+`severity` (`error` or `risk`) and its `message`. The Service state is not a
+Service Warning, so an Unavailable or Unhealthy Service has no Service Warning
+for its state.
+
+`lvh-yard list`, `lvh-yard publish` and `lvh-yard register container` print the
+level before each message:
+
+```text
+    error: The Route Profile team-login does not exist on the Home Workstation, ...
+    risk: The Instance at 127.0.0.1:8080 is on loopback, so other Workstations cannot reach it. ...
+```
 
 ### Instance Priority
 
@@ -767,13 +790,13 @@ page on their dashboard shows the profile names.
 A profile with `basicAuth`, `digestAuth` or `forwardAuth`, also inside a chain,
 protects only the hostname. A connection straight to the Instance's address and
 port does not go through Traefik, so it skips the profile. The Service page,
-the API and `lvh-yard publish` show a warning about it. The Service must check
+the API and `lvh-yard publish` show a risk about it. The Service must check
 its users itself.
 
 If you remove a profile from the file while a Publication still names it, the
 Route still lists it. Traefik then refuses the Route, so the hostname does not
 answer and a missing auth profile never opens the Service. The Service page,
-the API and `lvh-yard list` show an "unknown Route Profile" warning. Add the
+the API and `lvh-yard list` show an "unknown Route Profile" error. Add the
 profile again, or remove it from the Publication.
 
 ### Static Instances
