@@ -9,6 +9,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.testcontainers.containers.GenericContainer;
 import tools.jackson.databind.JsonNode;
 
 /** A Service's detail page, where its Instances are seen and removed. */
@@ -666,10 +667,71 @@ class ServicePageTest extends DashboardTest {
   }
 
   @Test
+  void instancesShowContainerPortsAndHostPortsAndLeaveStaticContainerCellsEmpty() {
+    String web = newServiceName("web");
+    String publishedName = newContainerName();
+    String unpublishedName = newContainerName();
+    GenericContainer<?> published = startContainer(publishedName, 80, true);
+    startContainer(unpublishedName, 8080, false);
+    bind(web, publishedName, 80);
+    bind(web, unpublishedName, 8080);
+    register(web, Map.of("host", "10.1.2.3", "port", 9090));
+    await()
+        .atMost(Duration.ofSeconds(15))
+        .until(() -> get(servicePath(web)).getBody().get("instances").size() == 3);
+
+    String instances = div(getPage("/services/ws-test/" + web).getBody(), "id=\"instances\"");
+
+    assertThat(instances)
+        .contains(
+            "<th>Instance</th><th>Container</th><th>Container Port</th><th>Host Port</th>"
+                + "<th>Health</th>")
+        .doesNotContain("<th>Checks</th>");
+    assertThat(instanceRow(instances, publishedName))
+        .contains(
+            "<td>"
+                + publishedName
+                + "</td><td>80</td><td>"
+                + published.getMappedPort(80)
+                + "</td>");
+    assertThat(instanceRow(instances, unpublishedName))
+        .contains("<td>" + unpublishedName + "</td><td>8080</td><td>Not published</td>");
+    assertThat(instanceRow(instances, "10.1.2.3:9090")).contains("<td></td><td></td><td></td>");
+  }
+
+  @Test
+  void remoteBoundInstanceShowsItsContainerAndPortsFromItsHomeWorkstation() {
+    String web = newServiceName("web");
+    String name = newContainerName();
+    GenericContainer<?> container = startContainer(name, 80, true);
+    remote.bind(web, name, 80);
+    String path = "/services/" + RemoteWorkstation.NAME + "/" + web;
+
+    await()
+        .atMost(Duration.ofSeconds(15))
+        .untilAsserted(() -> {
+          String instances = div(getPage(path).getBody(), "id=\"instances\"");
+          assertThat(instances)
+              .contains("<th>Container</th><th>Container Port</th><th>Host Port</th>");
+          assertThat(instanceRow(instances, name))
+              .contains(
+                  "<td>" + name + "</td><td>80</td><td>" + container.getMappedPort(80) + "</td>");
+        });
+    JsonNode instance =
+        get("/api/services/" + RemoteWorkstation.NAME + "/" + web)
+            .getBody()
+            .get("instances")
+            .get(0);
+    assertThat(instance.get("container").asString()).isEqualTo(name);
+    assertThat(instance.get("containerPort").asInt()).isEqualTo(80);
+    assertThat(instance.get("hostPort").asInt()).isEqualTo(container.getMappedPort(80));
+  }
+
+  @Test
   void boundInstanceSaysWhichContainerGivesItAndCannotBeEditedOrRemoved() {
     String web = newServiceName("web");
     String name = newContainerName();
-    startContainer(name, 80, false);
+    startYardNetworkContainer(name, 80, "ok");
     bind(web, name, 80);
     await()
         .atMost(Duration.ofSeconds(15))
@@ -682,6 +744,12 @@ class ServicePageTest extends DashboardTest {
         .contains("Bound to container " + name)
         .doesNotContain("/instances/" + id + "/edit")
         .doesNotContain("/instances/" + id + "/remove");
+    await()
+        .atMost(Duration.ofSeconds(15))
+        .untilAsserted(() ->
+            assertThat(
+                    div(getPage("/services/ws-test/" + web).getBody(), "id=\"container-bindings\""))
+                .contains("1 container, 1 passing"));
   }
 
   @Test
@@ -711,21 +779,35 @@ class ServicePageTest extends DashboardTest {
   }
 
   @Test
-  void showsAComposeBindingAndEachBoundInstanceItGives() {
+  void composeBindingSummarizesItsContainersAndKeepsTheirDetailsInTheInstancesCard() {
     String web = newServiceName("web");
     String project = newComposeProject();
-    startComposeContainer(newContainerName(), project, "web", 80);
-    startComposeContainer(newContainerName(), project, "web", 80);
+    String firstName = newContainerName();
+    String secondName = newContainerName();
+    String failingName = newContainerName();
+    GenericContainer<?> first = startComposeOnYard(firstName, project, 80);
+    startComposeOnYard(secondName, project, 80);
+    startComposeOnYard(failingName, project, 81);
     bindCompose(web, project, "web", 80);
     await()
         .atMost(Duration.ofSeconds(15))
-        .until(() -> get(servicePath(web)).getBody().get("instances").size() == 2);
+        .untilAsserted(() ->
+            assertThat(
+                    div(getPage("/services/ws-test/" + web).getBody(), "id=\"container-bindings\""))
+                .contains("3 containers, 2 passing"));
 
     String page = getPage("/services/ws-test/" + web).getBody();
 
     assertThat(page)
         .contains("Compose service web of project " + project)
         .contains("Bound to Compose service web of project " + project + ", port 80.");
+    assertThat(div(page, "id=\"container-bindings\""))
+        .contains("3 containers, 2 passing")
+        .doesNotContain(containerAddress(first) + ":80");
+    assertThat(div(page, "id=\"instances\""))
+        .contains("<td>" + firstName + "</td><td>80</td><td>Not published</td>")
+        .contains("<td>" + secondName + "</td><td>80</td><td>Not published</td>")
+        .contains("<td>" + failingName + "</td><td>80</td><td>Not published</td>");
   }
 
   @Test
@@ -769,6 +851,20 @@ class ServicePageTest extends DashboardTest {
         .contains("10.1.2.3:8080")
         .doesNotContain("Reachability from");
     assertThat(page).contains("Reachability from").contains("Test again");
+  }
+
+  private GenericContainer<?> startComposeOnYard(String name, String project, int port) {
+    return start(
+        TestcontainersConfiguration.listener(name, port)
+            .withNetwork(yardNetwork)
+            .withLabel("com.docker.compose.project", project)
+            .withLabel("com.docker.compose.service", "web"));
+  }
+
+  private static String instanceRow(String instances, String value) {
+    int at = instances.indexOf(value, instances.indexOf("<tbody>"));
+    assertThat(at).as("Instance row containing %s", value).isNotNegative();
+    return instances.substring(instances.lastIndexOf("<tr>", at), instances.indexOf("</tr>", at));
   }
 
   /** The risks box, up to its own closing tag. */

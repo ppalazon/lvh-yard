@@ -42,6 +42,10 @@ class ContainerBindingsTest extends DashboardTest {
           assertThat(instances.get(0).get("host").asString())
               .isEqualTo(containerAddress(container));
           assertThat(instances.get(0).get("port").asInt()).isEqualTo(80);
+          assertThat(instances.get(0).get("container").asString()).isEqualTo(name);
+          assertThat(instances.get(0).get("containerPort").asInt()).isEqualTo(80);
+          assertThat(instances.get(0).has("hostPort")).isFalse();
+          assertThat(instances.get(0).get("meta")).isEmpty();
         });
   }
 
@@ -59,6 +63,9 @@ class ContainerBindingsTest extends DashboardTest {
           JsonNode instance = get(servicePath(web)).getBody().get("instances").get(0);
           assertThat(instance.get("host").asString()).isEqualTo(lanAddress());
           assertThat(instance.get("port").asInt()).isEqualTo(container.getMappedPort(80));
+          assertThat(instance.get("container").asString()).isEqualTo(name);
+          assertThat(instance.get("containerPort").asInt()).isEqualTo(80);
+          assertThat(instance.get("hostPort").asInt()).isEqualTo(container.getMappedPort(80));
         });
   }
 
@@ -189,6 +196,24 @@ class ContainerBindingsTest extends DashboardTest {
 
     assertThat(addresses(service)).containsExactly(lanAddress() + ":" + port);
     assertThat(service.get("warnings")).isEmpty();
+    JsonNode instance = service.get("instances").get(0);
+    assertThat(instance.get("container").asString()).isEqualTo(name);
+    assertThat(instance.get("containerPort").asInt()).isEqualTo(port);
+    assertThat(instance.get("hostPort").asInt()).isEqualTo(port);
+  }
+
+  @Test
+  void staticInstanceHasNoContainerFieldsWhenRegisteredOrRead() {
+    String web = newServiceName("web");
+    JsonNode registered = register(web, Map.of("host", "10.1.2.3", "port", 8080));
+
+    assertThat(registered.has("container")).isFalse();
+    assertThat(registered.has("containerPort")).isFalse();
+    assertThat(registered.has("hostPort")).isFalse();
+    JsonNode instance = get(servicePath(web)).getBody().get("instances").get(0);
+    assertThat(instance.has("container")).isFalse();
+    assertThat(instance.has("containerPort")).isFalse();
+    assertThat(instance.has("hostPort")).isFalse();
   }
 
   @Test
@@ -431,8 +456,10 @@ class ContainerBindingsTest extends DashboardTest {
   void composeBindingGivesABoundInstanceForEachContainerOfThatProjectAndService() {
     String web = newServiceName("web");
     String project = newComposeProject();
-    GenericContainer<?> first = startComposeContainer(newContainerName(), project, "web", 80);
-    GenericContainer<?> second = startComposeContainer(newContainerName(), project, "web", 80);
+    String firstName = newContainerName();
+    String secondName = newContainerName();
+    GenericContainer<?> first = startComposeContainer(firstName, project, "web", 80);
+    GenericContainer<?> second = startComposeContainer(secondName, project, "web", 80);
     startComposeContainer(newContainerName(), project, "db", 80);
     startComposeContainer(newContainerName(), newComposeProject(), "web", 80);
 
@@ -449,6 +476,13 @@ class ContainerBindingsTest extends DashboardTest {
                     containerAddress(first) + ":80", containerAddress(second) + ":80"));
     JsonNode binding = get(servicePath(web)).getBody().get("containerBindings").get(0);
     assertThat(binding.get("instances")).hasSize(2);
+    JsonNode instances = get(servicePath(web)).getBody().get("instances");
+    assertThat(instances.valueStream().map(instance -> instance.get("container").asString()))
+        .containsExactlyInAnyOrder(firstName, secondName);
+    for (JsonNode instance : instances) {
+      assertThat(instance.get("containerPort").asInt()).isEqualTo(80);
+      assertThat(instance.has("hostPort")).isFalse();
+    }
   }
 
   @Test

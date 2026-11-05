@@ -874,11 +874,25 @@ One container name, or one Compose project and service, has at most one
 Container Binding on a Workstation. A second one is refused, whatever its port,
 and the refusal names the Service of the first one.
 
-Each running container that matches is a Bound Instance with a TCP check. If
-the container port is published on every host address, the Bound Instance is at
-the LAN address and the host port. Otherwise, it is at the address of the
-container and the container port. A Bound Instance comes and goes with its
-container, and you cannot edit or remove it alone.
+Each running container that matches is a Bound Instance with a TCP check.
+When a Container Port has a Host Port, the Bound Instance uses that Host Port.
+For a port published on every host address, it uses the LAN address.
+For a port published on one address, it uses that address.
+A container on the host network uses the LAN address and its Container Port as
+the Host Port. With no Host Port, the Bound Instance uses the container's own
+address and Container Port. A Bound Instance comes and goes with its container.
+You cannot edit or remove it alone.
+
+The Service page's Instances card shows Instance, Container, Container Port,
+Host Port and Health. Checks appear under Health. A Bound Instance with no Host
+Port says "Not published". A Static Instance has empty container cells.
+Remote Services show the same columns, from their Home Workstation.
+
+The Container Bindings card shows a count for each Binding, such as
+"3 containers, 2 passing". A Binding with no match says that no container runs.
+The API gives each Bound Instance's `container` and `containerPort`.
+It also gives `hostPort` when the Instance has a Host Port.
+A Static Instance has none of these fields.
 
 The dashboard follows the Docker events at `DOCKER_HOST`. If that is not set,
 it uses `unix:///var/run/docker.sock`. When it starts, or when Docker answers
