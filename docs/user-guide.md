@@ -33,7 +33,7 @@ Java or a copy of this repository.
    lvh-yard init --workstation ws-a --base-domain lvh.me
    ```
 
-   `init` writes `compose.yaml`, `.env` and `route-profiles.yaml` to
+   `init` writes `compose.yaml` and `.env` to
    `~/.config/lvh-yard`. If `XDG_CONFIG_HOME` is set, it writes to
    `$XDG_CONFIG_HOME/lvh-yard`. `--dir` picks another folder.
 
@@ -97,7 +97,7 @@ install a new `lvh-yard`, use one of these flags:
 - `lvh-yard init --reinit` writes `compose.yaml` and `.env` again from the new
   templates, with the values of the old `.env`. A flag that you give with it
   replaces the old value. The old files stay as
-  `<file>.<yyyyMMdd-HHmmss>.bak`. `route-profiles.yaml` does not change.
+  `<file>.<yyyyMMdd-HHmmss>.bak`.
 
 ### Addresses and ports
 
@@ -187,7 +187,7 @@ lvh-yard alias add grafana --workstation ws-b                 # http://grafana.<
 lvh-yard alias add db --workstation ws-b --service postgres   # a name that differs from the Service
 lvh-yard alias list
 lvh-yard alias remove grafana
-lvh-yard profiles                           # the Route Profiles of route-profiles.yaml, with their errors
+lvh-yard profiles                           # the Route Profiles, with their types and the Services that use them
 lvh-yard test web                           # tests whether this Workstation reaches web
 lvh-yard test grafana --workstation ws-b    # a Remote Service
 lvh-yard status                             # whether LVH Yard works
@@ -349,17 +349,34 @@ These are the states of an Alias:
 
 A Route Profile is a named set of Route options, such as basic auth or added
 headers. LVH Yard gives it to Traefik as a middleware.
-Write your Route Profiles in `route-profiles.yaml`, in the format of Traefik:
-each middleware under `http.middlewares` is one profile. `init` writes this
-file with commented examples. The dashboard reads it from `YARD_ROUTE_PROFILES`.
-The default is `route-profiles.yaml` in the folder that `init` uses. With no
-file, there are no Route Profiles.
+The Consul KV of this Workstation holds its Route Profiles, under
+`lvh-yard/route-profiles/<name>`. Other Workstations read the profiles there.
+A profile is one middleware in the format of Traefik, such as
+`{"headers": {"customRequestHeaders": {"X-Forwarded-Proto": "https"}}}`.
 
-The dashboard reads the file again within a second of a change, so you do not
-restart it. It copies each valid profile into the Consul KV of this
-Workstation, under `lvh-yard/route-profiles/<name>`. Other Workstations read
-the profiles there. When you remove a profile from the file, the dashboard
-deletes it from the KV.
+You add, replace and remove Route Profiles through the API of the dashboard,
+under `/api/workstation/route-profiles`:
+
+```sh
+dashboard=http://127.0.0.1:7780/api/workstation/route-profiles
+curl -X PUT -H 'Content-Type: application/json' "$dashboard/behind-https" \
+  -d '{"headers": {"customRequestHeaders": {"X-Forwarded-Proto": "https"}}}'
+curl -X PUT -H 'Content-Type: application/json' "$dashboard" \
+  -d '{"office-only": {"ipAllowList": {"sourceRange": ["192.168.1.0/24"]}},
+       "protected": {"chain": {"middlewares": ["office-only", "behind-https"]}}}'
+curl "$dashboard"                 # the list, with types and the Services that use each one
+curl "$dashboard/protected"       # one profile, with its definition
+curl -X DELETE "$dashboard/protected"
+```
+
+- `PUT` on a name adds or replaces that profile.
+- `PUT` on the collection adds or replaces each profile of the body. The
+  profiles that the body does not name stay. If one profile is refused, the
+  dashboard saves none of them.
+- `DELETE` on a name removes that profile. If a Publication or a chain names
+  it, the dashboard refuses with 409 and names each Service and chain.
+
+`lvh-yard profiles` lists the profiles, as the list of the API does.
 
 A profile must work on every Workstation, so the dashboard refuses a profile
 that:
@@ -368,24 +385,17 @@ that:
 - reads its users from a file (`usersFile`). Write them under `users`, as
   hashes from `htpasswd -nbB <user> <password>`.
 - sends `forwardAuth` to `localhost` or to an out-of-range address
-- is a chain that names a middleware that is not in the file, or that is
-  refused
+- is a chain that names a middleware that is not a Route Profile of this
+  Workstation, or that is refused
+- has a type that is not a Traefik middleware, such as a typo
+- has a name with other characters than letters, digits, `-` and `_`
 
-The other profiles still work. `lvh-yard profiles` and
-`GET /api/workstation/route-profiles` list each profile with its type and the
-reason it is refused.
-
-If the whole file cannot be read, the dashboard keeps the profiles that it read
-before. This happens when the file is not valid YAML, or when a profile has a
-type that is not a Traefik middleware, such as a typo. So a bad save never
-opens or breaks a Service. `lvh-yard profiles` and the API show the error. The
-Traefik part of the status shows a warning for a broken file or a refused
-profile.
+A refused save answers 400 with the reason, and nothing changes. So a bad save
+never opens or breaks a Service.
 
 LVH Yard does not take the middleware types for rate limits (`rateLimit`,
 `inFlightReq`) or for path rewrites (`addPrefix`, `stripPrefix`,
-`replacePath` and their `Regex` forms). A profile with one of them breaks the
-file, like a typo.
+`replacePath` and their `Regex` forms). A profile with one of them is refused.
 
 A Publication names zero or more Route Profiles. Choose them on the Service
 page, or with `lvh-yard publish`:
@@ -397,7 +407,7 @@ lvh-yard publish admin --no-profiles                    # removes them all
 ```
 
 Without `--profile`, a Publication keeps its profiles. A name that is not a
-valid profile of the file is refused, with the names that exist.
+Route Profile of this Workstation is refused, with the names that exist.
 
 The Route gets each profile as a Traefik middleware named
 `<workstation>_<profile>`, such as `ws-a_basic-auth`, in the order of the
@@ -411,7 +421,7 @@ not read the profiles of a Publication, so it routes the Service without them.
 A Service with Yard Scope gets its profiles on every Workstation. A teammate's
 Route to it, and a teammate's Alias to it, apply the same profiles. Their
 dashboard reads the profiles from your Consul KV, so nobody copies a file. When
-you change your file, their Routes change within a few seconds. The Service's
+you change a profile, their Routes change within a few seconds. The Service's
 page on their dashboard shows the profile names.
 
 A profile with `basicAuth`, `digestAuth` or `forwardAuth`, also inside a chain,

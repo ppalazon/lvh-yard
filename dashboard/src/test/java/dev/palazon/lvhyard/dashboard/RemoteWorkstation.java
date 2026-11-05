@@ -2,7 +2,6 @@ package dev.palazon.lvhyard.dashboard;
 
 import static org.awaitility.Awaitility.await;
 
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -37,12 +36,6 @@ final class RemoteWorkstation implements AutoCloseable {
 
   /** The names of the Services that the first setup writes, kept until it is done. */
   static final String FIRST_SETUP_NAMES = "lvh-yard/first-setup-names";
-
-  /**
-   * This Workstation's {@code route-profiles.yaml}, in a folder of this JVM's own, so its dashboard
-   * never reads a developer's own file. Tests write it; it does not exist at first.
-   */
-  static final Path ROUTE_PROFILES = TestcontainersConfiguration.routeProfilesPath();
 
   /** How long a dashboard may take to do its first setup after it started. */
   private static final Duration FIRST_SETUP_WAIT = Duration.ofSeconds(30);
@@ -154,7 +147,6 @@ final class RemoteWorkstation implements AutoCloseable {
       "--lvh-yard.workstation.base-domain=" + DashboardTest.BASE_DOMAIN,
       "--lvh-yard.docker.host=" + TestcontainersConfiguration.dockerHost(),
       "--lvh-yard.consul.url=http://" + consul.getHost() + ":" + consulPort(),
-      "--lvh-yard.route-profiles.path=" + ROUTE_PROFILES,
       // Its real Peer is a name only the Docker network resolves. Not the Peers of a developer's
       // .env.
       "--lvh-yard.consul.peers="
@@ -337,6 +329,28 @@ final class RemoteWorkstation implements AutoCloseable {
     consulHttp()
         .put()
         .uri("/v1/agent/check/deregister/service:" + id)
+        .retrieve()
+        .toBodilessEntity();
+  }
+
+  /**
+   * Adds or replaces Route Profiles of this Workstation through its dashboard, as {@code PUT
+   * /api/workstation/route-profiles} takes them.
+   */
+  void putRouteProfiles(Object profiles) {
+    http.put()
+        .uri(DashboardTest.ROUTE_PROFILES_PATH)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(profiles)
+        .retrieve()
+        .toBodilessEntity();
+  }
+
+  /** Removes every Route Profile of this Workstation straight from Consul, Publications or not. */
+  void removeAllRouteProfiles() {
+    consulHttp()
+        .delete()
+        .uri("/v1/kv/lvh-yard/route-profiles/?recurse")
         .retrieve()
         .toBodilessEntity();
   }

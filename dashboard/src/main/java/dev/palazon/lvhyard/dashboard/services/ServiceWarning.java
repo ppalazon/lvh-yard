@@ -97,8 +97,8 @@ public record ServiceWarning(
                 "The Route Profile "
                     + name
                     + " does not exist on the Home Workstation, so Traefik refuses the Route and"
-                    + " the hostname does not answer. Add the profile to route-profiles.yaml"
-                    + " again, or remove it from the Publication."));
+                    + " the hostname does not answer. Add the profile again on the Home"
+                    + " Workstation, or remove it from the Publication."));
   }
 
   private static Stream<ServiceWarning> auth(

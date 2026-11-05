@@ -56,11 +56,8 @@ public class RouteProfileChecks {
     this.outOfRange = outOfRange;
   }
 
-  /**
-   * @param unknownType whether the reason is a type that Traefik does not have. Only {@code
-   *     route-profiles.yaml} treats it apart: there it breaks the whole file.
-   */
-  public record Problem(String profile, String reason, boolean unknownType) {}
+  /** {@code reason} is a full sentence that starts with the profile's name. */
+  public record Problem(String profile, String reason) {}
 
   /**
    * @param problems one for each refused profile, in the order of the set
@@ -91,7 +88,7 @@ public class RouteProfileChecks {
         .forEach(name -> {
           String reason = checker.refusal(name);
           if (reason != null) {
-            problems.add(new Problem(name, reason, unknownType(known.get(name)) != null));
+            problems.add(new Problem(name, reason));
             return;
           }
           Map<String, Object> definition = new LinkedHashMap<>();

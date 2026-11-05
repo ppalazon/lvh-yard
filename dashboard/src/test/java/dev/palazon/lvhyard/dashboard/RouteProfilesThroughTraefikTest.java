@@ -9,7 +9,6 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -33,8 +32,8 @@ class RouteProfilesThroughTraefikTest extends DashboardTest {
   }
 
   @AfterEach
-  void removeTheFile() throws IOException {
-    Files.deleteIfExists(TestcontainersConfiguration.ROUTE_PROFILES);
+  void removeTheProfiles() throws Exception {
+    removeAllRouteProfiles();
   }
 
   @AfterAll
@@ -46,21 +45,14 @@ class RouteProfilesThroughTraefikTest extends DashboardTest {
   }
 
   @Test
-  void basicAuthProfileAsksForCredentialsAndLetsTheUserIn() throws IOException {
+  void basicAuthProfileAsksForCredentialsAndLetsTheUserIn() {
     // The password is "secret".
-    Files.writeString(
-        TestcontainersConfiguration.ROUTE_PROFILES,
-        """
-        http:
-          middlewares:
-            team-login:
-              basicAuth:
-                users:
-                  - "ana:$apr1$lvhyard1$p9S4tUHNaQRDYDEMe9KFK."
-        """);
-    await()
-        .atMost(Duration.ofSeconds(10))
-        .until(() -> get("/api/workstation/route-profiles").getBody().get("profiles").size() == 1);
+    putRouteProfiles(
+        Map.of(
+            "team-login",
+            Map.of(
+                "basicAuth",
+                Map.of("users", List.of("ana:$apr1$lvhyard1$p9S4tUHNaQRDYDEMe9KFK.")))));
     String web = newServiceName("web");
     int listening = newLanPort();
     answerHttpOnLanAddress(listening, "200 OK", "inside");
@@ -81,35 +73,32 @@ class RouteProfilesThroughTraefikTest extends DashboardTest {
   }
 
   @Test
-  void profileRemovedFromTheFileClosesTheRoute() throws IOException {
-    Files.writeString(
-        TestcontainersConfiguration.ROUTE_PROFILES,
-        """
-        http:
-          middlewares:
-            behind-https:
-              headers:
-                customRequestHeaders:
-                  X-Forwarded-Proto: https
-        """);
-    await()
-        .atMost(Duration.ofSeconds(10))
-        .until(() -> get("/api/workstation/route-profiles").getBody().get("profiles").size() == 1);
+  void profileReplacedWithBasicAuthStartsToAskForCredentials() {
+    putRouteProfiles(
+        Map.of(
+            "guarded",
+            Map.of(
+                "headers", Map.of("customRequestHeaders", Map.of("X-Forwarded-Proto", "https")))));
     String web = newServiceName("web");
     int listening = newLanPort();
     answerHttpOnLanAddress(listening, "200 OK", "inside");
     register(web, Map.of("port", listening));
-    put(publicationPath(web), Map.of("profiles", List.of("behind-https")));
+    put(publicationPath(web), Map.of("profiles", List.of("guarded")));
     String hostname = web + ".lvh.test";
     await()
         .atMost(Duration.ofSeconds(20))
         .until(() -> answerThroughTraefik(hostname, null).startsWith("HTTP/1.1 200"));
 
-    Files.writeString(TestcontainersConfiguration.ROUTE_PROFILES, "");
+    putRouteProfiles(
+        Map.of(
+            "guarded",
+            Map.of(
+                "basicAuth",
+                Map.of("users", List.of("ana:$apr1$lvhyard1$p9S4tUHNaQRDYDEMe9KFK.")))));
 
     await()
         .atMost(Duration.ofSeconds(20))
-        .until(() -> answerThroughTraefik(hostname, null).startsWith("HTTP/1.1 404"));
+        .until(() -> answerThroughTraefik(hostname, null).startsWith("HTTP/1.1 401"));
   }
 
   /**

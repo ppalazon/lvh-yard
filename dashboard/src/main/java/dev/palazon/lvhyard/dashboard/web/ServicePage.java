@@ -648,7 +648,7 @@ final class ServicePage {
             buttons
                 .p()
                 .attrClass("text-muted-foreground")
-                .text("route-profiles.yaml has no valid profiles to add.")
+                .text("This Workstation has no Route Profiles to add.")
                 .__();
           }
         })

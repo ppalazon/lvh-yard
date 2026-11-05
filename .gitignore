@@ -7,7 +7,7 @@ target/
 # Each Workstation's settings and the Yard's gossip key
 .env
 
-# The Route Profiles of a Workstation that runs from the sources
+# Old Route Profiles files, which LVH Yard no longer reads. They can hold basic-auth hashes.
 /route-profiles.yaml
 /dev/*.route-profiles.yaml
 

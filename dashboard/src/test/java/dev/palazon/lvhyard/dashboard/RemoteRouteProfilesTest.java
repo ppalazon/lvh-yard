@@ -2,8 +2,6 @@ package dev.palazon.lvhyard.dashboard;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -20,38 +18,23 @@ class RemoteRouteProfilesTest extends DashboardTest {
 
   private static final JsonMapper JSON = new JsonMapper();
 
-  private static final String PROFILES_PATH = "/api/workstation/route-profiles";
-
-  private static final String REMOTE_PROFILES =
-      """
-      http:
-        middlewares:
-          team-login:
-            basicAuth:
-              users:
-                - "ana:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/"
-          office-only:
-            ipAllowList:
-              sourceRange: [192.168.1.0/24]
-          protected:
-            chain:
-              middlewares: [office-only, team-login]
-      """;
+  private static final JsonNode REMOTE_PROFILES =
+      JSON.readTree(
+          """
+          {"team-login": {"basicAuth": {"users": ["ana:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/"]}},
+           "office-only": {"ipAllowList": {"sourceRange": ["192.168.1.0/24"]}},
+           "protected": {"chain": {"middlewares": ["office-only", "team-login"]}}}
+          """);
 
   @AfterEach
-  void removeTheFiles() throws IOException {
-    Files.deleteIfExists(RemoteWorkstation.ROUTE_PROFILES);
-    Files.deleteIfExists(TestcontainersConfiguration.ROUTE_PROFILES);
-    await()
-        .untilAsserted(() -> {
-          assertThat(profileNames(remote.get(PROFILES_PATH).getBody())).isEmpty();
-          assertThat(profileNames(get(PROFILES_PATH).getBody())).isEmpty();
-        });
+  void removeTheProfiles() throws Exception {
+    remote.removeAllRouteProfiles();
+    removeAllRouteProfiles();
   }
 
   @Test
   void remoteServiceRouteAppliesTheProfilesOfItsHomeWorkstation() throws Exception {
-    writeRemoteProfiles(REMOTE_PROFILES);
+    remote.putRouteProfiles(REMOTE_PROFILES);
     String admin = sharedRemoteServiceWithProfiles("admin", List.of("protected"));
 
     JsonNode http = get("/traefik/configuration").getBody().get("http");
@@ -71,19 +54,12 @@ class RemoteRouteProfilesTest extends DashboardTest {
 
   @Test
   void profilesOfTheSameNameOnTwoWorkstationsNeverClash() throws Exception {
-    writeRemoteProfiles(REMOTE_PROFILES);
-    Files.writeString(
-        TestcontainersConfiguration.ROUTE_PROFILES,
-        """
-        http:
-          middlewares:
-            team-login:
-              basicAuth:
-                users:
-                  - "bob:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/"
-        """);
-    await()
-        .untilAsserted(() -> assertThat(profileNames(get(PROFILES_PATH).getBody())).isNotEmpty());
+    remote.putRouteProfiles(REMOTE_PROFILES);
+    putRouteProfiles(
+        JSON.readTree(
+            """
+            {"team-login": {"basicAuth": {"users": ["bob:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/"]}}}
+            """));
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
     put(publicationPath(web), Map.of("profiles", List.of("team-login")));
@@ -97,7 +73,7 @@ class RemoteRouteProfilesTest extends DashboardTest {
 
   @Test
   void aliasAppliesTheProfilesOfItsRemoteService() throws Exception {
-    writeRemoteProfiles(REMOTE_PROFILES);
+    remote.putRouteProfiles(REMOTE_PROFILES);
     String admin = sharedRemoteServiceWithProfiles("admin", List.of("team-login"));
     String alias = newServiceName("alias");
 
@@ -113,7 +89,7 @@ class RemoteRouteProfilesTest extends DashboardTest {
 
   @Test
   void remoteServicePageShowsItsProfileNames() throws Exception {
-    writeRemoteProfiles(REMOTE_PROFILES);
+    remote.putRouteProfiles(REMOTE_PROFILES);
     String admin = sharedRemoteServiceWithProfiles("admin", List.of("protected", "team-login"));
 
     String page = getPage("/services/" + RemoteWorkstation.NAME + "/" + admin).getBody();
@@ -127,11 +103,20 @@ class RemoteRouteProfilesTest extends DashboardTest {
   }
 
   @Test
-  void changeInTheHomeFileReachesTheRemoteConfigurationWithinSeconds() throws Exception {
-    writeRemoteProfiles(REMOTE_PROFILES);
-    sharedRemoteServiceWithProfiles("admin", List.of("team-login"));
+  void changeOnTheHomeWorkstationReachesTheRemoteConfigurationAndItsChains() throws Exception {
+    remote.putRouteProfiles(REMOTE_PROFILES);
+    String admin = sharedRemoteServiceWithProfiles("admin", List.of("team-login"));
+    String alias = newServiceName("alias");
+    put(
+        AliasesTest.aliasPath(alias),
+        Map.of("workstation", RemoteWorkstation.NAME, "service", admin));
+    String chained = sharedRemoteServiceWithProfiles("chained", List.of("protected"));
 
-    Files.writeString(RemoteWorkstation.ROUTE_PROFILES, REMOTE_PROFILES.replace("ana:", "carla:"));
+    remote.putRouteProfiles(
+        JSON.readTree(
+            """
+            {"team-login": {"basicAuth": {"users": ["carla:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/"]}}}
+            """));
 
     await()
         .untilAsserted(() ->
@@ -142,7 +127,13 @@ class RemoteRouteProfilesTest extends DashboardTest {
                         .get("middlewares")
                         .get("ws-remote_team-login")
                         .toString())
-                .contains("carla:"));
+                .contains("carla:")
+                .doesNotContain("ana:"));
+    JsonNode http = get("/traefik/configuration").getBody().get("http");
+    assertThat(http.get("routers").get("alias_" + alias).get("middlewares").toString())
+        .isEqualTo("[\"ws-remote_team-login\"]");
+    assertThat(http.get("routers").get(chained + "." + RemoteWorkstation.NAME).toString())
+        .contains("ws-remote_protected");
   }
 
   /**
@@ -163,22 +154,6 @@ class RemoteRouteProfilesTest extends DashboardTest {
                         .has(service + "." + RemoteWorkstation.NAME))
                 .isTrue());
     return service;
-  }
-
-  /** Writes ws-remote's file and waits until its dashboard took it. */
-  private void writeRemoteProfiles(String yaml) throws IOException {
-    Files.writeString(RemoteWorkstation.ROUTE_PROFILES, yaml);
-    await()
-        .untilAsserted(
-            () -> assertThat(profileNames(remote.get(PROFILES_PATH).getBody())).isNotEmpty());
-  }
-
-  private static List<String> profileNames(JsonNode listed) {
-    return listed
-        .get("profiles")
-        .valueStream()
-        .map(profile -> profile.get("name").asString())
-        .toList();
   }
 
   private static org.awaitility.core.ConditionFactory await() {

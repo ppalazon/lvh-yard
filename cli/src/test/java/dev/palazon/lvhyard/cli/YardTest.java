@@ -513,17 +513,14 @@ class YardTest {
   }
 
   @Test
-  void profilesListsTheRouteProfilesWithTheirTypesAndWhyOnesAreRefused() {
+  void profilesListsTheRouteProfilesWithTheirTypesAndTheServicesThatUseThem() {
     dashboard.answer(
         "GET",
         "/api/workstation/route-profiles",
         200,
         """
-        {"profiles": [
-          {"name": "behind-https", "type": "headers"},
-          {"name": "team-login", "type": "basicAuth",
-           "error": "team-login reads its users from usersFile."},
-          {"name": "two-types", "error": "two-types must have exactly one middleware type."}]}
+        [{"name": "behind-https", "type": "headers", "services": ["api", "web"]},
+         {"name": "team-login", "type": "basicAuth", "services": []}]
         """);
 
     Run run = yard("profiles");
@@ -532,44 +529,19 @@ class YardTest {
     assertThat(run.out())
         .isEqualTo(
             """
-            behind-https: headers
-            team-login: basicAuth, refused. team-login reads its users from usersFile.
-            two-types: refused. two-types must have exactly one middleware type.
+            behind-https: headers, used by api, web
+            team-login: basicAuth, not used
             """);
   }
 
   @Test
-  void profilesShowsTheFilesErrorAndTheProfilesReadBefore() {
-    dashboard.answer(
-        "GET",
-        "/api/workstation/route-profiles",
-        200,
-        """
-        {"error": "route-profiles.yaml is not valid YAML: line 1.",
-         "profiles": [{"name": "behind-https", "type": "headers"}]}
-        """);
+  void profilesSaysWhenThereAreNone() {
+    dashboard.answer("GET", "/api/workstation/route-profiles", 200, "[]");
 
     Run run = yard("profiles");
 
     assertThat(run.exitCode()).isZero();
-    assertThat(run.out())
-        .isEqualTo(
-            """
-            Error: route-profiles.yaml is not valid YAML: line 1.
-            These Route Profiles, read before, still apply:
-            behind-https: headers
-            """);
-  }
-
-  @Test
-  void profilesSaysWhereToWriteThemWhenThereAreNone() {
-    dashboard.answer("GET", "/api/workstation/route-profiles", 200, "{\"profiles\": []}");
-
-    Run run = yard("profiles");
-
-    assertThat(run.exitCode()).isZero();
-    assertThat(run.out())
-        .isEqualTo("No Route Profiles. Write them in route-profiles.yaml, next to compose.yaml.\n");
+    assertThat(run.out()).isEqualTo("No Route Profiles.\n");
   }
 
   @Test
@@ -1208,6 +1180,13 @@ class YardTest {
 
     assertThat(run.exitCode()).isEqualTo(CommandLine.ExitCode.USAGE);
     assertThat(run.err()).contains("--profile").contains("--no-profiles");
+  }
+
+  @Test
+  void publishHelpSendsToTheProfilesCommandForTheNames() {
+    assertThat(yard("publish", "--help").out())
+        .contains("lvh-yard profiles")
+        .doesNotContain("route-profiles.yaml");
   }
 
   @Test
@@ -1943,7 +1922,7 @@ class YardTest {
     assertThat(run.exitCode()).isZero();
     assertThat(config.resolve("lvh-yard/compose.yaml")).exists();
     assertThat(config.resolve("lvh-yard/.env")).exists();
-    assertThat(config.resolve("lvh-yard/route-profiles.yaml")).exists();
+    assertThat(config.resolve("lvh-yard/route-profiles.yaml")).doesNotExist();
   }
 
   @Test
@@ -2224,12 +2203,11 @@ class YardTest {
   }
 
   @Test
-  void initWritesRouteProfilesWithCommentedExamplesOnly(@TempDir Path dir) throws Exception {
+  void initAndReinitWriteNoRouteProfilesFile(@TempDir Path dir) throws Exception {
     yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a");
+    yardAsTyped("init", "--dir", dir.toString(), "--reinit");
 
-    List<String> profiles = Files.readAllLines(dir.resolve("route-profiles.yaml"));
-    assertThat(profiles).contains("#  middlewares:", "#      basicAuth:");
-    assertThat(profiles).allMatch(line -> line.isEmpty() || line.startsWith("#"));
+    assertThat(dir.resolve("route-profiles.yaml")).doesNotExist();
   }
 
   @Test
@@ -2441,7 +2419,8 @@ class YardTest {
   }
 
   @Test
-  void initsDashboardReadsTheRouteProfilesOfItsFolder(@TempDir Path dir) throws Exception {
+  void initsDashboardSeesItsFolderReadOnlyAndNoRouteProfilesFile(@TempDir Path dir)
+      throws Exception {
     assumeTrue(dockerCompose(), "docker compose is not installed");
     yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a");
 
@@ -2457,12 +2436,11 @@ class YardTest {
 
     assertThat(run.exitCode()).as(run.err()).isZero();
     JsonNode dashboard = new JsonMapper().readTree(run.out()).at("/services/dashboard");
-    String path = dashboard.at("/environment/YARD_ROUTE_PROFILES").asString();
+    assertThat(dashboard.at("/environment").has("YARD_ROUTE_PROFILES")).isFalse();
     assertThat(dashboard.get("volumes").valueStream())
         .anySatisfy(volume -> {
           assertThat(volume.get("source").asString()).isEqualTo(dir.toRealPath().toString());
           assertThat(volume.get("read_only").asBoolean()).isTrue();
-          assertThat(path).isEqualTo(volume.get("target").asString() + "/route-profiles.yaml");
         });
   }
 

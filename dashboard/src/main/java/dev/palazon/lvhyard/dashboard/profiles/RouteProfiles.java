@@ -1,13 +1,8 @@
 package dev.palazon.lvhyard.dashboard.profiles;
 
 import dev.palazon.lvhyard.dashboard.consul.Consul;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.TreeMap;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.type.TypeReference;
@@ -15,47 +10,30 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * This Workstation's Route Profiles, from {@code route-profiles.yaml}. Each valid profile is copied
- * to this Workstation's Consul KV at {@link #KEY_PREFIX}{@code <name>}, where every Workstation
- * that routes a Publication naming it reads it (ADR-0004). The value is a JSON object in Traefik's
- * {@code http.middlewares} shape: the profile and every chain member it reaches, by their names in
- * the file.
+ * The Route Profiles that a Workstation's Consul KV holds, at {@link #KEY_PREFIX}{@code <name>}.
+ * Every Workstation that routes a Publication naming one reads it there (ADR-0004). The value is a
+ * JSON object in Traefik's {@code http.middlewares} shape: the profile and every chain member it
+ * reaches. {@link RouteProfileEditor} writes them.
  */
 @Component
 public class RouteProfiles {
 
   public static final String KEY_PREFIX = "lvh-yard/route-profiles/";
 
-  private static final ObjectMapper JSON = JsonMapper.builder().build();
+  static final ObjectMapper JSON = JsonMapper.builder().build();
 
   private static final TypeReference<Map<String, Map<String, Object>>> STORED =
       new TypeReference<>() {};
 
-  private final Path path;
-
-  private final RouteProfileChecks checks;
-
   private final Consul consul;
 
-  private volatile RouteProfilesFile file = new RouteProfilesFile(null, List.of());
-
-  /** The file's text the Consul KV holds the profiles of; {@code ""} for no file. */
-  private String synced;
-
-  RouteProfiles(RouteProfilesSettings settings, RouteProfileChecks checks, Consul consul) {
-    this.path = settings.path();
-    this.checks = checks;
+  RouteProfiles(Consul consul) {
     this.consul = consul;
   }
 
-  /** What the file had when it was read last. */
-  public RouteProfilesFile file() {
-    return file;
-  }
-
-  /** The valid profiles, which Publications can name. */
+  /** The names of this Workstation's profiles, which its Publications can name. */
   public List<String> names() {
-    return file.profiles().stream().filter(RouteProfile::valid).map(RouteProfile::name).toList();
+    return List.copyOf(stored(null).keySet());
   }
 
   /**
@@ -68,58 +46,9 @@ public class RouteProfiles {
     consul
         .values(datacenter, KEY_PREFIX)
         .forEach((key, value) -> {
-          String name = name(key);
+          String name = key.substring(KEY_PREFIX.length());
           stored.put(name, new RouteProfileDefinition(name, JSON.readValue(value, STORED)));
         });
     return stored;
-  }
-
-  /**
-   * Reads the file and, when it changed since the Consul KV took it, copies its valid profiles
-   * there and deletes the others. A file that cannot be read writes nothing, so the KV keeps the
-   * profiles read before.
-   *
-   * @throws RuntimeException when Consul does not answer; the next call tries again
-   */
-  synchronized void refresh() {
-    String text;
-    try {
-      text = Files.readString(path);
-    } catch (NoSuchFileException e) {
-      text = "";
-    } catch (IOException e) {
-      file = new RouteProfilesFile(path + " cannot be read: " + e.getMessage(), file.profiles());
-      return;
-    }
-    if (text.equals(synced)) {
-      return;
-    }
-    RouteProfileReader.Reading reading = RouteProfileReader.read(text, checks);
-    if (reading.error() != null) {
-      file = new RouteProfilesFile(reading.error(), file.profiles());
-      synced = text;
-      return;
-    }
-    // Consul first: a profile that names() gives is one a Route can read.
-    copyToConsul(reading.definitions());
-    file = new RouteProfilesFile(null, reading.profiles());
-    synced = text;
-  }
-
-  private void copyToConsul(Map<String, Map<String, Object>> definitions) {
-    Map<String, String> stored = consul.values(null, KEY_PREFIX);
-    definitions.forEach((name, definition) -> {
-      String value = JSON.writeValueAsString(definition);
-      if (!Objects.equals(stored.get(KEY_PREFIX + name), value)) {
-        consul.putValue(KEY_PREFIX + name, value);
-      }
-    });
-    stored.keySet().stream()
-        .filter(key -> !definitions.containsKey(name(key)))
-        .forEach(consul::deleteValue);
-  }
-
-  private static String name(String key) {
-    return key.substring(KEY_PREFIX.length());
   }
 }

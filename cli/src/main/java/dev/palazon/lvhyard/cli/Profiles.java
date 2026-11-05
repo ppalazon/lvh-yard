@@ -1,6 +1,7 @@
 package dev.palazon.lvhyard.cli;
 
 import java.io.PrintWriter;
+import java.util.List;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.ParentCommand;
@@ -9,7 +10,7 @@ import picocli.CommandLine.Spec;
 @Command(
     name = "profiles",
     mixinStandardHelpOptions = true,
-    description = "Lists the Route Profiles of route-profiles.yaml.")
+    description = "Lists the Route Profiles of this Workstation.")
 class Profiles implements Runnable {
 
   @ParentCommand Yard yard;
@@ -18,24 +19,20 @@ class Profiles implements Runnable {
 
   @Override
   public void run() {
-    Dashboard.RouteProfiles file = yard.dashboard().routeProfiles();
+    List<Dashboard.RouteProfile> profiles = yard.dashboard().routeProfiles();
     PrintWriter out = spec.commandLine().getOut();
-    if (file.error() != null) {
-      out.println("Error: " + file.error());
-      if (!file.profiles().isEmpty()) {
-        out.println("These Route Profiles, read before, still apply:");
-      }
-    } else if (file.profiles().isEmpty()) {
-      out.println("No Route Profiles. Write them in route-profiles.yaml, next to compose.yaml.");
+    if (profiles.isEmpty()) {
+      out.println("No Route Profiles.");
     }
-    for (Dashboard.RouteProfile profile : file.profiles()) {
+    for (Dashboard.RouteProfile profile : profiles) {
       StringBuilder line = new StringBuilder(profile.name()).append(": ");
       if (profile.type() != null) {
-        line.append(profile.type());
+        line.append(profile.type()).append(", ");
       }
-      if (profile.error() != null) {
-        line.append(profile.type() == null ? "refused. " : ", refused. ").append(profile.error());
-      }
+      line.append(
+          profile.services().isEmpty()
+              ? "not used"
+              : "used by " + String.join(", ", profile.services()));
       out.println(line);
     }
     out.flush();

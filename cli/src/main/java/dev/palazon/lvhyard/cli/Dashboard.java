@@ -106,11 +106,11 @@ final class Dashboard {
   /** {@code hostPort} is null when the container port is not published. */
   record ContainerPort(int containerPort, Integer hostPort) {}
 
-  /** {@code error} is set when the whole file cannot be read. */
-  record RouteProfiles(String error, List<RouteProfile> profiles) {}
-
-  /** {@code type} is null unless it has exactly one; {@code error} is set when it is refused. */
-  record RouteProfile(String name, String type, String error) {}
+  /**
+   * {@code type} is null unless it has exactly one. {@code services} are the Services whose
+   * Publications name it.
+   */
+  record RouteProfile(String name, String type, List<String> services) {}
 
   /** This Workstation, then the others by name. */
   record Yard(HomeWorkstation home, List<YardWorkstation> remotes) {}
@@ -296,7 +296,8 @@ final class Dashboard {
     return read(send(get("api/workstation/containers")), new TypeReference<>() {});
   }
 
-  RouteProfiles routeProfiles() {
+  /** By name. */
+  List<RouteProfile> routeProfiles() {
     return read(send(get("api/workstation/route-profiles")), new TypeReference<>() {});
   }
 

@@ -2,8 +2,6 @@ package dev.palazon.lvhyard.dashboard;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -22,35 +20,23 @@ class RouteProfilesOnRoutesTest extends DashboardTest {
 
   private static final JsonMapper JSON = new JsonMapper();
 
-  private static final String PROFILES =
-      """
-      http:
-        middlewares:
-          behind-https:
-            headers:
-              customRequestHeaders:
-                X-Forwarded-Proto: https
-          team-login:
-            basicAuth:
-              users:
-                - "ana:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/"
-          office-only:
-            ipAllowList:
-              sourceRange: [192.168.1.0/24]
-          protected:
-            chain:
-              middlewares: [office-only, team-login]
-      """;
+  private static final JsonNode PROFILES =
+      JSON.readTree(
+          """
+          {"behind-https": {"headers": {"customRequestHeaders": {"X-Forwarded-Proto": "https"}}},
+           "team-login": {"basicAuth": {"users": ["ana:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/"]}},
+           "office-only": {"ipAllowList": {"sourceRange": ["192.168.1.0/24"]}},
+           "protected": {"chain": {"middlewares": ["office-only", "team-login"]}}}
+          """);
 
   @AfterEach
-  void removeTheFile() throws IOException {
-    Files.deleteIfExists(TestcontainersConfiguration.ROUTE_PROFILES);
-    await().untilAsserted(() -> assertThat(profileNames()).isEmpty());
+  void removeTheProfiles() throws Exception {
+    removeAllRouteProfiles();
   }
 
   @Test
   void publicationNamesItsProfilesAndItsRouteListsThemInOrder() throws Exception {
-    writeProfiles(PROFILES);
+    putRouteProfiles(PROFILES);
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
 
@@ -73,7 +59,7 @@ class RouteProfilesOnRoutesTest extends DashboardTest {
 
   @Test
   void chainComesWithItsMembersRenamedTheSameWay() throws Exception {
-    writeProfiles(PROFILES);
+    putRouteProfiles(PROFILES);
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
 
@@ -94,7 +80,7 @@ class RouteProfilesOnRoutesTest extends DashboardTest {
 
   @Test
   void publishingWithoutProfilesKeepsThemAndAnEmptyListRemovesThem() throws Exception {
-    writeProfiles(PROFILES);
+    putRouteProfiles(PROFILES);
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
     put(publicationPath(web), Map.of("profiles", List.of("behind-https")));
@@ -113,7 +99,7 @@ class RouteProfilesOnRoutesTest extends DashboardTest {
 
   @Test
   void unknownProfileIsRefusedWithTheNamesThatExist() throws Exception {
-    writeProfiles(PROFILES);
+    putRouteProfiles(PROFILES);
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
 
@@ -128,22 +114,14 @@ class RouteProfilesOnRoutesTest extends DashboardTest {
   }
 
   @Test
-  void profileRemovedFromTheFileStaysOnTheRouteAndWarns() throws Exception {
-    writeProfiles(PROFILES);
+  void profileGoneFromConsulStaysOnTheRouteAndWarns() throws Exception {
+    putRouteProfiles(PROFILES);
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
     put(publicationPath(web), Map.of("profiles", List.of("behind-https", "team-login")));
 
-    writeProfiles(
-        """
-        http:
-          middlewares:
-            behind-https:
-              headers:
-                customRequestHeaders:
-                  X-Forwarded-Proto: https
-        """);
-    await().untilAsserted(() -> assertThat(profileNames()).containsExactly("behind-https"));
+    // Straight from Consul: the API refuses to remove a profile that a Publication names.
+    consulContainer.execInContainer("consul", "kv", "delete", "lvh-yard/route-profiles/team-login");
 
     JsonNode http = get("/traefik/configuration").getBody().get("http");
     assertThat(http.get("routers").get(web).get("middlewares").toString())
@@ -191,7 +169,7 @@ class RouteProfilesOnRoutesTest extends DashboardTest {
 
   @Test
   void authProfileWarnsThatADirectConnectionSkipsIt() throws Exception {
-    writeProfiles(PROFILES);
+    putRouteProfiles(PROFILES);
     String login = newServiceName("login");
     String chained = newServiceName("chained");
     String headers = newServiceName("headers");
@@ -215,8 +193,8 @@ class RouteProfilesOnRoutesTest extends DashboardTest {
   }
 
   @Test
-  void servicePagePicksProfilesFromTheFileAndShowsTheAuthWarning() throws Exception {
-    writeProfiles(PROFILES);
+  void servicePagePicksProfilesAndShowsTheAuthWarning() throws Exception {
+    putRouteProfiles(PROFILES);
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
     publish(web);
@@ -244,7 +222,7 @@ class RouteProfilesOnRoutesTest extends DashboardTest {
 
   @Test
   void servicePageRefusesAnUnknownProfile() throws Exception {
-    writeProfiles(PROFILES);
+    putRouteProfiles(PROFILES);
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
 
@@ -263,21 +241,6 @@ class RouteProfilesOnRoutesTest extends DashboardTest {
         .map(warning -> warning.get("message").asString())
         .findFirst()
         .orElse(null);
-  }
-
-  /** Writes the file and waits until the dashboard took it. */
-  private void writeProfiles(String yaml) throws IOException {
-    Files.writeString(TestcontainersConfiguration.ROUTE_PROFILES, yaml);
-    await().untilAsserted(() -> assertThat(profileNames()).isNotEmpty());
-  }
-
-  private List<String> profileNames() {
-    return get("/api/workstation/route-profiles")
-        .getBody()
-        .get("profiles")
-        .valueStream()
-        .map(profile -> profile.get("name").asString())
-        .toList();
   }
 
   private static org.awaitility.core.ConditionFactory await() {

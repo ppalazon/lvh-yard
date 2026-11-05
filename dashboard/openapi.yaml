@@ -313,9 +313,129 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RouteProfilesFile"
+                type: array
+                items:
+                  $ref: "#/components/schemas/RouteProfile"
           description: OK
-      summary: "Lists this Workstation's Route Profiles, with their types and errors"
+      summary: "Lists this Workstation's Route Profiles, with their types and the\
+        \ Services that use them"
+      tags:
+      - route-profiles-controller
+    put:
+      description: The body maps each name to its middleware in Traefik's format.
+        A chain may name a profile of the set or one that exists. The profiles that
+        the body does not name stay. Answers the whole list.
+      operationId: putRouteProfiles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RouteProfile"
+          description: Saved
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "A profile is refused, and nothing changes. The detail and\
+            \ the problems give each reason"
+      summary: Adds or replaces a set of Route Profiles
+      tags:
+      - route-profiles-controller
+  /api/workstation/route-profiles/{name}:
+    delete:
+      operationId: deleteRouteProfile
+      parameters:
+      - in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: Removed
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: No Route Profile has this name
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: A Publication or a chain names it. The services and chains
+            give their names
+      summary: Removes one Route Profile
+      tags:
+      - route-profiles-controller
+    get:
+      operationId: routeProfile
+      parameters:
+      - in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouteProfileDetail"
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: No Route Profile has this name
+      summary: "Gets one Route Profile, with its definition in Traefik's format"
+      tags:
+      - route-profiles-controller
+    put:
+      description: "The body is its middleware in Traefik's format, such as {\"headers\"\
+        : {...}}."
+      operationId: putRouteProfile
+      parameters:
+      - in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouteProfileDetail"
+          description: Saved
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "A profile is refused, and nothing changes. The detail and\
+            \ the problems give each reason"
+      summary: Adds or replaces one Route Profile
       tags:
       - route-profiles-controller
   /api/workstation/services:
@@ -939,30 +1059,43 @@ components:
     RouteProfile:
       type: object
       properties:
-        error:
-          type: string
-          description: Why it is refused. A refused profile does not reach Consul.
         name:
           type: string
+        services:
+          type: array
+          description: The Services of this Workstation whose Publications name it.
+          items:
+            type: string
         type:
           type: string
           description: "Its Traefik middleware type, such as headers or basicAuth.\
             \ Missing when it has more or none."
       required:
       - name
-    RouteProfilesFile:
+      - services
+    RouteProfileDetail:
       type: object
       properties:
-        error:
+        definition:
+          type: object
+          additionalProperties: {}
+          description: "The middleware in Traefik's format, such as {\"basicAuth\"\
+            : {\"users\": [...]}}."
+        name:
           type: string
-          description: Why the whole file cannot be read. The profiles are then the
-            ones read before.
-        profiles:
+        services:
           type: array
+          description: The Services of this Workstation whose Publications name it.
           items:
-            $ref: "#/components/schemas/RouteProfile"
+            type: string
+        type:
+          type: string
+          description: "Its Traefik middleware type, such as headers or basicAuth.\
+            \ Missing when it has more or none."
       required:
-      - profiles
+      - definition
+      - name
+      - services
     RouteReachability:
       type: object
       properties:

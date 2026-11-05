@@ -463,6 +463,27 @@ abstract class DashboardTest {
     return response.getBody();
   }
 
+  static final String ROUTE_PROFILES_PATH = "/api/workstation/route-profiles";
+
+  /**
+   * Adds or replaces Route Profiles of this Workstation through the REST API, and checks it took.
+   */
+  void putRouteProfiles(Object profiles) {
+    ResponseEntity<JsonNode> response = put(ROUTE_PROFILES_PATH, profiles);
+    if (!response.getStatusCode().is2xxSuccessful()) {
+      throw new AssertionError("Adding Route Profiles answered " + response);
+    }
+  }
+
+  /**
+   * Removes every Route Profile of this Workstation straight from Consul, as the API refuses to
+   * remove one that a Publication of an earlier test names.
+   */
+  void removeAllRouteProfiles() throws IOException, InterruptedException {
+    consulContainer.execInContainer(
+        "consul", "kv", "delete", "-recurse", "lvh-yard/route-profiles/");
+  }
+
   static String publicationPath(String service) {
     return servicePath(service) + "/publication";
   }

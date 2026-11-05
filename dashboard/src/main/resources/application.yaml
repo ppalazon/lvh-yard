@@ -45,10 +45,6 @@ lvh-yard:
     port: ${YARD_HTTP_PORT:80}
     # Its admin entry point, with its admin page and ping, on loopback only.
     admin-port: ${YARD_TRAEFIK_ADMIN_PORT:8080}
-  # The Route Profiles of this Workstation, which its Publications can name. The default is the folder that
-  # lvh-yard init writes. With no file, there are no Route Profiles.
-  route-profiles:
-    path: ${YARD_ROUTE_PROFILES:${XDG_CONFIG_HOME:${user.home}/.config}/lvh-yard/route-profiles.yaml}
   # The Docker of this Workstation, whose containers the Container Bindings follow. DOCKER_HOST, as the docker
   # command uses it.
   docker:

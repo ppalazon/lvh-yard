@@ -55,8 +55,8 @@ class Publish implements Runnable {
         paramLabel = "<name>",
         required = true,
         description = {
-          "A Route Profile from route-profiles.yaml. Repeat it for more, in the order the Route"
-              + " applies them.",
+          "A Route Profile, as lvh-yard profiles lists them. Repeat it for more, in the order the"
+              + " Route applies them.",
           "Default: an existing Publication keeps its profiles."
         })
     List<String> names;

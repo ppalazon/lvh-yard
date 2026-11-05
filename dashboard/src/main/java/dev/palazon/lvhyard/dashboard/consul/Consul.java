@@ -32,6 +32,9 @@ public class Consul {
    */
   private static final String CONSUL_SERVICE = "consul";
 
+  /** Consul's own limit on the operations of one transaction. */
+  private static final int TRANSACTION_SIZE = 64;
+
   private final RestClient http;
 
   public Consul(ConsulSettings settings) {
@@ -133,6 +136,35 @@ public class Consul {
         .body(value)
         .retrieve()
         .toBodilessEntity();
+  }
+
+  /**
+   * Writes each value at its key in one Consul transaction, so Consul takes all or none. A
+   * transaction holds at most {@link #TRANSACTION_SIZE} writes, so more go in several.
+   */
+  public void putValues(Map<String, String> values) {
+    List<Map<String, Object>> writes =
+        values.entrySet().stream()
+            .<Map<String, Object>>map(entry ->
+                Map.of(
+                    "KV",
+                    Map.of(
+                        "Verb",
+                        "set",
+                        "Key",
+                        entry.getKey(),
+                        "Value",
+                        Base64.getEncoder()
+                            .encodeToString(entry.getValue().getBytes(StandardCharsets.UTF_8)))))
+            .toList();
+    for (int from = 0; from < writes.size(); from += TRANSACTION_SIZE) {
+      http.put()
+          .uri("/v1/txn")
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(writes.subList(from, Math.min(writes.size(), from + TRANSACTION_SIZE)))
+          .retrieve()
+          .toBodilessEntity();
+    }
   }
 
   public Map<String, String> values(String datacenter, String prefix) {

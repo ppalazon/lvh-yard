@@ -99,7 +99,7 @@ class Init implements Runnable {
         description = {
           "Rewrite compose.yaml and .env from this version's templates, with the old .env values.",
           "A flag given with it replaces the old value.",
-          "Keeps the old files as <file>.<yyyyMMdd-HHmmss>.bak. Leaves route-profiles.yaml alone."
+          "Keeps the old files as <file>.<yyyyMMdd-HHmmss>.bak."
         })
     boolean reinit;
   }
@@ -175,9 +175,6 @@ class Init implements Runnable {
     Map<String, String> files = new LinkedHashMap<>();
     files.put(Templates.COMPOSE, Templates.compose());
     files.put(Templates.ENV, env.text());
-    if (!mode.reinit || !Files.exists(folder.resolve(Templates.ROUTE_PROFILES))) {
-      files.put(Templates.ROUTE_PROFILES, Templates.routeProfiles());
-    }
     reinit.ifPresent(old ->
         old.backUp()
             .forEach((file, backup) -> out.println("Backed up " + file + " to " + backup + ".")));

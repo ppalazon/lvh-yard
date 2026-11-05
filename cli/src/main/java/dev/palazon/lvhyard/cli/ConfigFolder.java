@@ -4,8 +4,8 @@ import java.nio.file.Path;
 import java.util.Map;
 
 /**
- * The folder that holds a Workstation's {@code compose.yaml}, {@code .env} and {@code
- * route-profiles.yaml}: {@code $XDG_CONFIG_HOME/lvh-yard}, else {@code ~/.config/lvh-yard}.
+ * The folder that holds a Workstation's {@code compose.yaml} and {@code .env}: {@code
+ * $XDG_CONFIG_HOME/lvh-yard}, else {@code ~/.config/lvh-yard}.
  */
 final class ConfigFolder {
 

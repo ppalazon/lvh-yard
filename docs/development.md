@@ -49,9 +49,8 @@ mise run dev:dashboard ws-b     # http://yard.localhost:8081
 mise run dev:down
 ```
 
-Each one reads its Route Profiles from its own file,
-`dev/ws-a.route-profiles.yaml` or `dev/ws-b.route-profiles.yaml`. Git ignores
-these files.
+Each one keeps its Route Profiles in its own Consul KV. Add them through the
+API of its dashboard.
 
 ## Building the CLI
 

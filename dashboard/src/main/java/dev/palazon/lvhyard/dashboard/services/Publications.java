@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.consul.Consul;
 import dev.palazon.lvhyard.dashboard.profiles.RouteProfiles;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -132,6 +133,18 @@ public class Publications {
 
   Map<String, Publication> all() {
     return all(null);
+  }
+
+  /** The Services of this Workstation whose Publications name each Route Profile, by name. */
+  public Map<String, List<String>> servicesByProfile() {
+    Map<String, List<String>> services = new TreeMap<>();
+    all()
+        .forEach((service, publication) ->
+            publication
+                .profiles()
+                .forEach(profile ->
+                    services.computeIfAbsent(profile, name -> new ArrayList<>()).add(service)));
+    return services;
   }
 
   /** {@code null} reads this Workstation's own. */

@@ -38,6 +38,7 @@ class OpenApiTest extends DashboardTest {
             "/api/workstation/containers",
             "/api/workstation/containers/{container}/register",
             "/api/workstation/route-profiles",
+            "/api/workstation/route-profiles/{name}",
             "/api/workstation/services",
             "/api/workstation/services/{service}",
             "/api/workstation/services/{service}/container-bindings",
@@ -170,6 +171,37 @@ class OpenApiTest extends DashboardTest {
     assertThat(put.get("description").asString()).contains("Route Profiles");
     assertThat(put.get("responses").get("400").get("description").asString())
         .contains("Route Profile");
+  }
+
+  @Test
+  void routeProfilesAreListedReadSavedAndRemoved() {
+    JsonNode docs = get("/v3/api-docs").getBody();
+    JsonNode paths = docs.get("paths");
+    String collection = "/api/workstation/route-profiles";
+    String one = collection + "/{name}";
+
+    assertThat(paths.get(collection).propertyNames()).containsExactlyInAnyOrder("get", "put");
+    assertThat(paths.get(one).propertyNames()).containsExactlyInAnyOrder("get", "put", "delete");
+    assertThat(answersWithProblem(paths, collection, "put", "400")).isTrue();
+    assertThat(answersWithProblem(paths, one, "get", "404")).isTrue();
+    assertThat(answersWithProblem(paths, one, "put", "400")).isTrue();
+    assertThat(answersWithProblem(paths, one, "delete", "404")).isTrue();
+    assertThat(answersWithProblem(paths, one, "delete", "409")).isTrue();
+    JsonNode list =
+        paths
+            .get(collection)
+            .get("get")
+            .get("responses")
+            .get("200")
+            .get("content")
+            .get("application/json");
+    assertThat(list.get("schema").get("type").asString()).isEqualTo("array");
+    JsonNode schemas = docs.get("components").get("schemas");
+    assertThat(schemas.get("RouteProfile").get("properties").propertyNames())
+        .containsExactlyInAnyOrder("name", "type", "services");
+    assertThat(schemas.get("RouteProfileDetail").get("properties").propertyNames())
+        .containsExactlyInAnyOrder("name", "type", "services", "definition");
+    assertThat(schemas.has("RouteProfilesFile")).isFalse();
   }
 
   @Test

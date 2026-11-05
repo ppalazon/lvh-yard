@@ -1,7 +1,6 @@
 {
   "resources": [
     { "glob": "templates/compose.yaml" },
-    { "glob": "templates/.env.example" },
-    { "glob": "templates/route-profiles.yaml" }
+    { "glob": "templates/.env.example" }
   ]
 }

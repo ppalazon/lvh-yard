@@ -11,7 +11,7 @@ public class UnknownRouteProfileException extends RuntimeException {
             + String.join(", ", unknown)
             + "."
             + (known.isEmpty()
-                ? " route-profiles.yaml has no valid profiles."
+                ? " This Workstation has no Route Profiles."
                 : " The profiles are: "
                     + String.join(", ", known.stream().sorted().toList())
                     + "."));

@@ -80,7 +80,7 @@
                 </executions>
             </plugin>
             <!-- lvh-yard init's templates are the repository's own compose.yaml and .env.example, copied in at
-                 each build so they cannot drift. route-profiles.yaml is the CLI's own, in src/main/resources. -->
+                 each build so they cannot drift. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>

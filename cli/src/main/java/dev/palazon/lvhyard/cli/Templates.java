@@ -8,14 +8,13 @@ import java.nio.charset.StandardCharsets;
 /**
  * The files {@code lvh-yard init} writes, from templates inside the CLI. {@code compose.yaml} and
  * {@code .env.example} are the repository's own, copied in by the build (cli/pom.xml), so they
- * cannot drift; {@code route-profiles.yaml} is the CLI's own. The native executable lists them in
- * {@code META-INF/native-image/dev.palazon/cli/reachability-metadata.json}.
+ * cannot drift. The native executable lists them in {@code
+ * META-INF/native-image/dev.palazon/cli/reachability-metadata.json}.
  */
 final class Templates {
 
   static final String COMPOSE = "compose.yaml";
   static final String ENV = ".env";
-  static final String ROUTE_PROFILES = "route-profiles.yaml";
 
   private static final String DASHBOARD_IMAGE = "ghcr.io/ppalazon/lvh-yard-dashboard:";
 
@@ -38,10 +37,6 @@ final class Templates {
 
   static EnvFile env() {
     return EnvFile.parse(read(".env.example"));
-  }
-
-  static String routeProfiles() {
-    return read(ROUTE_PROFILES);
   }
 
   /**
