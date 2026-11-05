@@ -629,7 +629,11 @@ remove Aliases on the Aliases page or with `lvh-yard alias`. The Aliases are in
 the Consul KV of this Workstation, under `lvh-yard/aliases/`.
 
 The name of an Alias follows the rules for a Service name, so it cannot be
-`consul`. The Remote Service needs Yard Scope before the Alias gets a Route.
+`consul`. The Workstation and the Service that it names must each be a DNS
+label. LVH Yard does not ask the other Workstation when you add an Alias. So
+you can add an Alias while that Workstation is off, or before it has the
+Service. The Alias gets a Route only when its Workstation answers and has the
+Service with Yard Scope.
 These are the states of an Alias:
 
 - `active`: routed to the Instances of the Remote Service

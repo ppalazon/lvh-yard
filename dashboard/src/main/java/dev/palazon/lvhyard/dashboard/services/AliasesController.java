@@ -39,14 +39,10 @@ class AliasesController {
       useReturnTypeSchema = true)
   @ApiResponse(
       responseCode = "400",
-      description = Registrations.INVALID_NAME + ", or the Workstation is this one")
-  @ApiResponse(
-      responseCode = "404",
       description =
-          "The Yard has no Workstation of this name, or it has no" + " Service of this name")
-  @ApiResponse(
-      responseCode = "503",
-      description = "The Workstation is unreachable, so its Services are not known")
+          Registrations.INVALID_NAME
+              + ", the Workstation or Service name is not a DNS label, or the Workstation is this"
+              + " one")
   Alias add(@PathVariable String alias, @RequestBody AliasRequest request) {
     return aliases.add(alias, request.workstation(), request.service());
   }

@@ -445,7 +445,7 @@ class BackupImportTest extends DashboardTest {
   }
 
   @Test
-  void aliasToAMissingRemoteServiceIsRefused() {
+  void aliasToAMissingRemoteServiceIsAddedWithoutARoute() {
     String dash = newServiceName("dash");
 
     ResponseEntity<JsonNode> response =
@@ -459,7 +459,29 @@ class BackupImportTest extends DashboardTest {
             """
                 .formatted(dash, RemoteWorkstation.NAME));
 
-    assertThat(problems(response)).containsExactly("aliases." + dash + ".service");
+    assertThat(entries(response)).containsExactly("add alias " + dash);
+    assertThat(get("/api/workstation/aliases").getBody().valueStream())
+        .filteredOn(alias -> alias.get("name").asString().equals(dash))
+        .singleElement()
+        .satisfies(alias -> assertThat(alias.get("state").asString()).isEqualTo("missing"));
+  }
+
+  @Test
+  void aliasWithATargetThatIsNotADnsLabelIsRefused() {
+    String dash = newServiceName("dash");
+
+    ResponseEntity<JsonNode> response =
+        importBackup(
+            """
+            version: 1
+            aliases:
+              %s:
+                workstation: WS_B
+                service: grafana
+            """
+                .formatted(dash));
+
+    assertThat(problems(response)).containsExactly("aliases." + dash + ".workstation");
   }
 
   @Test

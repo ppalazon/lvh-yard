@@ -27,9 +27,6 @@ import dev.palazon.lvhyard.dashboard.services.Publications;
 import dev.palazon.lvhyard.dashboard.services.Registrations;
 import dev.palazon.lvhyard.dashboard.services.Scope;
 import dev.palazon.lvhyard.dashboard.services.StaticInstanceRequest;
-import dev.palazon.lvhyard.dashboard.services.UnknownWorkstationException;
-import dev.palazon.lvhyard.dashboard.services.UnreachableWorkstationException;
-import dev.palazon.lvhyard.dashboard.services.YardReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -63,8 +60,6 @@ class ImportPlanner {
 
   private final Aliases aliases;
 
-  private final YardReader yard;
-
   private final RouteProfiles routeProfiles;
 
   private final RouteProfileChecks routeProfileChecks;
@@ -78,7 +73,6 @@ class ImportPlanner {
       ContainerBindings containerBindings,
       Publications publications,
       Aliases aliases,
-      YardReader yard,
       RouteProfiles routeProfiles,
       RouteProfileChecks routeProfileChecks,
       RouteProfileEditor routeProfileEditor) {
@@ -88,7 +82,6 @@ class ImportPlanner {
     this.containerBindings = containerBindings;
     this.publications = publications;
     this.aliases = aliases;
-    this.yard = yard;
     this.routeProfiles = routeProfiles;
     this.routeProfileChecks = routeProfileChecks;
     this.routeProfileEditor = routeProfileEditor;
@@ -432,6 +425,13 @@ class ImportPlanner {
         problem(place, e.getMessage());
         return;
       }
+      try {
+        Aliases.checkTarget("workstation", "Workstation", alias.workstation());
+        Aliases.checkTarget("service", "Service", alias.service());
+      } catch (InvalidRegistrationException e) {
+        problem(place + "." + e.field(), e.getMessage());
+        return;
+      }
       if (workstation.is(alias.workstation())) {
         problem(
             place + ".workstation",
@@ -442,25 +442,12 @@ class ImportPlanner {
       }
       Alias now = current.aliases().get(name);
       PlanEntry entry = entry(Kind.ALIAS, name, null, now != null, alias.equals(now));
-      if (entry.action() == Action.SKIP) {
-        entries.add(entry);
-        return;
-      }
-      // An overwrite points the Alias somewhere new, so its target is looked up as for an add.
-      try {
-        if (yard.service(alias.workstation(), alias.service()).isEmpty()) {
-          problem(
-              place + ".service",
-              "Workstation " + alias.workstation() + " has no Service " + alias.service() + ".");
-          return;
-        }
-      } catch (UnknownWorkstationException | UnreachableWorkstationException e) {
-        problem(place + ".workstation", e.getMessage());
-        return;
-      }
       entries.add(entry);
-      aliasSteps.add(
-          new Step(List.of(entry), () -> aliases.add(name, alias.workstation(), alias.service())));
+      if (entry.action() != Action.SKIP) {
+        aliasSteps.add(
+            new Step(
+                List.of(entry), () -> aliases.add(name, alias.workstation(), alias.service())));
+      }
     }
 
     /**

@@ -499,10 +499,6 @@ class PagesController {
       return ResponseEntity.badRequest()
           .contentType(Layout.HTML)
           .body(aliasesPage(name, target, error));
-    } catch (UnknownWorkstationException | UnknownServiceException e) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
-    } catch (UnreachableWorkstationException e) {
-      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage(), e);
     }
     return seeOther(AliasesPage.PATH);
   }

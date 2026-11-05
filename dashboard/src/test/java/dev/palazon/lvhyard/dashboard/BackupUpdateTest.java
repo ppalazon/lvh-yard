@@ -253,7 +253,7 @@ class BackupUpdateTest extends DashboardTest {
   }
 
   @Test
-  void aliasOverwriteToAMissingRemoteServiceIsRefused() {
+  void aliasOverwriteToAMissingRemoteServiceIsApplied() {
     String grafana = newServiceName("grafana");
     remote.register(grafana, Map.of("host", "10.9.8.7", "port", 3000));
     String dash = newServiceName("dash");
@@ -272,7 +272,7 @@ class BackupUpdateTest extends DashboardTest {
             """
                 .formatted(dash, RemoteWorkstation.NAME));
 
-    assertThat(problems(response)).containsExactly("aliases." + dash + ".service");
+    assertThat(entries(response)).containsExactly("update alias " + dash);
   }
 
   @Test

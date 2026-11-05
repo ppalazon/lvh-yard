@@ -213,21 +213,8 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: "The name is not a single DNS label or is consul, or the Workstation\
-            \ is this one"
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-          description: "The Yard has no Workstation of this name, or it has no Service\
-            \ of this name"
-        "503":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-          description: "The Workstation is unreachable, so its Services are not known"
+          description: "The name is not a single DNS label or is consul, the Workstation\
+            \ or Service name is not a DNS label, or the Workstation is this one"
       summary: Adds an Alias for a Remote Service
       tags:
       - aliases-controller

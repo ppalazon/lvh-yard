@@ -24,11 +24,13 @@ public class Aliases {
   }
 
   /**
-   * Also points an existing Alias there. The Remote Service needs no Yard Scope yet: until it has
-   * one, the Alias has no Route.
+   * Also points an existing Alias there. It reads no other Workstation, so the target can be
+   * missing or unreachable now: until it is there with Yard Scope, the Alias has no Route.
    */
   public Alias add(String name, String home, String service) {
     Registrations.checkName("Alias", name);
+    checkTarget("workstation", "Workstation", home);
+    checkTarget("service", "Service", service);
     if (workstation.is(home)) {
       throw new InvalidRegistrationException(
           "workstation",
@@ -38,14 +40,25 @@ public class Aliases {
               + workstation.hostname(service)
               + ".");
     }
-    if (yard.service(home, service).isEmpty()) {
-      throw new UnknownServiceException(home, service);
-    }
     keys.put(name, new AliasKeys.Target(home, service));
     return of(yard.routableYard()).stream()
         .filter(alias -> alias.name().equals(name))
         .findFirst()
         .orElseThrow();
+  }
+
+  /** A target name goes into a hostname and a Consul KV value, so it must be one DNS label. */
+  public static void checkTarget(String field, String kind, String name) {
+    if (name == null || !Registrations.isDnsLabel(name)) {
+      throw new InvalidRegistrationException(
+          field,
+          "The "
+              + kind
+              + " name "
+              + name
+              + " is not a single DNS label: use 1 to 63 lowercase letters, digits and -, not"
+              + " starting or ending with -.");
+    }
   }
 
   public void remove(String name) {

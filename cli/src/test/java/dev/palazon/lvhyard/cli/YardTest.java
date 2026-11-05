@@ -2264,20 +2264,23 @@ class YardTest {
   }
 
   @Test
-  void aliasAddOfAnUnknownServiceIsRefused() {
+  void aliasAddOfAServiceNotInTheYardKeepsTheAliasAndSaysWhy() {
     dashboard.answer(
         "PUT",
         "/api/workstation/aliases/grafana",
-        404,
+        200,
         """
-        {"type": "about:blank", "title": "Not Found", "status": 404,
-         "detail": "Workstation ws-b has no Service grafana."}
+        {"name": "grafana", "workstation": "ws-b", "service": "grafana", "hostname": "grafana.lvh.me",
+         "state": "unreachable", "reason": "Workstation ws-b is unreachable: its Consul does not answer."}
         """);
 
     Run run = yard("alias", "add", "grafana", "--workstation", "ws-b");
 
-    assertThat(run.exitCode()).isNotZero();
-    assertThat(run.err()).isEqualTo("Workstation ws-b has no Service grafana.\n");
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out())
+        .isEqualTo("grafana.lvh.me names grafana on ws-b, but has no Route for now.\n");
+    assertThat(run.err())
+        .isEqualTo("Warning: Workstation ws-b is unreachable: its Consul does not answer.\n");
   }
 
   @Test
