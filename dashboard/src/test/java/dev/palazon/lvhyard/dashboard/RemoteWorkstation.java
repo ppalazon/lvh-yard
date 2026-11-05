@@ -129,6 +129,12 @@ final class RemoteWorkstation implements AutoCloseable {
                 : response.bodyTo(String.class));
   }
 
+  /** Consul's index of the last write to {@code key} in this Workstation's Consul KV. */
+  long consulModifyIndex(String key) {
+    JsonNode entries = consulHttp().get().uri("/v1/kv/" + key).retrieve().body(JsonNode.class);
+    return entries.get(0).get("ModifyIndex").asLong();
+  }
+
   /** The port this Workstation's dashboard listens on now. */
   int dashboardPort() {
     return Integer.parseInt(dashboard.getEnvironment().getRequiredProperty("local.server.port"));

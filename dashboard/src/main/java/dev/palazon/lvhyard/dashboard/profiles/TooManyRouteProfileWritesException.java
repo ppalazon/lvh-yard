@@ -10,7 +10,7 @@ public class TooManyRouteProfileWritesException extends RuntimeException {
     super(
         "This save writes "
             + writes
-            + " Route Profiles, with the chains that name them. Consul takes at most "
+            + " Route Profiles. Consul takes at most "
             + limit
             + " in one save. Save fewer Route Profiles at a time.");
   }

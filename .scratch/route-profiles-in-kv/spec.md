@@ -82,7 +82,8 @@ In these stories, "user" is a person who uses one Workstation through its dashbo
 
 ## Implementation Decisions
 
-- Consul KV keeps each Route Profile under the same key as today, `lvh-yard/route-profiles/<name>`, with the same stored form. Remote Workstations read it the same way. So the Traefik configuration and the `<workstation>_<profile>` names do not change.
+- Consul KV keeps each Route Profile under the same key as today, `lvh-yard/route-profiles/<name>`. Remote Workstations read it the same way. So the Traefik configuration and the `<workstation>_<profile>` names do not change.
+- Changed on 2026-11-05: the value holds only the profile's own middleware in Traefik's format, such as `{"chain": {"middlewares": ["office-only", "login"]}}`. A chain names its members, as Traefik does, and holds no copies of them. Each Workstation reads all the profiles of a Home Workstation, so it finds a chain's members by name. A change to a member then reaches every chain with no write to the chain. A member that is gone stays named in the chain, so Traefik refuses the Route.
 - Existing Workstations keep their profiles on upgrade, because the old dashboard already copied each valid one into Consul KV. No migration code runs. A refused profile never reached Consul KV. The upgrade notes tell you to apply the old file once with `lvh-yard profiles set`.
 - The file reader, its polling, the "last good" copy and the stored errors go away. So does the `YARD_ROUTE_PROFILES` setting and its default path.
 - The checks of the file reader move to one place that every write path uses. These paths are the page, the API, the CLI through the API, and later the Backup import.

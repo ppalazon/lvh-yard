@@ -61,44 +61,35 @@ public class RouteProfileChecks {
 
   /**
    * @param problems one for each refused profile, in the order of the set
-   * @param definitions each accepted profile's value for Consul KV: the profile and every chain
-   *     member it reaches, in Traefik's {@code http.middlewares} shape
+   * @param middlewares each accepted profile's own middleware, its value for Consul KV
    */
-  public record Checked(List<Problem> problems, Map<String, Map<String, Object>> definitions) {}
+  public record Checked(List<Problem> problems, Map<String, Map<String, Object>> middlewares) {}
 
   /**
    * @param profiles each profile's middleware, by name, as YAML or JSON gives it
    * @param stored the profiles in this Workstation's Consul KV. A chain may name them. A profile of
    *     the set replaces the stored one of the same name.
    */
+  @SuppressWarnings("unchecked")
   public Checked check(Map<String, ?> profiles, Map<String, RouteProfileDefinition> stored) {
-    // Only a profile's own key makes it known. A chain's value also holds copies of its members,
-    // but a copy can outlive its profile.
     Map<String, Object> known = new LinkedHashMap<>();
-    stored.forEach((name, definition) -> {
-      if (definition.middlewares().containsKey(name)) {
-        known.put(name, definition.middlewares().get(name));
-      }
-    });
+    stored.forEach((name, definition) -> known.put(name, definition.own()));
     profiles.forEach((name, middleware) -> known.put(name, withEmptyOptions(middleware)));
     Checker checker = new Checker(known, outOfRange);
     List<Problem> problems = new ArrayList<>();
-    Map<String, Map<String, Object>> definitions = new LinkedHashMap<>();
+    Map<String, Map<String, Object>> middlewares = new LinkedHashMap<>();
     profiles
         .keySet()
         .forEach(name -> {
           String reason = checker.refusal(name);
           if (reason != null) {
             problems.add(new Problem(name, reason));
-            return;
+          } else {
+            // The checks refuse a middleware that is not a map.
+            middlewares.put(name, (Map<String, Object>) known.get(name));
           }
-          Map<String, Object> definition = new LinkedHashMap<>();
-          for (String member : checker.reached(name)) {
-            definition.put(member, known.get(member));
-          }
-          definitions.put(name, definition);
         });
-    return new Checked(problems, definitions);
+    return new Checked(problems, middlewares);
   }
 
   /** {@code compress:} with nothing after it is {@code compress: {}} for Traefik. */
@@ -157,19 +148,6 @@ public class RouteProfileChecks {
     /** Why the profile is refused, or {@code null}. */
     String refusal(String name) {
       return refusal(name, new LinkedHashSet<>());
-    }
-
-    /** The profile and every chain member it reaches, the profile first. It must be valid. */
-    SequencedSet<String> reached(String name) {
-      SequencedSet<String> reached = new LinkedHashSet<>();
-      reach(name, reached);
-      return reached;
-    }
-
-    private void reach(String name, SequencedSet<String> reached) {
-      if (reached.add(name)) {
-        chainMembers(middlewares.get(name)).forEach(member -> reach(member, reached));
-      }
     }
 
     /** {@code chain} is the chain members being checked, so a loop is found. */

@@ -101,6 +101,34 @@ class RouteProfilesThroughTraefikTest extends DashboardTest {
         .until(() -> answerThroughTraefik(hostname, null).startsWith("HTTP/1.1 401"));
   }
 
+  @Test
+  void chainWhoseMemberIsGoneIsRefusedRatherThanOpened() throws Exception {
+    putRouteProfiles(
+        Map.of(
+            "team-login",
+            Map.of(
+                "basicAuth", Map.of("users", List.of("ana:$apr1$lvhyard1$p9S4tUHNaQRDYDEMe9KFK."))),
+            "protected",
+            Map.of("chain", Map.of("middlewares", List.of("team-login")))));
+    String web = newServiceName("web");
+    int listening = newLanPort();
+    answerHttpOnLanAddress(listening, "200 OK", "inside");
+    register(web, Map.of("port", listening));
+    put(publicationPath(web), Map.of("profiles", List.of("protected")));
+    String hostname = web + ".lvh.test";
+    await()
+        .atMost(Duration.ofSeconds(20))
+        .until(() -> answerThroughTraefik(hostname, null).startsWith("HTTP/1.1 401"));
+
+    // Straight from Consul: the API refuses to remove a profile that a chain names.
+    consulContainer.execInContainer("consul", "kv", "delete", "lvh-yard/route-profiles/team-login");
+
+    await()
+        .atMost(Duration.ofSeconds(20))
+        .until(() -> answerThroughTraefik(hostname, null).startsWith("HTTP/1.1 404"));
+    assertThat(answerThroughTraefik(hostname, null)).doesNotContain("inside");
+  }
+
   /**
    * The whole answer, or nothing when the connection fails. By hand, as the JDK's HTTP client does
    * not let a request set its own Host header.

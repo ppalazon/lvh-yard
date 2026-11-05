@@ -136,6 +136,36 @@ class RemoteRouteProfilesTest extends DashboardTest {
         .contains("ws-remote_protected");
   }
 
+  @Test
+  void changeToAMemberReachesTheRemoteChainWithNoWriteToTheChain() throws Exception {
+    remote.putRouteProfiles(REMOTE_PROFILES);
+    sharedRemoteServiceWithProfiles("chained", List.of("protected"));
+    String chainKey = "lvh-yard/route-profiles/protected";
+    long chainWritten = remote.consulModifyIndex(chainKey);
+
+    remote.putRouteProfiles(
+        JSON.readTree(
+            """
+            {"team-login": {"basicAuth": {"users": ["carla:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/"]}}}
+            """));
+
+    await()
+        .untilAsserted(() ->
+            assertThat(
+                    get("/traefik/configuration")
+                        .getBody()
+                        .get("http")
+                        .get("middlewares")
+                        .get("ws-remote_team-login")
+                        .toString())
+                .contains("carla:")
+                .doesNotContain("ana:"));
+    assertThat(remote.consulModifyIndex(chainKey)).isEqualTo(chainWritten);
+    assertThat(JSON.readTree(remote.consulValue(chainKey)))
+        .isEqualTo(
+            JSON.readTree("{\"chain\": {\"middlewares\": [\"office-only\", \"team-login\"]}}"));
+  }
+
   /**
    * A Service of {@value RemoteWorkstation#NAME} with an Instance, published to the Yard with
    * {@code profiles}. Waits until the test Workstation routes it.

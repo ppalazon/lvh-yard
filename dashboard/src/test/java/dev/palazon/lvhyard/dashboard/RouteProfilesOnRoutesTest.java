@@ -135,6 +135,27 @@ class RouteProfilesOnRoutesTest extends DashboardTest {
   }
 
   @Test
+  void chainMemberGoneFromConsulStaysInTheChainSoTraefikRefusesTheRoute() throws Exception {
+    putRouteProfiles(PROFILES);
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+    put(publicationPath(web), Map.of("profiles", List.of("protected")));
+
+    // Straight from Consul: the API refuses to remove a profile that a chain names.
+    consulContainer.execInContainer("consul", "kv", "delete", "lvh-yard/route-profiles/team-login");
+
+    JsonNode middlewares = get("/traefik/configuration").getBody().get("http").get("middlewares");
+    assertThat(middlewares.get("ws-test_protected"))
+        .isEqualTo(
+            JSON.readTree(
+                """
+                {"chain": {"middlewares": ["ws-test_office-only", "ws-test_team-login"]}}
+                """));
+    assertThat(middlewares.has("ws-test_office-only")).isTrue();
+    assertThat(middlewares.has("ws-test_team-login")).isFalse();
+  }
+
+  @Test
   void remotePublicationNamingAProfileItsHomeLacksStaysOnTheRouteAndWarns() {
     String api = newServiceName("api");
     remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));

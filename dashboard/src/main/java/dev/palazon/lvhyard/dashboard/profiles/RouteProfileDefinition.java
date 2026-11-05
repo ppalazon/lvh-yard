@@ -4,10 +4,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * A Route Profile as its Home Workstation's Consul KV holds it.
+ * A Route Profile as its Home Workstation's Consul KV holds it, with the chain members it reaches.
  *
  * @param middlewares in Traefik's {@code http.middlewares} shape: the profile and every chain
- *     member it reaches, by their names in the file
+ *     member it reaches that Consul KV holds, by their names in Consul KV
  */
 public record RouteProfileDefinition(String name, Map<String, Map<String, Object>> middlewares) {
 
@@ -16,6 +16,11 @@ public record RouteProfileDefinition(String name, Map<String, Map<String, Object
 
   public RouteProfileDefinition {
     middlewares = Map.copyOf(middlewares);
+  }
+
+  /** The profile's own middleware, as its Consul KV value holds it. */
+  public Map<String, Object> own() {
+    return middlewares.get(name);
   }
 
   /** Whether it, or a chain member it reaches, asks who the user is. */

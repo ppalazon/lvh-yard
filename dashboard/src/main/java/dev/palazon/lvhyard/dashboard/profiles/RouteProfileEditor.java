@@ -5,7 +5,6 @@ import dev.palazon.lvhyard.dashboard.services.Publications;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import org.springframework.stereotype.Component;
 
 /**
@@ -38,7 +37,7 @@ public class RouteProfileEditor {
         .map(definition ->
             new RouteProfile(
                 definition.name(),
-                RouteProfileChecks.type(withoutChainCopies(definition)),
+                RouteProfileChecks.type(definition.own()),
                 services.getOrDefault(definition.name(), List.of())))
         .toList();
   }
@@ -51,12 +50,11 @@ public class RouteProfileEditor {
     if (definition == null) {
       throw new NoRouteProfileException(name);
     }
-    Map<String, Object> middleware = withoutChainCopies(definition);
     return new RouteProfileDetail(
         name,
-        RouteProfileChecks.type(middleware),
+        RouteProfileChecks.type(definition.own()),
         publications.servicesByProfile().getOrDefault(name, List.of()),
-        middleware);
+        definition.own());
   }
 
   /**
@@ -64,8 +62,7 @@ public class RouteProfileEditor {
    * may name a profile of the set or one already stored.
    *
    * @param set each profile's middleware in Traefik's format, by name
-   * @throws RefusedRouteProfilesException when one profile, or a stored chain it changes, is
-   *     refused; then nothing is written
+   * @throws RefusedRouteProfilesException when one profile is refused; then nothing is written
    * @throws TooManyRouteProfileWritesException when the save needs more writes than one Consul
    *     transaction takes; then nothing is written
    */
@@ -75,33 +72,15 @@ public class RouteProfileEditor {
     if (!checked.problems().isEmpty()) {
       throw new RefusedRouteProfilesException(checked.problems());
     }
-    Map<String, RouteProfileDefinition> after = new TreeMap<>(stored);
-    checked
-        .definitions()
-        .forEach((name, middlewares) ->
-            after.put(name, new RouteProfileDefinition(name, asMiddlewares(middlewares))));
-    // A stored chain's value holds copies of its members, so a chain that reaches a changed
-    // profile is written again with the new copy.
-    Map<String, Object> chains = new LinkedHashMap<>();
-    stored.forEach((name, definition) -> {
-      Map<String, Object> middleware = withoutChainCopies(definition);
-      if (!set.containsKey(name) && RouteProfileChecks.isChain(middleware)) {
-        chains.put(name, middleware);
-      }
-    });
-    RouteProfileChecks.Checked rechecked = checks.check(chains, after);
-    if (!rechecked.problems().isEmpty()) {
-      throw new RefusedRouteProfilesException(rechecked.problems());
-    }
-    Map<String, Map<String, Object>> written = new LinkedHashMap<>(checked.definitions());
-    written.putAll(rechecked.definitions());
     Map<String, String> values = new LinkedHashMap<>();
-    written.forEach((name, middlewares) -> {
-      RouteProfileDefinition before = stored.get(name);
-      if (before == null || !before.middlewares().equals(middlewares)) {
-        values.put(RouteProfiles.key(name), RouteProfiles.value(middlewares));
-      }
-    });
+    checked
+        .middlewares()
+        .forEach((name, middleware) -> {
+          RouteProfileDefinition before = stored.get(name);
+          if (before == null || !before.own().equals(middleware)) {
+            values.put(RouteProfiles.key(name), RouteProfiles.value(middleware));
+          }
+        });
     // Several transactions would not be all or nothing.
     if (values.size() > Consul.TRANSACTION_SIZE) {
       throw new TooManyRouteProfileWritesException(values.size(), Consul.TRANSACTION_SIZE);
@@ -121,27 +100,12 @@ public class RouteProfileEditor {
     List<String> services = publications.servicesByProfile().getOrDefault(name, List.of());
     List<String> chains =
         stored.values().stream()
-            .filter(definition ->
-                RouteProfileChecks.chainMembers(withoutChainCopies(definition)).contains(name))
+            .filter(definition -> RouteProfileChecks.chainMembers(definition.own()).contains(name))
             .map(RouteProfileDefinition::name)
             .toList();
     if (!services.isEmpty() || !chains.isEmpty()) {
       throw new RouteProfileInUseException(name, services, chains);
     }
     consul.deleteValue(RouteProfiles.key(name));
-  }
-
-  /** The profile's own middleware, without the chain members its value copies. */
-  private static Map<String, Object> withoutChainCopies(RouteProfileDefinition definition) {
-    return definition.middlewares().getOrDefault(definition.name(), Map.of());
-  }
-
-  /** Each middleware of a checked profile is a map, as the checks refuse any other. */
-  @SuppressWarnings("unchecked")
-  private static Map<String, Map<String, Object>> asMiddlewares(Map<String, Object> definition) {
-    Map<String, Map<String, Object>> middlewares = new LinkedHashMap<>();
-    definition.forEach(
-        (name, middleware) -> middlewares.put(name, (Map<String, Object>) middleware));
-    return middlewares;
   }
 }

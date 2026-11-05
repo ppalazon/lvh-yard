@@ -11,7 +11,7 @@ A Route Profile is a Traefik middleware in Traefik's own format. Its Home Workst
 
 ## Consequences
 
-- A profile must work on every Workstation. The dashboard refuses `basicAuth.usersFile`, `forwardAuth` to an out-of-range address, and plugins. A chain can name only middlewares of the same Workstation, and they travel with it.
+- A profile must work on every Workstation. The dashboard refuses `basicAuth.usersFile`, `forwardAuth` to an out-of-range address, and plugins. A chain can name only Route Profiles of the same Workstation. Its value holds only their names, and a reader finds them by name in the same Consul KV.
 - A refused save changes nothing, so there is no "last good" copy and no stored error.
 - A Publication naming a profile that does not exist fails closed: Traefik refuses its Route.
 - A Backup holds the Route Profiles of its Workstation.

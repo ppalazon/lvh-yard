@@ -44,7 +44,7 @@ class RouteProfilesTest extends DashboardTest {
         .isEqualTo(
             json(
                 """
-                {"added-headers": {"headers": {"customRequestHeaders": {"X-Forwarded-Proto": "https"}}}}
+                {"headers": {"customRequestHeaders": {"X-Forwarded-Proto": "https"}}}
                 """));
   }
 
@@ -101,9 +101,7 @@ class RouteProfilesTest extends DashboardTest {
         .isEqualTo(
             json(
                 """
-                {"protected": {"chain": {"middlewares": ["office-only", "behind-https"]}},
-                 "office-only": {"ipAllowList": {"sourceRange": ["192.168.1.0/24"]}},
-                 "behind-https": {"headers": {"customRequestHeaders": {"X-Forwarded-Proto": "https"}}}}
+                {"chain": {"middlewares": ["office-only", "behind-https"]}}
                 """));
   }
 
@@ -170,74 +168,42 @@ class RouteProfilesTest extends DashboardTest {
   }
 
   @Test
-  void chainCanNameAStoredProfileAndGetsItsNewCopyWhenItChanges() throws Exception {
+  void chainNamesAStoredProfileAndAChangeToItWritesOnlyThatProfile() throws Exception {
     putRouteProfiles(
         json("{\"stored\": {\"headers\": {\"customRequestHeaders\": {\"X-V\": \"1\"}}}}"));
     putRouteProfiles(json("{\"protected\": {\"chain\": {\"middlewares\": [\"stored\"]}}}"));
+    long chainWritten = modifyIndex("protected");
 
     putRouteProfiles(
         json("{\"stored\": {\"headers\": {\"customRequestHeaders\": {\"X-V\": \"2\"}}}}"));
 
+    assertThat(modifyIndex("protected")).isEqualTo(chainWritten);
     assertThat(JSON.readTree(kv("protected")))
-        .isEqualTo(
-            json(
-                """
-                {"protected": {"chain": {"middlewares": ["stored"]}},
-                 "stored": {"headers": {"customRequestHeaders": {"X-V": "2"}}}}
-                """));
+        .isEqualTo(json("{\"chain\": {\"middlewares\": [\"stored\"]}}"));
+    assertThat(kv("stored")).contains("\"2\"");
   }
 
   @Test
-  void chainCannotNameAMiddlewareThatIsOnlyACopyInsideAnotherProfile() throws Exception {
-    consulContainer.execInContainer(
-        "consul",
-        "kv",
-        "put",
-        "lvh-yard/route-profiles/holder",
-        "{\"holder\": {\"compress\": {}}, \"copy-only\": {\"compress\": {}}}");
-
-    ResponseEntity<JsonNode> refused =
-        put(
-            ROUTE_PROFILES_PATH + "/names-a-copy",
-            json("{\"chain\": {\"middlewares\": [\"copy-only\"]}}"));
-
-    assertThat(refused.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(refused.getBody().get("detail").asString())
-        .contains("copy-only, which is not a Route Profile of this Workstation");
-    assertThat(names()).containsExactly("holder");
-  }
-
-  @Test
-  void saveIsRefusedWhenAStoredChainNoLongerPassesTheChecks() throws Exception {
+  void brokenStoredChainDoesNotBlockASaveThatDoesNotNameIt() throws Exception {
     consulContainer.execInContainer(
         "consul",
         "kv",
         "put",
         "lvh-yard/route-profiles/outside",
-        "{\"outside\": {\"chain\": {\"middlewares\": [\"other@file\"]}}}");
+        "{\"chain\": {\"middlewares\": [\"other@file\"]}}");
 
-    ResponseEntity<JsonNode> refused =
+    ResponseEntity<JsonNode> saved =
         put(ROUTE_PROFILES_PATH, json("{\"fresh\": {\"compress\": {}}}"));
 
-    assertThat(refused.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(refused.getBody().get("problems").get(0).get("profile").asString())
-        .isEqualTo("outside");
-    assertThat(refused.getBody().get("detail").asString()).contains("other@file");
-    assertThat(names()).containsExactly("outside");
+    assertThat(saved.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(names()).containsExactly("fresh", "outside");
   }
 
   @Test
   void saveThatNeedsMoreWritesThanOneConsulTransactionIsRefused() throws Exception {
-    putRouteProfiles(
-        json(
-            """
-            {"base": {"headers": {"customRequestHeaders": {"X-V": "1"}}},
-             "protected": {"chain": {"middlewares": ["base"]}}}
-            """));
-    // 64 profiles fit in one transaction, but the chain that names base is written again too.
+    putRouteProfiles(json("{\"kept\": {\"compress\": {}}}"));
     Map<String, Object> set = new LinkedHashMap<>();
-    set.put("base", Map.of("headers", Map.of("customRequestHeaders", Map.of("X-V", "2"))));
-    for (int i = 1; i < 64; i++) {
+    for (int i = 1; i <= 65; i++) {
       set.put("many-" + i, Map.of("compress", Map.of()));
     }
 
@@ -245,8 +211,27 @@ class RouteProfilesTest extends DashboardTest {
 
     assertThat(refused.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(refused.getBody().get("detail").asString()).contains("65", "64");
-    assertThat(names()).containsExactly("base", "protected");
-    assertThat(kv("base")).contains("\"1\"");
+    assertThat(names()).containsExactly("kept");
+  }
+
+  @Test
+  void chainsThatNameAChangedProfileDoNotCountAsWrites() throws Exception {
+    putRouteProfiles(
+        json(
+            """
+            {"base": {"headers": {"customRequestHeaders": {"X-V": "1"}}},
+             "protected": {"chain": {"middlewares": ["base"]}}}
+            """));
+    Map<String, Object> set = new LinkedHashMap<>();
+    set.put("base", Map.of("headers", Map.of("customRequestHeaders", Map.of("X-V", "2"))));
+    for (int i = 1; i < 64; i++) {
+      set.put("many-" + i, Map.of("compress", Map.of()));
+    }
+
+    ResponseEntity<JsonNode> saved = put(ROUTE_PROFILES_PATH, set);
+
+    assertThat(saved.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(kv("base")).contains("\"2\"");
   }
 
   @Test
@@ -295,6 +280,20 @@ class RouteProfilesTest extends DashboardTest {
         .lines()
         .map(key -> key.substring("lvh-yard/route-profiles/".length()))
         .toList();
+  }
+
+  /** Consul's index of the last write to the profile's key. */
+  private long modifyIndex(String profile) throws Exception {
+    ExecResult result =
+        consulContainer.execInContainer(
+            "consul", "kv", "get", "-detailed", "lvh-yard/route-profiles/" + profile);
+    return result
+        .getStdout()
+        .lines()
+        .filter(line -> line.startsWith("ModifyIndex"))
+        .map(line -> Long.parseLong(line.substring("ModifyIndex".length()).strip()))
+        .findFirst()
+        .orElseThrow();
   }
 
   /** The profile's value in the test Workstation's Consul KV, or {@code null} when it has none. */
