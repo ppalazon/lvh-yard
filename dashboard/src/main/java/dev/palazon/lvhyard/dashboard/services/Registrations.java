@@ -47,6 +47,10 @@ public class Registrations {
 
   static final String CONTAINER_BINDING = RESERVED_META + "container-binding";
 
+  static final String CONTAINER = RESERVED_META + "container";
+
+  static final String CONTAINER_PORT = RESERVED_META + "container-port";
+
   /**
    * Marks a Bound Instance at its container's own address, on a container port not published on the
    * host, so only its own Workstation can reach it.
@@ -185,6 +189,9 @@ public class Registrations {
         List.of(new CheckResult(consulCheck.name(), Health.CRITICAL, "")),
         false,
         null,
+        null,
+        null,
+        null,
         false);
   }
 
@@ -203,9 +210,13 @@ public class Registrations {
           || !found.address().equals(instance.host())
           || found.port() != instance.port()
           || !instance.binding().equals(found.meta().get(CONTAINER_BINDING))
+          || !instance.container().equals(found.meta().get(CONTAINER))
+          || !String.valueOf(instance.containerPort()).equals(found.meta().get(CONTAINER_PORT))
           || instance.onHostPort() != onHostPort(found)) {
         Map<String, String> meta = new HashMap<>(BOUND_INSTANCE);
         meta.put(CONTAINER_BINDING, instance.binding());
+        meta.put(CONTAINER, instance.container());
+        meta.put(CONTAINER_PORT, String.valueOf(instance.containerPort()));
         if (!instance.onHostPort()) {
           meta.put(UNPUBLISHED_CONTAINER_PORT, "true");
         }

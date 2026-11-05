@@ -1015,8 +1015,13 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CheckResult"
+        container:
+          type: string
         containerBinding:
           type: string
+        containerPort:
+          type: integer
+          format: int32
         health:
           type: string
           enum:
@@ -1025,6 +1030,9 @@ components:
           - critical
         host:
           type: string
+        hostPort:
+          type: integer
+          format: int32
         id:
           type: string
         meta:
