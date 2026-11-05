@@ -104,6 +104,19 @@ class ServicePageTest extends DashboardTest {
   }
 
   @Test
+  void hostnameOpensInANewTab() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+    publish(web);
+
+    String page = getPage("/services/ws-test/" + web).getBody();
+
+    assertThat(openingTag(page, "href=\"http://" + web + ".lvh.test\""))
+        .contains("target=\"_blank\"")
+        .contains("rel=\"noopener noreferrer\"");
+  }
+
+  @Test
   void scopeCanBeChangedToYardAndBack() {
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));

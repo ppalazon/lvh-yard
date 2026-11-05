@@ -6,10 +6,11 @@ import java.util.Arrays;
 import java.util.function.Consumer;
 import org.springframework.http.MediaType;
 import org.springframework.web.util.HtmlUtils;
-import org.xmlet.htmlapifaster.Button;
 import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
 import org.xmlet.htmlapifaster.Main;
+import org.xmlet.htmlapifaster.PhrasingContent;
+import org.xmlet.htmlapifaster.Svg;
 
 /**
  * The shell every page shares: the stylesheet built from Tailwind CSS and Basecoat ({@code mise run
@@ -164,10 +165,10 @@ final class Layout {
         .addAttr("data-size", "icon")
         .addAttr("aria-label", "Dark theme")
         .addAttr("aria-pressed", "false")
-        .of(button -> icon(button, "dark:hidden", "M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"))
+        .of(button -> icon(button.svg(), "dark:hidden", "M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"))
         .of(button ->
             icon(
-                button,
+                button.svg(),
                 "hidden dark:block",
                 "M12 2v2",
                 "M12 20v2",
@@ -181,10 +182,30 @@ final class Layout {
         .__();
   }
 
-  private static void icon(Button<?> button, String classes, String... paths) {
-    button
-        .svg()
-        .attrClass(classes)
+  /**
+   * A link to {@code http://hostname} in a new tab, with Lucide's external-link icon. {@code
+   * noopener} keeps the new page away from the dashboard tab.
+   */
+  static void externalLink(PhrasingContent<?, ?> parent, String hostname) {
+    parent
+        .a()
+        .attrHref(attr("http://" + hostname))
+        .attrTarget("_blank")
+        .addAttr("rel", "noopener noreferrer")
+        .attrClass("underline")
+        .text(hostname)
+        .of(link ->
+            icon(
+                link.svg(),
+                "ml-1 inline size-3.5 align-baseline",
+                "M15 3h6v6",
+                "M10 14 21 3",
+                "M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"))
+        .__();
+  }
+
+  private static void icon(Svg<?> svg, String classes, String... paths) {
+    svg.attrClass(classes)
         .addAttr("viewBox", "0 0 24 24")
         .addAttr("fill", "none")
         .addAttr("stroke", "currentColor")
@@ -192,7 +213,8 @@ final class Layout {
         .addAttr("stroke-linecap", "round")
         .addAttr("stroke-linejoin", "round")
         .addAttr("aria-hidden", "true")
-        .of(svg -> Arrays.stream(paths).forEach(path -> svg.custom("path").addAttr("d", path).__()))
+        .of(element ->
+            Arrays.stream(paths).forEach(path -> element.custom("path").addAttr("d", path).__()))
         .__();
   }
 
