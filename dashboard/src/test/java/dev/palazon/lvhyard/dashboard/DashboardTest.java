@@ -362,6 +362,17 @@ abstract class DashboardTest {
         .toEntity(String.class);
   }
 
+  /** As a client that sends YAML, such as {@code lvh-yard import}. */
+  ResponseEntity<JsonNode> postYaml(String path, String body) {
+    return http.post()
+        .uri(path)
+        .contentType(MediaType.parseMediaType("application/yaml"))
+        .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON)
+        .body(body)
+        .retrieve()
+        .toEntity(JsonNode.class);
+  }
+
   ResponseEntity<JsonNode> post(String path, Object body) {
     return http.post()
         .uri(path)

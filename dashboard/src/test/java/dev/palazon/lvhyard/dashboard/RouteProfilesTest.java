@@ -76,7 +76,15 @@ class RouteProfilesTest extends DashboardTest {
       put(publicationPath(service), Map.of("profiles", List.of("used-compress")));
     }
 
-    assertThat(get(ROUTE_PROFILES_PATH).getBody().get(0).get("services").toString())
+    // Other test classes in this JVM add Route Profiles of their own.
+    JsonNode used =
+        get(ROUTE_PROFILES_PATH)
+            .getBody()
+            .valueStream()
+            .filter(profile -> profile.get("name").asString().equals("used-compress"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(used.get("services").toString())
         .isEqualTo(JSON.writeValueAsString(List.of(api, web).stream().sorted().toList()));
   }
 

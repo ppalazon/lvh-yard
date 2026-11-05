@@ -52,6 +52,19 @@ public class Publications {
    * @param change its {@code profiles} are names of this Workstation's valid Route Profiles
    */
   public void publish(String workstation, String service, PublicationRequest change) {
+    write(workstation, service, change, true);
+  }
+
+  /**
+   * As {@link #publish}, but the Service need not exist yet. A Backup can hold a Service that has
+   * only a Publication, and the Publication is what makes it exist.
+   */
+  public void restore(String workstation, String service, PublicationRequest change) {
+    write(workstation, service, change, false);
+  }
+
+  private void write(
+      String workstation, String service, PublicationRequest change, boolean mustExist) {
     checkHome(workstation);
     Scope scope = change.scope();
     List<String> priority = change.priority();
@@ -61,7 +74,9 @@ public class Publications {
     }
     Registrations.checkName(service);
     List<InstanceKind> kinds = priority == null ? null : InstanceKind.priority(priority);
-    checkExists(service);
+    if (mustExist) {
+      checkExists(service);
+    }
     Publication existing = all().get(service);
     Publication chosen =
         new Publication(

@@ -10,7 +10,7 @@ public class RefusedBackupException extends RuntimeException {
   public RefusedBackupException(List<BackupProblem> problems) {
     super(
         "The Backup is refused, and nothing changes: "
-            + String.join(" ", problems.stream().map(BackupProblem::reason).toList()));
+            + String.join(" ", problems.stream().map(BackupProblem::text).toList()));
     this.problems = List.copyOf(problems);
   }
 

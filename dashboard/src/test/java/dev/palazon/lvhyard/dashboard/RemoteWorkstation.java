@@ -220,6 +220,15 @@ final class RemoteWorkstation implements AutoCloseable {
         .toBodilessEntity();
   }
 
+  /** The Backup of this Workstation's setup, as its dashboard exports it. */
+  String backup() {
+    return http.get()
+        .uri("/api/workstation/backup")
+        .accept(MediaType.parseMediaType("application/yaml"))
+        .retrieve()
+        .body(String.class);
+  }
+
   /** Publishes {@code service} on this Workstation, through its dashboard. */
   void publish(String service) {
     http.put().uri(DashboardTest.publicationPath(service)).retrieve().toBodilessEntity();

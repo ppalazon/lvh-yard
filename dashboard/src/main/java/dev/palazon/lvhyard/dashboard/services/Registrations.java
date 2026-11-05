@@ -139,6 +139,17 @@ public class Registrations {
     return put(id, service, checked);
   }
 
+  /**
+   * The Static Instance as {@link #register} would store it, with the default host and check filled
+   * in. It writes nothing.
+   *
+   * @throws InvalidRegistrationException at the first rule that {@code request} breaks
+   */
+  public StaticInstanceRequest check(String service, StaticInstanceRequest request) {
+    checkName(service);
+    return checked(request);
+  }
+
   private StaticInstanceRequest checked(StaticInstanceRequest request) {
     checkPort(request.port());
     String host =
@@ -350,7 +361,7 @@ public class Registrations {
   }
 
   /** A Service and an Alias both take a hostname's first part. */
-  static void checkName(String kind, String name) {
+  public static void checkName(String kind, String name) {
     if (!isDnsLabel(name)) {
       throw new InvalidRegistrationException(
           "name",

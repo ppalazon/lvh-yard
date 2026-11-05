@@ -306,6 +306,31 @@ final class Dashboard {
     return send(get("api/workstation/backup"), "application/yaml, application/problem+json").body();
   }
 
+  /**
+   * Sends the Backup's YAML text. With {@code dryRun}, the dashboard answers the plan and changes
+   * nothing.
+   */
+  ImportResult importBackup(String backup, String mode, boolean dryRun) {
+    HttpRequest.Builder request =
+        HttpRequest.newBuilder(
+                url.resolve(
+                    "api/workstation/backup?mode="
+                        + segment(mode)
+                        + (dryRun ? "&dry-run=true" : "")))
+            .header("Content-Type", "application/yaml")
+            .POST(HttpRequest.BodyPublishers.ofString(backup, StandardCharsets.UTF_8));
+    return read(send(request), new TypeReference<>() {});
+  }
+
+  /** {@code exportedFrom} is left out when the Backup does not say. */
+  record ImportResult(
+      ExportedFrom exportedFrom, String mode, boolean dryRun, List<PlanEntry> entries) {}
+
+  record ExportedFrom(String workstation, String at) {}
+
+  /** {@code service} is left out but for a Static Instance or a Container Binding. */
+  record PlanEntry(String kind, String name, String service, String action, String reason) {}
+
   List<RouteProfile> routeProfiles() {
     return read(send(get("api/workstation/route-profiles")), new TypeReference<>() {});
   }
@@ -494,8 +519,8 @@ final class Dashboard {
   }
 
   /**
-   * Each reason of the Problem Details' {@code problems} on a line of its own, else its detail,
-   * else its title, else the status.
+   * Each reason of the Problem Details' {@code problems} on a line of its own, after its place in
+   * the file when it has one, else its detail, else its title, else the status.
    */
   private static String reason(HttpResponse<String> response) {
     try {
@@ -503,7 +528,17 @@ final class Dashboard {
       List<String> reasons =
           problem.path("problems").valueStream().map(p -> p.path("reason").asString("")).toList();
       if (!reasons.isEmpty() && !reasons.contains("")) {
-        return String.join("\n", reasons);
+        return String.join(
+            "\n",
+            problem
+                .path("problems")
+                .valueStream()
+                .map(p -> {
+                  String place = p.path("place").asString("");
+                  String reason = p.path("reason").asString();
+                  return place.isEmpty() ? reason : place + ": " + reason;
+                })
+                .toList());
       }
       for (String member : List.of("detail", "title")) {
         if (problem.path(member).isString() && !problem.get(member).asString().isBlank()) {

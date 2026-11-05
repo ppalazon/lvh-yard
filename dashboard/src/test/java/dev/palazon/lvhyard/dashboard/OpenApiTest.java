@@ -206,6 +206,26 @@ class OpenApiTest extends DashboardTest {
   }
 
   @Test
+  void backupIsImportedFromYamlAndAnswersThePlan() {
+    JsonNode docs = get("/v3/api-docs").getBody();
+    JsonNode paths = docs.get("paths");
+    JsonNode post = paths.get("/api/workstation/backup").get("post");
+
+    assertThat(post.get("requestBody").get("content").propertyNames())
+        .containsExactly("application/yaml");
+    assertThat(post.get("parameters").valueStream().map(parameter -> parameter.get("name")))
+        .extracting(JsonNode::asString)
+        .containsExactlyInAnyOrder("mode", "dry-run");
+    assertThat(answersWithProblem(paths, "/api/workstation/backup", "post", "400")).isTrue();
+    assertThat(answersWithProblem(paths, "/api/workstation/backup", "post", "500")).isTrue();
+    JsonNode schemas = docs.get("components").get("schemas");
+    assertThat(schemas.get("ImportResult").get("properties").propertyNames())
+        .containsExactlyInAnyOrder("exportedFrom", "mode", "dryRun", "entries");
+    assertThat(schemas.get("PlanEntry").get("properties").propertyNames())
+        .containsExactlyInAnyOrder("kind", "name", "service", "action", "reason");
+  }
+
+  @Test
   void backupIsExportedAsYaml() {
     JsonNode get =
         get("/v3/api-docs").getBody().get("paths").get("/api/workstation/backup").get("get");

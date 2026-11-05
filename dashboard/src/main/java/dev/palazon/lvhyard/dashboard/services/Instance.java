@@ -49,7 +49,7 @@ public record Instance(
   }
 
   /** {@code host:port}, with an IPv6 host in brackets so its colons are not read as the port's. */
-  static String address(String host, int port) {
+  public static String address(String host, int port) {
     return (host.contains(":") ? "[" + host + "]" : host) + ":" + port;
   }
 }

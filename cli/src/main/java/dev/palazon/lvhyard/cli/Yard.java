@@ -30,6 +30,7 @@ import picocli.CommandLine.Spec;
       Alias.class,
       Profiles.class,
       Export.class,
+      Import.class,
       TestReachability.class,
       Status.class
     },

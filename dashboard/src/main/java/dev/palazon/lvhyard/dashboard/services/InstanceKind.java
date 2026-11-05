@@ -24,7 +24,7 @@ public enum InstanceKind {
    * The message of a refusal says what is wrong, for the person who gave {@code values}. No kind
    * means the Instance Priority is off.
    */
-  static List<InstanceKind> priority(List<String> values) {
+  public static List<InstanceKind> priority(List<String> values) {
     List<InstanceKind> kinds = new ArrayList<>();
     for (String value : values) {
       InstanceKind kind =

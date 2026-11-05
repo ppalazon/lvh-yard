@@ -247,6 +247,56 @@ paths:
       summary: Exports a Backup of this Workstation's setup
       tags:
       - backup-controller
+    post:
+      description: "Mode add adds what is new and skips what exists. The dashboard\
+        \ checks the whole file first. If one entry is wrong, nothing changes. A Static\
+        \ Instance without a host is at this Workstation's LAN address. A new Service\
+        \ without a publication key stays Unpublished."
+      operationId: importBackup
+      parameters:
+      - description: "add: adds what is new and skips what exists."
+        in: query
+        name: mode
+        required: true
+        schema:
+          type: string
+      - description: true shows the plan and changes nothing.
+        in: query
+        name: dry-run
+        required: false
+        schema:
+          type: boolean
+          default: false
+      requestBody:
+        content:
+          application/yaml:
+            schema:
+              type: string
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportResult"
+          description: "The plan, and without a dry run what the import did"
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "The file is refused, or the mode is unknown, and nothing changes.\
+            \ The problems give each place in the file and its reason"
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "A write failed halfway. The applied entries stay, and the\
+            \ detail says where it stopped"
+      summary: Imports a Backup into this Workstation
+      tags:
+      - backup-controller
   /api/workstation/containers:
     get:
       description: "Compose projects come first, then the other containers. Each port\
@@ -905,6 +955,13 @@ components:
           type: boolean
         service:
           type: string
+    ExportedFrom:
+      type: object
+      properties:
+        at:
+          type: string
+        workstation:
+          type: string
     HealthCheck:
       type: object
       properties:
@@ -931,6 +988,25 @@ components:
       required:
       - name
       - services
+    ImportResult:
+      type: object
+      properties:
+        dryRun:
+          type: boolean
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlanEntry"
+        exportedFrom:
+          $ref: "#/components/schemas/ExportedFrom"
+        mode:
+          type: string
+          enum:
+          - add
+      required:
+      - dryRun
+      - entries
+      - mode
     Instance:
       type: object
       properties:
@@ -995,6 +1071,33 @@ components:
       - address
       - id
       - reached
+    PlanEntry:
+      type: object
+      properties:
+        action:
+          type: string
+          enum:
+          - add
+          - skip
+        kind:
+          type: string
+          enum:
+          - route-profile
+          - service
+          - publication
+          - static-instance
+          - container-binding
+          - alias
+        name:
+          type: string
+        reason:
+          type: string
+        service:
+          type: string
+      required:
+      - action
+      - kind
+      - name
     ProblemDetail:
       type: object
       additionalProperties: true

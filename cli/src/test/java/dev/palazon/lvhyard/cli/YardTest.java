@@ -600,6 +600,100 @@ class YardTest {
         .isEqualTo("rw-------");
   }
 
+  private static final String PLAN =
+      """
+      {"exportedFrom": {"workstation": "ws-a", "at": "2026-11-05T10:00:00Z"},
+       "mode": "add", "dryRun": %s,
+       "entries": [
+         {"kind": "route-profile", "name": "gzip", "action": "add"},
+         {"kind": "service", "name": "web", "action": "skip", "reason": "It exists already."},
+         {"kind": "static-instance", "name": "10.1.2.3:8080", "service": "web", "action": "add"},
+         {"kind": "publication", "name": "web", "action": "skip",
+          "reason": "It exists already."}]}
+      """;
+
+  private static final String PLAN_LINES =
+      """
+      Backup of ws-a at 2026-11-05T10:00:00Z.
+      add Route Profile gzip
+      skip Service web: It exists already.
+      add Static Instance 10.1.2.3:8080 of web
+      skip Publication of web: It exists already.
+      """;
+
+  @Test
+  void importSendsTheFileAndPrintsEachPlanEntry(@TempDir Path dir) throws Exception {
+    dashboard.answer("POST", "/api/workstation/backup?mode=add", 200, PLAN.formatted(false));
+    Path file = dir.resolve("ws-a.yaml");
+    Files.writeString(file, BACKUP);
+
+    Run run = yard("import", file.toString());
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).isEqualTo(PLAN_LINES + "Added 2, skipped 2.\n");
+    dashboard.verifyCalled("POST", "/api/workstation/backup", "application/yaml", BACKUP);
+  }
+
+  @Test
+  void importReadsStandardInputForADash() throws Exception {
+    dashboard.answer("POST", "/api/workstation/backup?mode=add", 200, PLAN.formatted(false));
+
+    Run run = yardWithInput(BACKUP, "--dashboard", dashboard.url().toString(), "import", "-");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).isEqualTo(PLAN_LINES + "Added 2, skipped 2.\n");
+    dashboard.verifyCalled("POST", "/api/workstation/backup", "application/yaml", BACKUP);
+  }
+
+  @Test
+  void importWithDryRunAsksForThePlanOnly(@TempDir Path dir) throws Exception {
+    dashboard.answer(
+        "POST", "/api/workstation/backup?mode=add&dry-run=true", 200, PLAN.formatted(true));
+    Path file = dir.resolve("ws-a.yaml");
+    Files.writeString(file, BACKUP);
+
+    Run run = yard("import", "--dry-run", file.toString());
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).isEqualTo(PLAN_LINES + "Dry run: nothing changed.\n");
+  }
+
+  @Test
+  void importPrintsEachProblemWithItsPlaceWhenTheFileIsRefused(@TempDir Path dir) throws Exception {
+    dashboard.answer(
+        "POST",
+        "/api/workstation/backup?mode=add",
+        400,
+        """
+        {"title": "Bad Request", "status": 400, "detail": "The Backup is refused.",
+         "problems": [
+           {"place": "services.web.static-instances[0].port", "reason": "The port is missing."},
+           {"place": "", "reason": "The file is not valid YAML."}]}
+        """);
+    Path file = dir.resolve("ws-a.yaml");
+    Files.writeString(file, BACKUP);
+
+    Run run = yard("import", file.toString());
+
+    assertThat(run.exitCode()).isEqualTo(1);
+    assertThat(run.out()).isEmpty();
+    assertThat(run.err())
+        .isEqualTo(
+            """
+            services.web.static-instances[0].port: The port is missing.
+            The file is not valid YAML.
+            """);
+  }
+
+  @Test
+  void importOfAMissingFileFails(@TempDir Path dir) {
+    Run run = yard("import", dir.resolve("nope.yaml").toString());
+
+    assertThat(run.exitCode()).isEqualTo(1);
+    assertThat(run.err()).startsWith("Cannot read " + dir.resolve("nope.yaml"));
+    dashboard.verifyNotCalled();
+  }
+
   @Test
   void profilesShowPrintsTheProfileInTraefiksFileFormat() {
     dashboard.answer(
@@ -1114,14 +1208,6 @@ class YardTest {
         .isEqualTo(
             "Warning: The Bound Instance at 172.17.0.2:80 is on a container port that is not"
                 + " published.\n");
-  }
-
-  @Test
-  void importIsNotACommand() {
-    Run run = yard("import", "grafana");
-
-    assertThat(run.exitCode()).isEqualTo(2);
-    assertThat(run.err()).contains("import");
   }
 
   @Test

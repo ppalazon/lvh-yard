@@ -221,6 +221,8 @@ lvh-yard profiles edit basic-auth           # change one Route Profile in $EDITO
 lvh-yard profiles remove basic-auth
 lvh-yard export                             # a Backup of this Workstation's setup, as YAML
 lvh-yard export -o ws-a.yaml                # write it to a file that only you can read
+lvh-yard import ws-a.yaml                   # add what is new in a Backup, and skip what exists
+lvh-yard import --dry-run ws-a.yaml         # show the plan, and change nothing
 lvh-yard test web                           # tests whether this Workstation reaches web
 lvh-yard test grafana --workstation ws-b    # a Remote Service
 lvh-yard status                             # whether LVH Yard works
@@ -337,6 +339,71 @@ aliases:
 A Backup holds the basic-auth hashes of your Route Profiles. Anyone who can
 read the file can read them. Keep a Backup as private as a password file.
 `lvh-yard export -o` writes the file so that only you can read it.
+
+### Importing a Backup
+
+`lvh-yard import <file>` adds what is new in a Backup to this Workstation. It
+skips what exists, so it never overwrites your changes. `lvh-yard import -`
+reads the Backup from standard input. So you can copy the setup of another
+Workstation:
+
+```sh
+ssh ws-b lvh-yard export | lvh-yard import -
+```
+
+The import prints one line for each entry of the file. Each line says `add` or
+`skip`. A skip gives its reason:
+
+```text
+Backup of ws-b at 2026-11-05T10:00:00+01:00.
+add Route Profile team-login
+skip Service grafana: It exists already.
+add Static Instance 192.168.1.20:3000 of grafana
+skip Publication of grafana: It exists already.
+Added 2, skipped 2.
+```
+
+With `--dry-run`, the import prints the same plan and changes nothing.
+
+The import finds what exists in this way:
+
+- a Service, an Alias and a Route Profile by their names
+- a Static Instance by its host and port, inside its Service only
+- a Container Binding by its ID, such as `shop-web-1:80` or
+  `compose:shop:worker:9000`
+
+A Static Instance without a host is at the LAN address of this Workstation. A
+new Service without a `publication` key stays Unpublished. An existing Service
+without a `publication` key keeps its Publication. A Publication can name a
+Route Profile of the same file.
+
+Before the import changes anything, the dashboard checks the whole file. If one
+entry is wrong, the import changes nothing, prints each problem with its place
+in the file, and exits with 1:
+
+```text
+services.grafana.static-instances[0].port: The port 70000 is not a TCP port: use 1 to 65535.
+services.grafana.publication.route-profiles[0]: The Route Profile login is not in the file, and this Workstation does not have it.
+```
+
+The import refuses a key that a Backup does not have, a version other than 1,
+and an unknown Route Profile. It also refuses an Alias to this Workstation, and
+a Container Binding to a container that another Service follows already.
+
+The import writes Route Profiles first, then Static Instances and Container
+Bindings, then Publications, then Aliases. Consul cannot write them all at
+once. So if a write fails halfway, the import stops and says what it wrote
+before.
+
+The API imports a Backup at `POST /api/workstation/backup?mode=add`, with the
+Backup as `application/yaml`. Add `dry-run=true` for the plan only. The answer
+is the plan as JSON. A refused file answers 400, with a `problems` list of
+`place` and `reason`:
+
+```sh
+curl -X POST -H 'Content-Type: application/yaml' --data-binary @ws-a.yaml \
+  'http://127.0.0.1:7780/api/workstation/backup?mode=add&dry-run=true'
+```
 
 ## How it works
 

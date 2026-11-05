@@ -90,6 +90,17 @@ public class ContainerBindings {
     return id;
   }
 
+  /**
+   * The Binding as {@link #add} would store it. It writes nothing, and it does not look for a
+   * Binding that follows the same target.
+   *
+   * @throws InvalidRegistrationException at the first rule that {@code request} breaks
+   */
+  public static ContainerBindingRequest check(String service, ContainerBindingRequest request) {
+    Registrations.checkName(service);
+    return checked(request);
+  }
+
   /** Strips the names, and fails unless it names a container, or a Compose project and service. */
   private static ContainerBindingRequest checked(ContainerBindingRequest request) {
     String container = stripped(request.container());

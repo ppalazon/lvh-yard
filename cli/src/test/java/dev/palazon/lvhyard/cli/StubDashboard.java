@@ -106,6 +106,25 @@ final class StubDashboard implements AutoCloseable {
     server.verify(called(method, path).withRequestBody(WireMock.equalToJson(body)));
   }
 
+  /**
+   * Checks that the dashboard was asked {@code method} on {@code path} with exactly this {@code
+   * body} of {@code mediaType}, such as YAML, and that the contract takes that type there.
+   */
+  void verifyCalled(String method, String path, String mediaType, String body) {
+    if (pathItem(path)
+        .path(method.toLowerCase())
+        .path("requestBody")
+        .path("content")
+        .path(mediaType)
+        .isMissingNode()) {
+      throw new AssertionError(method + " " + path + " takes no " + mediaType + " in " + CONTRACT);
+    }
+    server.verify(
+        called(method, path)
+            .withHeader("Content-Type", WireMock.containing(mediaType))
+            .withRequestBody(WireMock.equalTo(body)));
+  }
+
   /** Checks that the dashboard was asked {@code method} on {@code path}. */
   void verifyCalled(String method, String path) {
     server.verify(called(method, path));
