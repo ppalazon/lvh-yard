@@ -765,7 +765,7 @@ final class ServicePage {
     return switch (state) {
       case UNAVAILABLE -> Optional.of("No Instances are registered");
       case UNHEALTHY -> Optional.of("No Instance passes its checks");
-      case UNPUBLISHED, HEALTHY -> Optional.empty();
+      case UNPUBLISHED, DEGRADED, HEALTHY -> Optional.empty();
     };
   }
 

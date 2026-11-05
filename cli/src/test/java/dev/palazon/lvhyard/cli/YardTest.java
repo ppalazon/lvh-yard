@@ -145,6 +145,36 @@ class YardTest {
   }
 
   @Test
+  void listShowsDegradedAndKeepsInstanceIdsAndWarnings() {
+    dashboard.answer(
+        "GET",
+        "/api/services?workstation=ws-a",
+        200,
+        """
+        [{"workstation": "ws-a", "name": "web", "state": "degraded",
+          "hostname": "web.lvh.me", "publication": {"scope": "local", "accessLog": false},
+          "containerBindings": [],
+          "warnings": [{"kind": "loopback-instance", "severity": "risk", "message": "Loopback Instance."}],
+          "instances": [
+            {"id": "good", "host": "10.1.2.3", "port": 8080, "health": "passing",
+             "tags": [], "meta": {}, "checks": [], "outOfRange": false},
+            {"id": "bad", "host": "127.0.0.1", "port": 8081, "health": "warning",
+             "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}]
+        """);
+
+    Run run = yard("list", "--workstation", "ws-a");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.lines())
+        .containsExactly(
+            "ws-a",
+            "  web: degraded at web.lvh.me",
+            "    10.1.2.3:8080  passing   good",
+            "    127.0.0.1:8081  warning   bad",
+            "    risk: Loopback Instance.");
+  }
+
+  @Test
   void listMarksTheInstancesTheRouteSendsRequestsTo() {
     dashboard.answer(
         "GET",

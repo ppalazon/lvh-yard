@@ -29,6 +29,7 @@ paths:
           - unpublished
           - unavailable
           - unhealthy
+          - degraded
           - healthy
       responses:
         "200":
@@ -1295,6 +1296,7 @@ components:
           - unpublished
           - unavailable
           - unhealthy
+          - degraded
           - healthy
         warnings:
           type: array

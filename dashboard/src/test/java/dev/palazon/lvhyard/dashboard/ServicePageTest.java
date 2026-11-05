@@ -45,7 +45,7 @@ class ServicePageTest extends DashboardTest {
         .untilAsserted(
             () -> assertThat(summaryCard(getPage(page).getBody(), "passing")).contains("1 of 2"));
     String body = getPage(page).getBody();
-    assertThat(summaryCard(body, "state")).contains(badge("success", "Healthy"));
+    assertThat(summaryCard(body, "state")).contains(badge("risk", "Degraded"));
     assertThat(summaryCard(body, "publication"))
         .contains("href=\"http://" + web + ".lvh.test\"")
         .contains("Local Scope")
