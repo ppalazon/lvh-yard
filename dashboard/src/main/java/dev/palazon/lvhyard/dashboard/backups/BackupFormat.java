@@ -75,6 +75,9 @@ public final class BackupFormat {
         if (!published.routeProfiles().isEmpty()) {
           publication.put("route-profiles", published.routeProfiles());
         }
+        if (published.accessLog()) {
+          publication.put("access-log", true);
+        }
         entry.put("publication", publication);
       }
     }
@@ -255,14 +258,18 @@ public final class BackupFormat {
       }
       if (!(value instanceof Map<?, ?>)) {
         problem(
-            place, "A publication is none, or a mapping with scope, priority and route-profiles.");
+            place,
+            "A publication is none, or a mapping with scope, priority, route-profiles and"
+                + " access-log.");
         return null;
       }
-      Map<String, Object> entry = keys(value, place, Set.of("scope", "priority", "route-profiles"));
+      Map<String, Object> entry =
+          keys(value, place, Set.of("scope", "priority", "route-profiles", "access-log"));
       return new Published(
           text(entry.get("scope"), place + ".scope"),
           texts(entry.get("priority"), place + ".priority"),
-          texts(entry.get("route-profiles"), place + ".route-profiles"));
+          texts(entry.get("route-profiles"), place + ".route-profiles"),
+          flag(entry.get("access-log"), place + ".access-log", false));
     }
 
     private StaticInstance staticInstance(Object value, String place) {
@@ -353,6 +360,18 @@ public final class BackupFormat {
       }
       problem(place, "The value must be text.");
       return null;
+    }
+
+    /** {@code missing} when the file leaves it out. */
+    private boolean flag(Object value, String place, boolean missing) {
+      if (value == null) {
+        return missing;
+      }
+      if (value instanceof Boolean flag) {
+        return flag;
+      }
+      problem(place, "The value must be true or false.");
+      return missing;
     }
 
     private List<String> texts(Object value, String place) {

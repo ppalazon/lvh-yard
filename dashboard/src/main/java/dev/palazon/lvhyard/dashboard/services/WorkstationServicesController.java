@@ -194,7 +194,9 @@ class WorkstationServicesController {
   @PutMapping("/{service}/publication")
   @Operation(
       operationId = "publish",
-      summary = "Publishes a Service, or changes its Scope, Instance Priority or Route Profiles",
+      summary =
+          "Publishes a Service, or changes its Scope, Instance Priority, Route Profiles or access"
+              + " log",
       description =
           "With Yard Scope, the other Workstations also route it, at"
               + " <service>.<workstation>.<base-domain>. With no Scope, a new Publication gets"
@@ -203,7 +205,9 @@ class WorkstationServicesController {
               + " priority turns the Instance Priority off: the passing Static and Bound Instances"
               + " share the Route. The Route applies the Route Profiles in order, as Traefik"
               + " middlewares named <workstation>_<profile>. With no profiles, a Publication keeps"
-              + " its own. Empty profiles remove them all.")
+              + " its own. Empty profiles remove them all. With accessLog true, Traefik logs the"
+              + " requests to the Route. With no accessLog, a new Publication does not log them"
+              + " and an existing one keeps its own.")
   @ApiResponse(
       responseCode = "200",
       description = "The Service, published",

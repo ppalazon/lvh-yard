@@ -746,7 +746,9 @@ paths:
         \ off: the passing Static and Bound Instances share the Route. The Route applies\
         \ the Route Profiles in order, as Traefik middlewares named <workstation>_<profile>.\
         \ With no profiles, a Publication keeps its own. Empty profiles remove them\
-        \ all."
+        \ all. With accessLog true, Traefik logs the requests to the Route. With no\
+        \ accessLog, a new Publication does not log them and an existing one keeps\
+        \ its own."
       operationId: publish
       parameters:
       - in: path
@@ -780,8 +782,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: This Workstation has no Service of this name
-      summary: "Publishes a Service, or changes its Scope, Instance Priority or Route\
-        \ Profiles"
+      summary: "Publishes a Service, or changes its Scope, Instance Priority, Route\
+        \ Profiles or access log"
       tags:
       - workstation-services-controller
   /api/workstation/services/{service}/reachability:
@@ -1115,16 +1117,24 @@ components:
     Publication:
       type: object
       properties:
+        accessLog:
+          type: boolean
         scope:
           type: string
           enum:
           - local
           - yard
       required:
+      - accessLog
       - scope
     PublicationRequest:
       type: object
       properties:
+        accessLog:
+          type: boolean
+          description: "true makes Traefik log the requests to its Route. When left\
+            \ out, a new Publication does not log them and an existing one keeps its\
+            \ own."
         priority:
           type: array
           items:

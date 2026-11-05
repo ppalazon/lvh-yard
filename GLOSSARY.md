@@ -95,7 +95,7 @@ Whether the Workstation you are using can actually connect to an Instance, direc
 _Avoid_: Connectivity, health, availability
 
 **Publication**:
-The Home Workstation's opt-in choice to make a Service reachable under a hostname, with a Scope. It belongs to the Service, not to its Instances, and never starts or stops a process.
+The Home Workstation's opt-in choice to make a Service reachable under a hostname, with a Scope. It also says whether Traefik logs the requests to its Route. It belongs to the Service, not to its Instances, and never starts or stops a process.
 _Avoid_: Exposure, routing enabled, enabled
 
 **Scope**:

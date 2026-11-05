@@ -59,8 +59,10 @@ public record Backup(
    * @param priority the Instance Priority kinds, empty for off; {@code null} when the file leaves
    *     it out
    * @param routeProfiles in the order the Route applies them; empty when the file leaves it out
+   * @param accessLog false when the file leaves it out
    */
-  public record Published(String scope, List<String> priority, List<String> routeProfiles)
+  public record Published(
+      String scope, List<String> priority, List<String> routeProfiles, boolean accessLog)
       implements Publication {
 
     public Published {

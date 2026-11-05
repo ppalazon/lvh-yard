@@ -77,7 +77,8 @@ public class BackupExport {
             ? new Published(
                 service.publication().scope().value(),
                 service.priority().stream().map(InstanceKind::value).toList(),
-                service.profiles())
+                service.profiles(),
+                service.publication().accessLog())
             : new Unpublished(),
         service.instances().stream()
             .filter(instance -> !instance.bound())

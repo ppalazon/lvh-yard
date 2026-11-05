@@ -63,7 +63,14 @@ The dashboard is always at `127.0.0.1:7780` too, also when Traefik is down or
 `yard` is unpublished.
 
 Run the other `docker compose` commands in the same folder. For example,
-`docker compose logs -f consul` shows the logs of Consul.
+`docker compose logs -f consul` shows the logs of Consul. Consul logs only
+errors.
+
+`docker compose logs -f traefik` shows one line for each request that Traefik
+sends on. The line ends with the Route, the address of the Instance that
+answered, and the time in milliseconds. The status of the response comes after
+the request. Traefik logs only the Services that you turn on, for example with
+`lvh-yard publish <service> --access-log on`.
 
 If a request to the dashboard fails, `docker compose logs dashboard` shows one
 line for it, with no stack trace. To also log the stack trace, set
@@ -211,6 +218,7 @@ lvh-yard publish web --priority bound,static  # prefer Bound Instances (Instance
 lvh-yard publish web --priority off           # Static and Bound Instances share the Route
 lvh-yard publish web --profile basic-auth     # apply a Route Profile; repeat for more
 lvh-yard publish web --no-profiles            # remove all Route Profiles
+lvh-yard publish web --access-log on          # Traefik logs the requests to web
 lvh-yard unpublish web
 lvh-yard alias add grafana --workstation ws-b                 # http://grafana.<base-domain> for grafana of ws-b
 lvh-yard alias add db --workstation ws-b --service postgres   # a name that differs from the Service
@@ -311,6 +319,7 @@ services:
         - alias
       route-profiles:
         - team-login
+      access-log: true
     static-instances:
       - port: 3000
         check:
@@ -336,6 +345,8 @@ aliases:
 ```
 
 - `publication: none` means that the Service is Unpublished.
+- `access-log: true` means that Traefik logs the requests to the Service. If
+  the Backup leaves it out, Traefik does not log them.
 - If the host of a Static Instance is the LAN address of this Workstation, the
   Backup leaves the host out. So the Static Instance fits another computer.
 - The Backup leaves out empty tags and meta.
@@ -519,6 +530,12 @@ it, at `<service>.<workstation>.<base-domain>`. If you publish again without
 A Service with Yard Scope shows a warning for each Instance on loopback, because
 other Workstations cannot reach it. The page, the API and `lvh-yard publish`
 show this warning.
+
+Traefik does not log the requests to a new Publication. To see them in the
+Traefik access log, turn the access log on. Use the Service page or
+`lvh-yard publish <service> --access-log on`. Then Traefik writes one line for
+each request to the Route. An Alias follows the Service it names. If you publish
+again without `--access-log`, the setting does not change.
 
 You can see a Remote Service, but only its Home Workstation can change it. Its
 page has no forms, and the API answers 405 to a change under `/api/services`.

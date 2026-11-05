@@ -402,16 +402,20 @@ class ImportPlanner {
         }
       }
       Published wanted =
-          new Published(scope == null ? null : scope.value(), priority, published.routeProfiles());
+          new Published(
+              scope == null ? null : scope.value(),
+              priority,
+              published.routeProfiles(),
+              published.accessLog());
       PlanEntry entry =
           entry(Kind.PUBLICATION, service, null, now instanceof Published, now.equals(wanted));
       entries.add(entry);
       if (entry.action() == Action.SKIP) {
         return;
       }
-      // All three parts are set, so an overwrite keeps nothing of the Publication it replaces.
+      // Every part is set, so an overwrite keeps nothing of the Publication it replaces.
       PublicationRequest request =
-          new PublicationRequest(scope, priority, published.routeProfiles());
+          new PublicationRequest(scope, priority, published.routeProfiles(), published.accessLog());
       publicationSteps.add(
           new Step(
               List.of(entry), () -> publications.restore(workstation.name(), service, request)));

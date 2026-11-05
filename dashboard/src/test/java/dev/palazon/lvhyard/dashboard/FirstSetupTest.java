@@ -42,6 +42,16 @@ class FirstSetupTest extends DashboardTest {
   }
 
   @Test
+  void theThreeServicesHaveNoAccessLog() {
+    for (String service : List.of("yard", "consul-ui", "traefik-admin")) {
+      assertThat(
+              get(servicePath(service)).getBody().get("publication").get("accessLog").asBoolean())
+          .as(service)
+          .isFalse();
+    }
+  }
+
+  @Test
   void consulUiAndTraefikAdminAreOnLoopbackWithHealthChecksAndLocalScope() {
     JsonNode consul = get(servicePath("consul-ui")).getBody();
     JsonNode traefik = get(servicePath("traefik-admin")).getBody();

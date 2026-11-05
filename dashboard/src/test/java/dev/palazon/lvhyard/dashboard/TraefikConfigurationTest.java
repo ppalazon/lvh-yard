@@ -29,6 +29,35 @@ class TraefikConfigurationTest extends DashboardTest {
   }
 
   @Test
+  void yardRouteHasNoAccessLog() {
+    JsonNode router =
+        get("/traefik/configuration").getBody().get("http").get("routers").get("yard");
+
+    assertThat(router.get("observability").get("accessLogs").asBoolean()).isFalse();
+  }
+
+  @Test
+  void accessLogIsOffUntilTurnedOn() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+    publish(web);
+
+    assertThat(router(web).get("observability").get("accessLogs").asBoolean()).isFalse();
+
+    put(publicationPath(web), Map.of("accessLog", true));
+
+    assertThat(router(web).has("observability")).isFalse();
+
+    put(publicationPath(web), Map.of("accessLog", false));
+
+    assertThat(router(web).get("observability").get("accessLogs").asBoolean()).isFalse();
+  }
+
+  private JsonNode router(String name) {
+    return get("/traefik/configuration").getBody().get("http").get("routers").get(name);
+  }
+
+  @Test
   void publishedServiceIsRoutedToEveryInstance() {
     String grafana = newServiceName("grafana");
     register(grafana, Map.of("host", "10.1.2.3", "port", 3000));

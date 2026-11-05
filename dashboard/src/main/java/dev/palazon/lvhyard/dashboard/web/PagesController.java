@@ -289,6 +289,7 @@ class PagesController {
    *
    * @param priority the kinds in order, separated by commas. Blank turns the Instance Priority off.
    * @param profiles the Route Profiles in order, separated by commas. Blank removes them all.
+   * @param accessLog true makes Traefik log the requests to the Route
    */
   @PostMapping("/services/{workstation}/{service}/publish")
   ResponseEntity<String> publish(
@@ -296,7 +297,8 @@ class PagesController {
       @PathVariable String service,
       @RequestParam(required = false) String scope,
       @RequestParam(required = false) String priority,
-      @RequestParam(required = false) String profiles) {
+      @RequestParam(required = false) String profiles,
+      @RequestParam(required = false) Boolean accessLog) {
     Scope chosen =
         scope == null
             ? null
@@ -308,7 +310,8 @@ class PagesController {
       publications.publish(
           home,
           service,
-          new PublicationRequest(chosen, commaSeparated(priority), commaSeparated(profiles)));
+          new PublicationRequest(
+              chosen, commaSeparated(priority), commaSeparated(profiles), accessLog));
     } catch (UnknownServiceException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
     } catch (InvalidRegistrationException

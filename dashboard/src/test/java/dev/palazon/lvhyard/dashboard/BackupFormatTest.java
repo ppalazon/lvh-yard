@@ -33,6 +33,7 @@ class BackupFormatTest {
               - bound
             route-profiles:
               - auth
+            access-log: true
           static-instances:
             - host: 10.1.2.3
               port: 3000
@@ -76,6 +77,10 @@ class BackupFormatTest {
 
     assertThat(backup.services().get("db").publication()).isNull();
     assertThat(backup.services().get("notes").publication()).isEqualTo(new Backup.Unpublished());
+    assertThat(BackupFormat.read(BACKUP.replace("      access-log: true\n", "")).services())
+        .extractingByKey("grafana")
+        .extracting(service -> ((Backup.Published) service.publication()).accessLog())
+        .isEqualTo(false);
     assertThat(backup.services().get("grafana").staticInstances().get(1).host()).isNull();
     assertThat(backup.services().get("grafana").containerBindings())
         .extracting(Backup.ContainerBinding::id)

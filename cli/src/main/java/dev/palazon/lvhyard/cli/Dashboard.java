@@ -142,7 +142,7 @@ final class Dashboard {
     }
   }
 
-  record Publication(String scope) {}
+  record Publication(String scope, boolean accessLog) {}
 
   /** {@code health} is passing, warning or critical. */
   record Instance(String id, String host, int port, String health, boolean outOfRange) {
@@ -454,7 +454,12 @@ final class Dashboard {
    * existing one keeps its own.
    */
   /** Sends only what is not {@code null}, so the Publication keeps the rest. */
-  Service publish(String service, String scope, List<String> priority, List<String> profiles) {
+  Service publish(
+      String service,
+      String scope,
+      List<String> priority,
+      List<String> profiles,
+      Boolean accessLog) {
     HttpRequest.Builder request = HttpRequest.newBuilder(publicationUrl(service));
     Map<String, Object> body = new LinkedHashMap<>();
     if (scope != null) {
@@ -465,6 +470,9 @@ final class Dashboard {
     }
     if (profiles != null) {
       body.put("profiles", profiles);
+    }
+    if (accessLog != null) {
+      body.put("accessLog", accessLog);
     }
     if (body.isEmpty()) {
       request.PUT(HttpRequest.BodyPublishers.noBody());

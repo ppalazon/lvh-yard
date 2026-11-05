@@ -11,17 +11,19 @@ import java.util.List;
  *     Service already shows it as its own {@code priority} field.
  * @param profiles the names of its Route Profiles, in the order its Route applies them. Left out of
  *     the JSON for the same reason.
+ * @param accessLog whether Traefik writes a line in its access log for each request to its Route
  */
 public record Publication(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Scope scope,
     @JsonIgnore @Schema(hidden = true) List<InstanceKind> priority,
-    @JsonIgnore @Schema(hidden = true) List<String> profiles) {
+    @JsonIgnore @Schema(hidden = true) List<String> profiles,
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean accessLog) {
 
   public Publication {
     profiles = List.copyOf(profiles);
   }
 
   Publication(Scope scope) {
-    this(scope, InstanceKind.DEFAULT_PRIORITY, List.of());
+    this(scope, InstanceKind.DEFAULT_PRIORITY, List.of(), false);
   }
 }

@@ -313,6 +313,21 @@ class PublicationsTest extends DashboardTest {
   }
 
   @Test
+  void accessLogIsOffForANewPublicationAndOnIsKeptWhenPublishingAgain() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+
+    ResponseEntity<JsonNode> published = put(publicationPath(web));
+
+    assertThat(accessLog(published.getBody())).isFalse();
+
+    put(publicationPath(web), Map.of("accessLog", true));
+    put(publicationPath(web), Map.of("scope", "yard"));
+
+    assertThat(accessLog(get(servicePath(web)).getBody())).isTrue();
+  }
+
+  @Test
   void publicationWrittenBeforeInstancePriorityUsesTheDefaultOrder() {
     String api = newServiceName("api");
     remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
@@ -322,6 +337,10 @@ class PublicationsTest extends DashboardTest {
     assertThat(priority(remote.service(api).getBody())).containsExactly("static", "bound", "alias");
     assertThat(priority(get("/api/services/" + RemoteWorkstation.NAME + "/" + api).getBody()))
         .containsExactly("static", "bound", "alias");
+  }
+
+  private static boolean accessLog(JsonNode service) {
+    return service.get("publication").get("accessLog").asBoolean();
   }
 
   private static List<String> priority(JsonNode service) {

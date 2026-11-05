@@ -178,7 +178,9 @@ public class FirstSetup implements SmartLifecycle {
               false));
       failIfPast(deadline);
       publications.publish(
-          workstation.name(), service.name(), new PublicationRequest(Scope.LOCAL, null, null));
+          workstation.name(),
+          service.name(),
+          new PublicationRequest(Scope.LOCAL, null, null, null));
       written.add(service.name());
     }
     return written;

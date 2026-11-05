@@ -4,6 +4,7 @@ import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.profiles.RouteProfileDefinition;
 import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.Http;
 import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.LoadBalancer;
+import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.Observability;
 import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.Router;
 import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.Server;
 import dev.palazon.lvhyard.dashboard.services.Alias;
@@ -32,8 +33,9 @@ final class RouteBuilder {
     Map<String, Router> routers = new LinkedHashMap<>();
     Map<String, TraefikConfiguration.Service> backends = new LinkedHashMap<>();
     Map<String, Map<String, Object>> middlewares = new LinkedHashMap<>();
-    // An Alias's Route applies the middlewares of its Remote Service's Route.
+    // An Alias's Route applies the middlewares and the access log of its Remote Service's Route.
     Map<String, List<String>> applied = new LinkedHashMap<>();
+    Map<String, Boolean> logged = new LinkedHashMap<>();
     services.stream()
         .filter(Service::routed)
         .forEach(service -> {
@@ -43,7 +45,8 @@ final class RouteBuilder {
                   .toList();
           String name = name(workstation, service);
           applied.put(name, profiles(service, middlewares));
-          routers.put(name, router(service.hostname(), name, applied.get(name)));
+          logged.put(name, service.publication().accessLog());
+          routers.put(name, router(service.hostname(), name, applied.get(name), logged.get(name)));
           backends.put(name, new TraefikConfiguration.Service(new LoadBalancer(servers)));
         });
     aliases.stream()
@@ -52,7 +55,8 @@ final class RouteBuilder {
           String target = name(workstation, alias.workstation(), alias.service());
           if (backends.containsKey(target)) {
             routers.put(
-                ALIAS_PREFIX + alias.name(), router(alias.hostname(), target, applied.get(target)));
+                ALIAS_PREFIX + alias.name(),
+                router(alias.hostname(), target, applied.get(target), logged.get(target)));
           }
         });
     return new TraefikConfiguration(new Http(routers, backends, middlewares));
@@ -108,7 +112,13 @@ final class RouteBuilder {
     return workstation.is(home) ? service : service + "." + home;
   }
 
-  private static Router router(String hostname, String name, List<String> middlewares) {
-    return new Router("Host(`" + hostname + "`)", List.of(HTTP_ENTRY_POINT), name, middlewares);
+  private static Router router(
+      String hostname, String name, List<String> middlewares, boolean accessLog) {
+    return new Router(
+        "Host(`" + hostname + "`)",
+        List.of(HTTP_ENTRY_POINT),
+        name,
+        middlewares,
+        accessLog ? null : new Observability(false));
   }
 }

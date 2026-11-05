@@ -132,6 +132,29 @@ class ServicePageTest extends DashboardTest {
   }
 
   @Test
+  void accessLogCanBeTurnedOnAndOff() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+    publish(web);
+    String page = "/services/ws-test/" + web;
+    assertThat(getPage(page).getBody())
+        .contains("Show in the access log")
+        .doesNotContain("Access log: on.");
+
+    ResponseEntity<String> response = postForm(page + "/publish", Map.of("accessLog", "true"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    assertThat(getPage(page).getBody())
+        .contains("Hide from the access log")
+        .contains("Access log: on.");
+
+    postForm(page + "/publish", Map.of("accessLog", "false"));
+
+    assertThat(get(servicePath(web)).getBody().get("publication").get("accessLog").asBoolean())
+        .isFalse();
+  }
+
+  @Test
   void instancePriorityIsEditedByMovingAKindUpOrDownOrRemovingIt() {
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));

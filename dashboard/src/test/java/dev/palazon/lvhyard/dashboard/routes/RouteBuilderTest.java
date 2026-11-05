@@ -6,7 +6,10 @@ import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.profiles.RouteProfileDefinition;
 import dev.palazon.lvhyard.dashboard.services.Health;
 import dev.palazon.lvhyard.dashboard.services.Instance;
+import dev.palazon.lvhyard.dashboard.services.InstanceKind;
+import dev.palazon.lvhyard.dashboard.services.Publication;
 import dev.palazon.lvhyard.dashboard.services.Routing;
+import dev.palazon.lvhyard.dashboard.services.Scope;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import dev.palazon.lvhyard.dashboard.services.ServiceState;
 import java.util.List;
@@ -54,7 +57,7 @@ class RouteBuilderTest {
         workstation,
         name,
         ServiceState.HEALTHY,
-        null,
+        new Publication(Scope.YARD, InstanceKind.DEFAULT_PRIORITY, List.of(profile), true),
         name + "." + workstation + ".lvh.me",
         List.of(instance),
         List.of(),

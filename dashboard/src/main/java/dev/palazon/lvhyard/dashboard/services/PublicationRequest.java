@@ -13,6 +13,8 @@ import java.util.List;
  *     a new Publication gets static, bound, alias and an existing one keeps its order.
  * @param profiles names of this Workstation's Route Profiles, in the order the Route applies them.
  *     Empty removes them all. When left out, a Publication keeps its own.
+ * @param accessLog true makes Traefik log the requests to its Route. When left out, a new
+ *     Publication does not log them and an existing one keeps its own.
  */
 public record PublicationRequest(
     Scope scope,
@@ -25,8 +27,13 @@ public record PublicationRequest(
                         "Names of this Workstation's Route Profiles, in the order the Route applies"
                             + " them. Empty removes them all. When left out, a Publication keeps"
                             + " its own."))
-        List<String> profiles) {
+        List<String> profiles,
+    @Schema(
+            description =
+                "true makes Traefik log the requests to its Route. When left out, a new"
+                    + " Publication does not log them and an existing one keeps its own.")
+        Boolean accessLog) {
 
   /** Changes nothing: a new Publication gets the defaults, and an existing one keeps its own. */
-  public static final PublicationRequest KEEP_ALL = new PublicationRequest(null, null, null);
+  public static final PublicationRequest KEEP_ALL = new PublicationRequest(null, null, null, null);
 }

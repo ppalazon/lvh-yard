@@ -14,10 +14,14 @@ import picocli.CommandLine.Spec;
 @Command(
     name = "publish",
     mixinStandardHelpOptions = true,
-    description = "Publishes a Service, or changes its Scope, Instance Priority or Route Profiles.")
+    description =
+        "Publishes a Service, or changes its Scope, Instance Priority, Route Profiles or access"
+            + " log.")
 class Publish implements Runnable {
 
   private static final List<String> SCOPES = List.of("local", "yard");
+
+  private static final List<String> SWITCHES = List.of("on", "off");
 
   @ParentCommand Yard yard;
 
@@ -48,6 +52,15 @@ class Publish implements Runnable {
   @ArgGroup(exclusive = true, multiplicity = "0..1")
   ProfileChoice profiles;
 
+  @Option(
+      names = "--access-log",
+      paramLabel = "<on|off>",
+      description = {
+        "on: Traefik logs each request to the Route. off: it does not.",
+        "Default: off for a new Publication. An existing one keeps its own."
+      })
+  String accessLog;
+
   static class ProfileChoice {
 
     @Option(
@@ -74,10 +87,22 @@ class Publish implements Runnable {
           spec.commandLine(),
           "Invalid value for option '--scope': " + scope + " is not local or yard.");
     }
+    if (accessLog != null && !SWITCHES.contains(accessLog)) {
+      throw new ParameterException(
+          spec.commandLine(),
+          "Invalid value for option '--access-log': " + accessLog + " is not on or off.");
+    }
     List<String> kinds = List.of("off").equals(priority) ? List.of() : priority;
     List<String> chosenProfiles =
         profiles == null ? null : profiles.none ? List.of() : profiles.names;
-    Dashboard.Service published = yard.dashboard().publish(service, scope, kinds, chosenProfiles);
+    Dashboard.Service published =
+        yard.dashboard()
+            .publish(
+                service,
+                scope,
+                kinds,
+                chosenProfiles,
+                accessLog == null ? null : accessLog.equals("on"));
     String chosen = published.publication().scope();
     PrintWriter out = spec.commandLine().getOut();
     out.println(
@@ -103,7 +128,8 @@ class Publish implements Runnable {
             + "."
             + (published.profiles() == null || published.profiles().isEmpty()
                 ? ""
-                : " Route Profiles: " + String.join(", ", published.profiles()) + "."));
+                : " Route Profiles: " + String.join(", ", published.profiles()) + ".")
+            + (published.publication().accessLog() ? " Access log: on." : ""));
     out.flush();
     PrintWriter err = spec.commandLine().getErr();
     published.warnings().forEach(warning -> err.println("Warning: " + warning.message()));

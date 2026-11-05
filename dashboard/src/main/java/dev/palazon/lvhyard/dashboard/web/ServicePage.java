@@ -433,6 +433,23 @@ final class ServicePage {
                 .text(yard ? "Keep on this Workstation" : "Share with the Yard")
                 .__()
                 .__();
+            boolean logged = service.publication().accessLog();
+            buttons
+                .form()
+                .addAttr("method", "post")
+                .addAttr("action", Layout.attr(path(service) + "/publish"))
+                .input()
+                .attrType(EnumTypeInputType.HIDDEN)
+                .attrName("accessLog")
+                .attrValue(String.valueOf(!logged))
+                .__()
+                .button()
+                .attrType(EnumTypeButtonType.SUBMIT)
+                .attrClass("btn")
+                .addAttr("data-variant", "outline")
+                .text(logged ? "Hide from the access log" : "Show in the access log")
+                .__()
+                .__();
           }
         })
         .form()
@@ -780,6 +797,11 @@ final class ServicePage {
         .of(texts -> {
           if (service.routing() != null) {
             texts.p().attrClass("text-muted-foreground").text(routing(service)).__();
+          }
+        })
+        .of(texts -> {
+          if (service.publication().accessLog()) {
+            texts.p().attrClass("text-muted-foreground").text("Access log: on.").__();
           }
         })
         .__();

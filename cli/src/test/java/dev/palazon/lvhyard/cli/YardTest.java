@@ -83,9 +83,9 @@ class YardTest {
         200,
         """
         {"home": {"name": "ws-a", "services": [
-           {"workstation": "ws-a", "name": "api", "state": "unavailable", "publication": {"scope": "local"},
+           {"workstation": "ws-a", "name": "api", "state": "unavailable", "publication": {"scope": "local", "accessLog": false},
             "hostname": "api.lvh.me", "containerBindings": [], "warnings": [], "instances": []},
-           {"workstation": "ws-a", "name": "grafana", "state": "healthy", "publication": {"scope": "local"},
+           {"workstation": "ws-a", "name": "grafana", "state": "healthy", "publication": {"scope": "local", "accessLog": false},
             "hostname": "grafana.lvh.me", "containerBindings": [], "warnings": [], "instances": [
               {"id": "3f2a", "host": "10.1.2.3", "port": 3000, "health": "passing",
                "tags": [], "meta": {}, "checks": [], "outOfRange": false}]},
@@ -98,7 +98,7 @@ class YardTest {
          "remotes": [
            {"name": "ws-b", "unreachable": false, "services": [
              {"workstation": "ws-b", "name": "postgres", "state": "unhealthy",
-              "publication": {"scope": "local"}, "containerBindings": [], "warnings": [], "instances": [
+              "publication": {"scope": "local", "accessLog": false}, "containerBindings": [], "warnings": [], "instances": [
                 {"id": "5e6f", "host": "10.1.2.4", "port": 5432, "health": "critical",
                  "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}]},
            {"name": "ws-c", "unreachable": true, "services": []},
@@ -151,7 +151,7 @@ class YardTest {
         "/api/services?workstation=ws-a",
         200,
         """
-        [{"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "local"},
+        [{"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "local", "accessLog": false},
           "hostname": "web.lvh.me", "containerBindings": [], "warnings": [],
           "priority": ["static", "bound", "alias"],
           "routing": {"kind": "static", "instances": ["1a2b"]},
@@ -180,7 +180,7 @@ class YardTest {
         "/api/services?workstation=ws-b",
         200,
         """
-        [{"workstation": "ws-b", "name": "api", "state": "healthy", "publication": {"scope": "yard"},
+        [{"workstation": "ws-b", "name": "api", "state": "healthy", "publication": {"scope": "yard", "accessLog": false},
           "hostname": "api.ws-b.lvh.me", "containerBindings": [],
            "warnings": [], "instances": [
             {"id": "1a2b", "host": "10.1.2.4", "port": 9090, "health": "passing",
@@ -206,7 +206,7 @@ class YardTest {
         "/api/services?workstation=ws-b",
         200,
         """
-        [{"workstation": "ws-b", "name": "api", "state": "healthy", "publication": {"scope": "yard"},
+        [{"workstation": "ws-b", "name": "api", "state": "healthy", "publication": {"scope": "yard", "accessLog": false},
           "hostname": "api.ws-b.lvh.me", "containerBindings": [], "profiles": ["team-login"],
           "warnings": [{"kind": "unknown-route-profile",
                         "message": "The Route Profile team-login does not exist."}],
@@ -233,17 +233,17 @@ class YardTest {
         200,
         """
         [{"workstation": "ws-b", "name": "consul-ui", "state": "healthy",
-          "publication": {"scope": "local"}, "hostname": "consul-ui.lvh.me", "containerBindings": [],
+          "publication": {"scope": "local", "accessLog": false}, "hostname": "consul-ui.lvh.me", "containerBindings": [],
           "warnings": [], "instances": [
             {"id": "consul-ui", "host": "127.0.0.1", "port": 8500, "health": "passing",
              "tags": [], "meta": {}, "checks": [], "outOfRange": false}]},
          {"workstation": "ws-b", "name": "traefik-admin", "state": "healthy",
-          "publication": {"scope": "local"}, "hostname": "traefik-admin.lvh.me", "containerBindings": [],
+          "publication": {"scope": "local", "accessLog": false}, "hostname": "traefik-admin.lvh.me", "containerBindings": [],
           "warnings": [], "instances": [
             {"id": "traefik-admin", "host": "127.0.0.1", "port": 8080, "health": "passing",
              "tags": [], "meta": {}, "checks": [], "outOfRange": false}]},
          {"workstation": "ws-b", "name": "yard", "state": "healthy",
-          "publication": {"scope": "local"}, "hostname": "yard.lvh.me", "containerBindings": [],
+          "publication": {"scope": "local", "accessLog": false}, "hostname": "yard.lvh.me", "containerBindings": [],
           "warnings": [], "instances": [
             {"id": "yard", "host": "127.0.0.1", "port": 7780, "health": "passing",
              "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}]
@@ -1179,7 +1179,7 @@ class YardTest {
         200,
         """
         {"workstation": "ws-a", "name": "grafana", "state": "healthy",
-         "publication": {"scope": "local"}, "hostname": "grafana.lvh.me",
+         "publication": {"scope": "local", "accessLog": false}, "hostname": "grafana.lvh.me",
          "containerBindings": [], "warnings": [],
          "instances": [{"id": "grafana:grafana:3000", "host": "172.17.0.2", "port": 3000,
                         "health": "passing", "outOfRange": false,
@@ -1237,7 +1237,7 @@ class YardTest {
         200,
         """
         {"workstation": "ws-a", "name": "catalog", "state": "unavailable",
-         "publication": {"scope": "local"}, "hostname": "catalog.lvh.me",
+         "publication": {"scope": "local", "accessLog": false}, "hostname": "catalog.lvh.me",
          "containerBindings": [], "warnings": [], "instances": []}
         """);
 
@@ -1312,7 +1312,7 @@ class YardTest {
         200,
         """
         {"workstation": "ws-a", "name": "web", "state": "healthy",
-         "publication": {"scope": "yard"}, "hostname": "web.lvh.me",
+         "publication": {"scope": "yard", "accessLog": false}, "hostname": "web.lvh.me",
          "containerBindings": [], "warnings": [
             {"kind": "unpublished-container-port",
              "message": "The Bound Instance at 172.17.0.2:80 is on a container port that is not published."}],
@@ -1648,7 +1648,7 @@ class YardTest {
         "/api/workstation/services/web/publication",
         200,
         """
-        {"workstation": "ws-a", "name": "web", "state": "unhealthy", "publication": {"scope": "local"},
+        {"workstation": "ws-a", "name": "web", "state": "unhealthy", "publication": {"scope": "local", "accessLog": false},
          "hostname": "web.lvh.me", "containerBindings": [], "warnings": [], "instances": [
             {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical",
              "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}
@@ -1669,7 +1669,7 @@ class YardTest {
         "/api/workstation/services/web/publication",
         200,
         """
-        {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "yard"},
+        {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "yard", "accessLog": false},
          "hostname": "web.lvh.me", "containerBindings": [],
           "warnings": [], "instances": [
             {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "passing",
@@ -1698,7 +1698,7 @@ class YardTest {
         "/api/workstation/services/web/publication",
         200,
         """
-        {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "local"},
+        {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "local", "accessLog": false},
          "hostname": "web.lvh.me", "containerBindings": [], "warnings": [],
          "priority": ["bound", "static"], "instances": []}
         """);
@@ -1721,7 +1721,7 @@ class YardTest {
         "/api/workstation/services/web/publication",
         200,
         """
-        {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "local"},
+        {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "local", "accessLog": false},
          "hostname": "web.lvh.me", "containerBindings": [], "warnings": [],
          "priority": [], "instances": []}
         """);
@@ -1746,7 +1746,7 @@ class YardTest {
         200,
         """
         {"workstation": "ws-a", "name": "admin", "state": "healthy",
-         "publication": {"scope": "local"}, "hostname": "admin.lvh.me", "containerBindings": [],
+         "publication": {"scope": "local", "accessLog": false}, "hostname": "admin.lvh.me", "containerBindings": [],
          "profiles": ["basic-auth", "cors"],
          "warnings": [
             {"kind": "route-profile-auth",
@@ -1777,7 +1777,7 @@ class YardTest {
         200,
         """
         {"workstation": "ws-a", "name": "admin", "state": "healthy",
-         "publication": {"scope": "local"}, "hostname": "admin.lvh.me", "containerBindings": [],
+         "publication": {"scope": "local", "accessLog": false}, "hostname": "admin.lvh.me", "containerBindings": [],
          "warnings": [], "instances": []}
         """);
 
@@ -1832,7 +1832,7 @@ class YardTest {
         "/api/workstation/services/web/publication",
         200,
         """
-        {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "yard"},
+        {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "yard", "accessLog": false},
          "hostname": "web.lvh.me", "containerBindings": [], "warnings": [
             {"kind": "loopback-instance",
              "message": "The Instance at 127.0.0.1:8080 is on a loopback address."}],
@@ -1846,6 +1846,37 @@ class YardTest {
     assertThat(run.exitCode()).isZero();
     assertThat(run.err())
         .isEqualTo("Warning: The Instance at 127.0.0.1:8080 is on a loopback address.\n");
+  }
+
+  @Test
+  void publishWithAccessLogOnSendsTrueAndSaysSo() {
+    dashboard.answer(
+        "PUT",
+        "/api/workstation/services/web/publication",
+        200,
+        """
+        {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "local", "accessLog": true},
+         "hostname": "web.lvh.me", "containerBindings": [], "warnings": [], "instances": []}
+        """);
+
+    Run run = yard("publish", "web", "--access-log", "on");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).contains("Access log: on.");
+    dashboard.verifyCalled(
+        "PUT",
+        "/api/workstation/services/web/publication",
+        """
+        {"accessLog": true}
+        """);
+  }
+
+  @Test
+  void publishRefusesAnUnknownAccessLogValue() {
+    Run run = yard("publish", "web", "--access-log", "maybe");
+
+    assertThat(run.exitCode()).isEqualTo(CommandLine.ExitCode.USAGE);
+    assertThat(run.err()).contains("on or off");
   }
 
   @Test
