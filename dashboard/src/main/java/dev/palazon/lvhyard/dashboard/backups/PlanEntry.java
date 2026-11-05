@@ -24,6 +24,10 @@ public record PlanEntry(
     return new PlanEntry(kind, name, service, Action.ADD, null);
   }
 
+  static PlanEntry update(Kind kind, String name, String service) {
+    return new PlanEntry(kind, name, service, Action.UPDATE, null);
+  }
+
   static PlanEntry skip(Kind kind, String name, String service, String reason) {
     return new PlanEntry(kind, name, service, Action.SKIP, reason);
   }
@@ -45,6 +49,7 @@ public record PlanEntry(
 
   public enum Action {
     ADD,
+    UPDATE,
     SKIP;
 
     @JsonValue

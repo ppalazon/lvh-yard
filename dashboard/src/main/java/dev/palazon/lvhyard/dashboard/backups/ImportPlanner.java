@@ -8,6 +8,7 @@ import dev.palazon.lvhyard.dashboard.backups.Backup.Service;
 import dev.palazon.lvhyard.dashboard.backups.Backup.StaticInstance;
 import dev.palazon.lvhyard.dashboard.backups.Backup.Unpublished;
 import dev.palazon.lvhyard.dashboard.backups.ImportPlan.Step;
+import dev.palazon.lvhyard.dashboard.backups.PlanEntry.Action;
 import dev.palazon.lvhyard.dashboard.backups.PlanEntry.Kind;
 import dev.palazon.lvhyard.dashboard.consul.Consul;
 import dev.palazon.lvhyard.dashboard.profiles.RouteProfileChecks;
@@ -149,43 +150,42 @@ class ImportPlanner {
     }
 
     private void routeProfiles() {
-      Map<String, Map<String, Object>> added = new LinkedHashMap<>();
-      List<PlanEntry> addEntries = new ArrayList<>();
+      Map<String, Map<String, Object>> saved = new LinkedHashMap<>();
+      List<PlanEntry> savedEntries = new ArrayList<>();
       backup
           .routeProfiles()
           .forEach((name, middleware) -> {
             RouteProfileDefinition stored = storedProfiles.get(name);
-            if (stored != null) {
-              entries.add(
-                  PlanEntry.skip(
-                      Kind.ROUTE_PROFILE,
-                      name,
-                      null,
-                      stored.own().equals(middleware) ? SAME : EXISTS));
-            } else {
-              PlanEntry entry = PlanEntry.add(Kind.ROUTE_PROFILE, name, null);
-              entries.add(entry);
-              addEntries.add(entry);
-              added.put(name, middleware);
+            PlanEntry entry =
+                entry(
+                    Kind.ROUTE_PROFILE,
+                    name,
+                    null,
+                    stored != null,
+                    stored != null && stored.own().equals(middleware));
+            entries.add(entry);
+            if (entry.action() != Action.SKIP) {
+              savedEntries.add(entry);
+              saved.put(name, middleware);
             }
           });
-      if (added.isEmpty()) {
+      if (saved.isEmpty()) {
         return;
       }
       routeProfileChecks
-          .check(added, storedProfiles)
+          .check(saved, storedProfiles)
           .problems()
           .forEach(problem -> problem("route-profiles." + problem.profile(), problem.reason()));
-      if (added.size() > Consul.TRANSACTION_SIZE) {
+      if (saved.size() > Consul.TRANSACTION_SIZE) {
         problem(
             "route-profiles",
-            "The file adds "
-                + added.size()
-                + " Route Profiles, but one import adds at most "
+            "The file adds or changes "
+                + saved.size()
+                + " Route Profiles, but one import adds or changes at most "
                 + Consul.TRANSACTION_SIZE
                 + ".");
       }
-      profileSteps.add(new Step(addEntries, () -> routeProfileEditor.save(added)));
+      profileSteps.add(new Step(savedEntries, () -> routeProfileEditor.save(saved)));
     }
 
     private void service(String name, Service service) {
@@ -270,21 +270,17 @@ class ImportPlanner {
                           && candidate.port() == checked.port())
                   .findFirst()
                   .orElse(null);
-      if (match != null) {
-        entries.add(
-            PlanEntry.skip(
-                Kind.STATIC_INSTANCE,
-                address,
-                service,
-                Objects.equals(match.check(), checked.check())
-                        && match.tags().equals(checked.tags())
-                        && match.meta().equals(checked.meta())
-                    ? SAME
-                    : EXISTS));
+      boolean same =
+          match != null
+              && Objects.equals(match.check(), checked.check())
+              && match.tags().equals(checked.tags())
+              && match.meta().equals(checked.meta());
+      PlanEntry entry = entry(Kind.STATIC_INSTANCE, address, service, match != null, same);
+      entries.add(entry);
+      if (entry.action() == Action.SKIP) {
         return;
       }
-      PlanEntry entry = PlanEntry.add(Kind.STATIC_INSTANCE, address, service);
-      entries.add(entry);
+      // The same host and port keep the Instance's ID, so this also overwrites a match.
       instanceSteps.add(
           new Step(
               List.of(entry), () -> registrations.register(workstation.name(), service, checked)));
@@ -363,14 +359,21 @@ class ImportPlanner {
       Backup.Publication now = existing == null ? new Unpublished() : existing.publication();
       switch (publication) {
         case null -> {}
-        case Unpublished unpublished ->
-            entries.add(
-                PlanEntry.skip(
-                    Kind.PUBLICATION,
-                    service,
-                    null,
-                    now instanceof Unpublished ? "It is Unpublished already." : EXISTS));
+        case Unpublished unpublished -> unpublished(service, now);
         case Published published -> published(service, published, now, place);
+      }
+    }
+
+    private void unpublished(String service, Backup.Publication now) {
+      if (now instanceof Unpublished) {
+        entries.add(PlanEntry.skip(Kind.PUBLICATION, service, null, "It is Unpublished already."));
+        return;
+      }
+      PlanEntry entry = entry(Kind.PUBLICATION, service, null, true, false);
+      entries.add(entry);
+      if (entry.action() == Action.UPDATE) {
+        publicationSteps.add(
+            new Step(List.of(entry), () -> publications.unpublish(workstation.name(), service)));
       }
     }
 
@@ -405,16 +408,15 @@ class ImportPlanner {
                   + " is not in the file, and this Workstation does not have it.");
         }
       }
-      if (now instanceof Published) {
-        Published wanted =
-            new Published(
-                scope == null ? null : scope.value(), priority, published.routeProfiles());
-        entries.add(
-            PlanEntry.skip(Kind.PUBLICATION, service, null, now.equals(wanted) ? SAME : EXISTS));
+      Published wanted =
+          new Published(scope == null ? null : scope.value(), priority, published.routeProfiles());
+      PlanEntry entry =
+          entry(Kind.PUBLICATION, service, null, now instanceof Published, now.equals(wanted));
+      entries.add(entry);
+      if (entry.action() == Action.SKIP) {
         return;
       }
-      PlanEntry entry = PlanEntry.add(Kind.PUBLICATION, service, null);
-      entries.add(entry);
+      // All three parts are set, so an overwrite keeps nothing of the Publication it replaces.
       PublicationRequest request =
           new PublicationRequest(scope, priority, published.routeProfiles());
       publicationSteps.add(
@@ -439,10 +441,12 @@ class ImportPlanner {
         return;
       }
       Alias now = current.aliases().get(name);
-      if (now != null) {
-        entries.add(PlanEntry.skip(Kind.ALIAS, name, null, now.equals(alias) ? SAME : EXISTS));
+      PlanEntry entry = entry(Kind.ALIAS, name, null, now != null, alias.equals(now));
+      if (entry.action() == Action.SKIP) {
+        entries.add(entry);
         return;
       }
+      // An overwrite points the Alias somewhere new, so its target is looked up as for an add.
       try {
         if (yard.service(alias.workstation(), alias.service()).isEmpty()) {
           problem(
@@ -454,10 +458,25 @@ class ImportPlanner {
         problem(place + ".workstation", e.getMessage());
         return;
       }
-      PlanEntry entry = PlanEntry.add(Kind.ALIAS, name, null);
       entries.add(entry);
       aliasSteps.add(
           new Step(List.of(entry), () -> aliases.add(name, alias.workstation(), alias.service())));
+    }
+
+    /**
+     * Add when nothing matches. A match is a skip when it is the same, or in add mode, and else an
+     * update.
+     */
+    private PlanEntry entry(Kind kind, String name, String service, boolean matches, boolean same) {
+      if (!matches) {
+        return PlanEntry.add(kind, name, service);
+      }
+      if (same) {
+        return PlanEntry.skip(kind, name, service, SAME);
+      }
+      return mode == ImportMode.UPDATE
+          ? PlanEntry.update(kind, name, service)
+          : PlanEntry.skip(kind, name, service, EXISTS);
     }
 
     private void problem(String place, String reason) {

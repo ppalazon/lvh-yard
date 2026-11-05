@@ -7,7 +7,10 @@ import java.util.Arrays;
 public enum ImportMode {
 
   /** It skips the match. */
-  ADD;
+  ADD,
+
+  /** It overwrites the match with the values of the file. */
+  UPDATE;
 
   /**
    * @throws UnknownImportModeException when no mode has this value

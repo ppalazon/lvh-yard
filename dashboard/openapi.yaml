@@ -248,13 +248,16 @@ paths:
       tags:
       - backup-controller
     post:
-      description: "Mode add adds what is new and skips what exists. The dashboard\
+      description: "Mode add adds what is new and skips what exists. Mode update also\
+        \ overwrites what exists with the values of the file. publication: none unpublishes\
+        \ a Service, and a missing publication key keeps its Publication. The dashboard\
         \ checks the whole file first. If one entry is wrong, nothing changes. A Static\
         \ Instance without a host is at this Workstation's LAN address. A new Service\
         \ without a publication key stays Unpublished."
       operationId: importBackup
       parameters:
-      - description: "add: adds what is new and skips what exists."
+      - description: "add: adds what is new and skips what exists. update: also overwrites\
+          \ what exists."
         in: query
         name: mode
         required: true
@@ -1003,6 +1006,7 @@ components:
           type: string
           enum:
           - add
+          - update
         safetyBackup:
           type: string
           description: "The safety Backup in the Backups folder, with the setup from\
@@ -1082,6 +1086,7 @@ components:
           type: string
           enum:
           - add
+          - update
           - skip
         kind:
           type: string

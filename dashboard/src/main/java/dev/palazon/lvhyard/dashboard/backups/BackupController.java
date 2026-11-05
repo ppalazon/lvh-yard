@@ -47,10 +47,12 @@ class BackupController {
       operationId = "importBackup",
       summary = "Imports a Backup into this Workstation",
       description =
-          "Mode add adds what is new and skips what exists. The dashboard checks the whole file"
-              + " first. If one entry is wrong, nothing changes. A Static Instance without a host"
-              + " is at this Workstation's LAN address. A new Service without a publication key"
-              + " stays Unpublished.")
+          "Mode add adds what is new and skips what exists. Mode update also overwrites what exists"
+              + " with the values of the file. publication: none unpublishes a Service, and a"
+              + " missing publication key keeps its Publication. The dashboard checks the whole"
+              + " file first. If one entry is wrong, nothing changes. A Static Instance without a"
+              + " host is at this Workstation's LAN address. A new Service without a publication"
+              + " key stays Unpublished.")
   @ApiResponse(
       responseCode = "200",
       description = "The plan, and without a dry run what the import did",
@@ -71,7 +73,11 @@ class BackupController {
               content = @Content(mediaType = YAML, schema = @Schema(type = "string")))
           @RequestBody
           String backup,
-      @Parameter(description = "add: adds what is new and skips what exists.") @RequestParam
+      @Parameter(
+              description =
+                  "add: adds what is new and skips what exists. update: also overwrites what"
+                      + " exists.")
+          @RequestParam
           String mode,
       @Parameter(description = "true shows the plan and changes nothing.")
           @RequestParam(name = "dry-run", defaultValue = "false")
