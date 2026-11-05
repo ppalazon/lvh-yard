@@ -576,6 +576,21 @@ keep in mind". Click it to read them. The page refreshes every 5 seconds, and
 the box stays open or closed as you left it. If you leave the page, the box is
 closed again on your next visit. A Service without risks has no box.
 
+Under the alerts, a row of cards shows the Service at a glance:
+
+- State: Healthy, Unhealthy, Unavailable or Unpublished.
+- Publication: the hostname, the Scope and the access log, or "Not published".
+- Passing Instances: the Instances that pass their checks, out of all
+  Instances, for example "1 of 2".
+- Routes to: the Instance kind that the Route uses now. See
+  [Instance Priority](#instance-priority).
+
+Under them are the Publication, Instance Priority and Route Profiles cards.
+Each card holds the buttons that change it. On a wide screen they sit in two
+columns, and on a phone in one. Then come the Instances table, the Container
+Bindings and the Reachability test, at full width. The page of a Remote Service
+shows the same cards and alerts, without the buttons that change it.
+
 ### Instance Priority
 
 A Route prefers some Instances over others, by their kind. A Static Instance
@@ -631,9 +646,10 @@ takes the order as `priority` in the body of
 `PUT /api/workstation/services/{service}/publication`. An empty `priority`,
 `[]`, turns it off.
 
-The page of the Service shows the kind in use, for example
-`Routing to: Static (Bound waiting)`. While the Instance Priority is off, it
-shows `Routing to: every passing Instance (Instance Priority off)`.
+The "Routes to" card of the Service page shows the kind in use, for example
+"Static", and the kinds that wait, for example "Bound waiting". While the
+Instance Priority is off, it shows "Every passing Instance" and "Instance
+Priority off".
 `lvh-yard list` marks each Instance that the Route uses with `routed`. The API shows the order in `priority` and the
 Instances in use in `routing`. While the Instance Priority is off, `routing`
 has `"off": true`.

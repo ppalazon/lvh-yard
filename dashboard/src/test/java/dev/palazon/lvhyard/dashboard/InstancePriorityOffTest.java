@@ -22,8 +22,9 @@ class InstancePriorityOffTest extends InstancePriorityTestSupport {
     JsonNode routing = get(servicePath(web)).getBody().get("routing");
     assertThat(routing.has("kind")).isFalse();
     assertThat(routing.get("off").asBoolean()).isTrue();
-    assertThat(getPage("/services/ws-test/" + web).getBody())
-        .contains("Routing to: every passing Instance (Instance Priority off)");
+    assertThat(summaryCard(getPage("/services/ws-test/" + web).getBody(), "routing"))
+        .contains("Every passing Instance")
+        .contains("Instance Priority off");
 
     stopListeningOnLanAddress(port(terminal));
 
@@ -42,7 +43,8 @@ class InstancePriorityOffTest extends InstancePriorityTestSupport {
     put(publicationPath(web), Map.of("priority", List.of()));
 
     awaitRoutedTo(web, lanAddress() + ":" + first, lanAddress() + ":" + second);
-    assertThat(getPage("/services/ws-test/" + web).getBody())
-        .contains("Routing to: every Instance, as none is passing.");
+    assertThat(summaryCard(getPage("/services/ws-test/" + web).getBody(), "routing"))
+        .contains("Every Instance, as none is passing")
+        .contains("Instance Priority off");
   }
 }

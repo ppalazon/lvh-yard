@@ -33,7 +33,8 @@ class InstancePriorityAliasTest extends InstancePriorityTestSupport {
     awaitRoutedTo(web, TEAMMATE);
     JsonNode routing = get(servicePath(web)).getBody().get("routing");
     assertThat(routing.get("kind").asString()).isEqualTo("alias");
-    assertThat(getPage("/services/ws-test/" + web).getBody()).contains("Routing to: Alias");
+    assertThat(summaryCard(getPage("/services/ws-test/" + web).getBody(), "routing"))
+        .contains("Alias");
 
     listenOnLanAddress(port);
 

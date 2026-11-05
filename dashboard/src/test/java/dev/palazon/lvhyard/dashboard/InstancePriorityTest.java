@@ -63,8 +63,8 @@ class InstancePriorityTest extends InstancePriorityTestSupport {
     assertThat(routing.has("kind")).isFalse();
     assertThat(routing.has("off")).isFalse();
     assertThat(routing.get("instances")).hasSize(2);
-    assertThat(getPage("/services/ws-test/" + web).getBody())
-        .contains("Routing to: every Instance, as none is passing");
+    assertThat(summaryCard(getPage("/services/ws-test/" + web).getBody(), "routing"))
+        .contains("Every Instance, as none is passing");
   }
 
   @Test
@@ -91,8 +91,9 @@ class InstancePriorityTest extends InstancePriorityTestSupport {
           assertThat(texts(service.get("priority"))).containsExactly("static", "bound", "alias");
           assertThat(service.get("routing").path("kind").asString()).isEqualTo("static");
           assertThat(texts(service.get("routing").get("instances"))).containsExactly(terminal);
-          assertThat(getPage("/services/ws-test/" + web).getBody())
-              .contains("Routing to: Static (Bound waiting)");
+          assertThat(summaryCard(getPage("/services/ws-test/" + web).getBody(), "routing"))
+              .contains("Static")
+              .contains("Bound waiting");
         });
   }
 

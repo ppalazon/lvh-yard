@@ -5,8 +5,10 @@ import dev.palazon.lvhyard.dashboard.reachability.InstanceReachability;
 import dev.palazon.lvhyard.dashboard.reachability.Reachability;
 import dev.palazon.lvhyard.dashboard.reachability.RouteReachability;
 import dev.palazon.lvhyard.dashboard.services.ContainerBinding;
+import dev.palazon.lvhyard.dashboard.services.Health;
 import dev.palazon.lvhyard.dashboard.services.Instance;
 import dev.palazon.lvhyard.dashboard.services.InstanceKind;
+import dev.palazon.lvhyard.dashboard.services.Routing;
 import dev.palazon.lvhyard.dashboard.services.Scope;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import dev.palazon.lvhyard.dashboard.services.ServiceState;
@@ -14,11 +16,11 @@ import dev.palazon.lvhyard.dashboard.services.ServiceWarning;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
 import org.xmlet.htmlapifaster.EnumTypeInputType;
-import org.xmlet.htmlapifaster.Main;
 import org.xmlet.htmlapifaster.Td;
 import org.xmlet.htmlapifaster.Tr;
 
@@ -27,6 +29,9 @@ import org.xmlet.htmlapifaster.Tr;
  * refreshes itself, so a refresh neither runs the test again nor drops its results.
  */
 final class ServicePage {
+
+  /** A section card. Sections and tables share it, so they line up. */
+  private static final String CARD = "card flex flex-col gap-3 p-4";
 
   private ServicePage() {}
 
@@ -94,25 +99,41 @@ final class ServicePage {
                                                 + "."))
                                 .__()
                                 .of(content -> alerts(content, service))
+                                .of(content -> summary(content, service))
                                 .div()
-                                .attrClass("flex flex-wrap items-center justify-between gap-4")
-                                .of(div -> publication(div, workstation, service, own))
-                                .of(div -> {
+                                .attrId("sections")
+                                .attrClass("grid grid-cols-1 items-start gap-4 lg:grid-cols-2")
+                                .div()
+                                .attrClass(CARD)
+                                .h2()
+                                .attrClass("text-lg font-semibold")
+                                .text("Publication")
+                                .__()
+                                .of(card -> publication(card, workstation, service, own))
+                                .of(card -> {
                                   if (own) {
-                                    publicationForms(div, service);
+                                    publicationForms(card, service);
                                   }
                                 })
                                 .__()
-                                .of(content -> {
+                                .of(grid -> {
                                   if (own && service.published()) {
-                                    instancePriority(content, service);
+                                    instancePriority(grid, service);
                                   }
                                 })
-                                .of(content -> {
+                                .of(grid -> {
                                   if (own ? service.published() : !service.profiles().isEmpty()) {
-                                    routeProfiles(content, service, own, profileNames);
+                                    routeProfiles(grid, service, own, profileNames);
                                   }
                                 })
+                                .__()
+                                .div()
+                                .attrId("instances")
+                                .attrClass(CARD)
+                                .h2()
+                                .attrClass("text-lg font-semibold")
+                                .text("Instances")
+                                .__()
                                 .div()
                                 .attrClass("table-container")
                                 .table()
@@ -170,16 +191,21 @@ final class ServicePage {
                                 .__()
                                 .__()
                                 .__()
+                                .__()
                                 .of(content -> {
                                   if (!service.containerBindings().isEmpty()) {
                                     containerBindings(content, service, own);
                                   }
                                 })))
-                .of(content -> reachability(content, workstation, service, reachability)));
+                .div()
+                .attrId("reachability")
+                .attrClass(CARD)
+                .of(card -> reachability(card, workstation, service, reachability))
+                .__());
   }
 
   private static void reachability(
-      Main<?> content, Workstation workstation, Service service, Reachability reachability) {
+      Div<?> content, Workstation workstation, Service service, Reachability reachability) {
     content
         .div()
         .attrClass("flex flex-wrap items-center justify-between gap-4")
@@ -324,6 +350,9 @@ final class ServicePage {
 
   private static void containerBindings(Div<?> content, Service service, boolean own) {
     content
+        .div()
+        .attrId("container-bindings")
+        .attrClass(CARD)
         .h2()
         .attrClass("text-lg font-semibold")
         .text("Container Bindings")
@@ -401,6 +430,7 @@ final class ServicePage {
                         .__()))
         .__()
         .__()
+        .__()
         .__();
   }
 
@@ -471,7 +501,7 @@ final class ServicePage {
     if (order.isEmpty()) {
       content
           .div()
-          .attrClass("flex flex-col gap-2")
+          .attrClass(CARD)
           .h2()
           .attrClass("text-lg font-semibold")
           .text("Instance Priority")
@@ -491,7 +521,7 @@ final class ServicePage {
     }
     content
         .div()
-        .attrClass("flex flex-col gap-2")
+        .attrClass(CARD)
         .h2()
         .attrClass("text-lg font-semibold")
         .text("Instance Priority")
@@ -595,7 +625,7 @@ final class ServicePage {
     List<String> addable = profileNames.stream().filter(name -> !chosen.contains(name)).toList();
     content
         .div()
-        .attrClass("flex flex-col gap-2")
+        .attrClass(CARD)
         .h2()
         .attrClass("text-lg font-semibold")
         .text("Route Profiles")
@@ -816,37 +846,104 @@ final class ServicePage {
     } else {
       routedBy = ".";
     }
-    div.div()
-        .p()
+    div.p()
         .text("Published at ")
         .of(p -> ServiceViews.hostname(p, service))
         .text(", with " + scopeLabel(service) + " Scope" + routedBy)
-        .__()
-        .of(texts -> {
-          if (service.routing() != null) {
-            texts.p().attrClass("text-muted-foreground").text(routing(service)).__();
-          }
-        })
-        .of(texts -> {
-          if (service.publication().accessLog()) {
-            texts.p().attrClass("text-muted-foreground").text("Access log: on.").__();
-          }
-        })
         .__();
   }
 
-  /** Such as {@code Routing to: Static (Bound waiting)}. */
-  private static String routing(Service service) {
-    if (service.routing().offWithPassingInstances()) {
-      return "Routing to: every passing Instance (Instance Priority off)";
+  /** The row of cards that gives the state of the Service at a glance. */
+  private static void summary(Div<?> content, Service service) {
+    long passing =
+        service.instances().stream()
+            .filter(instance -> instance.health() == Health.PASSING)
+            .count();
+    content
+        .div()
+        .attrClass("grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4")
+        .of(grid ->
+            summaryCard(grid, "state", "State", card -> ServiceViews.state(card, service.state())))
+        .of(grid ->
+            summaryCard(
+                grid, "publication", "Publication", card -> publicationSummary(card, service)))
+        .of(grid ->
+            summaryCard(
+                grid,
+                "passing",
+                "Passing Instances",
+                card ->
+                    card.p()
+                        .attrClass("text-2xl font-semibold")
+                        .text(passing + " of " + service.instances().size())
+                        .__()))
+        .of(grid ->
+            summaryCard(grid, "routing", "Routes to", card -> routingSummary(card, service)))
+        .__();
+  }
+
+  private static void summaryCard(Div<?> grid, String name, String label, Consumer<Div<?>> body) {
+    grid.div()
+        .attrClass("card flex flex-col items-start gap-1 p-4")
+        .addAttr("data-summary", name)
+        .p()
+        .attrClass("text-sm text-muted-foreground")
+        .text(label)
+        .__()
+        .of(card -> body.accept(card))
+        .__();
+  }
+
+  private static void publicationSummary(Div<?> card, Service service) {
+    if (!service.published()) {
+      card.p().attrClass("font-semibold").text("Not published").__();
+      return;
     }
-    if (service.routing().kind() == null) {
-      return "Routing to: every Instance, as none is passing.";
+    if (service.hostname() != null) {
+      card.p().attrClass("font-semibold").of(p -> ServiceViews.hostname(p, service)).__();
     }
+    card.p()
+        .text(scopeLabel(service) + " Scope")
+        .__()
+        .p()
+        .attrClass("text-muted-foreground")
+        .text("Access log: " + (service.publication().accessLog() ? "on" : "off"))
+        .__();
+  }
+
+  /** The kind that wins under the Instance Priority, such as Static, with the kinds waiting. */
+  private static void routingSummary(Div<?> card, Service service) {
+    Routing routing = service.routing();
+    if (routing == null) {
+      String why;
+      if (!service.published()) {
+        why = "Not published";
+      } else if (service.hostname() == null) {
+        why = "No Route on this Workstation";
+      } else {
+        why = "No Instance in range";
+      }
+      card.p().attrClass("font-semibold").text(why).__();
+      return;
+    }
+    String routed;
+    if (routing.offWithPassingInstances()) {
+      routed = "Every passing Instance";
+    } else if (routing.kind() == null) {
+      routed = "Every Instance, as none is passing";
+    } else {
+      routed = kindLabel(routing.kind());
+    }
+    card.p().attrClass("font-semibold").text(routed).__();
     List<String> waiting = service.waitingKinds().stream().map(ServicePage::kindLabel).toList();
-    return "Routing to: "
-        + kindLabel(service.routing().kind())
-        + (waiting.isEmpty() ? "" : " (" + String.join(", ", waiting) + " waiting)");
+    if (routing.off()) {
+      card.p().attrClass("text-muted-foreground").text("Instance Priority off").__();
+    } else if (!waiting.isEmpty()) {
+      card.p()
+          .attrClass("text-muted-foreground")
+          .text(String.join(", ", waiting) + " waiting")
+          .__();
+    }
   }
 
   private static String kindLabel(InstanceKind kind) {

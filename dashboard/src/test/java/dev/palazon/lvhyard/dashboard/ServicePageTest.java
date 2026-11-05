@@ -31,6 +31,96 @@ class ServicePageTest extends DashboardTest {
   }
 
   @Test
+  void summaryCardsShowTheStateThePublicationThePassingCountAndTheRoutingKind() {
+    String web = newServiceName("web");
+    int port = newLanPort();
+    listenOnLanAddress(port);
+    register(web, Map.of("port", port, "check", Map.of("interval", "1s")));
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+    publish(web);
+    String page = "/services/ws-test/" + web;
+
+    await()
+        .atMost(Duration.ofSeconds(10))
+        .untilAsserted(
+            () -> assertThat(summaryCard(getPage(page).getBody(), "passing")).contains("1 of 2"));
+    String body = getPage(page).getBody();
+    assertThat(summaryCard(body, "state")).contains(badge("success", "Healthy"));
+    assertThat(summaryCard(body, "publication"))
+        .contains("href=\"http://" + web + ".lvh.test\"")
+        .contains("Local Scope")
+        .contains("Access log: off");
+    assertThat(summaryCard(body, "routing")).contains("Static").doesNotContain("waiting");
+  }
+
+  @Test
+  void unpublishedServiceSaysSoInItsSummaryCards() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+
+    String body = getPage("/services/ws-test/" + web).getBody();
+
+    assertThat(summaryCard(body, "state")).contains("Unpublished");
+    assertThat(summaryCard(body, "publication")).contains("Not published").doesNotContain("Scope");
+    assertThat(summaryCard(body, "passing")).contains("0 of 1");
+    assertThat(summaryCard(body, "routing")).contains("Not published");
+  }
+
+  @Test
+  void routingCardSaysWhenTheInstancePriorityIsOff() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+    put(publicationPath(web), Map.of("priority", List.of()));
+
+    assertThat(summaryCard(getPage("/services/ws-test/" + web).getBody(), "routing"))
+        .contains("Instance Priority off");
+  }
+
+  @Test
+  void sectionsSitInCardsOfATwoColumnGridAndTheTablesTakeTheFullWidth() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+    bind(web, newContainerName(), 8080);
+    publish(web);
+
+    String body = getPage("/services/ws-test/" + web).getBody();
+
+    assertThat(openingTag(body, "id=\"sections\""))
+        .contains("grid-cols-1")
+        .contains("lg:grid-cols-2");
+    assertThat(div(body, "id=\"sections\""))
+        .contains(">Publication</h2>")
+        .contains(">Instance Priority</h2>")
+        .contains(">Route Profiles</h2>")
+        .contains(">Unpublish</button>")
+        .doesNotContain("<table");
+    assertThat(openingTag(body, "id=\"instances\"")).contains("card");
+    assertThat(div(body, "id=\"instances\"")).contains("10.1.2.3:8080");
+    assertThat(openingTag(body, "id=\"container-bindings\"")).contains("card");
+    assertThat(openingTag(body, "id=\"reachability\"")).contains("card");
+  }
+
+  @Test
+  void remoteServiceShowsTheSameCardsAndAlertsWithoutChangeButtons() {
+    String api = newServiceName("api");
+    remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
+    remote.publish(api, "yard");
+
+    String body = getPage("/services/" + RemoteWorkstation.NAME + "/" + api).getBody();
+
+    assertThat(summaryCard(body, "state")).contains("Unhealthy");
+    assertThat(summaryCard(body, "publication")).contains("Yard Scope");
+    assertThat(summaryCard(body, "passing")).contains("0 of 1");
+    assertThat(summaryCard(body, "routing")).isNotEmpty();
+    assertThat(div(body, "role=\"alert\"")).contains("No Instance passes its checks");
+    assertThat(div(body, "id=\"sections\"")).contains(">Publication</h2>");
+    assertThat(div(body, "id=\"service\""))
+        .as("only the Reachability test, outside the region, has a button")
+        .doesNotContain("<form")
+        .doesNotContain("<button");
+  }
+
+  @Test
   void showsTheServicesInstancesAndTheirHealth() {
     String api = newServiceName("api");
     register(api, Map.of("host", "10.1.2.3", "port", 8080));
@@ -150,16 +240,14 @@ class ServicePageTest extends DashboardTest {
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
     publish(web);
     String page = "/services/ws-test/" + web;
-    assertThat(getPage(page).getBody())
-        .contains("Show in the access log")
-        .doesNotContain("Access log: on.");
+    assertThat(getPage(page).getBody()).contains("Show in the access log");
+    assertThat(summaryCard(getPage(page).getBody(), "publication")).contains("Access log: off");
 
     ResponseEntity<String> response = postForm(page + "/publish", Map.of("accessLog", "true"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
-    assertThat(getPage(page).getBody())
-        .contains("Hide from the access log")
-        .contains("Access log: on.");
+    assertThat(getPage(page).getBody()).contains("Hide from the access log");
+    assertThat(summaryCard(getPage(page).getBody(), "publication")).contains("Access log: on");
 
     postForm(page + "/publish", Map.of("accessLog", "false"));
 
