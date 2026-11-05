@@ -20,6 +20,23 @@ public record PlanEntry(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Action action,
     String reason) {
 
+  /**
+   * Such as {@code Static Instance 10.1.2.3:8080 of web} or {@code Publication of web}, in the
+   * words of {@code lvh-yard import}.
+   */
+  public String what() {
+    String what =
+        switch (kind) {
+          case ROUTE_PROFILE -> "Route Profile " + name;
+          case SERVICE -> "Service " + name;
+          case PUBLICATION -> "Publication of " + name;
+          case STATIC_INSTANCE -> "Static Instance " + name;
+          case CONTAINER_BINDING -> "Container Binding " + name;
+          case ALIAS -> "Alias " + name;
+        };
+    return what + (service == null ? "" : " of " + service);
+  }
+
   static PlanEntry add(Kind kind, String name, String service) {
     return new PlanEntry(kind, name, service, Action.ADD, null);
   }

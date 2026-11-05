@@ -48,8 +48,8 @@ public class BackupsFolder {
       try {
         write(name, text);
         return name;
-      } catch (FileAlreadyExistsException e) {
-        // The next number.
+      } catch (FileAlreadyExistsException taken) {
+        continue;
       }
     }
   }
@@ -60,8 +60,9 @@ public class BackupsFolder {
    * @throws FileAlreadyExistsException when {@code name} exists; then the file stays as it was
    */
   public void write(String name, String text) throws FileAlreadyExistsException {
-    if (!isPlainName(name)) {
-      throw new IllegalArgumentException("A Backup name has no path: " + name);
+    String problem = nameProblem(name);
+    if (problem != null) {
+      throw new IllegalArgumentException(problem);
     }
     Path file = path.resolve(name);
     try {
@@ -90,7 +91,7 @@ public class BackupsFolder {
       return files
           .filter(Files::isRegularFile)
           .map(file -> file.getFileName().toString())
-          .filter(BackupsFolder::isBackupName)
+          .filter(name -> nameProblem(name) == null)
           .sorted()
           .map(this::read)
           .toList();
@@ -142,17 +143,30 @@ public class BackupsFolder {
 
   /** A name from outside, such as from an address, names only a Backup file of the folder. */
   private Path existing(String name) {
-    if (!isBackupName(name) || !Files.isRegularFile(path.resolve(name))) {
+    if (nameProblem(name) != null || !Files.isRegularFile(path.resolve(name))) {
       throw new NoBackupException(name);
     }
     return path.resolve(name);
   }
 
-  private static boolean isBackupName(String name) {
-    return isPlainName(name) && (name.endsWith(".yaml") || name.endsWith(".yml"));
-  }
-
-  private static boolean isPlainName(String name) {
-    return !name.isEmpty() && !name.contains("/") && !name.contains("\\") && !name.startsWith(".");
+  /**
+   * A Backup file is in the folder itself, is not hidden, and is YAML.
+   *
+   * @return why {@code name} cannot name a Backup file, or {@code null} when it can
+   */
+  public static String nameProblem(String name) {
+    if (name.isEmpty()) {
+      return "The file has no name.";
+    }
+    if (name.contains("/") || name.contains("\\")) {
+      return "The file name " + name + " has a folder in it.";
+    }
+    if (name.startsWith(".")) {
+      return "The file name " + name + " starts with a dot.";
+    }
+    if (!name.endsWith(".yaml") && !name.endsWith(".yml")) {
+      return "The file name " + name + " does not end with .yaml or .yml.";
+    }
+    return null;
   }
 }

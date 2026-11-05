@@ -29,12 +29,16 @@ class BackupProblems extends ResponseEntityExceptionHandler {
     return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
   }
 
-  /** {@code applied} lists the plan entries that the import wrote before it stopped. */
+  /**
+   * {@code applied} lists the plan entries that the import wrote before it stopped. {@code
+   * safetyBackup} names the Backup to import to go back.
+   */
   @ExceptionHandler
   ProblemDetail failed(ImportFailedException exception) {
     ProblemDetail problem =
         ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, exception.getMessage());
     problem.setProperty("applied", exception.applied());
+    problem.setProperty("safetyBackup", exception.safetyBackup());
     return problem;
   }
 }

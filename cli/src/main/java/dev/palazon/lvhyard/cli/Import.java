@@ -44,7 +44,7 @@ class Import implements Runnable {
     int added = 0;
     int updated = 0;
     for (Dashboard.PlanEntry entry : result.entries()) {
-      out.println(line(entry));
+      out.println(entry.line());
       switch (entry.action()) {
         case "add" -> added++;
         case "update" -> updated++;
@@ -69,25 +69,6 @@ class Import implements Runnable {
       out.println("Safety Backup: " + result.safetyBackup() + ", in the Backups folder.");
     }
     out.flush();
-  }
-
-  /** Such as {@code add Static Instance 10.1.2.3:8080 of web}. */
-  private static String line(Dashboard.PlanEntry entry) {
-    String what =
-        switch (entry.kind()) {
-          case "route-profile" -> "Route Profile " + entry.name();
-          case "service" -> "Service " + entry.name();
-          case "publication" -> "Publication of " + entry.name();
-          case "static-instance" -> "Static Instance " + entry.name();
-          case "container-binding" -> "Container Binding " + entry.name();
-          case "alias" -> "Alias " + entry.name();
-          default -> entry.kind() + " " + entry.name();
-        };
-    return entry.action()
-        + " "
-        + what
-        + (entry.service() == null ? "" : " of " + entry.service())
-        + (entry.reason() == null ? "" : ": " + entry.reason());
   }
 
   private String text() {

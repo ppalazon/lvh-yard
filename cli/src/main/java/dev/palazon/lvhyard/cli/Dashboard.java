@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import tools.jackson.core.JacksonException;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.DeserializationFeature;
@@ -319,8 +320,41 @@ final class Dashboard {
                         + (dryRun ? "&dry-run=true" : "")))
             .header("Content-Type", "application/yaml")
             .POST(HttpRequest.BodyPublishers.ofString(backup, StandardCharsets.UTF_8));
-    return read(send(request), new TypeReference<>() {});
+    HttpResponse<String> response = exchange(request, "application/json");
+    if (response.statusCode() >= 400) {
+      throw new YardException(importFailure(response).orElseGet(() -> reason(response)));
+    }
+    return read(response, new TypeReference<>() {});
   }
+
+  /**
+   * A write failed halfway: where it stopped, each entry it applied, and the safety Backup that
+   * goes back. Empty for any other problem.
+   */
+  private static Optional<String> importFailure(HttpResponse<String> response) {
+    ImportFailure failure;
+    try {
+      failure = JSON.readValue(response.body(), ImportFailure.class);
+    } catch (JacksonException e) {
+      return Optional.empty();
+    }
+    if (failure.applied() == null || failure.safetyBackup() == null) {
+      return Optional.empty();
+    }
+    StringBuilder text = new StringBuilder(failure.detail());
+    if (failure.applied().isEmpty()) {
+      text.append("\nIt applied nothing.");
+    } else {
+      text.append("\nIt applied:");
+      failure.applied().forEach(entry -> text.append("\n").append(entry.line()));
+    }
+    text.append("\nSafety Backup: ")
+        .append(failure.safetyBackup())
+        .append(", in the Backups folder. To go back, import it.");
+    return Optional.of(text.toString());
+  }
+
+  private record ImportFailure(String detail, List<PlanEntry> applied, String safetyBackup) {}
 
   /** {@code exportedFrom} is left out when the Backup does not say. */
   record ImportResult(
@@ -333,7 +367,27 @@ final class Dashboard {
   record ExportedFrom(String workstation, String at) {}
 
   /** {@code service} is left out but for a Static Instance or a Container Binding. */
-  record PlanEntry(String kind, String name, String service, String action, String reason) {}
+  record PlanEntry(String kind, String name, String service, String action, String reason) {
+
+    /** Such as {@code add Static Instance 10.1.2.3:8080 of web}. */
+    String line() {
+      String what =
+          switch (kind) {
+            case "route-profile" -> "Route Profile " + name;
+            case "service" -> "Service " + name;
+            case "publication" -> "Publication of " + name;
+            case "static-instance" -> "Static Instance " + name;
+            case "container-binding" -> "Container Binding " + name;
+            case "alias" -> "Alias " + name;
+            default -> kind + " " + name;
+          };
+      return action
+          + " "
+          + what
+          + (service == null ? "" : " of " + service)
+          + (reason == null ? "" : ": " + reason);
+    }
+  }
 
   List<RouteProfile> routeProfiles() {
     return read(send(get("api/workstation/route-profiles")), new TypeReference<>() {});
@@ -491,12 +545,19 @@ final class Dashboard {
   }
 
   private HttpResponse<String> send(HttpRequest.Builder request, String accept) {
-    HttpResponse<String> response;
+    HttpResponse<String> response = exchange(request, accept);
+    if (response.statusCode() >= 400) {
+      throw new YardException(reason(response));
+    }
+    return response;
+  }
+
+  /** Any answer, also a problem. */
+  private HttpResponse<String> exchange(HttpRequest.Builder request, String accept) {
     try {
-      response =
-          http.send(
-              request.header("Accept", accept).timeout(ANSWER_TIMEOUT).build(),
-              HttpResponse.BodyHandlers.ofString());
+      return http.send(
+          request.header("Accept", accept).timeout(ANSWER_TIMEOUT).build(),
+          HttpResponse.BodyHandlers.ofString());
     } catch (ConnectException | HttpConnectTimeoutException e) {
       throw new YardException(
           "The dashboard does not answer at "
@@ -516,10 +577,6 @@ final class Dashboard {
       Thread.currentThread().interrupt();
       throw new YardException("Interrupted while waiting for the dashboard at " + url + ".");
     }
-    if (response.statusCode() >= 400) {
-      throw new YardException(reason(response));
-    }
-    return response;
   }
 
   /**

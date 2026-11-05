@@ -65,8 +65,8 @@ class BackupController {
   @ApiResponse(
       responseCode = "500",
       description =
-          "A write failed halfway. The applied entries stay, and the detail says where it"
-              + " stopped")
+          "A write failed halfway. The detail says where it stopped. The applied entries stay,"
+              + " and applied lists them. safetyBackup names the Backup to import to go back")
   ImportResult importBackup(
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
               required = true,

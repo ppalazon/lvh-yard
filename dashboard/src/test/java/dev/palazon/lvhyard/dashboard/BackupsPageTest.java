@@ -188,9 +188,21 @@ class BackupsPageTest extends DashboardTest {
     ResponseEntity<String> response = postFile("/backups/upload", "file", name, "version: 1\n");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(alert(response.getBody())).contains("Not uploaded").contains("no folder");
+    assertThat(alert(response.getBody())).contains("Not uploaded").contains("has a folder in it");
     assertThat(names()).isEqualTo(before);
     assertThat(TestcontainersConfiguration.BACKUPS.resolveSibling("page-up.yaml")).doesNotExist();
+  }
+
+  @Test
+  void uploadRefusesANameThatStartsWithADot() throws IOException {
+    Set<String> before = names();
+
+    ResponseEntity<String> response =
+        postFile("/backups/upload", "file", ".page-hidden.yaml", "version: 1\n");
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(alert(response.getBody())).contains(".page-hidden.yaml starts with a dot");
+    assertThat(names()).isEqualTo(before);
   }
 
   @Test
@@ -272,9 +284,9 @@ class BackupsPageTest extends DashboardTest {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(plan(response.getBody()))
         .containsExactly(
-            "Skip service " + grafana + ": It exists already.",
-            "Skip static instance 10.1.2.3:3000 of " + grafana + ": It is the same already.",
-            "Add static instance 10.1.2.3:3001 of " + grafana);
+            "Skip Service " + grafana + ": It exists already.",
+            "Skip Static Instance 10.1.2.3:3000 of " + grafana + ": It is the same already.",
+            "Add Static Instance 10.1.2.3:3001 of " + grafana);
     String confirm = form(response.getBody(), "method=\"post\"");
     assertThat(confirm)
         .contains("action=\"/backups/" + name + "/import\"")
@@ -289,8 +301,7 @@ class BackupsPageTest extends DashboardTest {
     write(name, oneInstance(grafana, 3000));
     Set<String> before = names();
 
-    ResponseEntity<String> response =
-        postForm("/backups/" + name + "/import", Map.of("mode", "add"));
+    ResponseEntity<String> response = confirm(name, "add");
 
     Set<String> added = names();
     added.removeAll(before);
@@ -298,7 +309,7 @@ class BackupsPageTest extends DashboardTest {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(plan(response.getBody()))
         .containsExactly(
-            "Add service " + grafana, "Add static instance 10.1.2.3:3000 of " + grafana);
+            "Add Service " + grafana, "Add Static Instance 10.1.2.3:3000 of " + grafana);
     assertThat(added)
         .singleElement()
         .asString()
@@ -315,8 +326,7 @@ class BackupsPageTest extends DashboardTest {
     write(name, oneInstance(grafana, 3000));
     Set<String> before = names();
 
-    ResponseEntity<String> response =
-        postForm("/backups/" + name + "/import", Map.of("mode", "add"));
+    ResponseEntity<String> response = confirm(name, "add");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody()).contains("Nothing changed");
@@ -343,16 +353,68 @@ class BackupsPageTest extends DashboardTest {
 
     String preview = getPage("/backups/" + name + "/import?mode=update").getBody();
     ResponseEntity<String> response =
-        postForm("/backups/" + name + "/import", Map.of("mode", "update"));
+        postForm("/backups/" + name + "/import", fields(form(preview, "method=\"post\"")));
 
     Set<String> added = names();
     added.removeAll(before);
     added.forEach(file -> files.add(TestcontainersConfiguration.BACKUPS.resolve(file)));
-    assertThat(plan(preview)).contains("Update publication " + grafana);
+    assertThat(plan(preview)).contains("Update Publication of " + grafana);
     assertThat(form(preview, "method=\"post\"")).contains("name=\"mode\" value=\"update\"");
-    assertThat(plan(response.getBody())).contains("Update publication " + grafana);
+    assertThat(plan(response.getBody())).contains("Update Publication of " + grafana);
     assertThat(get(servicePath(grafana)).getBody().get("publication").get("scope").asString())
         .isEqualTo("yard");
+  }
+
+  @Test
+  void confirmShowsTheNewPlanAndChangesNothingWhenTheSetupChanged() throws IOException {
+    String grafana = newServiceName("grafana");
+    String name = newFile(".yaml");
+    write(name, twoInstances(grafana));
+    String preview = getPage("/backups/" + name + "/import?mode=add").getBody();
+    register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
+    Set<String> before = names();
+
+    ResponseEntity<String> response =
+        postForm("/backups/" + name + "/import", fields(form(preview, "method=\"post\"")));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(alert(response.getBody())).contains("The plan changed");
+    assertThat(plan(response.getBody()))
+        .containsExactly(
+            "Skip Service " + grafana + ": It exists already.",
+            "Skip Static Instance 10.1.2.3:3000 of " + grafana + ": It is the same already.",
+            "Add Static Instance 10.1.2.3:3001 of " + grafana);
+    assertThat(names()).isEqualTo(before);
+    assertThat(get(servicePath(grafana)).getBody().get("instances")).hasSize(1);
+
+    ResponseEntity<String> again =
+        postForm(
+            "/backups/" + name + "/import", fields(form(response.getBody(), "method=\"post\"")));
+
+    Set<String> added = names();
+    added.removeAll(before);
+    added.forEach(file -> files.add(TestcontainersConfiguration.BACKUPS.resolve(file)));
+    assertThat(again.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(get(servicePath(grafana)).getBody().get("instances")).hasSize(2);
+  }
+
+  @Test
+  void confirmShowsTheNewPlanWhenTheFileChanged() throws IOException {
+    String grafana = newServiceName("grafana");
+    String name = newFile(".yaml");
+    write(name, oneInstance(grafana, 3000));
+    String preview = getPage("/backups/" + name + "/import?mode=add").getBody();
+    write(name, twoInstances(grafana));
+    Set<String> before = names();
+
+    ResponseEntity<String> response =
+        postForm("/backups/" + name + "/import", fields(form(preview, "method=\"post\"")));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(plan(response.getBody()))
+        .contains("Add Static Instance 10.1.2.3:3001 of " + grafana);
+    assertThat(names()).isEqualTo(before);
+    assertThat(get(servicePath(grafana)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
   }
 
   @Test
@@ -363,7 +425,7 @@ class BackupsPageTest extends DashboardTest {
 
     ResponseEntity<String> preview = getPage("/backups/" + name + "/import?mode=add");
     ResponseEntity<String> confirmed =
-        postForm("/backups/" + name + "/import", Map.of("mode", "add"));
+        postForm("/backups/" + name + "/import", Map.of("mode", "add", "plan", "unknown"));
 
     assertThat(preview.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(alert(preview.getBody())).contains("The file is not valid YAML");
@@ -394,7 +456,9 @@ class BackupsPageTest extends DashboardTest {
 
     assertThat(getPage("/backups/" + name + "/import?mode=merge").getStatusCode())
         .isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(postForm("/backups/" + name + "/import", Map.of("mode", "merge")).getStatusCode())
+    assertThat(
+            postForm("/backups/" + name + "/import", Map.of("mode", "merge", "plan", "unknown"))
+                .getStatusCode())
         .isEqualTo(HttpStatus.BAD_REQUEST);
   }
 
@@ -402,7 +466,9 @@ class BackupsPageTest extends DashboardTest {
   void importOfAMissingBackupIsNotFound() {
     assertThat(getPage("/backups/page-missing.yaml/import").getStatusCode())
         .isEqualTo(HttpStatus.NOT_FOUND);
-    assertThat(postForm("/backups/page-missing.yaml/import", Map.of("mode", "add")).getStatusCode())
+    assertThat(
+            postForm("/backups/page-missing.yaml/import", Map.of("mode", "add", "plan", "unknown"))
+                .getStatusCode())
         .isEqualTo(HttpStatus.NOT_FOUND);
   }
 
@@ -442,6 +508,21 @@ class BackupsPageTest extends DashboardTest {
         .results()
         .map(match -> match.group(1).replaceAll("<[^>]+>", "").replaceAll("\\s+", " ").trim())
         .toList();
+  }
+
+  /** Shows the plan in {@code mode}, then confirms it as a person does. */
+  private ResponseEntity<String> confirm(String name, String mode) {
+    String preview = getPage("/backups/" + name + "/import?mode=" + mode).getBody();
+    return postForm("/backups/" + name + "/import", fields(form(preview, "method=\"post\"")));
+  }
+
+  /** The hidden fields of {@code form}, which a browser posts. */
+  private static Map<String, String> fields(String form) {
+    return Pattern.compile(
+            "<input[^>]*type=\"hidden\"[^>]*name=\"([^\"]*)\"[^>]*value=\"([^\"]*)\"")
+        .matcher(form)
+        .results()
+        .collect(Collectors.toMap(match -> match.group(1), match -> match.group(2)));
   }
 
   /** The whole {@code form} element with {@code attribute}. */

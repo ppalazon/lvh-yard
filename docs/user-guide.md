@@ -413,13 +413,22 @@ a Container Binding to a container that another Service follows already.
 
 The import writes Route Profiles first, then Static Instances and Container
 Bindings, then Publications, then Aliases. Consul cannot write them all at
-once. So if a write fails halfway, the import stops and says what it wrote
-before.
+once. So if a write fails halfway, the import stops. It lists each entry that
+it wrote before, and it gives the name of the safety Backup:
+
+```text
+The import stopped at Publication of grafana: Consul does not answer.
+It applied:
+add Route Profile office
+add Static Instance 192.168.1.20:3000 of grafana
+Safety Backup: ws-a-20261105-101500-before-import.yaml, in the Backups folder. To go back, import it.
+```
 
 The API imports a Backup at `POST /api/workstation/backup?mode=add`, with the
 Backup as `application/yaml`. Use `mode=update` to overwrite. Add `dry-run=true` for the plan only. The answer
 is the plan as JSON. A refused file answers 400, with a `problems` list of
-`place` and `reason`:
+`place` and `reason`. A write that fails halfway answers 500, with an `applied`
+list of the entries that the import wrote and the `safetyBackup` name:
 
 ```sh
 curl -X POST -H 'Content-Type: application/yaml' --data-binary @ws-a.yaml \
@@ -467,9 +476,9 @@ holds. If a file is not a Backup, its row shows why instead.
   confirm. Then click **Delete** again.
 - To add a Backup from your computer, such as a file from a teammate, choose
   the file next to **Upload** and click **Upload**. The file keeps its name.
-  The page refuses a name with a folder in it, a name that does not end in
-  `.yaml` or `.yml`, a name that is already in the Backups folder, and a file
-  that is not a Backup.
+  The page refuses a name with a folder in it, a name that starts with a dot, a
+  name that does not end in `.yaml` or `.yml`, a name that is already in the
+  Backups folder, and a file that is not a Backup.
 
 To import a Backup from the page, do these steps:
 
@@ -481,6 +490,11 @@ To import a Backup from the page, do these steps:
    cannot import it.
 4. To import, click **Import**. The page shows what the import did and the name
    of the safety Backup. To go back, import that safety Backup in update mode.
+
+The page imports only the plan that you saw. If the file or the setup changed
+after you clicked **Show the plan**, the page changes nothing. It shows the new
+plan, and you click **Import** again. If a write fails halfway, the page lists
+what the import applied and gives the name of the safety Backup.
 
 ## How it works
 

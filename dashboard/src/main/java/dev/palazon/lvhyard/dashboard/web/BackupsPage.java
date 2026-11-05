@@ -4,6 +4,7 @@ import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.backups.Backup;
 import dev.palazon.lvhyard.dashboard.backups.BackupFile;
 import dev.palazon.lvhyard.dashboard.backups.BackupProblem;
+import dev.palazon.lvhyard.dashboard.backups.ImportFailedException;
 import dev.palazon.lvhyard.dashboard.backups.ImportMode;
 import dev.palazon.lvhyard.dashboard.backups.ImportResult;
 import dev.palazon.lvhyard.dashboard.backups.PlanEntry;
@@ -56,7 +57,7 @@ final class BackupsPage {
                 .text(
                     "Copies of the setup of "
                         + workstation.name()
-                        + ", in the backups folder of its Workstation Folder. They hold basic-auth"
+                        + ", in the Backups folder of its Workstation Folder. They hold basic-auth"
                         + " hashes, so keep them private.")
                 .__()
                 .of(content -> alert(content, "Not uploaded", uploadProblems))
@@ -113,7 +114,7 @@ final class BackupsPage {
                 .text("Delete a Backup")
                 .__()
                 .p()
-                .text("Delete " + backup + " from the backups folder? You cannot undo this.")
+                .text("Delete " + backup + " from the Backups folder? You cannot undo this.")
                 .__()
                 .form()
                 .attrClass("flex gap-2")
@@ -161,6 +162,8 @@ final class BackupsPage {
    *
    * @param mode the chosen mode, or {@code null}
    * @param plan the dry run in {@code mode}, or {@code null}
+   * @param fingerprint of {@code plan}, which the confirmation sends back; {@code null} without a
+   *     plan
    * @param problems why the file cannot be imported; empty when it can
    */
   static String importPlan(
@@ -168,7 +171,34 @@ final class BackupsPage {
       String backup,
       ImportMode mode,
       ImportResult plan,
+      String fingerprint,
       List<String> problems) {
+    return importPage(workstation, backup, mode, plan, fingerprint, "Cannot import", problems);
+  }
+
+  /** The plan changed after the person saw it, so it asks again with the new plan. */
+  static String planChanged(
+      Workstation workstation, String backup, ImportResult plan, String fingerprint) {
+    return importPage(
+        workstation,
+        backup,
+        plan.mode(),
+        plan,
+        fingerprint,
+        "Not imported",
+        List.of(
+            "The plan changed after you saw it, so nothing changed. Check the new plan, then"
+                + " import again."));
+  }
+
+  private static String importPage(
+      Workstation workstation,
+      String backup,
+      ImportMode mode,
+      ImportResult plan,
+      String fingerprint,
+      String alertTitle,
+      List<String> alert) {
     return Layout.page(
         "Import " + backup,
         workstation.name(),
@@ -180,13 +210,47 @@ final class BackupsPage {
                 .p()
                 .text("Import " + backup + " into " + workstation.name() + ".")
                 .__()
-                .of(content -> alert(content, "Cannot import", problems))
+                .of(content -> alert(content, alertTitle, alert))
                 .of(content -> modeForm(content, backup, mode == null ? ImportMode.ADD : mode))
                 .of(content -> {
                   if (plan != null) {
-                    confirm(content, backup, plan);
+                    confirm(content, backup, plan, fingerprint);
                   }
                 }));
+  }
+
+  /** A write failed halfway: what the import applied stays, and the safety Backup undoes it. */
+  static String importFailed(Workstation workstation, String backup, ImportFailedException failed) {
+    return Layout.page(
+        "Import of " + backup + " stopped",
+        workstation.name(),
+        Layout.Section.BACKUPS,
+        main ->
+            main.h1()
+                .text("Import of " + backup + " stopped")
+                .__()
+                .of(content -> alert(content, "Import stopped", List.of(failed.getMessage())))
+                .p()
+                .text(
+                    "Before the import, the dashboard saved the setup in "
+                        + failed.safetyBackup()
+                        + ". To go back, import that Backup.")
+                .__()
+                .h2()
+                .text("What the import applied")
+                .__()
+                .of(content -> {
+                  if (failed.applied().isEmpty()) {
+                    content.p().text("Nothing: it stopped at the first change.").__();
+                  } else {
+                    entries(content, failed.applied());
+                  }
+                })
+                .a()
+                .attrHref(PATH)
+                .attrClass("btn w-fit")
+                .text("Back to Backups")
+                .__());
   }
 
   /** The result of a confirmed import. */
@@ -264,7 +328,7 @@ final class BackupsPage {
         .__();
   }
 
-  private static void confirm(Main<?> main, String backup, ImportResult plan) {
+  private static void confirm(Main<?> main, String backup, ImportResult plan, String fingerprint) {
     main.h2()
         .text("Plan in " + plan.mode().value() + " mode")
         .__()
@@ -280,6 +344,11 @@ final class BackupsPage {
         .attrType(EnumTypeInputType.HIDDEN)
         .attrName("mode")
         .attrValue(plan.mode().value())
+        .__()
+        .input()
+        .attrType(EnumTypeInputType.HIDDEN)
+        .attrName("plan")
+        .attrValue(fingerprint)
         .__()
         .button()
         .attrType(EnumTypeButtonType.SUBMIT)
@@ -300,23 +369,24 @@ final class BackupsPage {
       main.p().text("The Backup is empty.").__();
       return;
     }
+    entries(main, result.entries());
+  }
+
+  private static void entries(Main<?> main, List<PlanEntry> entries) {
     main.ul()
         .attrId("plan")
         .attrClass("list-disc pl-5")
-        .of(list -> result.entries().forEach(entry -> list.li().text(entry(entry)).__()))
+        .of(list -> entries.forEach(entry -> list.li().text(entry(entry)).__()))
         .__();
   }
 
-  /** Such as {@code Skip static instance 10.1.2.3:3000 of grafana: It is the same already.} */
+  /** Such as {@code Skip Static Instance 10.1.2.3:3000 of grafana: It is the same already.} */
   private static String entry(PlanEntry entry) {
     String action = entry.action().value();
     return Character.toUpperCase(action.charAt(0))
         + action.substring(1)
         + " "
-        + entry.kind().value().replace('-', ' ')
-        + " "
-        + entry.name()
-        + (entry.service() == null ? "" : " of " + entry.service())
+        + entry.what()
         + (entry.reason() == null ? "" : ": " + entry.reason());
   }
 

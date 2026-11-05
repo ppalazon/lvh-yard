@@ -10,6 +10,7 @@ import dev.palazon.lvhyard.dashboard.backups.ImportFailedException;
 import dev.palazon.lvhyard.dashboard.backups.ImportMode;
 import dev.palazon.lvhyard.dashboard.backups.ImportResult;
 import dev.palazon.lvhyard.dashboard.backups.NoBackupException;
+import dev.palazon.lvhyard.dashboard.backups.PlanChangedException;
 import dev.palazon.lvhyard.dashboard.backups.RefusedBackupException;
 import dev.palazon.lvhyard.dashboard.backups.UnknownImportModeException;
 import java.io.IOException;
@@ -79,11 +80,9 @@ class BackupsPagesController {
   ResponseEntity<String> upload(@RequestParam MultipartFile file) throws IOException {
     String name = file.getOriginalFilename() == null ? "" : file.getOriginalFilename();
     String text = new String(file.getBytes(), StandardCharsets.UTF_8);
-    if (name.isEmpty() || name.contains("/") || name.contains("\\") || name.startsWith(".")) {
-      return uploadRefused("The file name has no folder and does not start with a dot: " + name);
-    }
-    if (!name.endsWith(".yaml") && !name.endsWith(".yml")) {
-      return uploadRefused("A Backup file name ends with .yaml or .yml: " + name);
+    String nameProblem = BackupsFolder.nameProblem(name);
+    if (nameProblem != null) {
+      return uploadRefused(nameProblem);
     }
     try {
       BackupFormat.read(text);
@@ -93,7 +92,7 @@ class BackupsPagesController {
     try {
       folder.write(name, text);
     } catch (FileAlreadyExistsException e) {
-      return uploadRefused("The backups folder already has a file " + name + ".");
+      return uploadRefused("The Backups folder already has a file " + name + ".");
     }
     return seeOther(BackupsPage.PATH);
   }
@@ -140,35 +139,48 @@ class BackupsPagesController {
     String text = found(() -> folder.text(backup));
     ImportMode chosen = mode == null ? null : mode(mode);
     try {
-      ImportResult plan = chosen == null ? null : backupImport.run(text, chosen, true);
-      if (plan == null) {
+      if (chosen == null) {
         BackupFormat.read(text);
+        return html(
+            HttpStatus.OK,
+            BackupsPage.importPlan(workstation, backup, null, null, null, List.of()));
       }
+      ImportResult plan = backupImport.run(text, chosen, true);
       return html(
-          HttpStatus.OK, BackupsPage.importPlan(workstation, backup, chosen, plan, List.of()));
+          HttpStatus.OK,
+          BackupsPage.importPlan(
+              workstation, backup, chosen, plan, BackupImport.fingerprint(text, plan), List.of()));
     } catch (RefusedBackupException e) {
       return html(
           HttpStatus.BAD_REQUEST,
-          BackupsPage.importPlan(workstation, backup, chosen, null, texts(e)));
+          BackupsPage.importPlan(workstation, backup, chosen, null, null, texts(e)));
     }
   }
 
+  /**
+   * @param plan the fingerprint of the plan that the person saw; only that plan is imported
+   */
   @PostMapping(path = BackupsPage.PATH + "/{backup}/import", produces = MediaType.TEXT_HTML_VALUE)
-  ResponseEntity<String> importBackup(@PathVariable String backup, @RequestParam String mode) {
+  ResponseEntity<String> importBackup(
+      @PathVariable String backup, @RequestParam String mode, @RequestParam String plan) {
     String text = found(() -> folder.text(backup));
     ImportMode chosen = mode(mode);
     try {
       return html(
           HttpStatus.OK,
-          BackupsPage.imported(workstation, backup, backupImport.run(text, chosen, false)));
+          BackupsPage.imported(workstation, backup, backupImport.runConfirmed(text, chosen, plan)));
+    } catch (PlanChangedException e) {
+      return html(
+          HttpStatus.CONFLICT,
+          BackupsPage.planChanged(
+              workstation, backup, e.plan(), BackupImport.fingerprint(text, e.plan())));
     } catch (RefusedBackupException e) {
       return html(
           HttpStatus.BAD_REQUEST,
-          BackupsPage.importPlan(workstation, backup, chosen, null, texts(e)));
+          BackupsPage.importPlan(workstation, backup, chosen, null, null, texts(e)));
     } catch (ImportFailedException e) {
       return html(
-          HttpStatus.INTERNAL_SERVER_ERROR,
-          BackupsPage.importPlan(workstation, backup, chosen, null, List.of(e.getMessage())));
+          HttpStatus.INTERNAL_SERVER_ERROR, BackupsPage.importFailed(workstation, backup, e));
     }
   }
 

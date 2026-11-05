@@ -744,6 +744,68 @@ class YardTest {
   }
 
   @Test
+  void importThatStopsHalfwayListsWhatItAppliedAndTheSafetyBackup(@TempDir Path dir)
+      throws Exception {
+    dashboard.answer(
+        "POST",
+        "/api/workstation/backup?mode=add",
+        500,
+        """
+        {"title": "Internal Server Error", "status": 500,
+         "detail": "The import stopped at Publication of web: Consul does not answer.",
+         "applied": [
+           {"kind": "route-profile", "name": "gzip", "action": "add"},
+           {"kind": "static-instance", "name": "10.1.2.3:8080", "service": "web",
+            "action": "add"}],
+         "safetyBackup": "ws-a-20261105-100000-before-import.yaml"}
+        """);
+    Path file = dir.resolve("ws-a.yaml");
+    Files.writeString(file, BACKUP);
+
+    Run run = yard("import", file.toString());
+
+    assertThat(run.exitCode()).isEqualTo(1);
+    assertThat(run.err())
+        .isEqualTo(
+            """
+            The import stopped at Publication of web: Consul does not answer.
+            It applied:
+            add Route Profile gzip
+            add Static Instance 10.1.2.3:8080 of web
+            Safety Backup: ws-a-20261105-100000-before-import.yaml, in the Backups folder. \
+            To go back, import it.
+            """);
+  }
+
+  @Test
+  void importThatStopsAtTheFirstChangeSaysItAppliedNothing(@TempDir Path dir) throws Exception {
+    dashboard.answer(
+        "POST",
+        "/api/workstation/backup?mode=add",
+        500,
+        """
+        {"title": "Internal Server Error", "status": 500,
+         "detail": "The import stopped at Route Profile gzip: Consul does not answer.",
+         "applied": [],
+         "safetyBackup": "ws-a-20261105-100000-before-import.yaml"}
+        """);
+    Path file = dir.resolve("ws-a.yaml");
+    Files.writeString(file, BACKUP);
+
+    Run run = yard("import", file.toString());
+
+    assertThat(run.exitCode()).isEqualTo(1);
+    assertThat(run.err())
+        .isEqualTo(
+            """
+            The import stopped at Route Profile gzip: Consul does not answer.
+            It applied nothing.
+            Safety Backup: ws-a-20261105-100000-before-import.yaml, in the Backups folder. \
+            To go back, import it.
+            """);
+  }
+
+  @Test
   void importOfAMissingFileFails(@TempDir Path dir) {
     Run run = yard("import", dir.resolve("nope.yaml").toString());
 
