@@ -49,22 +49,30 @@ final class StubDashboard implements AutoCloseable {
     URI uri = URI.create(path);
     JsonNode response = checkedResponse(method, uri, status);
     var answer = WireMock.aResponse().withStatus(status);
+    var request = WireMock.request(method, WireMock.urlPathEqualTo(uri.getRawPath()));
     if (body != null) {
-      String mediaType = status >= 400 ? "application/problem+json" : "application/json";
+      String mediaType = status >= 400 ? "application/problem+json" : mediaType(response);
       JsonNode schema = response.path("content").path(mediaType).path("schema");
       if (schema.isMissingNode()) {
         throw new AssertionError(
             method + " " + path + " " + status + " has no " + mediaType + " body in " + CONTRACT);
       }
       List<String> errors = new ArrayList<>();
-      checkFits(JSON.readTree(body), schema, "body", errors);
+      checkFits(
+          mediaType.endsWith("json") ? JSON.readTree(body) : JSON.getNodeFactory().stringNode(body),
+          schema,
+          "body",
+          errors);
       if (!errors.isEmpty()) {
         throw new AssertionError(
             method + " " + path + " " + status + " does not fit " + CONTRACT + ": " + errors);
       }
       answer.withHeader("Content-Type", mediaType).withBody(body);
+      if (!mediaType.endsWith("json")) {
+        // As the dashboard does, it answers another type only to a client that accepts it.
+        request.withHeader("Accept", WireMock.containing(mediaType));
+      }
     }
-    var request = WireMock.request(method, WireMock.urlPathEqualTo(uri.getRawPath()));
     if (uri.getQuery() != null) {
       for (String pair : uri.getQuery().split("&")) {
         String[] nameAndValue = pair.split("=", 2);
@@ -158,6 +166,14 @@ final class StubDashboard implements AutoCloseable {
           method + " " + uri.getRawPath() + " never answers " + status + " in " + CONTRACT);
     }
     return response;
+  }
+
+  /** JSON, unless the contract gives the answer only in another type, such as YAML. */
+  private static String mediaType(JsonNode response) {
+    JsonNode content = response.path("content");
+    return content.has("application/json") || content.isEmpty()
+        ? "application/json"
+        : content.propertyNames().iterator().next();
   }
 
   /**

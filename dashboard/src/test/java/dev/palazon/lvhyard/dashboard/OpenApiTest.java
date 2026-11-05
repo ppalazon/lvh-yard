@@ -35,6 +35,7 @@ class OpenApiTest extends DashboardTest {
             "/api/yard",
             "/api/workstation/aliases",
             "/api/workstation/aliases/{alias}",
+            "/api/workstation/backup",
             "/api/workstation/containers",
             "/api/workstation/containers/{container}/register",
             "/api/workstation/route-profiles",
@@ -202,6 +203,16 @@ class OpenApiTest extends DashboardTest {
     assertThat(schemas.get("RouteProfileDetail").get("properties").propertyNames())
         .containsExactlyInAnyOrder("name", "type", "services", "definition");
     assertThat(schemas.has("RouteProfilesFile")).isFalse();
+  }
+
+  @Test
+  void backupIsExportedAsYaml() {
+    JsonNode get =
+        get("/v3/api-docs").getBody().get("paths").get("/api/workstation/backup").get("get");
+
+    assertThat(get.get("responses").get("200").get("content").propertyNames())
+        .containsExactly("application/yaml");
+    assertThat(get.get("description").asString()).contains("basic-auth hashes");
   }
 
   @Test

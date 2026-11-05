@@ -353,6 +353,15 @@ abstract class DashboardTest {
     return http.get().uri(path).retrieve().toEntity(String.class);
   }
 
+  /** As a client that asks for YAML, such as {@code lvh-yard export}. */
+  ResponseEntity<String> getYaml(String path) {
+    return http.get()
+        .uri(path)
+        .accept(MediaType.parseMediaType("application/yaml"), MediaType.APPLICATION_PROBLEM_JSON)
+        .retrieve()
+        .toEntity(String.class);
+  }
+
   ResponseEntity<JsonNode> post(String path, Object body) {
     return http.post()
         .uri(path)

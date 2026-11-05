@@ -231,6 +231,22 @@ paths:
       summary: Adds an Alias for a Remote Service
       tags:
       - aliases-controller
+  /api/workstation/backup:
+    get:
+      description: "The Backup holds this Workstation's Services with their Publications,\
+        \ Static Instances and Container Bindings, its Aliases and its Route Profiles.\
+        \ It holds basic-auth hashes, so keep it private."
+      operationId: backup
+      responses:
+        "200":
+          content:
+            application/yaml:
+              schema:
+                type: string
+          description: "The Backup, as YAML"
+      summary: Exports a Backup of this Workstation's setup
+      tags:
+      - backup-controller
   /api/workstation/containers:
     get:
       description: "Compose projects come first, then the other containers. Each port\

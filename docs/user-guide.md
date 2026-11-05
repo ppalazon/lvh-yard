@@ -219,6 +219,8 @@ lvh-yard profiles set profiles.yaml        # add or replace each Route Profile o
 lvh-yard profiles show basic-auth | lvh-yard profiles set -   # - reads standard input
 lvh-yard profiles edit basic-auth           # change one Route Profile in $EDITOR
 lvh-yard profiles remove basic-auth
+lvh-yard export                             # a Backup of this Workstation's setup, as YAML
+lvh-yard export -o ws-a.yaml                # write it to a file that only you can read
 lvh-yard test web                           # tests whether this Workstation reaches web
 lvh-yard test grafana --workstation ws-b    # a Remote Service
 lvh-yard status                             # whether LVH Yard works
@@ -260,6 +262,81 @@ the command then prints the path of the file that holds your text.
 
 The `/status` page of the dashboard and `GET /api/status` show the same status
 as `lvh-yard status`.
+
+## Backups
+
+A Backup is one YAML file that holds what you set up on one Workstation:
+
+- each Service of this Workstation, with its Publication, Static Instances and
+  Container Bindings. LVH Yard's own Services, such as `yard`, are in it too.
+- the Aliases of this Workstation
+- the Route Profiles of this Workstation
+
+A Backup never holds Bound Instances, Health or Remote Services. A Container
+Binding gives its Bound Instances again when its containers run.
+
+`lvh-yard export` prints the Backup. `lvh-yard export -o <file>` writes it to a
+file. The API gives the same Backup at `GET /api/workstation/backup`, as
+`application/yaml`:
+
+```sh
+curl -H 'Accept: application/yaml' http://127.0.0.1:7780/api/workstation/backup
+```
+
+A Backup looks like this:
+
+```yaml
+version: 1
+exported-from:
+  workstation: ws-a
+  at: "2026-11-05T10:00:00+01:00"
+route-profiles:
+  team-login:
+    basicAuth:
+      users:
+        - ana:$2y$05$abc
+services:
+  grafana:
+    publication:
+      scope: yard
+      priority:
+        - static
+        - bound
+        - alias
+      route-profiles:
+        - team-login
+    static-instances:
+      - port: 3000
+        check:
+          type: http
+          path: /health
+          interval: 10s
+          timeout: 2s
+        tags:
+          - dashboards
+  shop:
+    publication: none
+    container-bindings:
+      - container: shop-web-1
+        port: 80
+      - compose:
+          project: shop
+          service: worker
+        port: 9000
+aliases:
+  db:
+    workstation: ws-b
+    service: postgres
+```
+
+- `publication: none` means that the Service is Unpublished.
+- If the host of a Static Instance is the LAN address of this Workstation, the
+  Backup leaves the host out. So the Static Instance fits another computer.
+- The Backup leaves out empty tags and meta.
+
+A Backup holds the basic-auth hashes of your Route Profiles. Anyone who can
+read the file can read them. Keep a Backup as private as a password file.
+`lvh-yard export -o` writes the file so that only you can read it.
 
 ## How it works
 

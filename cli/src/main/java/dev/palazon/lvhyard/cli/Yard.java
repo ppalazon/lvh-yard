@@ -29,6 +29,7 @@ import picocli.CommandLine.Spec;
       Unpublish.class,
       Alias.class,
       Profiles.class,
+      Export.class,
       TestReachability.class,
       Status.class
     },

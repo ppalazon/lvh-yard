@@ -301,6 +301,11 @@ final class Dashboard {
   }
 
   /** By name. */
+  /** The Backup of this Workstation's setup, as the YAML text that the dashboard writes. */
+  String backup() {
+    return send(get("api/workstation/backup"), "application/yaml, application/problem+json").body();
+  }
+
   List<RouteProfile> routeProfiles() {
     return read(send(get("api/workstation/route-profiles")), new TypeReference<>() {});
   }
@@ -453,11 +458,15 @@ final class Dashboard {
   }
 
   private HttpResponse<String> send(HttpRequest.Builder request) {
+    return send(request, "application/json");
+  }
+
+  private HttpResponse<String> send(HttpRequest.Builder request, String accept) {
     HttpResponse<String> response;
     try {
       response =
           http.send(
-              request.header("Accept", "application/json").timeout(ANSWER_TIMEOUT).build(),
+              request.header("Accept", accept).timeout(ANSWER_TIMEOUT).build(),
               HttpResponse.BodyHandlers.ofString());
     } catch (ConnectException | HttpConnectTimeoutException e) {
       throw new YardException(

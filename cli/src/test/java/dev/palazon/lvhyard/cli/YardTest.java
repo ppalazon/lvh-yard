@@ -13,6 +13,7 @@ import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -542,6 +543,61 @@ class YardTest {
 
     assertThat(run.exitCode()).isZero();
     assertThat(run.out()).isEqualTo("No Route Profiles.\n");
+  }
+
+  private static final String BACKUP =
+      """
+      version: 1
+      exported-from:
+        workstation: ws-a
+        at: '2026-11-05T10:00:00Z'
+      route-profiles: {}
+      services:
+        web:
+          publication: none
+          static-instances:
+            - port: 8080
+      aliases: {}
+      """;
+
+  @Test
+  void exportPrintsTheBackup() {
+    dashboard.answer("GET", "/api/workstation/backup", 200, BACKUP);
+
+    Run run = yard("export");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).isEqualTo(BACKUP);
+  }
+
+  @Test
+  void exportWritesTheBackupToAFileThatOnlyTheUserCanRead(@TempDir Path dir) throws Exception {
+    dashboard.answer("GET", "/api/workstation/backup", 200, BACKUP);
+    Path file = dir.resolve("ws-a.yaml");
+
+    Run run = yard("export", "-o", file.toString());
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).isEqualTo("Wrote the Backup to " + file + ".\n");
+    assertThat(Files.readString(file)).isEqualTo(BACKUP);
+    assertThat(PosixFilePermissions.toString(Files.getPosixFilePermissions(file)))
+        .isEqualTo("rw-------");
+  }
+
+  @Test
+  void exportOverwritesAFileAndMakesItReadableOnlyByTheUser(@TempDir Path dir) throws Exception {
+    dashboard.answer("GET", "/api/workstation/backup", 200, BACKUP);
+    Path file = dir.resolve("ws-a.yaml");
+    Files.writeString(
+        file, "an older and longer Backup, with more text than the new one has in it\n".repeat(20));
+    Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-r--r--"));
+
+    Run run = yard("export", "--output", file.toString());
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(Files.readString(file)).isEqualTo(BACKUP);
+    assertThat(PosixFilePermissions.toString(Files.getPosixFilePermissions(file)))
+        .isEqualTo("rw-------");
   }
 
   @Test

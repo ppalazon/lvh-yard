@@ -2,7 +2,9 @@ package dev.palazon.lvhyard.dashboard.services;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import org.springframework.stereotype.Component;
 
 /** Aliases never change what other Workstations see, as no other Workstation reads them. */
@@ -58,6 +60,15 @@ public class Aliases {
    */
   public List<Alias> all() {
     return of(yard.routableYard());
+  }
+
+  /** The target of each Alias, by the Alias's name. It reads no other Workstation. */
+  public Map<String, AliasRequest> targets() {
+    Map<String, AliasRequest> targets = new TreeMap<>();
+    keys.targets()
+        .forEach((name, target) ->
+            targets.put(name, new AliasRequest(target.workstation(), target.service())));
+    return targets;
   }
 
   public List<Alias> of(Yard yard) {
