@@ -132,8 +132,12 @@ class RouteProfilesOnRoutesTest extends DashboardTest {
         .doesNotContain("behind-https");
     assertThat(severity(get(servicePath(web)).getBody(), "unknown-route-profile"))
         .isEqualTo("error");
-    assertThat(getPage("/services/ws-test/" + web).getBody())
-        .contains("The Route Profile team-login does not exist");
+    assertThat(
+            div(
+                getPage("/services/ws-test/" + web).getBody(),
+                "The Route Profile team-login does not exist"))
+        .contains("role=\"alert\"")
+        .contains("data-variant=\"destructive\"");
   }
 
   @Test

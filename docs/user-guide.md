@@ -563,6 +563,16 @@ level before each message:
     risk: The Instance at 127.0.0.1:8080 is on loopback, so other Workstations cannot reach it. ...
 ```
 
+The Service page shows what stops the hostname from working as red alerts under
+the title, one alert for each problem. Each error is one alert. An Unavailable
+Service also shows "No Instances are registered", and an Unhealthy Service
+shows "No Instance passes its checks".
+
+Under the red alerts, one closed box holds the risks, for example "2 risks to
+keep in mind". Click it to read them. The page refreshes every 5 seconds, and
+the box stays open or closed as you left it. If you leave the page, the box is
+closed again on your next visit. A Service without risks has no box.
+
 ### Instance Priority
 
 A Route prefers some Instances over others, by their kind. A Static Instance

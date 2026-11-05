@@ -9,9 +9,11 @@ import dev.palazon.lvhyard.dashboard.services.Instance;
 import dev.palazon.lvhyard.dashboard.services.InstanceKind;
 import dev.palazon.lvhyard.dashboard.services.Scope;
 import dev.palazon.lvhyard.dashboard.services.Service;
+import dev.palazon.lvhyard.dashboard.services.ServiceState;
 import dev.palazon.lvhyard.dashboard.services.ServiceWarning;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
@@ -91,6 +93,7 @@ final class ServicePage {
                                                 + service.workstation()
                                                 + "."))
                                 .__()
+                                .of(content -> alerts(content, service))
                                 .div()
                                 .attrClass("flex flex-wrap items-center justify-between gap-4")
                                 .of(div -> publication(div, workstation, service, own))
@@ -101,11 +104,6 @@ final class ServicePage {
                                 })
                                 .__()
                                 .of(content -> {
-                                  if (!service.warnings().isEmpty()) {
-                                    warnings(content, service);
-                                  }
-                                })
-                                .of(content -> {
                                   if (own && service.published()) {
                                     instancePriority(content, service);
                                   }
@@ -113,11 +111,6 @@ final class ServicePage {
                                 .of(content -> {
                                   if (own ? service.published() : !service.profiles().isEmpty()) {
                                     routeProfiles(content, service, own, profileNames);
-                                  }
-                                })
-                                .of(content -> {
-                                  if (service.instances().isEmpty()) {
-                                    content.p().text("No Instances are registered.").__();
                                   }
                                 })
                                 .div()
@@ -710,27 +703,62 @@ final class ServicePage {
   }
 
   /**
-   * Why other Workstations may not reach the Service, though its Scope gives them a Route, or why a
-   * Route Profile does not protect it everywhere.
+   * Red alerts for what stops the hostname from working, then one closed box for the risks. The box
+   * has an id so that risks.js can open it again after each refresh.
    */
-  private static void warnings(Div<?> content, Service service) {
+  private static void alerts(Div<?> content, Service service) {
+    Stream.concat(
+            stateAlert(service.state()).stream(),
+            service.warnings().stream()
+                .filter(warning -> warning.severity() == ServiceWarning.Severity.ERROR)
+                .map(ServiceWarning::message))
+        .forEach(message ->
+            content
+                .div()
+                .attrClass("alert")
+                .addAttr("data-variant", "destructive")
+                .addAttr("role", "alert")
+                .h3()
+                .text(message)
+                .__()
+                .__());
+    List<String> risks =
+        service.warnings().stream()
+            .filter(warning -> warning.severity() == ServiceWarning.Severity.RISK)
+            .map(ServiceWarning::message)
+            .toList();
+    if (risks.isEmpty()) {
+      return;
+    }
+    // custom: HtmlFlow's details gives its summary no attributes and its section no children.
     content
-        .div()
+        .custom("details")
+        .attrId("risks")
         .attrClass("alert")
-        .addAttr("data-variant", "destructive")
-        .addAttr("role", "alert")
-        .h3()
-        .text("Check this Service")
+        .addAttr("data-variant", "risk")
+        .custom("summary")
+        .attrClass("cursor-pointer font-medium")
+        .text(
+            risks.size() == 1 ? "1 risk to keep in mind" : risks.size() + " risks to keep in mind")
         .__()
         .section()
+        .attrClass("mt-2")
         .ul()
-        .of(list ->
-            service.warnings().stream()
-                .map(ServiceWarning::message)
-                .forEach(message -> list.li().text(message).__()))
+        .of(list -> risks.forEach(risk -> list.li().text(risk).__()))
         .__()
         .__()
         .__();
+  }
+
+  /**
+   * The state is not a Service Warning, so the API does not list it, but it breaks the hostname.
+   */
+  private static Optional<String> stateAlert(ServiceState state) {
+    return switch (state) {
+      case UNAVAILABLE -> Optional.of("No Instances are registered");
+      case UNHEALTHY -> Optional.of("No Instance passes its checks");
+      case UNPUBLISHED, HEALTHY -> Optional.empty();
+    };
   }
 
   private static void actions(Tr<?> row, Service service, Instance instance) {
