@@ -189,6 +189,30 @@ sudo mv lvh-yard /usr/local/bin/
 On macOS, the system blocks a downloaded executable. To unblock it, run
 `xattr -d com.apple.quarantine lvh-yard`.
 
+### Shell completion
+
+`lvh-yard completions <shell>` prints a completion script for Bash or Zsh.
+It completes commands, subcommands, flags and known values, such as Service
+states. It does not fetch Service names from the dashboard.
+The `completions` command stays out of the main help menu.
+
+For Bash, load the script in your current shell:
+
+```bash
+source <(lvh-yard completions bash)
+```
+
+To load it in each new Bash session, add that line to `~/.bashrc`.
+
+For Zsh, load the script in your current shell:
+
+```zsh
+source <(lvh-yard completions zsh)
+```
+
+To load it in each new Zsh session, add that line to `~/.zshrc`.
+The script uses Zsh's Bash completion support.
+
 ## Using the CLI
 
 `lvh-yard` talks to the dashboard on this Workstation. It uses the first

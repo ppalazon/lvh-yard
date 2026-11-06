@@ -32,7 +32,8 @@ import picocli.CommandLine.Spec;
       Export.class,
       Import.class,
       TestReachability.class,
-      Status.class
+      Status.class,
+      Completions.class
     },
     description = "Registers, publishes and tests Services on this Workstation.")
 public class Yard implements Runnable {
