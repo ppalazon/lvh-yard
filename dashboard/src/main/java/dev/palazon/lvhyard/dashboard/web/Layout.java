@@ -160,7 +160,7 @@ public final class Layout {
         .div()
         .attrId("status-dots")
         .addAttr("hx-get", StatusSummary.PATH)
-        .addAttr("hx-trigger", "load, every 5s")
+        .addAttr("hx-trigger", "load, sse:status-changed, every 30s")
         .addAttr("hx-swap", "innerHTML")
         .addAttr("hx-status:4xx", "swap:none")
         .addAttr("hx-status:5xx", "swap:none")
