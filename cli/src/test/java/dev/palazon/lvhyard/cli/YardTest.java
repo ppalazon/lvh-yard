@@ -149,7 +149,9 @@ class YardTest {
         {"home": {"name": "ws-a", "services": [
           {"workstation": "ws-a", "name": "web", "state": "degraded",
            "hostname": "web.lvh.me", "containerBindings": [],
-           "warnings": [{"kind": "loopback-instance", "severity": "risk", "message": "Hidden warning."}],
+           "warnings": [
+             {"kind": "loopback-instance", "severity": "risk", "message": "Hidden warning."},
+             {"kind": "unknown-route-profile", "severity": "error", "message": "Missing Route Profile."}],
            "instances": [
              {"id": "hidden-good", "host": "10.1.2.3", "port": 8080, "health": "passing",
               "tags": [], "meta": {}, "checks": [], "outOfRange": true},
@@ -179,7 +181,7 @@ class YardTest {
   }
 
   @Test
-  void listShowsThisWorkstationThenTheOthersWithTheirStateHostnameInstancesAndHealth() {
+  void catalogDetailsShowsWorkstationsWithServiceStateHostnameInstancesAndHealth() {
     dashboard.answer(
         "GET",
         "/api/yard",
@@ -208,7 +210,7 @@ class YardTest {
            {"name": "ws-d", "unreachable": false, "services": []}]}
         """);
 
-    Run run = yard("list");
+    Run run = yard("catalog", "--details");
 
     assertThat(run.exitCode()).isZero();
     assertThat(run.lines())
@@ -228,223 +230,101 @@ class YardTest {
   }
 
   @Test
-  void listWithWorkstationShowsThatWorkstationsServices() {
-    dashboard.answer(
-        "GET",
-        "/api/services?workstation=ws-b",
-        200,
-        """
-        [{"workstation": "ws-b", "name": "postgres", "state": "unpublished", "containerBindings": [],
-         "warnings": [], "instances": [
-            {"id": "5e6f", "host": "10.1.2.4", "port": 5432, "health": "passing",
-             "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}]
-        """);
+  void catalogDetailsFiltersServicesAndKeepsInstanceIdsHealthAndWarnings() {
+    catalogAnswer();
 
-    Run run = yard("list", "--workstation", "ws-b");
-
-    assertThat(run.exitCode()).isZero();
-    assertThat(run.lines())
-        .containsExactly("ws-b", "  postgres: unpublished", "    10.1.2.4:5432  passing   5e6f");
-  }
-
-  @Test
-  void listShowsDegradedAndKeepsInstanceIdsAndWarnings() {
-    dashboard.answer(
-        "GET",
-        "/api/services?workstation=ws-a",
-        200,
-        """
-        [{"workstation": "ws-a", "name": "web", "state": "degraded",
-          "hostname": "web.lvh.me", "publication": {"scope": "local", "accessLog": false},
-          "containerBindings": [],
-          "warnings": [{"kind": "loopback-instance", "severity": "risk", "message": "Loopback Instance."}],
-          "instances": [
-            {"id": "good", "host": "10.1.2.3", "port": 8080, "health": "passing",
-             "tags": [], "meta": {}, "checks": [], "outOfRange": false},
-            {"id": "bad", "host": "127.0.0.1", "port": 8081, "health": "warning",
-             "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}]
-        """);
-
-    Run run = yard("list", "--workstation", "ws-a");
+    Run run = yard("catalog", "--details", "--workstation", "ws-a", "--state", "degraded");
 
     assertThat(run.exitCode()).isZero();
     assertThat(run.lines())
         .containsExactly(
-            "ws-a",
+            "ws-a (this Workstation)",
             "  web: degraded at web.lvh.me",
-            "    10.1.2.3:8080  passing   good",
-            "    127.0.0.1:8081  warning   bad",
-            "    risk: Loopback Instance.");
+            "    10.1.2.3:8080  passing   hidden-good  out of range",
+            "    127.0.0.1:8081  critical  hidden-bad",
+            "    10.1.2.3:8082  warning   hidden-warning",
+            "    risk: Hidden warning.",
+            "    error: Missing Route Profile.");
   }
 
   @Test
-  void listMarksTheInstancesTheRouteSendsRequestsTo() {
+  void catalogDetailsMarksOnlyTheInstancesThatTheRouteUses() {
     dashboard.answer(
         "GET",
-        "/api/services?workstation=ws-a",
+        "/api/yard",
         200,
         """
-        [{"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "local", "accessLog": false},
-          "hostname": "web.lvh.me", "containerBindings": [], "warnings": [],
-          "priority": ["static", "bound", "alias"],
-          "routing": {"kind": "static", "instances": ["1a2b"]},
-          "instances": [
-            {"id": "1a2b", "host": "10.1.2.3", "port": 3000, "health": "passing",
-             "tags": [], "meta": {}, "checks": [], "outOfRange": false},
-            {"id": "web:abc:80", "host": "172.17.0.2", "port": 80, "health": "passing",
-             "tags": [], "meta": {}, "checks": [], "outOfRange": false,
-             "containerBinding": "abc:80"}]}]
+        {"home": {"name": "ws-a", "services": [
+          {"workstation": "ws-a", "name": "web", "state": "healthy",
+           "hostname": "web.lvh.me", "containerBindings": [], "warnings": [],
+           "routing": {"kind": "static", "instances": ["1a2b"]},
+           "instances": [
+             {"id": "1a2b", "host": "10.1.2.3", "port": 3000, "health": "passing",
+              "tags": [], "meta": {}, "checks": [], "outOfRange": false},
+             {"id": "web:abc:80", "host": "172.17.0.2", "port": 80, "health": "passing",
+              "tags": [], "meta": {}, "checks": [], "outOfRange": false,
+              "containerBinding": "abc:80"}]}]}, "remotes": []}
         """);
 
-    Run run = yard("list", "--workstation", "ws-a");
+    Run run = yard("catalog", "--details");
 
+    assertThat(run.exitCode()).isZero();
     assertThat(run.lines())
         .containsExactly(
-            "ws-a",
+            "ws-a (this Workstation)",
             "  web: healthy at web.lvh.me",
             "    10.1.2.3:3000  passing   1a2b  routed",
             "    172.17.0.2:80  passing   web:abc:80");
   }
 
   @Test
-  void listMarksAnInstanceOutOfRange() {
-    dashboard.answer(
-        "GET",
-        "/api/services?workstation=ws-b",
-        200,
-        """
-        [{"workstation": "ws-b", "name": "api", "state": "healthy", "publication": {"scope": "yard", "accessLog": false},
-          "hostname": "api.ws-b.lvh.me", "containerBindings": [],
-           "warnings": [], "instances": [
-            {"id": "1a2b", "host": "10.1.2.4", "port": 9090, "health": "passing",
-             "tags": [], "meta": {}, "checks": [], "outOfRange": false},
-            {"id": "3c4d", "host": "127.0.0.1", "port": 9091, "health": "passing",
-             "tags": [], "meta": {}, "checks": [], "outOfRange": true}]}]
-        """);
+  void catalogDetailsCanSelectARemoteWorkstation() {
+    catalogAnswer();
 
-    Run run = yard("list", "--workstation", "ws-b");
+    Run run = yard("catalog", "--details", "--workstation", "ws-b");
 
+    assertThat(run.exitCode()).isZero();
     assertThat(run.lines())
         .containsExactly(
             "ws-b",
-            "  api: healthy at api.ws-b.lvh.me",
-            "    10.1.2.4:9090  passing   1a2b",
-            "    127.0.0.1:9091  passing   3c4d  out of range");
+            "  database: healthy at db.lvh.me",
+            "    10.1.2.4:5432  passing   db-first",
+            "    10.1.2.4:5433  passing   db-second",
+            "  cache: unavailable");
   }
 
   @Test
-  void listShowsTheServicesWarnings() {
-    dashboard.answer(
-        "GET",
-        "/api/services?workstation=ws-b",
-        200,
-        """
-        [{"workstation": "ws-b", "name": "api", "state": "healthy", "publication": {"scope": "yard", "accessLog": false},
-          "hostname": "api.ws-b.lvh.me", "containerBindings": [], "profiles": ["team-login"],
-          "warnings": [{"kind": "unknown-route-profile", "severity": "error",
-                        "message": "The Route Profile team-login does not exist."},
-                       {"kind": "route-profile-auth", "severity": "risk",
-                        "message": "The Route Profile basic-auth asks who the user is only on the hostname."}],
-          "instances": [
-            {"id": "1a2b", "host": "10.1.2.4", "port": 9090, "health": "passing",
-             "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}]
-        """);
+  void catalogDetailsKeepsUnreachableAndEmptyWorkstationsWhenFilteringByState() {
+    catalogAnswer();
 
-    Run run = yard("list", "--workstation", "ws-b");
+    Run run = yard("catalog", "--details", "--state", "unpublished");
 
+    assertThat(run.exitCode()).isZero();
     assertThat(run.lines())
         .containsExactly(
-            "ws-b",
-            "  api: healthy at api.ws-b.lvh.me",
-            "    10.1.2.4:9090  passing   1a2b",
-            "    error: The Route Profile team-login does not exist.",
-            "    risk: The Route Profile basic-auth asks who the user is only on the hostname.");
+            "ws-a (this Workstation)",
+            "  worker: unpublished",
+            "    10.1.2.3:8083  critical  worker-critical",
+            "    10.1.2.3:8084  warning   worker-warning",
+            "ws-b: no Services",
+            "ws-c: Workstation unreachable",
+            "ws-d: no Services");
   }
 
   @Test
-  void listShowsTheServicesOfTheFirstSetupAsOrdinaryServices() {
-    dashboard.answer(
-        "GET",
-        "/api/services?workstation=ws-b",
-        200,
-        """
-        [{"workstation": "ws-b", "name": "consul-ui", "state": "healthy",
-          "publication": {"scope": "local", "accessLog": false}, "hostname": "consul-ui.lvh.me", "containerBindings": [],
-          "warnings": [], "instances": [
-            {"id": "consul-ui", "host": "127.0.0.1", "port": 8500, "health": "passing",
-             "tags": [], "meta": {}, "checks": [], "outOfRange": false}]},
-         {"workstation": "ws-b", "name": "traefik-admin", "state": "healthy",
-          "publication": {"scope": "local", "accessLog": false}, "hostname": "traefik-admin.lvh.me", "containerBindings": [],
-          "warnings": [], "instances": [
-            {"id": "traefik-admin", "host": "127.0.0.1", "port": 8080, "health": "passing",
-             "tags": [], "meta": {}, "checks": [], "outOfRange": false}]},
-         {"workstation": "ws-b", "name": "yard", "state": "healthy",
-          "publication": {"scope": "local", "accessLog": false}, "hostname": "yard.lvh.me", "containerBindings": [],
-          "warnings": [], "instances": [
-            {"id": "yard", "host": "127.0.0.1", "port": 7780, "health": "passing",
-             "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}]
-        """);
+  void catalogRejectsUnknownWorkstationsInBothViews() {
+    catalogAnswer();
 
-    Run run = yard("list", "--workstation", "ws-b");
+    for (String[] args :
+        List.of(
+            new String[] {"catalog", "--workstation", "ws-typo"},
+            new String[] {"catalog", "--details", "--workstation", "ws-typo"})) {
+      Run run = yard(args);
 
-    assertThat(run.lines())
-        .containsExactly(
-            "ws-b",
-            "  consul-ui: healthy at consul-ui.lvh.me",
-            "    127.0.0.1:8500  passing   consul-ui",
-            "  traefik-admin: healthy at traefik-admin.lvh.me",
-            "    127.0.0.1:8080  passing   traefik-admin",
-            "  yard: healthy at yard.lvh.me",
-            "    127.0.0.1:7780  passing   yard");
-  }
-
-  @Test
-  void listWithoutServicesSaysSo() {
-    dashboard.answer(
-        "GET",
-        "/api/yard",
-        200,
-        """
-        {"home": {"name": "ws-a", "services": []}, "remotes": []}
-        """);
-    dashboard.answer("GET", "/api/services?workstation=ws-b", 200, "[]");
-
-    assertThat(yard("list").out()).isEqualTo("ws-a (this Workstation): no Services\n");
-    assertThat(yard("list", "--workstation", "ws-b").out()).isEqualTo("ws-b: no Services\n");
-  }
-
-  @Test
-  void listOfWorkstationNotInTheYardFailsWithTheReason() {
-    dashboard.answer(
-        "GET",
-        "/api/services?workstation=ws-typo",
-        404,
-        """
-        {"status": 404, "detail": "The Yard has no Workstation ws-typo."}
-        """);
-
-    Run run = yard("list", "--workstation", "ws-typo");
-
-    assertThat(run.exitCode()).isNotZero();
-    assertThat(run.out()).isEmpty();
-    assertThat(run.err()).contains("The Yard has no Workstation ws-typo.");
-  }
-
-  @Test
-  void listOfUnreachableWorkstationFailsWithTheReason() {
-    dashboard.answer(
-        "GET",
-        "/api/services?workstation=ws-b",
-        503,
-        """
-        {"status": 503, "detail": "Workstation ws-b is unreachable: its Consul datacenter does not answer."}
-        """);
-
-    Run run = yard("list", "--workstation", "ws-b");
-
-    assertThat(run.exitCode()).isNotZero();
-    assertThat(run.err())
-        .contains("Workstation ws-b is unreachable: its Consul datacenter does not answer.");
+      assertThat(run.exitCode()).isNotZero();
+      assertThat(run.out()).isEmpty();
+      assertThat(run.err()).contains("The Yard has no Workstation ws-typo.");
+    }
   }
 
   @Test
@@ -2522,7 +2402,7 @@ class YardTest {
   void dashboardThatDoesNotAnswerIsExplained() throws IOException {
     String nothingListens = "http://127.0.0.1:" + freePort();
 
-    Run run = yardAsTyped("--dashboard", nothingListens, "list");
+    Run run = yardAsTyped("--dashboard", nothingListens, "catalog");
 
     assertThat(run.exitCode()).isNotZero();
     assertThat(run.err())
@@ -2547,7 +2427,7 @@ class YardTest {
     other.start();
     try {
       Run run =
-          yardAsTyped("--dashboard", "http://127.0.0.1:" + other.getAddress().getPort(), "list");
+          yardAsTyped("--dashboard", "http://127.0.0.1:" + other.getAddress().getPort(), "catalog");
 
       assertThat(run.exitCode()).isNotZero();
       assertThat(run.err()).contains("is not the LVH Yard dashboard");
@@ -2566,7 +2446,7 @@ class YardTest {
         {"home": {"name": "ws-a", "services": []}, "remotes": []}
         """);
 
-    Run run = yardProcess(Map.of("YARD_DASHBOARD_URL", dashboard.url().toString()), "list");
+    Run run = yardProcess(Map.of("YARD_DASHBOARD_URL", dashboard.url().toString()), "catalog");
 
     assertThat(run.exitCode()).isZero();
     assertThat(run.out()).isEqualTo("ws-a (this Workstation): no Services\n");
@@ -2587,7 +2467,7 @@ class YardTest {
             Map.of("YARD_DASHBOARD_URL", "http://127.0.0.1:" + freePort()),
             "--dashboard",
             dashboard.url().toString(),
-            "list");
+            "catalog");
 
     assertThat(run.exitCode()).isZero();
   }
@@ -2606,7 +2486,7 @@ class YardTest {
     yardAsTyped("init", "--dir", folder.toString(), "--workstation", "ws-a");
     setInEnv(folder, "YARD_DASHBOARD_PORT", String.valueOf(dashboard.url().getPort()));
 
-    Run run = yardProcess(Map.of("XDG_CONFIG_HOME", config.toString()), "list");
+    Run run = yardProcess(Map.of("XDG_CONFIG_HOME", config.toString()), "catalog");
 
     assertThat(run.exitCode()).as(run.err()).isZero();
     assertThat(run.out()).isEqualTo("ws-a (this Workstation): no Services\n");
@@ -2620,7 +2500,7 @@ class YardTest {
     setInEnv(folder, "YARD_DASHBOARD_BIND_ADDRESS", "0.0.0.0");
     setInEnv(folder, "YARD_DASHBOARD_PORT", String.valueOf(port));
 
-    Run run = yardProcess(Map.of("XDG_CONFIG_HOME", config.toString()), "list");
+    Run run = yardProcess(Map.of("XDG_CONFIG_HOME", config.toString()), "catalog");
 
     assertThat(run.exitCode()).isNotZero();
     assertThat(run.err()).contains("does not answer at http://127.0.0.1:" + port);
@@ -2639,7 +2519,7 @@ class YardTest {
     Run run =
         yardProcess(
             Map.of("YARD_CONFIG_DIR", folder.toString(), "XDG_CONFIG_HOME", config.toString()),
-            "list");
+            "catalog");
 
     assertThat(run.exitCode()).as(run.err()).isZero();
   }
@@ -2658,7 +2538,7 @@ class YardTest {
                 config.toString(),
                 "YARD_DASHBOARD_URL",
                 dashboard.url().toString()),
-            "list");
+            "catalog");
 
     assertThat(run.exitCode()).as(run.err()).isZero();
   }
@@ -2667,7 +2547,7 @@ class YardTest {
   void anUnreadableEnvFallsThroughToLoopback(@TempDir Path config) throws Exception {
     Files.createDirectories(config.resolve("lvh-yard/.env"));
 
-    Run run = yardProcess(Map.of("XDG_CONFIG_HOME", config.toString()), "list");
+    Run run = yardProcess(Map.of("XDG_CONFIG_HOME", config.toString()), "catalog");
 
     // A dashboard of this computer's own may answer at the default; else the error names it.
     assertThat(run.exitCode() == 0 || run.err().contains("at http://127.0.0.1:7780"))
@@ -2677,7 +2557,7 @@ class YardTest {
 
   @Test
   void withoutAnEnvTheDashboardIsOnLoopback() throws Exception {
-    Run run = yardProcess(Map.of(), "list");
+    Run run = yardProcess(Map.of(), "catalog");
 
     // A dashboard of this computer's own may answer at the default; else the error names it.
     assertThat(run.exitCode() == 0 || run.err().contains("at http://127.0.0.1:7780"))
@@ -3104,7 +2984,7 @@ class YardTest {
   }
 
   @Test
-  void initsNextStepsAndListAgreeOnTheDashboardForABlankBindAddressAndPort(@TempDir Path config)
+  void initsNextStepsAndCatalogAgreeOnTheDashboardForABlankBindAddressAndPort(@TempDir Path config)
       throws Exception {
     Path folder = Files.createDirectories(config.resolve("lvh-yard"));
     Files.writeString(
@@ -3112,14 +2992,14 @@ class YardTest {
         "YARD_WORKSTATION=ws-a\nYARD_DASHBOARD_BIND_ADDRESS= \nYARD_DASHBOARD_PORT= \n");
 
     Run init = yardAsTyped("init", "--dir", folder.toString(), "--reinit");
-    Run list = yardProcess(Map.of("XDG_CONFIG_HOME", config.toString()), "list");
+    Run catalog = yardProcess(Map.of("XDG_CONFIG_HOME", config.toString()), "catalog");
 
     assertThat(init.out())
         .contains("Open the dashboard: http://127.0.0.1:7780\n")
         .contains("  4. Make sure that LVH Yard works: lvh-yard status\n\n");
     // A dashboard of this computer's own may answer at the default; else the error names it.
-    assertThat(list.exitCode() == 0 || list.err().contains("at http://127.0.0.1:7780"))
-        .as(list.err())
+    assertThat(catalog.exitCode() == 0 || catalog.err().contains("at http://127.0.0.1:7780"))
+        .as(catalog.err())
         .isTrue();
   }
 

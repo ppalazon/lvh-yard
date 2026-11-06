@@ -29,6 +29,11 @@ class Catalog implements Runnable {
       description = "List only Services in this state: ${COMPLETION-CANDIDATES}.")
   State state;
 
+  @Option(
+      names = "--details",
+      description = "Show Instance addresses, Health, IDs and Service Warnings.")
+  boolean details;
+
   enum State {
     unpublished,
     unavailable,
@@ -47,6 +52,9 @@ class Catalog implements Runnable {
         new Dashboard.YardWorkstation(snapshot.home().name(), false, snapshot.home().services()));
     workstations.addAll(snapshot.remotes());
     workstations.removeIf(item -> workstation != null && !workstation.equals(item.name()));
+    if (workstations.isEmpty()) {
+      throw new YardException("The Yard has no Workstation " + workstation + ".");
+    }
     if (state != null) {
       workstations.replaceAll(item ->
           new Dashboard.YardWorkstation(
@@ -56,17 +64,20 @@ class Catalog implements Runnable {
                   .filter(service -> state.name().equals(service.state()))
                   .toList()));
     }
-    int nameWidth = 1;
-    int stateWidth = 1;
-    int hostnameWidth = 1;
-    for (Dashboard.YardWorkstation workstation : workstations) {
-      for (Dashboard.Service service : workstation.services()) {
-        nameWidth = Math.max(nameWidth, service.name().length());
-        stateWidth = Math.max(stateWidth, service.state().length());
-        hostnameWidth = Math.max(hostnameWidth, hostname(service).length());
+    String format = null;
+    if (!details) {
+      int nameWidth = 1;
+      int stateWidth = 1;
+      int hostnameWidth = 1;
+      for (Dashboard.YardWorkstation workstation : workstations) {
+        for (Dashboard.Service service : workstation.services()) {
+          nameWidth = Math.max(nameWidth, service.name().length());
+          stateWidth = Math.max(stateWidth, service.state().length());
+          hostnameWidth = Math.max(hostnameWidth, hostname(service).length());
+        }
       }
+      format = "  %-" + nameWidth + "s  %-" + stateWidth + "s  %-" + hostnameWidth + "s  %s%n";
     }
-    String format = "  %-" + nameWidth + "s  %-" + stateWidth + "s  %-" + hostnameWidth + "s  %s%n";
     PrintWriter out = spec.commandLine().getOut();
     for (Dashboard.YardWorkstation workstation : workstations) {
       String heading =
@@ -79,6 +90,10 @@ class Catalog implements Runnable {
       } else {
         out.println(heading);
         for (Dashboard.Service service : workstation.services()) {
+          if (details) {
+            printDetails(out, service);
+            continue;
+          }
           String instances =
               service.instances().isEmpty()
                   ? "No Instances"
@@ -93,6 +108,27 @@ class Catalog implements Runnable {
       }
     }
     out.flush();
+  }
+
+  private static void printDetails(PrintWriter out, Dashboard.Service service) {
+    out.println(
+        "  "
+            + service.name()
+            + ": "
+            + service.state()
+            + (service.hostname() == null ? "" : " at " + service.hostname()));
+    for (Dashboard.Instance instance : service.instances()) {
+      out.printf(
+          "    %-13s  %-8s  %s%s%s%n",
+          instance.address(),
+          instance.health(),
+          instance.id(),
+          service.routes(instance) ? "  routed" : "",
+          instance.outOfRange() ? "  out of range" : "");
+    }
+    for (Dashboard.Warning warning : service.warnings()) {
+      out.println("    " + warning.line());
+    }
   }
 
   private static String hostname(Dashboard.Service service) {

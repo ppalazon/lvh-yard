@@ -21,7 +21,6 @@ import picocli.CommandLine.Spec;
     mixinStandardHelpOptions = true,
     subcommands = {
       Init.class,
-      ListServices.class,
       Catalog.class,
       Register.class,
       Containers.class,

@@ -203,11 +203,11 @@ address of this list:
 It shows the whole Yard, but it changes only the Services of this Workstation:
 
 ```sh
-lvh-yard list                               # every Service, by Workstation
-lvh-yard list --workstation ws-b            # the Services of ws-b
 lvh-yard catalog                            # one line per Service, by Workstation
 lvh-yard catalog --workstation ws-b          # one Workstation
 lvh-yard catalog --state degraded            # one Service state
+lvh-yard catalog --details                  # Instance addresses, Health, IDs and Service Warnings
+lvh-yard catalog --details --workstation ws-b --state degraded
 lvh-yard register static web --port 8080    # at this Workstation's LAN address, and publish a new Service
 lvh-yard register static web --host 127.0.0.1 --port 8080
 lvh-yard register static web --port 8080 --path /health --interval 5s --timeout 1s   # an HTTP check (default: TCP, 10s, 2s)
@@ -218,7 +218,7 @@ lvh-yard register container shop-web-1     # bind a container to a Service, and 
 lvh-yard register container shop-web-1 --port 9000 --service shop --no-publish
 lvh-yard register container --compose shop/web --port 80   # bind the Compose service web of project shop
 lvh-yard remove web --port 8080             # add --host if several Instances share the port
-lvh-yard remove web --id <id>               # the ID that lvh-yard list shows
+lvh-yard remove web --id <id>               # the ID that lvh-yard catalog --details shows
 lvh-yard remove web --container web-1       # add --port if web-1 is bound on several ports
 lvh-yard remove web --compose-project shop --compose-service web
 lvh-yard publish web                        # http://web.<base-domain> (Local Scope)
@@ -252,9 +252,11 @@ lvh-yard status --strict                    # also exits with 1 on a warning
 
 `lvh-yard catalog` shows aligned columns for the Service name, state, hostname
 and Instance count. The count says "N of M passing", or "No Instances" when empty.
-Unpublished Services show the count too, but have no hostname. It prints no
-Instance IDs or Service Warnings. Use `lvh-yard list` to see those details.
-You can combine `--workstation` and `--state`. The states are `unpublished`,
+Unpublished Services show the count too, but have no hostname. By default,
+the command prints no Instance IDs or Service Warnings. Add `--details` to
+show each Instance's address, Health and ID, followed by the Service Warnings.
+Both views support `--workstation` and `--state`. You can combine the filters.
+The states are `unpublished`,
 `unavailable`, `unhealthy`, `degraded` and `healthy`. An unreachable Workstation
 shows `Workstation unreachable` instead of its Services.
 
@@ -580,8 +582,8 @@ The API sends each Service Warning in `warnings`, with its `kind`, its
 Service Warning, so an Unavailable or Unhealthy Service has no Service Warning
 for its state.
 
-`lvh-yard list`, `lvh-yard publish` and `lvh-yard register container` print the
-level before each message:
+`lvh-yard catalog --details`, `lvh-yard publish` and
+`lvh-yard register container` print the level before each message:
 
 ```text
     error: The Route Profile team-login does not exist on the Home Workstation, ...
@@ -672,7 +674,8 @@ The "Routes to" card of the Service page shows the kind in use, for example
 "Static", and the kinds that wait, for example "Bound waiting". While the
 Instance Priority is off, it shows "Every passing Instance" and "Instance
 Priority off".
-`lvh-yard list` marks each Instance that the Route uses with `routed`. The API shows the order in `priority` and the
+`lvh-yard catalog --details` marks each Instance that the Route uses with `routed`.
+The API shows the order in `priority` and the
 Instances in use in `routing`. While the Instance Priority is off, `routing`
 has `"off": true`.
 
@@ -682,7 +685,7 @@ An address on loopback or on a Docker bridge network (172.17.0.0/16 to
 172.31.0.0/16) is out of range. If an Instance of a Remote Service has such an
 address, it is an Out-of-range Instance here. A Route to it reaches this
 computer instead. So no Route points to it, and the API (`outOfRange`), the
-page and `lvh-yard list` mark it.
+page and `lvh-yard catalog --details` mark it.
 
 If your LAN uses these addresses, set `YARD_OUT_OF_RANGE` to your own list. The
 test Yard leaves loopback out, because its two Workstations share it.
@@ -852,7 +855,7 @@ its users itself.
 If you remove a profile from the file while a Publication still names it, the
 Route still lists it. Traefik then refuses the Route, so the hostname does not
 answer and a missing auth profile never opens the Service. The Service page,
-the API and `lvh-yard list` show an "unknown Route Profile" error. Add the
+the API and `lvh-yard catalog --details` show an "unknown Route Profile" error. Add the
 profile again, or remove it from the Publication.
 
 ### Static Instances
