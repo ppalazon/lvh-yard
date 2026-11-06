@@ -621,6 +621,29 @@ class YardTest {
             """);
   }
 
+  @Test
+  void containersDetailsPreservesPublishedPortsWhenTheBindAddressIsUnknown() {
+    dashboard.answer(
+        "GET",
+        "/api/workstation/containers",
+        200,
+        """
+        [{"name": "web-1", "service": "web",
+          "ports": [{"containerPort": 8080, "hostPort": 37137}]}]
+        """);
+
+    Run run = yard("containers", "--details");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out())
+        .isEqualTo(
+            """
+            Other containers
+              web: 1 container; 8080
+                web-1: 37137->8080 (bind address unknown)
+            """);
+  }
+
   private void standaloneContainersAnswer() {
     dashboard.answer(
         "GET",

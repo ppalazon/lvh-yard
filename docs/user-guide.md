@@ -925,15 +925,17 @@ port of the Container Binding. A container with a Compose project label but
 no Compose service label is listed with the other containers. The list
 refreshes every 5 seconds. If the dashboard cannot read Docker, the page says
 why. `GET /api/workstation/containers` gives one entry per container.
-Each published TCP port mapping includes `containerPort`, `hostPort` and
-`hostIp`, the address Docker binds on the Workstation. An unpublished port
-has no `hostPort` or `hostIp`.
+Each published TCP port mapping includes `containerPort` and `hostPort`.
+The optional `hostIp` field gives the address Docker binds on the Workstation.
+An unpublished port has no `hostPort` or `hostIp`.
 
 `lvh-yard containers` groups containers by Compose project and service.
 Each service line starts with its name, then gives the container count and
 combined Container Ports. Standalone containers keep separate lines.
 Add `--details` to list each container below its service, with mappings such
 as `127.0.0.1:8080->80`. IPv6 addresses have brackets, such as `[::]:8080->80`.
+If the bind address is unknown, the CLI keeps the Host Port and marks the
+mapping with `(bind address unknown)`.
 The detail lines also show the Docker HEALTHCHECK state when one is set.
 
 If a row has one Container Port, click Register to give it a hostname.

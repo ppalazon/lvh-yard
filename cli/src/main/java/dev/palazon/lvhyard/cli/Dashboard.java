@@ -110,7 +110,9 @@ final class Dashboard {
       List<ContainerPort> ports,
       String health) {}
 
-  /** {@code hostPort} and {@code hostIp} are null when the container port is not published. */
+  /**
+   * {@code hostPort} is null when unpublished. {@code hostIp} can be unknown for a published port.
+   */
   record ContainerPort(int containerPort, Integer hostPort, String hostIp) {}
 
   /**

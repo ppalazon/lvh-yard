@@ -111,6 +111,9 @@ class Containers implements Runnable {
           if (port.hostPort() == null) {
             return port.containerPort() + " not published";
           }
+          if (port.hostIp() == null) {
+            return port.hostPort() + "->" + port.containerPort() + " (bind address unknown)";
+          }
           String host = port.hostIp().contains(":") ? "[" + port.hostIp() + "]" : port.hostIp();
           return host + ":" + port.hostPort() + "->" + port.containerPort();
         })
