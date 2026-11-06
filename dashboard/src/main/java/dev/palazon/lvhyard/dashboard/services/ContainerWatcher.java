@@ -1,5 +1,7 @@
 package dev.palazon.lvhyard.dashboard.services;
 
+import static dev.palazon.lvhyard.dashboard.events.EventBroadcaster.CONTAINERS_CHANGED;
+
 import dev.palazon.lvhyard.dashboard.docker.Docker;
 import dev.palazon.lvhyard.dashboard.docker.Docker.ContainerEvents;
 import dev.palazon.lvhyard.dashboard.events.EventDebouncer;
@@ -99,7 +101,7 @@ class ContainerWatcher implements SmartLifecycle {
           following.next();
           if (watcher == Thread.currentThread()) {
             bindings.sync();
-            debouncer.trigger("containers-changed");
+            debouncer.trigger(CONTAINERS_CHANGED);
           }
         }
       } catch (RuntimeException e) {

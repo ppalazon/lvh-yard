@@ -1,5 +1,7 @@
 package dev.palazon.lvhyard.dashboard.web;
 
+import static dev.palazon.lvhyard.dashboard.events.EventBroadcaster.STATUS_CHANGED;
+
 import htmlflow.HtmlFlow;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -160,8 +162,7 @@ public final class Layout {
         .div()
         .attrId("status-dots")
         .addAttr("hx-get", StatusSummary.PATH)
-        .addAttr("hx-trigger", "load, sse:status-changed, every 30s")
-        .addAttr("hx-swap", "innerHTML")
+        .addAttr("hx-trigger", "load, sse:" + STATUS_CHANGED + ", every 30s")
         .addAttr("hx-status:4xx", "swap:none")
         .addAttr("hx-status:5xx", "swap:none")
         .__();
@@ -269,9 +270,8 @@ public final class Layout {
     refreshed(main, id, path, List.of(event), content);
   }
 
-  public static void refreshed(
-      Main<?> main, String id, String path, Consumer<Div<?>> content, String... events) {
-    refreshed(main, id, path, Arrays.asList(events), content);
+  public static void refreshed(Main<?> main, String id, String path, Consumer<Div<?>> content) {
+    refreshed(main, id, path, List.of(), content);
   }
 
   static String attr(String value) {

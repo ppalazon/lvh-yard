@@ -1,5 +1,7 @@
 package dev.palazon.lvhyard.dashboard.status;
 
+import static dev.palazon.lvhyard.dashboard.events.EventBroadcaster.STATUS_CHANGED;
+
 import dev.palazon.lvhyard.dashboard.events.EventDebouncer;
 import java.time.Duration;
 import java.util.HashMap;
@@ -74,7 +76,6 @@ public class StatusWatcher implements SmartLifecycle {
     }
   }
 
-  /** Checks part states and triggers debouncer if any state changed. */
   void checkStatus() {
     Status status = statusReader.status();
     boolean changed = false;
@@ -86,7 +87,7 @@ public class StatusWatcher implements SmartLifecycle {
       lastStates.put(part.name(), part.state());
     }
     if (changed) {
-      debouncer.trigger("status-changed");
+      debouncer.trigger(STATUS_CHANGED);
     }
   }
 }

@@ -12,6 +12,9 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 /** Broadcasts Server-Sent Events to connected clients and maintains connections with heartbeats. */
 @Component
 public class EventBroadcaster implements SmartLifecycle {
+  public static final String YARD_CHANGED = "yard-changed";
+  public static final String CONTAINERS_CHANGED = "containers-changed";
+  public static final String STATUS_CHANGED = "status-changed";
 
   private final Duration heartbeatInterval;
   private final Set<SseEmitter> emitters = ConcurrentHashMap.newKeySet();

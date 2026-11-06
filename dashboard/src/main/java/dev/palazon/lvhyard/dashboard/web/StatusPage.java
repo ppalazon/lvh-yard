@@ -1,5 +1,7 @@
 package dev.palazon.lvhyard.dashboard.web;
 
+import static dev.palazon.lvhyard.dashboard.events.EventBroadcaster.STATUS_CHANGED;
+
 import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.status.Part;
 import dev.palazon.lvhyard.dashboard.status.Status;
@@ -21,7 +23,7 @@ final class StatusPage {
                 main,
                 "status",
                 PATH,
-                "status-changed",
+                STATUS_CHANGED,
                 region ->
                     region
                         .div()

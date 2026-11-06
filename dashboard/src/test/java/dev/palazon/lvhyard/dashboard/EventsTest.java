@@ -1,5 +1,7 @@
 package dev.palazon.lvhyard.dashboard;
 
+import static dev.palazon.lvhyard.dashboard.events.EventBroadcaster.CONTAINERS_CHANGED;
+import static dev.palazon.lvhyard.dashboard.events.EventBroadcaster.YARD_CHANGED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -44,10 +46,10 @@ class EventsTest extends DashboardTest {
       Thread.sleep(500);
       client.lines.clear();
 
-      debouncer.trigger("yard-changed");
-      debouncer.trigger("yard-changed");
-      debouncer.trigger("containers-changed");
-      debouncer.trigger("yard-changed");
+      debouncer.trigger(YARD_CHANGED);
+      debouncer.trigger(YARD_CHANGED);
+      debouncer.trigger(CONTAINERS_CHANGED);
+      debouncer.trigger(YARD_CHANGED);
 
       await()
           .atMost(Duration.ofSeconds(5))
@@ -100,7 +102,7 @@ class EventsTest extends DashboardTest {
         .main()
         .of(main ->
             Layout.refreshed(
-                main, "catalog", "/services", "yard-changed", div -> div.text("content")))
+                main, "catalog", "/services", YARD_CHANGED, div -> div.text("content")))
         .__()
         .__()
         .__();
@@ -117,7 +119,7 @@ class EventsTest extends DashboardTest {
                 main,
                 "containers",
                 "/containers",
-                List.of("containers-changed", "yard-changed"),
+                List.of(CONTAINERS_CHANGED, YARD_CHANGED),
                 div -> div.text("content")))
         .__()
         .__()

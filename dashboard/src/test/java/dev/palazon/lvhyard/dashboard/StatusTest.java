@@ -3,7 +3,6 @@ package dev.palazon.lvhyard.dashboard;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import dev.palazon.lvhyard.dashboard.events.EventDebouncer;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -13,19 +12,29 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.testcontainers.containers.GenericContainer;
 import tools.jackson.databind.JsonNode;
 
 /** The status of this Workstation's LVH Yard: its API, its page and their parts. */
 class StatusTest extends DashboardTest {
-  @org.springframework.beans.factory.annotation.Autowired EventDebouncer debouncer;
-
   @Test
   void infrastructureTransitionEmitsStatusChangedOverEventsStream() throws Exception {
     try (EventStreamClient client = new EventStreamClient(port)) {
-      debouncer.trigger("status-changed");
-      await()
-          .atMost(Duration.ofSeconds(5))
-          .until(() -> client.lines.contains("event:status-changed"));
+      GenericContainer<?> traefik = TestcontainersConfiguration.traefik(port);
+      traefik.start();
+      try {
+        await()
+            .atMost(Duration.ofSeconds(15))
+            .until(() -> client.lines.contains("event:status-changed"));
+
+        String summary = getPage("/status/summary").getBody();
+        assertThat(openingTag(summary, "id=\"dot-traefik\"")).contains("aria-label=\"Traefik: OK.");
+
+        String statusPage = getPage("/status").getBody();
+        assertThat(div(statusPage, "id=\"part-traefik\"")).contains(badge("success", "✓ OK"));
+      } finally {
+        traefik.stop();
+      }
     }
   }
 

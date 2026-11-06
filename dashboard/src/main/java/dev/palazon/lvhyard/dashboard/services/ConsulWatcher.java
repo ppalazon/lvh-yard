@@ -1,5 +1,7 @@
 package dev.palazon.lvhyard.dashboard.services;
 
+import static dev.palazon.lvhyard.dashboard.events.EventBroadcaster.YARD_CHANGED;
+
 import dev.palazon.lvhyard.dashboard.consul.ConsulSettings;
 import dev.palazon.lvhyard.dashboard.events.EventDebouncer;
 import java.net.URI;
@@ -97,26 +99,17 @@ public class ConsulWatcher implements SmartLifecycle {
     while (running && !Thread.currentThread().isInterrupted()) {
       try {
         QueryOutcome outcome = queryBlocking(path, index, queryWait);
-        if (failing.compareAndSet(true, false)) {
-          infoLogger.accept("Consul answers again: the Yard is in step with its state");
-        }
+        recovered();
 
         if (index > 0 && outcome.index() != index) {
-          debouncer.trigger("yard-changed");
+          debouncer.trigger(YARD_CHANGED);
         }
         index = outcome.index();
       } catch (Exception e) {
         if (!running || Thread.currentThread().isInterrupted()) {
           return;
         }
-        if (failing.compareAndSet(false, true)) {
-          warnLogger.accept(
-              "Consul cannot be reached, so the Yard state may be out of step until it can;"
-                  + " trying again every "
-                  + backoffPause.toSeconds()
-                  + " s: "
-                  + e.getMessage());
-        }
+        failed(e);
         if (!pause()) {
           return;
         }
@@ -130,12 +123,10 @@ public class ConsulWatcher implements SmartLifecycle {
     while (running && !Thread.currentThread().isInterrupted()) {
       try {
         WanOutcome outcome = queryWanMembers();
-        if (failing.compareAndSet(true, false)) {
-          infoLogger.accept("Consul answers again: the Yard is in step with its state");
-        }
+        recovered();
 
         if (!lastBody.isEmpty() && !Objects.equals(lastBody, outcome.body())) {
-          debouncer.trigger("yard-changed");
+          debouncer.trigger(YARD_CHANGED);
         }
         lastBody = outcome.body();
 
@@ -147,18 +138,28 @@ public class ConsulWatcher implements SmartLifecycle {
         if (!running || Thread.currentThread().isInterrupted()) {
           return;
         }
-        if (failing.compareAndSet(false, true)) {
-          warnLogger.accept(
-              "Consul cannot be reached, so the Yard state may be out of step until it can;"
-                  + " trying again every "
-                  + backoffPause.toSeconds()
-                  + " s: "
-                  + e.getMessage());
-        }
+        failed(e);
         if (!pause()) {
           return;
         }
       }
+    }
+  }
+
+  private void recovered() {
+    if (failing.compareAndSet(true, false)) {
+      infoLogger.accept("Consul answers again: the Yard is in step with its state");
+    }
+  }
+
+  private void failed(Exception e) {
+    if (failing.compareAndSet(false, true)) {
+      warnLogger.accept(
+          "Consul cannot be followed, so the Yard may be out of step until it can;"
+              + " trying again every "
+              + backoffPause.toSeconds()
+              + " s: "
+              + e.getMessage());
     }
   }
 
