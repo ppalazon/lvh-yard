@@ -70,6 +70,7 @@ final class CatalogPage {
                         content,
                         "catalog",
                         filters.path(),
+                        "yard-changed",
                         region -> workstations(region, yard, filters))));
   }
 

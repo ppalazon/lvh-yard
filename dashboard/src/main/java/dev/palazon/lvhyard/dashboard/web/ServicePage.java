@@ -81,6 +81,7 @@ final class ServicePage {
                         page,
                         "service",
                         path(service),
+                        "yard-changed",
                         region ->
                             region
                                 .div()

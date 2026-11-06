@@ -41,7 +41,7 @@ class EventsTest extends DashboardTest {
   void debouncerCoalescesRapidTriggers() throws Exception {
     try (EventStreamClient client = new EventStreamClient(port)) {
       // Allow any startup event triggers to settle and flush past the 300ms window
-      Thread.sleep(400);
+      Thread.sleep(500);
       client.lines.clear();
 
       debouncer.trigger("yard-changed");
