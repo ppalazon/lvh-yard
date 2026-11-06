@@ -1,5 +1,7 @@
 package dev.palazon.lvhyard.dashboard.web;
 
+import static dev.palazon.lvhyard.dashboard.events.EventBroadcaster.YARD_CHANGED;
+
 import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.reachability.InstanceReachability;
 import dev.palazon.lvhyard.dashboard.reachability.Reachability;
@@ -81,7 +83,7 @@ final class ServicePage {
                         page,
                         "service",
                         path(service),
-                        "yard-changed",
+                        YARD_CHANGED,
                         region ->
                             region
                                 .div()

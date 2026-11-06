@@ -1,5 +1,7 @@
 package dev.palazon.lvhyard.dashboard.web;
 
+import static dev.palazon.lvhyard.dashboard.events.EventBroadcaster.YARD_CHANGED;
+
 import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.services.Health;
 import dev.palazon.lvhyard.dashboard.services.HomeWorkstation;
@@ -70,7 +72,7 @@ final class CatalogPage {
                         content,
                         "catalog",
                         filters.path(),
-                        "yard-changed",
+                        YARD_CHANGED,
                         region -> workstations(region, yard, filters))));
   }
 

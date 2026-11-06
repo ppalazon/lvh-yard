@@ -1,5 +1,8 @@
 package dev.palazon.lvhyard.dashboard.web;
 
+import static dev.palazon.lvhyard.dashboard.events.EventBroadcaster.CONTAINERS_CHANGED;
+import static dev.palazon.lvhyard.dashboard.events.EventBroadcaster.YARD_CHANGED;
+
 import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.services.ContainerBindingRequest;
 import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
@@ -141,7 +144,7 @@ final class ContainersPage {
                         content,
                         "containers",
                         PATH,
-                        List.of("containers-changed", "yard-changed"),
+                        List.of(CONTAINERS_CHANGED, YARD_CHANGED),
                         region -> list(region, containers, dockerProblem, null));
                     return;
                   }
