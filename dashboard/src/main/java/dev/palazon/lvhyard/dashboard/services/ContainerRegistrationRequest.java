@@ -5,7 +5,7 @@ package dev.palazon.lvhyard.dashboard.services;
  *
  * @param port the container port, needed when the container does not run or does not have exactly
  *     one TCP port
- * @param service the Service name, by default the Compose service or the container name
+ * @param service the Service name, chosen from the Binding target when left out
  * @param publish {@code false} binds without publishing a new Service
  */
 public record ContainerRegistrationRequest(Integer port, String service, Boolean publish) {

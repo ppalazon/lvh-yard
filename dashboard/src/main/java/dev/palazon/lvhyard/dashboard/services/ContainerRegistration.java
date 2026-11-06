@@ -76,6 +76,20 @@ public class ContainerRegistration {
    * @throws UnreadableDockerException when Docker does not answer
    */
   public Service register(String name, ContainerRegistrationRequest request) {
+    return register(name, request, true);
+  }
+
+  /**
+   * Binds only the container {@code name}, even when it has Compose labels. The Service name is by
+   * default the cleaned container name. Port and Publication rules are the same as for {@link
+   * #register(String, ContainerRegistrationRequest)}.
+   */
+  public Service registerByName(String name, ContainerRegistrationRequest request) {
+    return register(name, request, false);
+  }
+
+  private Service register(
+      String name, ContainerRegistrationRequest request, boolean followCompose) {
     Optional<Docker.Container> running =
         running().stream().filter(container -> container.isNamed(name)).findFirst();
     Map<String, Map<String, ContainerBindingRequest>> followed = bindings.all(null);
@@ -92,10 +106,13 @@ public class ContainerRegistration {
     ContainerBindingRequest binding;
     if (running.isPresent()) {
       UnfollowedContainer unfollowed = UnfollowedContainer.of(running.get());
-      proposed = unfollowed.service();
+      proposed =
+          followCompose
+              ? unfollowed.service()
+              : UnfollowedContainer.proposedService(Optional.empty(), name);
       int port = request.port() == null ? onlyPort(unfollowed) : request.port();
       binding =
-          unfollowed.composeProject() == null
+          !followCompose || unfollowed.composeProject() == null
               ? ContainerBindingRequest.container(name, port)
               : ContainerBindingRequest.compose(
                   unfollowed.composeProject(), unfollowed.composeService(), port);

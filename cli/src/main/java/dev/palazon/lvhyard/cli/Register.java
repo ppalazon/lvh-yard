@@ -8,8 +8,8 @@ import picocli.CommandLine.Spec;
 @Command(
     name = "register",
     mixinStandardHelpOptions = true,
-    subcommands = {RegisterStatic.class, RegisterContainer.class},
-    description = "Registers a Static Instance, or binds a Service to a container.")
+    subcommands = {RegisterStatic.class, RegisterContainer.class, RegisterCompose.class},
+    description = "Registers a Static Instance, or binds a container or Compose service.")
 class Register implements Runnable {
 
   @ParentCommand Yard yard;

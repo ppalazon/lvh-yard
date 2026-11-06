@@ -42,13 +42,12 @@ class ContainersController {
       operationId = "registerContainer",
       summary = "Gives a container a Service",
       description =
-          "Binds a running container by Compose project and service when it has them, else by"
-              + " container name. Binds a container that does not run by its name. The Service is"
-              + " named after the Compose service or the container, cleaned to follow the Service"
-              + " name rule, unless service is given. The port is needed when the container does"
-              + " not run, or does not have exactly one TCP port. A new Service is published with"
-              + " Local Scope, unless publish is false. A Service that exists keeps its"
-              + " Publication, or stays Unpublished. The body can be left out.")
+          "Binds only the named container, even when it has Compose labels. The Service is"
+              + " named after the container, cleaned to follow the Service name rule, unless"
+              + " service is given. The port is needed when the container does not run, or does"
+              + " not have exactly one TCP port. A new Service is published with Local Scope,"
+              + " unless publish is false. A Service that exists keeps its Publication, or stays"
+              + " Unpublished. The body can be left out.")
   @ApiResponse(
       responseCode = "200",
       description = "The Service, with the container bound",
@@ -63,7 +62,7 @@ class ContainersController {
   Service registerContainer(
       @PathVariable String container,
       @RequestBody(required = false) ContainerRegistrationRequest request) {
-    return containerRegistration.register(
+    return containerRegistration.registerByName(
         container, request == null ? ContainerRegistrationRequest.DEFAULTS : request);
   }
 }

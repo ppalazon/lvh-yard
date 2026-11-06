@@ -402,21 +402,43 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void registerBindsAComposeContainerByProjectAndServiceIntoAServiceOfTheComposeServiceName() {
-    String name = newContainerName();
+  void registerBindsOnlyTheNamedComposeContainerIntoAServiceOfItsCleanedName() {
+    String id = newContainerName().substring("yard-test-".length());
+    String name = "Yard_Test." + id;
+    String sibling = newContainerName();
     String project = newComposeProject();
     String web = newServiceName("web");
     start(
         onePort(name)
             .withLabel("com.docker.compose.project", project)
             .withLabel("com.docker.compose.service", web));
+    start(
+        onePort(sibling)
+            .withLabel("com.docker.compose.project", project)
+            .withLabel("com.docker.compose.service", web));
+    assertThat(listed(get(PATH).getBody(), name).orElseThrow().get("service").asString())
+        .isEqualTo(web);
 
-    JsonNode service = post(registerPath(name), Map.of()).getBody();
+    ResponseEntity<JsonNode> response = post(registerPath(name), Map.of());
 
-    assertThat(service.get("name").asString()).isEqualTo(web);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    JsonNode service = response.getBody();
+    String serviceName = "yard-test-" + id;
+    assertThat(service.get("name").asString()).isEqualTo(serviceName);
+    assertThat(service.get("publication").get("scope").asString()).isEqualTo("local");
+    assertThat(service.get("containerBindings")).hasSize(1);
     assertThat(service.get("containerBindings").get(0).get("id").asString())
-        .isEqualTo("compose:" + project + ":" + web + ":80");
-    assertThat(listed(get(PATH).getBody(), name)).isEmpty();
+        .isEqualTo(name + ":80");
+    await()
+        .atMost(Duration.ofSeconds(15))
+        .untilAsserted(() -> {
+          JsonNode instances = get(servicePath(serviceName)).getBody().get("instances");
+          assertThat(instances).hasSize(1);
+          assertThat(instances.get(0).get("container").asString()).isEqualTo(name);
+        });
+    JsonNode unfollowed = get(PATH).getBody();
+    assertThat(listed(unfollowed, name)).isEmpty();
+    assertThat(listed(unfollowed, sibling)).isPresent();
   }
 
   @Test
@@ -447,7 +469,7 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void composeServiceNameThatIsNotADnsLabelIsProposedCleaned() {
+  void pageRegistersAComposeServiceWithItsCleanedProposedName() {
     String name = newContainerName();
     String project = newComposeProject();
     start(
@@ -457,8 +479,10 @@ class ContainersTest extends DashboardTest {
 
     assertThat(listed(get(PATH).getBody(), name).orElseThrow().get("service").asString())
         .isEqualTo("my-app-v2");
-    JsonNode service = post(registerPath(name), Map.of()).getBody();
+    ResponseEntity<String> response = postForm("/containers/" + name + "/register", Map.of());
 
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    JsonNode service = get(servicePath("my-app-v2")).getBody();
     assertThat(service.get("name").asString()).isEqualTo("my-app-v2");
     assertThat(service.get("containerBindings").get(0).get("id").asString())
         .isEqualTo("compose:" + project + ":My_App.v2:80");
@@ -645,6 +669,24 @@ class ContainersTest extends DashboardTest {
     bind(web, name, 80);
 
     ResponseEntity<JsonNode> response = post(registerPath(name), Map.of("service", web));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(response.getBody().get("detail").asString()).contains(name).contains(web);
+    assertThat(get(servicePath(web)).getBody().get("containerBindings")).hasSize(1);
+  }
+
+  @Test
+  void registerByNameOfAContainerThatAComposeBindingFollowsIsRefused() {
+    String name = newContainerName();
+    String project = newComposeProject();
+    String web = newServiceName("web");
+    start(
+        onePort(name)
+            .withLabel("com.docker.compose.project", project)
+            .withLabel("com.docker.compose.service", "web"));
+    bindCompose(web, project, "web", 80);
+
+    ResponseEntity<JsonNode> response = post(registerPath(name), Map.of("port", 9000));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     assertThat(response.getBody().get("detail").asString()).contains(name).contains(web);

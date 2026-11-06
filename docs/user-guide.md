@@ -215,9 +215,9 @@ lvh-yard register static web --port 8080 --tag backend --meta owner=pablo       
 lvh-yard register static web --port 8080 --no-publish                               # a new Service stays Unpublished
 lvh-yard containers                         # Compose service counts and Container Ports
 lvh-yard containers --details               # each container and its Host Port mappings
-lvh-yard register container shop-web-1     # bind a container to a Service, and publish a new Service
+lvh-yard register container shop-web-1     # bind only this named container
 lvh-yard register container shop-web-1 --port 9000 --service shop --no-publish
-lvh-yard register container --compose shop/web --port 80   # bind the Compose service web of project shop
+lvh-yard register compose shop/web --port 80 # bind the Compose service web of project shop
 lvh-yard remove web --port 8080             # add --host if several Instances share the port
 lvh-yard remove web --id <id>               # the ID that lvh-yard catalog --details shows
 lvh-yard remove web --container web-1       # add --port if web-1 is bound on several ports
@@ -880,7 +880,8 @@ stays Unpublished.
 
 A Container Binding binds a Service to a Docker container by its name, or to
 each container of a Compose project and service. Add one on the Containers
-page or with `lvh-yard register container`. Remove it on the page of the
+page, with `lvh-yard register container`, or with `lvh-yard register compose`.
+Remove it on the page of the
 Service, or with `lvh-yard remove` and `--container`, or `--compose-project`
 and `--compose-service`. The Bindings are in the Consul KV of this
 Workstation, under `lvh-yard/container-bindings/`.
@@ -964,7 +965,9 @@ If the Service has Yard Scope and the container port is not published, the
 page of the Service warns that other Workstations cannot reach the Bound
 Instance.
 
-`POST /api/workstation/containers/<container>/register` does the same.
+`POST /api/workstation/containers/<container>/register` binds only that named
+container, even when it has Compose labels. The Service gets the cleaned
+container name unless the body gives `service`.
 The body can give `port`, `service` (another Service name) and
 `publish: false` (to bind without publishing a new Service). Give `port` when
 the container does not have exactly one TCP port. If you do not, the error
@@ -1005,13 +1008,20 @@ lvh-yard register container shop-web-1 --port 9000       # choose the port of a 
 lvh-yard register container shop-web-1 --service shop    # choose the Service name
 lvh-yard register container shop-web-1 --no-publish      # bind without publishing a new Service
 lvh-yard register container shop-web-1 --port 80         # a container that does not run yet
-lvh-yard register container --compose shop/web --port 80                # a Compose service, running or not
-lvh-yard register container --compose shop/web --port 80 --service shop # choose the Service name
+lvh-yard register compose shop/web --port 80                # a Compose service, running or not
+lvh-yard register compose shop/web --port 80 --service shop # choose the Service name
 ```
 
-With `--compose`, the Service name is by default the cleaned Compose service
-name, and `--port` is needed. Give a container or `--compose`, not both.
-`lvh-yard register` alone lists its two subcommands, `static` and `container`.
+`lvh-yard register container <name>` follows only the named container, even
+when it belongs to a Compose service. The default Service name is the cleaned
+container name. If the running container has exactly one TCP port, `--port`
+can be left out.
+
+`lvh-yard register compose <project>/<service>` follows every container of
+that Compose service. The default Service name is the cleaned Compose
+service name. This command needs `--port`, whether its containers run or not.
+Both commands accept `--service` and `--no-publish`.
+`lvh-yard register` alone lists `static`, `container` and `compose`.
 
 ### Health checks
 

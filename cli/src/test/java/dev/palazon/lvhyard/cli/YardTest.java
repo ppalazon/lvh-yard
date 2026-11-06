@@ -1515,7 +1515,7 @@ class YardTest {
   }
 
   @Test
-  void registerContainerWithComposeBindsTheComposeServiceIntoAServiceOfItsCleanedName() {
+  void registerComposeBindsTheComposeServiceIntoAServiceOfItsCleanedName() {
     dashboard.answer(
         "POST",
         "/api/workstation/services/my-web/container-bindings",
@@ -1525,7 +1525,7 @@ class YardTest {
          "port": 80, "instances": ["my-web:storefront:80", "my-web:shop-web-2:80"]}
         """);
 
-    Run run = yard("register", "container", "--compose", "shop/my_web", "--port", "80");
+    Run run = yard("register", "compose", "shop/my_web", "--port", "80");
 
     assertThat(run.exitCode()).isZero();
     assertThat(run.out())
@@ -1541,7 +1541,7 @@ class YardTest {
   }
 
   @Test
-  void registerContainerWithComposeSendsTheServiceAndNoPublish() {
+  void registerComposeSendsTheServiceAndNoPublish() {
     dashboard.answer(
         "POST",
         "/api/workstation/services/shop/container-bindings",
@@ -1553,15 +1553,7 @@ class YardTest {
 
     Run run =
         yard(
-            "register",
-            "container",
-            "--compose",
-            "shop/web",
-            "--port",
-            "80",
-            "--service",
-            "shop",
-            "--no-publish");
+            "register", "compose", "shop/web", "--port", "80", "--service", "shop", "--no-publish");
 
     assertThat(run.exitCode()).isZero();
     assertThat(run.out())
@@ -1577,40 +1569,101 @@ class YardTest {
   }
 
   @Test
-  void registerContainerWithComposeNeedsAPort() {
-    Run run = yard("register", "container", "--compose", "shop/web");
+  void registerComposeWithOneContainerReportsOneBoundInstance() {
+    dashboard.answer(
+        "POST",
+        "/api/workstation/services/web/container-bindings",
+        201,
+        """
+        {"id": "compose:shop:web:80", "composeProject": "shop", "composeService": "web",
+         "port": 80, "instances": ["web:shop-web-1:80"]}
+        """);
 
-    assertThat(run.exitCode()).isNotZero();
-    assertThat(run.err()).isEqualTo("A Compose service needs --port.\n");
+    Run run = yard("register", "compose", "shop/web", "--port", "80");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out())
+        .isEqualTo(
+            "Bound web to Compose service web of project shop, port 80. 1 of its"
+                + " containers runs now, so web has 1 Bound Instance.\n");
   }
 
   @Test
-  void registerContainerWithComposeNeedsAProjectAndAService() {
-    Run run = yard("register", "container", "--compose", "web", "--port", "80");
+  void registerComposeCleansAndShortensTheDefaultServiceName() {
+    String service = "a".repeat(62) + "-Extra";
+    String name = "a".repeat(62);
+    dashboard.answer(
+        "POST",
+        "/api/workstation/services/" + name + "/container-bindings",
+        201,
+        """
+        {"id": "binding", "composeProject": "shop", "composeService": "%s",
+         "port": 80, "instances": []}
+        """
+            .formatted(service));
 
-    assertThat(run.exitCode()).isNotZero();
-    assertThat(run.err())
-        .isEqualTo("Give --compose as <project>/<service>, such as shop/web, not web.\n");
+    Run run = yard("register", "compose", "shop/" + service, "--port", "80");
+
+    assertThat(run.exitCode()).isZero();
+    dashboard.verifyCalled(
+        "POST",
+        "/api/workstation/services/" + name + "/container-bindings",
+        """
+        {"composeProject": "shop", "composeService": "%s", "port": 80}
+        """
+            .formatted(service));
   }
 
   @Test
-  void registerContainerWithAContainerAndComposeIsRefused() {
+  void registerComposeReportsDashboardErrors() {
+    dashboard.answer(
+        "POST",
+        "/api/workstation/services/web/container-bindings",
+        400,
+        """
+        {"status": 400, "detail": "The container port must be between 1 and 65535."}
+        """);
+
+    Run run = yard("register", "compose", "shop/web", "--port", "0");
+
+    assertThat(run.exitCode()).isEqualTo(1);
+    assertThat(run.err()).contains("The container port must be between 1 and 65535.");
+  }
+
+  @Test
+  void registerComposeNeedsAPort() {
+    Run run = yard("register", "compose", "shop/web");
+
+    assertThat(run.exitCode()).isNotZero();
+    assertThat(run.err()).contains("--port");
+  }
+
+  @Test
+  void registerComposeNeedsAProjectAndAService() {
+    for (String target : List.of("", "web", "/web", "shop/", "shop/web/extra")) {
+      Run run = yard("register", "compose", target, "--port", "80");
+
+      assertThat(run.exitCode()).as(target).isNotZero();
+      assertThat(run.err()).contains("<project>/<service>");
+    }
+  }
+
+  @Test
+  void registerContainerRejectsTheOldComposeOption() {
     Run run = yard("register", "container", "web-1", "--compose", "shop/web", "--port", "80");
 
     assertThat(run.exitCode()).isNotZero();
-    assertThat(run.err()).isEqualTo("Give a container or --compose, not both.\n");
+    assertThat(run.err()).contains("--compose");
   }
 
   @Test
-  void registerContainerNeedsAContainerOrCompose() {
-    Run run = yard("register", "container");
-
-    assertThat(run.exitCode()).isNotZero();
-    assertThat(run.err()).isEqualTo("Give a container, or --compose <project>/<service>.\n");
+  void registerTargetsAreRequired() {
+    assertThat(yard("register", "container").exitCode()).isNotZero();
+    assertThat(yard("register", "compose", "--port", "80").exitCode()).isNotZero();
   }
 
   @Test
-  void registerContainerWithComposeThatABindingFollowsSaysWhichServiceFollowsIt() {
+  void registerComposeThatABindingFollowsSaysWhichServiceFollowsIt() {
     dashboard.answer(
         "POST",
         "/api/workstation/services/web/container-bindings",
@@ -1620,18 +1673,10 @@ class YardTest {
          "detail": "The Compose service web of project shop is already followed by a Container Binding of the Service shop."}
         """);
 
-    Run run = yard("register", "container", "--compose", "shop/web", "--port", "80");
+    Run run = yard("register", "compose", "shop/web", "--port", "80");
 
     assertThat(run.exitCode()).isEqualTo(1);
     assertThat(run.err()).contains("of the Service shop.");
-  }
-
-  @Test
-  void registerAloneShowsItsTwoSubcommands() {
-    Run run = yard("register");
-
-    assertThat(run.exitCode()).isZero();
-    assertThat(run.out()).contains("static").contains("container");
   }
 
   @Test
