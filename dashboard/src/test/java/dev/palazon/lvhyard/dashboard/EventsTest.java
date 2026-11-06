@@ -50,6 +50,10 @@ class EventsTest extends DashboardTest {
   @Test
   void debouncerCoalescesRapidTriggers() throws Exception {
     try (EventStreamClient client = new EventStreamClient(port)) {
+      // Drain any background startup signals before asserting debounce coalescing
+      Thread.sleep(500);
+      client.lines.clear();
+
       debouncer.trigger("yard-changed");
       debouncer.trigger("yard-changed");
       debouncer.trigger("containers-changed");

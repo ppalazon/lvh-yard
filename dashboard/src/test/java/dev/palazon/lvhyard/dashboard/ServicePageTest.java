@@ -820,7 +820,7 @@ class ServicePageTest extends DashboardTest {
   }
 
   @Test
-  void refreshesTheServiceEveryFiveSeconds() {
+  void refreshesTheServiceWithYardChangedSignalAndFallbackPoll() {
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
 
@@ -828,7 +828,7 @@ class ServicePageTest extends DashboardTest {
 
     assertThat(region)
         .contains("hx-get=\"/services/ws-test/" + web + "\"")
-        .contains("hx-trigger=\"every 5s\"")
+        .contains("hx-trigger=\"sse:yard-changed, every 30s\"")
         .contains("hx-select=\"#service\"")
         .contains("hx-swap=\"outerHTML\"")
         .as(

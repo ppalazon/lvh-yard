@@ -205,13 +205,13 @@ class CatalogPageTest extends DashboardTest {
   }
 
   @Test
-  void refreshesItsServicesEveryFiveSecondsWithTheFilters() {
+  void refreshesItsServicesWithYardChangedSignalAndFallbackPoll() {
     String page = getPage("/?workstation=" + RemoteWorkstation.NAME + "&state=healthy").getBody();
 
     String region = openingTag(page, "id=\"catalog\"");
     assertThat(region)
         .contains("hx-get=\"/?workstation=" + RemoteWorkstation.NAME + "&amp;state=healthy\"")
-        .contains("hx-trigger=\"every 5s\"")
+        .contains("hx-trigger=\"sse:yard-changed, every 30s\"")
         .contains("hx-select=\"#catalog\"")
         .contains("hx-swap=\"outerHTML\"");
     assertThat(div(page, "id=\"catalog\""))
