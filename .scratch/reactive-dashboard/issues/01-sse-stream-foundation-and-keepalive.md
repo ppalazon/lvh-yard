@@ -4,11 +4,11 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A client connecting to `GET /events` with `Accept: text/event-stream` establishes a persistent SSE connection.
-- [ ] Comment heartbeats (`: ping`) are emitted on the SSE stream every 15 seconds.
-- [ ] Disconnected clients are detected on heartbeat or write failure and removed without leaking resources or threads.
-- [ ] The event debouncer coalesces triggers occurring within 300 ms and flushes distinct event names once the quiet window elapses.
-- [ ] The dashboard layout shell includes the `hx-sse` extension and connects to `/events` on the `<body>` element.
-- [ ] Black-box tests in the test suite verify that `/events` answers with `text/event-stream` and receives heartbeat comments.
+- [x] A client connecting to `GET /events` with `Accept: text/event-stream` establishes a persistent SSE connection.
+- [x] Comment heartbeats (`: ping`) are emitted on the SSE stream every 15 seconds.
+- [x] Disconnected clients are detected on heartbeat or write failure and removed without leaking resources or threads.
+- [x] The event debouncer coalesces triggers occurring within 300 ms and flushes distinct event names once the quiet window elapses.
+- [x] The dashboard layout shell includes the `hx-sse` extension and connects to `/events` on the `<body>` element.
+- [x] Black-box tests in the test suite verify that `/events` answers with `text/event-stream` and receives heartbeat comments.
