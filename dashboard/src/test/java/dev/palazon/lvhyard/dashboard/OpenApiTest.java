@@ -154,6 +154,19 @@ class OpenApiTest extends DashboardTest {
   }
 
   @Test
+  void containerPortsHaveOptionalHostPortsAndBindAddresses() {
+    JsonNode port =
+        get("/v3/api-docs").getBody().get("components").get("schemas").get("ContainerPort");
+    JsonNode properties = port.get("properties");
+
+    assertThat(properties.get("containerPort").get("type").asString()).isEqualTo("integer");
+    assertThat(properties.get("hostPort").get("type").asString()).isEqualTo("integer");
+    assertThat(properties.get("hostIp").get("type").asString()).isEqualTo("string");
+    assertThat(port.get("required").valueStream().map(JsonNode::asString))
+        .containsExactly("containerPort");
+  }
+
+  @Test
   void documentationSaysNothingAboutCoreServices() {
     assertThat(getPage("/v3/api-docs.yaml").getBody()).doesNotContainIgnoringCase("core service");
   }

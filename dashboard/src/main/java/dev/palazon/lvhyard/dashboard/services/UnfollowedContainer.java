@@ -19,7 +19,7 @@ import java.util.stream.Stream;
  *     needs the service too
  * @param service the proposed Service name: the Compose service or the container name, cleaned to
  *     follow the Service name rule
- * @param ports its TCP ports, each once
+ * @param ports its TCP port mappings, each once
  * @param health none when it has no HEALTHCHECK
  */
 public record UnfollowedContainer(
@@ -30,10 +30,11 @@ public record UnfollowedContainer(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ContainerPort> ports,
     @JsonInclude(JsonInclude.Include.NON_NULL) HealthcheckState health) {
 
-  /** {@code hostPort} is none when the container port is not published. */
+  /** {@code hostPort} and {@code hostIp} are none when the container port is not published. */
   public record ContainerPort(
       @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int containerPort,
-      @JsonInclude(JsonInclude.Include.NON_NULL) Integer hostPort) {}
+      @JsonInclude(JsonInclude.Include.NON_NULL) Integer hostPort,
+      @JsonInclude(JsonInclude.Include.NON_NULL) String hostIp) {}
 
   /** Its Docker HEALTHCHECK state. */
   public enum HealthcheckState {
@@ -61,17 +62,23 @@ public record UnfollowedContainer(
         proposedService(composeService, container.name()),
         container.ports().stream()
             .filter(port -> "tcp".equals(port.type()))
-            .map(port -> new ContainerPort(port.privatePort(), port.publicPort()))
+            .map(port ->
+                new ContainerPort(
+                    port.privatePort(),
+                    port.publicPort(),
+                    port.publicPort() == null ? null : port.ip()))
             .distinct()
             .sorted(
                 Comparator.comparingInt(ContainerPort::containerPort)
                     .thenComparing(
-                        ContainerPort::hostPort, Comparator.nullsFirst(Comparator.naturalOrder())))
+                        ContainerPort::hostPort, Comparator.nullsFirst(Comparator.naturalOrder()))
+                    .thenComparing(
+                        ContainerPort::hostIp, Comparator.nullsFirst(Comparator.naturalOrder())))
             .toList(),
         container.healthState().flatMap(HealthcheckState::of).orElse(null));
   }
 
-  /** A port published on IPv4 and IPv6 is in {@link #ports} twice, with one host port each. */
+  /** A port published on IPv4 and IPv6 has two mappings in {@link #ports}. */
   public List<Integer> containerPorts() {
     return ports.stream().map(ContainerPort::containerPort).distinct().toList();
   }

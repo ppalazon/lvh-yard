@@ -1,11 +1,13 @@
 package dev.palazon.lvhyard.dashboard;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.awaitility.Awaitility.await;
 
 import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.api.model.HealthCheck;
+import com.github.dockerjava.api.model.Ports;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
@@ -34,18 +36,24 @@ class ContainersTest extends DashboardTest {
   private static final DockerImageName BUSYBOX = DockerImageName.parse("busybox:1.37");
 
   @Test
-  void runningContainerIsListedWithItsContainerAndHostPorts() {
+  void runningContainerIsListedWithItsLoopbackMappingAndUnpublishedPorts() {
     String name = newContainerName();
     GenericContainer<?> container =
         start(
             listener(
                     name,
                     command ->
-                        command.withExposedPorts(
-                            Stream.concat(
-                                    Arrays.stream(command.getExposedPorts()),
-                                    Stream.of(ExposedPort.tcp(9000)))
-                                .toList()))
+                        command
+                            .withExposedPorts(
+                                Stream.concat(
+                                        Arrays.stream(command.getExposedPorts()),
+                                        Stream.of(ExposedPort.tcp(9000)))
+                                    .toList())
+                            .getHostConfig()
+                            .withPortBindings(
+                                new Ports(
+                                    ExposedPort.tcp(80),
+                                    Ports.Binding.bindIpAndPort("127.0.0.1", 0))))
                 .withExposedPorts(80));
 
     ResponseEntity<JsonNode> response = get(PATH);
@@ -54,10 +62,45 @@ class ContainersTest extends DashboardTest {
     JsonNode listed = listed(response.getBody(), name).orElseThrow();
     assertThat(listed.has("composeProject")).isFalse();
     assertThat(listed.has("health")).isFalse();
-    assertThat(listed.get("ports").valueStream().map(JsonNode::toString))
-        .containsExactly(
-            "{\"containerPort\":80,\"hostPort\":" + container.getMappedPort(80) + "}",
-            "{\"containerPort\":9000}");
+    JsonNode ports = listed.get("ports");
+    assertThat(ports).hasSize(2);
+    assertThat(ports.get(0).get("containerPort").asInt()).isEqualTo(80);
+    assertThat(ports.get(0).get("hostPort").asInt()).isEqualTo(container.getMappedPort(80));
+    assertThat(ports.get(0).get("hostIp").asString()).isEqualTo("127.0.0.1");
+    assertThat(ports.get(1).get("containerPort").asInt()).isEqualTo(9000);
+    assertThat(ports.get(1).has("hostPort")).isFalse();
+    assertThat(ports.get(1).has("hostIp")).isFalse();
+  }
+
+  @Test
+  void mappedPortsKeepEveryDockerBindAddressWithoutRepeatingPagePorts() {
+    String name = newContainerName();
+    GenericContainer<?> container = start(onePort(name).withExposedPorts(80));
+    Ports.Binding[] bindings =
+        container
+            .getContainerInfo()
+            .getNetworkSettings()
+            .getPorts()
+            .getBindings()
+            .get(ExposedPort.tcp(80));
+
+    JsonNode ports = listed(get(PATH).getBody(), name).orElseThrow().get("ports");
+
+    assertThat(bindings).isNotEmpty();
+    assertThat(ports.valueStream())
+        .extracting(
+            port -> port.get("containerPort").asInt(),
+            port -> port.get("hostPort").asInt(),
+            port -> port.get("hostIp").asString())
+        .containsExactlyInAnyOrderElementsOf(
+            Arrays.stream(bindings)
+                .map(binding ->
+                    tuple(80, Integer.parseInt(binding.getHostPortSpec()), binding.getHostIp()))
+                .toList());
+    String row = row(getPage("/containers").getBody(), name);
+    for (Ports.Binding binding : bindings) {
+      assertThat(row).containsOnlyOnce("80 on host port " + binding.getHostPortSpec());
+    }
   }
 
   @Test

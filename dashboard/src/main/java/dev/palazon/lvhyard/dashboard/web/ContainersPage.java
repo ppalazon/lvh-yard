@@ -561,13 +561,13 @@ final class ContainersPage {
     }
     cell.ul()
         .of(list ->
-            ports.forEach(port ->
-                list.li()
-                    .text(
-                        port.hostPort() == null
-                            ? port.containerPort() + " not published"
-                            : port.containerPort() + " on host port " + port.hostPort())
-                    .__()))
+            ports.stream()
+                .map(port ->
+                    port.hostPort() == null
+                        ? port.containerPort() + " not published"
+                        : port.containerPort() + " on host port " + port.hostPort())
+                .distinct()
+                .forEach(port -> list.li().text(port).__()))
         .__();
   }
 

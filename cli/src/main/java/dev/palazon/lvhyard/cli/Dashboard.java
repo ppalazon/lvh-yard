@@ -110,8 +110,8 @@ final class Dashboard {
       List<ContainerPort> ports,
       String health) {}
 
-  /** {@code hostPort} is null when the container port is not published. */
-  record ContainerPort(int containerPort, Integer hostPort) {}
+  /** {@code hostPort} and {@code hostIp} are null when the container port is not published. */
+  record ContainerPort(int containerPort, Integer hostPort, String hostIp) {}
 
   /**
    * {@code type} is null unless it has exactly one. {@code services} are the Services whose

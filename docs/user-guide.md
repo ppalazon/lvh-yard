@@ -213,7 +213,8 @@ lvh-yard register static web --host 127.0.0.1 --port 8080
 lvh-yard register static web --port 8080 --path /health --interval 5s --timeout 1s   # an HTTP check (default: TCP, 10s, 2s)
 lvh-yard register static web --port 8080 --tag backend --meta owner=pablo           # repeat --tag and --meta for more
 lvh-yard register static web --port 8080 --no-publish                               # a new Service stays Unpublished
-lvh-yard containers                         # running containers that no Container Binding follows
+lvh-yard containers                         # Compose service counts and Container Ports
+lvh-yard containers --details               # each container and its Host Port mappings
 lvh-yard register container shop-web-1     # bind a container to a Service, and publish a new Service
 lvh-yard register container shop-web-1 --port 9000 --service shop --no-publish
 lvh-yard register container --compose shop/web --port 80   # bind the Compose service web of project shop
@@ -923,8 +924,17 @@ A container that any Container Binding matches is not listed, whatever the
 port of the Container Binding. A container with a Compose project label but
 no Compose service label is listed with the other containers. The list
 refreshes every 5 seconds. If the dashboard cannot read Docker, the page says
-why. `GET /api/workstation/containers` and `lvh-yard containers` list each
-container on its own.
+why. `GET /api/workstation/containers` gives one entry per container.
+Each published TCP port mapping includes `containerPort`, `hostPort` and
+`hostIp`, the address Docker binds on the Workstation. An unpublished port
+has no `hostPort` or `hostIp`.
+
+`lvh-yard containers` groups containers by Compose project and service.
+Each service line starts with its name, then gives the container count and
+combined Container Ports. Standalone containers keep separate lines.
+Add `--details` to list each container below its service, with mappings such
+as `127.0.0.1:8080->80`. IPv6 addresses have brackets, such as `[::]:8080->80`.
+The detail lines also show the Docker HEALTHCHECK state when one is set.
 
 If a row has one Container Port, click Register to give it a hostname.
 This adds a Container Binding on that port. A Compose service row binds all
