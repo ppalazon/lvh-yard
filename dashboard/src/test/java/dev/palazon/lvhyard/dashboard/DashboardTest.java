@@ -2,10 +2,17 @@ package dev.palazon.lvhyard.dashboard;
 
 import static org.awaitility.Awaitility.await;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -14,7 +21,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -554,6 +563,44 @@ abstract class DashboardTest {
     ResponseEntity<JsonNode> response = put(publicationPath(service));
     if (!response.getStatusCode().is2xxSuccessful()) {
       throw new AssertionError("Publishing " + service + " answered " + response);
+    }
+  }
+
+  static class EventStreamClient implements AutoCloseable {
+    final HttpResponse<InputStream> response;
+    final BlockingQueue<String> lines = new LinkedBlockingQueue<>();
+    final InputStream stream;
+    final Thread readerThread;
+
+    EventStreamClient(int port) throws Exception {
+      HttpClient client = HttpClient.newHttpClient();
+      HttpRequest request =
+          HttpRequest.newBuilder()
+              .uri(URI.create("http://127.0.0.1:" + port + "/events"))
+              .header("Accept", "text/event-stream")
+              .GET()
+              .build();
+      this.response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+      this.stream = response.body();
+      this.readerThread =
+          Thread.ofVirtual()
+              .name("test-sse-reader")
+              .start(() -> {
+                try (BufferedReader reader =
+                    new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+                  String line;
+                  while ((line = reader.readLine()) != null) {
+                    lines.add(line);
+                  }
+                } catch (Exception ignored) {
+                }
+              });
+    }
+
+    @Override
+    public void close() throws Exception {
+      stream.close();
+      readerThread.interrupt();
     }
   }
 }

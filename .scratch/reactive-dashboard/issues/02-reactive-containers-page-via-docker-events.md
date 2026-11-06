@@ -4,11 +4,11 @@
 
 **Blocked by:** 01: SSE stream foundation and keepalive
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Docker container lifecycle events trigger a debounced `containers-changed` event over the `/events` SSE stream.
-- [ ] Multiple containers starting simultaneously (such as during Compose startup) produce a single coalesced `containers-changed` signal.
-- [ ] The Containers page refreshed container uses `hx-trigger="sse:containers-changed, sse:yard-changed, every 30s"`.
-- [ ] Starting a container causes the Containers page to show the new Unfollowed Container within milliseconds.
-- [ ] Partially filled Container Binding forms outside the refreshed list retain their user input across container event updates.
-- [ ] Black-box tests verify that starting and stopping a container emits `containers-changed` on the SSE stream and updates the rendered HTML.
+- [x] Docker container lifecycle events trigger a debounced `containers-changed` event over the `/events` SSE stream.
+- [x] Multiple containers starting simultaneously (such as during Compose startup) produce a single coalesced `containers-changed` signal.
+- [x] The Containers page refreshed container uses `hx-trigger="sse:containers-changed, sse:yard-changed, every 30s"`.
+- [x] Starting a container causes the Containers page to show the new Unfollowed Container within milliseconds.
+- [x] Partially filled Container Binding forms outside the refreshed list retain their user input across container event updates.
+- [x] Black-box tests verify that starting and stopping a container emits `containers-changed` on the SSE stream and updates the rendered HTML.

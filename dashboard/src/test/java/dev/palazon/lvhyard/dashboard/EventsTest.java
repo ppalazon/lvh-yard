@@ -7,18 +7,8 @@ import dev.palazon.lvhyard.dashboard.events.EventBroadcaster;
 import dev.palazon.lvhyard.dashboard.events.EventDebouncer;
 import dev.palazon.lvhyard.dashboard.web.Layout;
 import htmlflow.HtmlFlow;
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,7 +40,7 @@ class EventsTest extends DashboardTest {
   @Test
   void debouncerCoalescesRapidTriggers() throws Exception {
     try (EventStreamClient client = new EventStreamClient(port)) {
-      // Drain any background startup signals before asserting debounce coalescing
+      // Allow any startup event triggers to settle and flush past the 300ms window
       Thread.sleep(500);
       client.lines.clear();
 
@@ -64,7 +54,6 @@ class EventsTest extends DashboardTest {
           .until(() ->
               client.lines.contains("event:yard-changed")
                   && client.lines.contains("event:containers-changed"));
-
       long yardCount = client.lines.stream().filter(l -> l.equals("event:yard-changed")).count();
       long containerCount =
           client.lines.stream().filter(l -> l.equals("event:containers-changed")).count();
@@ -147,43 +136,5 @@ class EventsTest extends DashboardTest {
         .__()
         .__();
     assertThat(fallbackOut.toString()).contains("hx-trigger=\"every 5s\"");
-  }
-
-  private static class EventStreamClient implements AutoCloseable {
-    final HttpResponse<InputStream> response;
-    final BlockingQueue<String> lines = new LinkedBlockingQueue<>();
-    final InputStream stream;
-    final Thread readerThread;
-
-    EventStreamClient(int port) throws Exception {
-      HttpClient client = HttpClient.newHttpClient();
-      HttpRequest request =
-          HttpRequest.newBuilder()
-              .uri(URI.create("http://127.0.0.1:" + port + "/events"))
-              .header("Accept", "text/event-stream")
-              .GET()
-              .build();
-      this.response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
-      this.stream = response.body();
-      this.readerThread =
-          Thread.ofVirtual()
-              .name("test-sse-reader")
-              .start(() -> {
-                try (BufferedReader reader =
-                    new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
-                  String line;
-                  while ((line = reader.readLine()) != null) {
-                    lines.add(line);
-                  }
-                } catch (Exception ignored) {
-                }
-              });
-    }
-
-    @Override
-    public void close() throws Exception {
-      stream.close();
-      readerThread.interrupt();
-    }
   }
 }
