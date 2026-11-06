@@ -2,6 +2,7 @@ package dev.palazon.lvhyard.dashboard.services;
 
 import dev.palazon.lvhyard.dashboard.docker.Docker;
 import dev.palazon.lvhyard.dashboard.docker.Docker.ContainerEvents;
+import dev.palazon.lvhyard.dashboard.events.EventDebouncer;
 import java.time.Duration;
 import java.time.Instant;
 import org.slf4j.Logger;
@@ -30,14 +31,17 @@ class ContainerWatcher implements SmartLifecycle {
 
   private final ContainerBindings bindings;
 
+  private final EventDebouncer debouncer;
+
   private volatile Thread watcher;
 
   /** The events being followed now, closed to stop the wait for the next one. */
   private volatile ContainerEvents events;
 
-  ContainerWatcher(Docker docker, ContainerBindings bindings) {
+  ContainerWatcher(Docker docker, ContainerBindings bindings, EventDebouncer debouncer) {
     this.docker = docker;
     this.bindings = bindings;
+    this.debouncer = debouncer;
   }
 
   @Override
@@ -95,6 +99,7 @@ class ContainerWatcher implements SmartLifecycle {
           following.next();
           if (watcher == Thread.currentThread()) {
             bindings.sync();
+            debouncer.trigger("containers-changed");
           }
         }
       } catch (RuntimeException e) {
