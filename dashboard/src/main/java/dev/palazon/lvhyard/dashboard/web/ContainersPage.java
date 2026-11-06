@@ -141,6 +141,7 @@ final class ContainersPage {
                         content,
                         "containers",
                         PATH,
+                        List.of("containers-changed", "yard-changed"),
                         region -> list(region, containers, dockerProblem, null));
                     return;
                   }

@@ -367,7 +367,7 @@ class ContainersTest extends DashboardTest {
   void pageRefreshesItsListByItself() {
     assertThat(openingTag(getPage("/containers").getBody(), "id=\"containers\""))
         .contains("hx-get=\"/containers\"")
-        .contains("hx-trigger=\"every 5s\"");
+        .contains("hx-trigger=\"sse:containers-changed, sse:yard-changed, every 30s\"");
   }
 
   @Test
@@ -657,7 +657,8 @@ class ContainersTest extends DashboardTest {
     assertThat(response.getHeaders().getLocation()).hasPath("/containers");
     String page = getPage(response.getHeaders().getLocation().toString()).getBody();
     assertThat(div(page, "id=\"containers\"")).doesNotContain(name);
-    assertThat(openingTag(page, "id=\"containers\"")).contains("hx-trigger=\"every 5s\"");
+    assertThat(openingTag(page, "id=\"containers\""))
+        .contains("hx-trigger=\"sse:containers-changed, sse:yard-changed, every 30s\"");
     assertThat(div(page, "data-registered")).contains("href=\"/services/ws-test/" + name + "\"");
   }
 
@@ -1012,6 +1013,93 @@ class ContainersTest extends DashboardTest {
     assertThat(openingTag(response.getBody(), "name=\"container\""))
         .contains("aria-invalid=\"true\"");
     assertThat(response.getBody()).contains("of the Service " + web);
+  }
+
+  @Test
+  void startingAndStoppingContainerEmitsContainersChangedOverSseStream() throws Exception {
+    try (EventStreamClient client = new EventStreamClient(port)) {
+      String name = newContainerName();
+      GenericContainer<?> container = start(onePort(name));
+
+      await()
+          .atMost(Duration.ofSeconds(10))
+          .until(() -> client.lines.contains("event:containers-changed"));
+
+      client.lines.clear();
+      stopContainer(container);
+
+      await()
+          .atMost(Duration.ofSeconds(10))
+          .until(() -> client.lines.contains("event:containers-changed"));
+    }
+  }
+
+  @Test
+  void startingContainerUpdatesUnfollowedContainersTableOnPage() {
+    String name = newContainerName();
+    assertThat(getPage("/containers").getBody()).doesNotContain(name);
+
+    start(onePort(name));
+
+    await()
+        .atMost(Duration.ofSeconds(10))
+        .untilAsserted(() -> assertThat(getPage("/containers").getBody()).contains(name));
+  }
+
+  @Test
+  void parallelContainerStartsEmitSingleCoalescedContainersChangedSignal() throws Exception {
+    try (EventStreamClient client = new EventStreamClient(port)) {
+      // Allow any events from prior tests to settle
+      Thread.sleep(400);
+      client.lines.clear();
+
+      String first = newContainerName();
+      String second = newContainerName();
+      GenericContainer<?> c1 = onePort(first);
+      GenericContainer<?> c2 = onePort(second);
+      Thread t1 = Thread.ofVirtual().start(() -> start(c1));
+      Thread t2 = Thread.ofVirtual().start(() -> start(c2));
+      t1.join();
+      t2.join();
+      await()
+          .atMost(Duration.ofSeconds(10))
+          .until(() -> client.lines.contains("event:containers-changed"));
+
+      Thread.sleep(600);
+
+      long count =
+          client.lines.stream().filter(line -> line.equals("event:containers-changed")).count();
+      assertThat(count).isEqualTo(1);
+    }
+  }
+
+  @Test
+  void bindingFormInputsOutsideRefreshedListRetainUserInputAcrossContainerUpdates() {
+    String page = getPage("/containers").getBody();
+    int formPos = page.indexOf("id=\"" + BIND_DIALOG + "\"");
+    int regionPos = page.indexOf("id=\"containers\"");
+    assertThat(formPos).isGreaterThan(regionPos);
+    String dialog = dialog(page, BIND_DIALOG);
+    assertThat(dialog).contains("action=\"/containers/bind\"");
+    assertThat(dialog).contains("id=\"container\"");
+    assertThat(dialog).contains("id=\"composeProject\"");
+
+    String name = newContainerName();
+    ResponseEntity<String> response =
+        postForm(
+            "/containers/bind",
+            Map.of(
+                "kind", "CONTAINER",
+                "container", name,
+                "containerPort", "",
+                "name", "my-input-preserved"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    String responseBody = response.getBody();
+    assertThat(openingTag(responseBody, "name=\"container\"")).contains("value=\"" + name + "\"");
+    assertThat(openingTag(responseBody, "name=\"name\"")).contains("value=\"my-input-preserved\"");
+    assertThat(responseBody.indexOf("id=\"" + BIND_DIALOG + "\""))
+        .isGreaterThan(responseBody.indexOf("id=\"containers\""));
   }
 
   /** The table row of {@code container} on the Containers page. */
