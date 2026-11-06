@@ -3,7 +3,9 @@ package dev.palazon.lvhyard.dashboard.web;
 import htmlflow.HtmlFlow;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.List;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import org.springframework.http.MediaType;
 import org.springframework.web.util.HtmlUtils;
 import org.xmlet.htmlapifaster.Div;
@@ -19,7 +21,7 @@ import org.xmlet.htmlapifaster.Svg;
  * containers start and stop, put that part in a {@link #refreshed} region. HtmlFlow escapes text
  * but not attribute values, so views pass any value from data through {@link #attr}.
  */
-final class Layout {
+public final class Layout {
 
   static final MediaType HTML = new MediaType(MediaType.TEXT_HTML, StandardCharsets.UTF_8);
 
@@ -83,8 +85,14 @@ final class Layout {
         .script()
         .attrSrc("/webjars/htmx.org/dist/htmx.min.js")
         .__()
+        .script()
+        .attrSrc("/webjars/htmx.org/dist/ext/hx-sse.min.js")
+        .attrDefer(true)
+        .__()
         .__()
         .body()
+        .addAttr("hx-ext", "sse")
+        .addAttr("sse-connect", "/events")
         .header()
         .attrClass("border-b")
         .div()
@@ -233,18 +241,37 @@ final class Layout {
    * nothing: HTMX 4 would otherwise swap the region for the error page, which has no such region,
    * and the refresh would stop for good.
    */
-  static void refreshed(Main<?> main, String id, String path, Consumer<Div<?>> content) {
+  public static void refreshed(
+      Main<?> main, String id, String path, List<String> events, Consumer<Div<?>> content) {
+    String trigger;
+    if (events == null || events.isEmpty()) {
+      trigger = "every 5s";
+    } else {
+      trigger =
+          events.stream().map(event -> "sse:" + event).collect(Collectors.joining(", "))
+              + ", every 30s";
+    }
     main.div()
         .attrId(id)
         .attrClass("flex flex-col gap-8")
         .addAttr("hx-get", attr(path))
-        .addAttr("hx-trigger", "every 5s")
+        .addAttr("hx-trigger", trigger)
         .addAttr("hx-select", "#" + id)
         .addAttr("hx-swap", "outerHTML")
         .addAttr("hx-status:4xx", "swap:none")
         .addAttr("hx-status:5xx", "swap:none")
         .of(div -> content.accept(div))
         .__();
+  }
+
+  public static void refreshed(
+      Main<?> main, String id, String path, String event, Consumer<Div<?>> content) {
+    refreshed(main, id, path, List.of(event), content);
+  }
+
+  public static void refreshed(
+      Main<?> main, String id, String path, Consumer<Div<?>> content, String... events) {
+    refreshed(main, id, path, Arrays.asList(events), content);
   }
 
   static String attr(String value) {

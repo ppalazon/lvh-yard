@@ -1,6 +1,9 @@
 spring:
   application:
     name: dashboard
+  threads:
+    virtual:
+      enabled: true
   config:
     # The settings of the Workstation are in the .env at the repository root, which git ignores and compose.yaml
     # also reads. spring-boot:run starts in dashboard/, and a packaged jar starts where you launch it. Environment
@@ -33,6 +36,9 @@ lvh-yard:
     ranges: ${YARD_OUT_OF_RANGE:127.0.0.0/8,::1/128,172.17.0.0/16,172.18.0.0/15,172.20.0.0/14,172.24.0.0/13}
   # True logs the stack trace of a failed request. Without it, the log has one line for each failed request.
   stack-traces: ${YARD_STACK_TRACES:false}
+  events:
+    heartbeat-interval: ${YARD_EVENTS_HEARTBEAT_INTERVAL:15s}
+    debounce-window: ${YARD_EVENTS_DEBOUNCE_WINDOW:300ms}
   # The Backups folder, where the Backups page keeps its files and each import writes its safety Backup. The default
   # is the backups/ folder of the Workstation Folder that lvh-yard init writes.
   backups:
