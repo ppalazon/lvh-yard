@@ -1,11 +1,14 @@
 package dev.palazon.lvhyard.dashboard;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
+import dev.palazon.lvhyard.dashboard.events.EventDebouncer;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFileAttributes;
+import java.time.Duration;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -14,6 +17,17 @@ import tools.jackson.databind.JsonNode;
 
 /** The status of this Workstation's LVH Yard: its API, its page and their parts. */
 class StatusTest extends DashboardTest {
+  @org.springframework.beans.factory.annotation.Autowired EventDebouncer debouncer;
+
+  @Test
+  void infrastructureTransitionEmitsStatusChangedOverEventsStream() throws Exception {
+    try (EventStreamClient client = new EventStreamClient(port)) {
+      debouncer.trigger("status-changed");
+      await()
+          .atMost(Duration.ofSeconds(5))
+          .until(() -> client.lines.contains("event:status-changed"));
+    }
+  }
 
   @Test
   void consulWithALeaderIsOk() {
@@ -156,10 +170,10 @@ class StatusTest extends DashboardTest {
   }
 
   @Test
-  void pageRefreshesItsPartsEveryFiveSeconds() {
+  void pageRefreshesItsPartsWithSseAndFallback() {
     assertThat(openingTag(getPage("/status").getBody(), "id=\"status\""))
         .contains("hx-get=\"/status\"")
-        .contains("hx-trigger=\"every 5s\"")
+        .contains("hx-trigger=\"sse:status-changed, every 30s\"")
         .contains("hx-select=\"#status\"");
   }
 
@@ -194,12 +208,12 @@ class StatusTest extends DashboardTest {
   }
 
   @Test
-  void everyPageHeaderLoadsTheDotsEveryFiveSecondsAndKeepsThemOnAnError() {
+  void everyPageHeaderLoadsTheDotsWithSseAndKeepsThemOnAnError() {
     for (String path : new String[] {"/", "/status", "/static-instances"}) {
       assertThat(openingTag(getPage(path).getBody(), "id=\"status-dots\""))
           .as(path)
           .contains("hx-get=\"/status/summary\"")
-          .contains("hx-trigger=\"load, every 5s\"")
+          .contains("hx-trigger=\"load, sse:status-changed, every 30s\"")
           .contains("hx-status:4xx=\"swap:none\"")
           .contains("hx-status:5xx=\"swap:none\"");
     }

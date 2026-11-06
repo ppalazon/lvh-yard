@@ -21,6 +21,7 @@ final class StatusPage {
                 main,
                 "status",
                 PATH,
+                "status-changed",
                 region ->
                     region
                         .div()
