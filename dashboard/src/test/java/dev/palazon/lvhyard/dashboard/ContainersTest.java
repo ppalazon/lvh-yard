@@ -96,8 +96,9 @@ class ContainersTest extends DashboardTest {
                     tuple(80, Integer.parseInt(binding.getHostPortSpec()), binding.getHostIp()))
                 .toList());
     String row = row(getPage("/containers").getBody(), name);
+    // Docker publishes the port on 0.0.0.0 and on ::, and the page shows it once.
     for (Ports.Binding binding : bindings) {
-      assertThat(row).containsOnlyOnce("80 on host port " + binding.getHostPortSpec());
+      assertThat(row).containsOnlyOnce("host:" + binding.getHostPortSpec() + " -&gt; 80");
     }
   }
 
@@ -254,8 +255,8 @@ class ContainersTest extends DashboardTest {
 
     assertThat(group).containsOnlyOnce(">api<").contains("4 containers");
     assertThat(group)
-        .contains("80 on host port " + first.getMappedPort(80))
-        .contains("80 on host port " + second.getMappedPort(80))
+        .contains("host:" + first.getMappedPort(80) + " -&gt; 80")
+        .contains("host:" + second.getMappedPort(80) + " -&gt; 80")
         .containsOnlyOnce("80 not published")
         .containsOnlyOnce("9000 not published");
     assertThat(group).contains("1 healthy", "1 unhealthy", "1 starting", "1 without HEALTHCHECK");
@@ -657,7 +658,14 @@ class ContainersTest extends DashboardTest {
     assertThat(div(page, "id=\"containers\"")).doesNotContain(name);
     assertThat(openingTag(page, "id=\"containers\""))
         .contains("hx-trigger=\"containers-changed from:body, yard-changed from:body, every 30s\"");
-    assertThat(div(page, "data-registered")).contains("href=\"/services/ws-test/" + name + "\"");
+    // One paragraph, so the text, the link and the period stay on one line.
+    assertThat(div(page, "data-registered"))
+        .contains(
+            "<p>Registered in the Service <a class=\"underline\" href=\"/services/ws-test/"
+                + name
+                + "\">"
+                + name
+                + "</a>.</p>");
   }
 
   @Test

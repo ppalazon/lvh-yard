@@ -132,6 +132,8 @@ final class ContainersPage {
                         .addAttr("data-registered", Layout.attr(registered.name()))
                         .addAttr("role", "status")
                         .section()
+                        // The section is a grid, so text and link outside a p each take a row.
+                        .p()
                         .text("Registered in the Service ")
                         .a()
                         .attrClass("underline")
@@ -139,6 +141,7 @@ final class ContainersPage {
                         .text(registered.name())
                         .__()
                         .text(".")
+                        .__()
                         .__()
                         .__();
                   }
@@ -569,10 +572,23 @@ final class ContainersPage {
                 .map(port ->
                     port.hostPort() == null
                         ? port.containerPort() + " not published"
-                        : port.containerPort() + " on host port " + port.hostPort())
+                        : published(port))
                 .distinct()
                 .forEach(port -> list.li().text(port).__()))
         .__();
+  }
+
+  /**
+   * Such as host:37769 -> 8080. A port on every address, IPv4 or IPv6, is one line. A port on one
+   * address names it, such as 127.0.0.1:37769 -> 8080, because other Workstations cannot reach it.
+   */
+  private static String published(UnfollowedContainer.ContainerPort port) {
+    String host = port.hostIp();
+    String address =
+        host == null || host.isEmpty() || host.equals("0.0.0.0") || host.equals("::")
+            ? "host"
+            : host.contains(":") ? "[" + host + "]" : host;
+    return address + ":" + port.hostPort() + " -> " + port.containerPort();
   }
 
   private static void health(Td<?> cell, UnfollowedContainer.HealthcheckState health) {
