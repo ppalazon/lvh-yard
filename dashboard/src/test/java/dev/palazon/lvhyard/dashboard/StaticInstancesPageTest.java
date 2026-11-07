@@ -12,7 +12,6 @@ import tools.jackson.databind.JsonNode;
 class StaticInstancesPageTest extends DashboardTest {
 
   private static final String PATH = "/static-instances";
-  private static final String DIALOG = "register-static-instance";
 
   @Test
   void oldRegisterAddressRedirectsHere() {
@@ -23,46 +22,22 @@ class StaticInstancesPageTest extends DashboardTest {
   }
 
   @Test
-  void registerButtonOpensAClosedDialogThatHoldsTheForm() {
-    String page = getPage(PATH).getBody();
-
-    String button = openingTag(page, "data-dialog-open=\"" + DIALOG + "\"");
-    assertThat(button).startsWith("<button").contains("type=\"button\"");
-    assertThat(page).contains(button + "Register a Static Instance</button>");
-    String dialog = dialog(page, DIALOG);
-    assertThat(openingTag(dialog, "id=\"" + DIALOG + "\""))
-        .contains("class=\"dialog\"")
-        .doesNotContain("data-dialog-shown")
-        .doesNotContain(" open");
-    assertThat(dialog)
-        .contains("<h2")
-        .contains("Register a Static Instance")
-        .contains("method=\"post\"")
-        .contains("action=\"" + PATH + "\"")
+  void registerLinkOpensTheFormOnItsOwnPage() {
+    assertFormPage(PATH, PATH + "/new", "Register a Static Instance", PATH);
+    assertThat(formTo(getPage(PATH + "/new").getBody(), PATH))
         .contains("name=\"name\"")
         .contains("name=\"port\"")
-        .contains("type=\"submit\"");
-    assertThat(openingTag(dialog, "data-dialog-close")).contains("type=\"button\"");
+        .contains("value=\"\"");
   }
 
   @Test
-  void listComesBeforeTheDialog() {
-    String grafana = newServiceName("grafana");
-    register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
-
-    String page = getPage(PATH).getBody();
-
-    assertThat(page.indexOf("10.1.2.3:3000")).isLessThan(page.indexOf("<dialog"));
-  }
-
-  @Test
-  void dialogIsShownAgainAfterAnInputError() {
+  void formIsShownAgainAfterAnInputError() {
     ResponseEntity<String> response =
         postForm(PATH, Map.of("name", "My_API", "host", "10.1.2.3", "port", "8080"));
 
-    String dialog = dialog(response.getBody(), DIALOG);
-    assertThat(openingTag(dialog, "id=\"" + DIALOG + "\"")).contains("data-dialog-shown");
-    assertThat(dialog)
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getBody()).contains("<h1>Register a Static Instance</h1>");
+    assertThat(formTo(response.getBody(), PATH))
         .contains("single DNS label")
         .contains("aria-invalid=\"true\"")
         .contains("value=\"My_API\"")
@@ -85,14 +60,14 @@ class StaticInstancesPageTest extends DashboardTest {
 
   @Test
   void formHasAPublishCheckboxThatIsOnByDefault() {
-    assertThat(openingTag(getPage(PATH).getBody(), "name=\"publish\""))
+    assertThat(openingTag(getPage(PATH + "/new").getBody(), "name=\"publish\""))
         .contains("type=\"checkbox\"")
         .contains("checked");
   }
 
   @Test
   void formHasNoKindChoiceAndNoContainerFields() {
-    assertThat(getPage(PATH).getBody())
+    assertThat(getPage(PATH + "/new").getBody())
         .doesNotContain("name=\"kind\"")
         .doesNotContain("name=\"container\"")
         .doesNotContain("name=\"composeProject\"")
@@ -127,7 +102,7 @@ class StaticInstancesPageTest extends DashboardTest {
 
   @Test
   void formAsksForNameHostAndPortAndShowsTheDefaultHost() {
-    ResponseEntity<String> response = getPage(PATH);
+    ResponseEntity<String> response = getPage(PATH + "/new");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody())
@@ -196,7 +171,7 @@ class StaticInstancesPageTest extends DashboardTest {
 
   @Test
   void formAsksForTheCheckTagsAndMeta() {
-    assertThat(getPage(PATH).getBody())
+    assertThat(getPage(PATH + "/new").getBody())
         .contains("name=\"check\"")
         .contains("name=\"path\"")
         .contains("name=\"interval\"")

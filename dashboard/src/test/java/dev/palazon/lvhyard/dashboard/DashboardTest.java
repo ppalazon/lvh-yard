@@ -1,5 +1,6 @@
 package dev.palazon.lvhyard.dashboard;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import java.io.BufferedReader;
@@ -32,6 +33,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.LinkedMultiValueMap;
@@ -359,13 +361,37 @@ abstract class DashboardTest {
     return div(page, "data-summary=\"" + name + "\"");
   }
 
-  /** The whole {@code dialog} element with id {@code id}. A dialog never holds another one. */
-  static String dialog(String page, String id) {
-    int start = page.lastIndexOf("<dialog", page.indexOf("id=\"" + id + "\""));
-    if (start < 0) {
-      throw new AssertionError("No dialog with id " + id);
+  /** The whole {@code form} element that posts to {@code action}. A form never holds another. */
+  static String formTo(String page, String action) {
+    int at = page.indexOf("action=\"" + action + "\"");
+    if (at < 0) {
+      throw new AssertionError("No form that posts to " + action);
     }
-    return page.substring(start, page.indexOf("</dialog>", start) + "</dialog>".length());
+    int start = page.lastIndexOf("<form", at);
+    return page.substring(start, page.indexOf("</form>", start) + "</form>".length());
+  }
+
+  /**
+   * Checks that {@code page} is a create form page: a link with the title opens it from {@code
+   * list}, it posts to {@code action}, and Cancel goes back to {@code list}.
+   */
+  void assertFormPage(String list, String path, String title, String action) {
+    String listPage = getPage(list).getBody();
+    assertThat(listPage).doesNotContain("<dialog");
+    String link = openingTag(listPage, "href=\"" + path + "\"");
+    assertThat(link).startsWith("<a");
+    assertThat(listPage).contains(link + title + "</a>");
+
+    ResponseEntity<String> response = getPage(path);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    String page = response.getBody();
+    assertThat(page).contains("<h1>" + title + "</h1>").doesNotContain("<dialog");
+    String form = formTo(page, action);
+    assertThat(openingTag(form, "action=\"" + action + "\"")).contains("method=\"post\"");
+    assertThat(form).contains("type=\"submit\"").doesNotContain("aria-invalid");
+    String cancel = openingTag(form, "href=\"" + list + "\"");
+    assertThat(cancel).startsWith("<a");
+    assertThat(form).contains(cancel + "Cancel</a>");
   }
 
   ResponseEntity<JsonNode> get(String path) {

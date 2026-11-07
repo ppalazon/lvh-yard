@@ -14,24 +14,23 @@ final class StaticInstancesPage {
   /** The address of the Register page, which this page replaces. */
   static final String OLD_PATH = "/register";
 
-  private static final Dialogs.Modal REGISTER =
-      new Dialogs.Modal("register-static-instance", "Register a Static Instance");
+  static final String NEW_PATH = PATH + "/new";
+
+  private static final FormPage.Spec REGISTER =
+      new FormPage.Spec(
+          Layout.Section.STATIC_INSTANCES,
+          "Register a Static Instance",
+          null,
+          NEW_PATH,
+          PATH,
+          "Register");
 
   private StaticInstancesPage() {}
 
   /**
    * @param services this Workstation's Services
-   * @param publish whether the "Publish a new Service" checkbox is on
-   * @param defaultHost the host a Static Instance gets when none is typed
    */
-  static String render(
-      Workstation workstation,
-      List<Service> services,
-      String name,
-      InstanceForm.Fields fields,
-      boolean publish,
-      String defaultHost,
-      InvalidRegistrationException error) {
+  static String render(Workstation workstation, List<Service> services) {
     return Layout.page(
         "Static Instances",
         workstation.name(),
@@ -43,27 +42,38 @@ final class StaticInstancesPage {
                 .p()
                 .text("Instances at a fixed host and port, on " + workstation.name() + ".")
                 .__()
-                .of(content -> Dialogs.openButton(content, REGISTER))
-                .of(content -> list(content, services))
-                .of(content ->
-                    Dialogs.modal(
-                        content,
-                        REGISTER,
-                        error != null,
-                        form -> form.addAttr("action", PATH),
-                        section -> {
-                          InstanceForm.text(
-                              section,
-                              "name",
-                              "Service name",
-                              name,
-                              "grafana",
-                              "Lowercase letters, digits and -.",
-                              error);
-                          InstanceForm.fields(section, fields, defaultHost, error);
-                          InstanceForm.publish(section, publish);
-                        },
-                        "Register")));
+                .of(content -> FormPage.openLink(content, REGISTER))
+                .of(content -> list(content, services)));
+  }
+
+  /**
+   * @param publish whether the "Publish a new Service" checkbox is on
+   * @param defaultHost the host a Static Instance gets when none is typed
+   * @param error why the last post failed, shown at its field, or {@code null}
+   */
+  static String renderNew(
+      Workstation workstation,
+      String name,
+      InstanceForm.Fields fields,
+      boolean publish,
+      String defaultHost,
+      InvalidRegistrationException error) {
+    return FormPage.render(
+        workstation,
+        REGISTER,
+        form -> {},
+        section -> {
+          InstanceForm.text(
+              section,
+              "name",
+              "Service name",
+              name,
+              "grafana",
+              "Lowercase letters, digits and -.",
+              error);
+          InstanceForm.fields(section, fields, defaultHost, error);
+          InstanceForm.publish(section, publish);
+        });
   }
 
   private record Row(Service service, Instance instance) {}

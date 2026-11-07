@@ -1,0 +1,89 @@
+package dev.palazon.lvhyard.dashboard.web;
+
+import dev.palazon.lvhyard.dashboard.Workstation;
+import java.util.function.Consumer;
+import org.xmlet.htmlapifaster.Element;
+import org.xmlet.htmlapifaster.EnumTypeButtonType;
+import org.xmlet.htmlapifaster.FlowContent;
+import org.xmlet.htmlapifaster.Form;
+
+/**
+ * A create form on a page of its own, such as {@code /static-instances/new}. The list page links to
+ * it with {@link #openLink}. Cancel is a link back to the list page, so it needs no script, and it
+ * also works after a post with an input error, when the browser history holds the form itself.
+ */
+final class FormPage {
+
+  /**
+   * @param title the page heading, and also the label of the link that opens the page
+   * @param description one line under the title, or {@code null}
+   * @param path where the page is
+   * @param action where the form posts
+   * @param submit the label of the submit button
+   */
+  record Spec(
+      Layout.Section section,
+      String title,
+      String description,
+      String path,
+      String action,
+      String submit) {}
+
+  private FormPage() {}
+
+  static void openLink(Element<?, ?> parent, Spec spec) {
+    parent
+        .custom("a")
+        .addAttr("href", Layout.attr(spec.path()))
+        .addAttr("class", "btn w-fit")
+        .text(spec.title())
+        .__();
+  }
+
+  /**
+   * The submit button comes before Cancel, so the Enter key in a field sends the form.
+   *
+   * @param form adds any other attribute of the form; the form posts to the spec's action
+   * @param fields writes the form's fields
+   */
+  static String render(
+      Workstation workstation,
+      Spec spec,
+      Consumer<Form<?>> form,
+      Consumer<FlowContent<?, ?>> fields) {
+    return Layout.page(
+        spec.title(),
+        workstation.name(),
+        spec.section(),
+        main ->
+            main.h1()
+                .text(spec.title())
+                .__()
+                .of(content -> {
+                  if (spec.description() != null) {
+                    content.p().text(spec.description()).__();
+                  }
+                })
+                .form()
+                .attrClass("form flex max-w-md flex-col gap-6")
+                .addAttr("method", "post")
+                .addAttr("action", Layout.attr(spec.action()))
+                .of(form::accept)
+                .of(fields::accept)
+                .div()
+                .attrClass("flex gap-3")
+                .button()
+                .attrType(EnumTypeButtonType.SUBMIT)
+                .attrClass("btn")
+                .text(spec.submit())
+                .__()
+                .a()
+                .attrClass("btn")
+                .addAttr("data-variant", "outline")
+                .attrHref(Layout.attr(spec.section().path))
+                .text("Cancel")
+                .__()
+                .__()
+                .__());
+  }
+}

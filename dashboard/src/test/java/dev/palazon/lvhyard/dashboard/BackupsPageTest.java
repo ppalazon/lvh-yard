@@ -24,8 +24,6 @@ import org.springframework.http.ResponseEntity;
 /** The Backups page, where the files of the Backups folder are seen, made and deleted. */
 class BackupsPageTest extends DashboardTest {
 
-  private static final String UPLOAD_DIALOG = "upload-backup";
-
   /** Every test class of this JVM shares the Backups folder, so each test names its own files. */
   private final List<Path> files = new ArrayList<>();
 
@@ -167,53 +165,29 @@ class BackupsPageTest extends DashboardTest {
   }
 
   @Test
-  void uploadButtonOpensAClosedDialogThatHoldsTheUploadForm() {
-    String page = getPage("/backups").getBody();
-
-    String button = openingTag(page, "data-dialog-open=\"" + UPLOAD_DIALOG + "\"");
-    assertThat(button).startsWith("<button").contains("type=\"button\"");
-    assertThat(page).contains(button + "Upload a Backup</button>");
-    String dialog = dialog(page, UPLOAD_DIALOG);
-    assertThat(openingTag(dialog, "id=\"" + UPLOAD_DIALOG + "\""))
-        .contains("class=\"dialog\"")
-        .doesNotContain("data-dialog-shown");
-    assertThat(openingTag(dialog, "action=\"/backups/upload\""))
-        .contains("method=\"post\"")
+  void uploadLinkOpensTheUploadFormOnItsOwnPage() {
+    assertFormPage("/backups", "/backups/upload", "Upload a Backup", "/backups/upload");
+    String form = formTo(getPage("/backups/upload").getBody(), "/backups/upload");
+    assertThat(openingTag(form, "action=\"/backups/upload\""))
         .contains("enctype=\"multipart/form-data\"");
-    assertThat(openingTag(dialog, "name=\"file\"")).contains("type=\"file\"");
-    assertThat(dialog).contains("type=\"submit\"");
-    assertThat(openingTag(dialog, "data-dialog-close")).contains("type=\"button\"");
+    assertThat(openingTag(form, "name=\"file\"")).contains("type=\"file\"");
   }
 
   @Test
-  void listAndTheNewBackupButtonComeBeforeTheUploadDialog() throws IOException {
-    String name = newFile(".yaml");
-    write(name, oneInstance("grafana", 3000));
-
-    String page = getPage("/backups").getBody();
-
-    assertThat(page.indexOf("action=\"/backups/new\"")).isLessThan(page.indexOf("<dialog"));
-    assertThat(page.indexOf("id=\"backup-" + name + "\"")).isLessThan(page.indexOf("<dialog"));
-  }
-
-  @Test
-  void uploadDialogIsShownAgainWithWhyTheUploadWasRefused() {
+  void uploadFormIsShownAgainWithWhyTheUploadWasRefused() {
     ResponseEntity<String> response =
         postFile("/backups/upload", "file", ".page-hidden.yaml", "version: 1\n");
 
-    String dialog = dialog(response.getBody(), UPLOAD_DIALOG);
-    assertThat(openingTag(dialog, "id=\"" + UPLOAD_DIALOG + "\"")).contains("data-dialog-shown");
-    assertThat(dialog.indexOf("name=\"file\""))
-        .isLessThan(dialog.indexOf(".page-hidden.yaml starts with a dot"));
+    assertThat(response.getBody()).contains("<h1>Upload a Backup</h1>");
+    String form = formTo(response.getBody(), "/backups/upload");
+    assertThat(form.indexOf("name=\"file\""))
+        .isLessThan(form.indexOf(".page-hidden.yaml starts with a dot"));
   }
 
   @Test
   void uploadKeepsTheFileName() throws IOException {
     String name = newFile(".yaml");
     String text = "version: 1\n# from a teammate\n";
-    assertThat(getPage("/backups").getBody())
-        .contains("action=\"/backups/upload\"")
-        .contains("enctype=\"multipart/form-data\"");
 
     ResponseEntity<String> response = postFile("/backups/upload", "file", name, text);
 

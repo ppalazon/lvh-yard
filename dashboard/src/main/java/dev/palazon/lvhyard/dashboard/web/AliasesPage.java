@@ -16,7 +16,10 @@ final class AliasesPage {
 
   static final String PATH = "/aliases";
 
-  private static final Dialogs.Modal ADD = new Dialogs.Modal("add-alias", "Add an Alias");
+  static final String NEW_PATH = PATH + "/new";
+
+  private static final FormPage.Spec ADD =
+      new FormPage.Spec(Layout.Section.ALIASES, "Add an Alias", null, NEW_PATH, PATH, "Add");
 
   private AliasesPage() {}
 
@@ -24,21 +27,16 @@ final class AliasesPage {
     return PATH + "/" + alias.name() + "/remove";
   }
 
-  /**
-   * @param target the chosen Remote Service, as {@code <workstation>/<service>}
-   */
-  static String render(
-      Workstation workstation,
-      Yard yard,
-      List<Alias> aliases,
-      String name,
-      String target,
-      InvalidRegistrationException error) {
-    List<Service> shared =
-        yard.remotes().stream()
-            .flatMap(remote -> remote.services().stream())
-            .filter(Service::sharedWithYard)
-            .toList();
+  /** The Remote Services that an Alias can name: those with Yard Scope. */
+  static List<Service> shared(Yard yard) {
+    return yard.remotes().stream()
+        .flatMap(remote -> remote.services().stream())
+        .filter(Service::sharedWithYard)
+        .toList();
+  }
+
+  static String render(Workstation workstation, Yard yard, List<Alias> aliases) {
+    boolean none = shared(yard).isEmpty();
     return Layout.page(
         "Aliases",
         workstation.name(),
@@ -54,7 +52,7 @@ final class AliasesPage {
                         + ".")
                 .__()
                 .of(content -> {
-                  if (shared.isEmpty()) {
+                  if (none) {
                     content
                         .p()
                         .text(
@@ -62,21 +60,25 @@ final class AliasesPage {
                                 + " with Yard Scope.")
                         .__();
                   } else {
-                    Dialogs.openButton(content, ADD);
+                    FormPage.openLink(content, ADD);
                   }
                 })
-                .of(content -> list(content, aliases))
-                .of(content -> {
-                  if (!shared.isEmpty()) {
-                    Dialogs.modal(
-                        content,
-                        ADD,
-                        error != null,
-                        form -> form.addAttr("action", PATH),
-                        section -> fields(section, shared, name, target, error),
-                        "Add");
-                  }
-                }));
+                .of(content -> list(content, aliases)));
+  }
+
+  /**
+   * @param shared the Remote Services the form offers, from {@link #shared}
+   * @param target the chosen Remote Service, as {@code <workstation>/<service>}
+   * @param error why the last post failed, shown at its field, or {@code null}
+   */
+  static String renderNew(
+      Workstation workstation,
+      List<Service> shared,
+      String name,
+      String target,
+      InvalidRegistrationException error) {
+    return FormPage.render(
+        workstation, ADD, form -> {}, section -> fields(section, shared, name, target, error));
   }
 
   private static void list(Main<?> main, List<Alias> aliases) {

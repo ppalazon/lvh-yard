@@ -25,7 +25,9 @@ final class BackupsPage {
 
   static final String UPLOAD_PATH = PATH + "/upload";
 
-  private static final Dialogs.Modal UPLOAD = new Dialogs.Modal("upload-backup", "Upload a Backup");
+  private static final FormPage.Spec UPLOAD =
+      new FormPage.Spec(
+          Layout.Section.BACKUPS, "Upload a Backup", null, UPLOAD_PATH, UPLOAD_PATH, "Upload");
 
   private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm xxx");
 
@@ -43,11 +45,7 @@ final class BackupsPage {
     return PATH + "/" + backup + "/import";
   }
 
-  /**
-   * @param uploadProblems why the last upload was refused; empty when none was
-   */
-  static String render(
-      Workstation workstation, List<BackupFile> backups, List<String> uploadProblems) {
+  static String render(Workstation workstation, List<BackupFile> backups) {
     return Layout.page(
         "Backups",
         workstation.name(),
@@ -74,19 +72,20 @@ final class BackupsPage {
                 .text("New Backup")
                 .__()
                 .__()
-                .of(buttons -> Dialogs.openButton(buttons, UPLOAD))
+                .of(buttons -> FormPage.openLink(buttons, UPLOAD))
                 .__()
-                .of(content -> list(content, backups))
-                .of(content ->
-                    Dialogs.modal(
-                        content,
-                        UPLOAD,
-                        !uploadProblems.isEmpty(),
-                        form ->
-                            form.addAttr("action", UPLOAD_PATH)
-                                .addAttr("enctype", "multipart/form-data"),
-                        fields -> uploadField(fields, uploadProblems),
-                        "Upload")));
+                .of(content -> list(content, backups)));
+  }
+
+  /**
+   * @param problems why the last upload was refused; empty when none was
+   */
+  static String renderUpload(Workstation workstation, List<String> problems) {
+    return FormPage.render(
+        workstation,
+        UPLOAD,
+        form -> form.addAttr("enctype", "multipart/form-data"),
+        fields -> uploadField(fields, problems));
   }
 
   /** A browser does not keep a chosen file, so after a refusal the file is chosen again. */

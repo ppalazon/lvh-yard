@@ -64,7 +64,13 @@ class BackupsPagesController {
   @GetMapping(path = BackupsPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
   @ResponseBody
   String backups() {
-    return BackupsPage.render(workstation, folder.list(), List.of());
+    return BackupsPage.render(workstation, folder.list());
+  }
+
+  @GetMapping(path = BackupsPage.UPLOAD_PATH, produces = MediaType.TEXT_HTML_VALUE)
+  @ResponseBody
+  String uploadForm() {
+    return BackupsPage.renderUpload(workstation, List.of());
   }
 
   @PostMapping(path = BackupsPage.NEW_PATH, produces = MediaType.TEXT_HTML_VALUE)
@@ -102,7 +108,7 @@ class BackupsPagesController {
   }
 
   private ResponseEntity<String> uploadRefused(List<String> problems) {
-    return html(HttpStatus.BAD_REQUEST, BackupsPage.render(workstation, folder.list(), problems));
+    return html(HttpStatus.BAD_REQUEST, BackupsPage.renderUpload(workstation, problems));
   }
 
   @GetMapping(path = BackupsPage.PATH + "/{backup}/download")

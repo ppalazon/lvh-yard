@@ -18,8 +18,8 @@ import java.util.stream.Collectors;
 import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
 import org.xmlet.htmlapifaster.EnumTypeInputType;
+import org.xmlet.htmlapifaster.FlowContent;
 import org.xmlet.htmlapifaster.PhrasingContent;
-import org.xmlet.htmlapifaster.Section;
 import org.xmlet.htmlapifaster.Td;
 import org.xmlet.htmlapifaster.Tr;
 
@@ -30,9 +30,16 @@ final class ContainersPage {
 
   static final String BIND_PATH = PATH + "/bind";
 
-  private static final Dialogs.Modal BIND =
-      new Dialogs.Modal(
-          "bind-container", "Bind a container", "The container does not need to run.");
+  static final String NEW_PATH = PATH + "/new";
+
+  private static final FormPage.Spec BIND =
+      new FormPage.Spec(
+          Layout.Section.CONTAINERS,
+          "Bind a container",
+          "The container does not need to run.",
+          NEW_PATH,
+          BIND_PATH,
+          "Bind");
 
   /** What the binding form binds. The form sends its name, as Spring binds an enum by name. */
   enum Kind {
@@ -105,8 +112,7 @@ final class ContainersPage {
       List<UnfollowedContainer> containers,
       String dockerProblem,
       Service registered,
-      RegisterFailure failure,
-      BindForm bind) {
+      RegisterFailure failure) {
     return Layout.page(
         "Containers",
         workstation.name(),
@@ -137,7 +143,7 @@ final class ContainersPage {
                         .__();
                   }
                 })
-                .of(content -> Dialogs.openButton(content, BIND))
+                .of(content -> FormPage.openLink(content, BIND))
                 .of(content -> {
                   if (failure == null) {
                     Layout.refreshed(
@@ -155,22 +161,21 @@ final class ContainersPage {
                       .attrClass("flex flex-col gap-8")
                       .of(region -> list(region, containers, dockerProblem, failure))
                       .__();
-                })
-                .of(content ->
-                    Dialogs.modal(
-                        content,
-                        BIND,
-                        bind.error() != null,
-                        form -> form.addAttr("data-bind-form", "").addAttr("action", BIND_PATH),
-                        section -> bindFields(section, bind),
-                        "Bind")));
+                }));
   }
 
   /**
-   * Outside the refreshed list, so the refresh cannot reset what is typed. app.css hides the fields
-   * of the kind that is not chosen, so the choice works without JavaScript.
+   * app.css hides the fields of the kind that is not chosen, so the choice works without script.
    */
-  private static void bindFields(Section<?> section, BindForm bind) {
+  static String renderNew(Workstation workstation, BindForm bind) {
+    return FormPage.render(
+        workstation,
+        BIND,
+        form -> form.addAttr("data-bind-form", ""),
+        section -> bindFields(section, bind));
+  }
+
+  private static void bindFields(FlowContent<?, ?> section, BindForm bind) {
     Binding binding = bind.binding();
     InvalidRegistrationException error = bind.error();
     section
@@ -180,53 +185,48 @@ final class ContainersPage {
         .addAttr("aria-label", "What to bind")
         .of(group -> kind(group, Kind.CONTAINER, "Container name", binding.kind()))
         .of(group -> kind(group, Kind.COMPOSE, "Compose service", binding.kind()))
-        .__()
-        .of(fields ->
-            InstanceForm.text(
-                fields,
-                "container",
-                "Container name",
-                binding.container(),
-                "grafana",
-                "As docker run --name gives it.",
-                error))
-        .of(fields ->
-            InstanceForm.text(
-                fields,
-                "composeProject",
-                "Compose project",
-                binding.composeProject(),
-                "shop",
-                null,
-                error))
-        .of(fields ->
-            InstanceForm.text(
-                fields,
-                "composeService",
-                "Compose service",
-                binding.composeService(),
-                "web",
-                "Each of its containers gets an Instance.",
-                error))
-        .of(fields ->
-            InstanceForm.text(
-                fields,
-                "containerPort",
-                "Container port",
-                binding.containerPort(),
-                "80",
-                "The port inside the container.",
-                error))
-        .of(fields ->
-            InstanceForm.text(
-                fields,
-                "name",
-                "Service name",
-                binding.name(),
-                "web",
-                "Lowercase letters, digits and -. If empty, the container or Compose service name.",
-                error))
-        .of(fields -> InstanceForm.publish(fields, bind.publish()));
+        .__();
+    InstanceForm.text(
+        section,
+        "container",
+        "Container name",
+        binding.container(),
+        "grafana",
+        "As docker run --name gives it.",
+        error);
+    InstanceForm.text(
+        section,
+        "composeProject",
+        "Compose project",
+        binding.composeProject(),
+        "shop",
+        null,
+        error);
+    InstanceForm.text(
+        section,
+        "composeService",
+        "Compose service",
+        binding.composeService(),
+        "web",
+        "Each of its containers gets an Instance.",
+        error);
+    InstanceForm.text(
+        section,
+        "containerPort",
+        "Container port",
+        binding.containerPort(),
+        "80",
+        "The port inside the container.",
+        error);
+    InstanceForm.text(
+        section,
+        "name",
+        "Service name",
+        binding.name(),
+        "web",
+        "Lowercase letters, digits and -. If empty, the container or Compose service name.",
+        error);
+    InstanceForm.publish(section, bind.publish());
   }
 
   private static void kind(Div<?> group, Kind kind, String label, Kind chosen) {

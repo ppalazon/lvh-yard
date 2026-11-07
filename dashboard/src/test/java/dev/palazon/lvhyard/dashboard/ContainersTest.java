@@ -30,8 +30,6 @@ class ContainersTest extends DashboardTest {
 
   private static final String PATH = "/api/workstation/containers";
 
-  private static final String BIND_DIALOG = "bind-container";
-
   /** Busybox has {@code nc}, and, unlike the Consul image, exposes no port of its own. */
   private static final DockerImageName BUSYBOX = DockerImageName.parse("busybox:1.37");
 
@@ -814,40 +812,26 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void bindButtonOpensAClosedDialogThatHoldsTheBindingForm() {
+  void bindLinkOpensTheBindingFormOnItsOwnPage() {
+    assertFormPage("/containers", "/containers/new", "Bind a container", "/containers/bind");
     String page = getPage("/containers").getBody();
-
-    String button = openingTag(page, "data-dialog-open=\"" + BIND_DIALOG + "\"");
-    assertThat(button).startsWith("<button").contains("type=\"button\"");
-    assertThat(page).contains(button + "Bind a container</button>");
-    assertThat(page.indexOf(button)).isLessThan(page.indexOf("id=\"containers\""));
-    String dialog = dialog(page, BIND_DIALOG);
-    assertThat(openingTag(dialog, "id=\"" + BIND_DIALOG + "\""))
-        .contains("class=\"dialog\"")
-        .doesNotContain("data-dialog-shown");
-    assertThat(openingTag(dialog, "data-dialog-close")).contains("type=\"button\"");
-  }
-
-  @Test
-  void listComesBeforeTheBindingDialog() {
-    String page = getPage("/containers").getBody();
-
-    assertThat(page.indexOf("<dialog")).isGreaterThan(page.indexOf("id=\"containers\""));
+    assertThat(page.indexOf("href=\"/containers/new\""))
+        .isLessThan(page.indexOf("id=\"containers\""));
   }
 
   @Test
   void bindingFormPublishesANewServiceByDefault() {
-    String dialog = dialog(getPage("/containers").getBody(), BIND_DIALOG);
+    String form = formTo(getPage("/containers/new").getBody(), "/containers/bind");
 
     // app.css shows the fields of the chosen kind by these attributes and ids.
-    assertThat(openingTag(dialog, "action=\"/containers/bind\"")).contains("data-bind-form");
-    assertThat(openingTag(dialog, "value=\"CONTAINER\""))
+    assertThat(openingTag(form, "action=\"/containers/bind\"")).contains("data-bind-form");
+    assertThat(openingTag(form, "value=\"CONTAINER\""))
         .contains("type=\"radio\"")
         .contains("id=\"kind-container\"");
-    assertThat(openingTag(dialog, "value=\"COMPOSE\""))
+    assertThat(openingTag(form, "value=\"COMPOSE\""))
         .contains("type=\"radio\"")
         .contains("id=\"kind-compose\"");
-    assertThat(dialog)
+    assertThat(form)
         .contains("Container name")
         .contains("Compose service")
         .contains("id=\"container\"")
@@ -856,7 +840,7 @@ class ContainersTest extends DashboardTest {
         .contains("name=\"containerPort\"")
         .contains("name=\"name\"")
         .contains("type=\"submit\"");
-    assertThat(openingTag(dialog, "name=\"publish\"")).contains("checked");
+    assertThat(openingTag(form, "name=\"publish\"")).contains("checked");
   }
 
   @Test
@@ -924,9 +908,9 @@ class ContainersTest extends DashboardTest {
             Map.of("kind", "CONTAINER", "container", name, "containerPort", "", "name", "web"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    String dialog = dialog(response.getBody(), BIND_DIALOG);
-    assertThat(openingTag(dialog, "id=\"" + BIND_DIALOG + "\"")).contains("data-dialog-shown");
-    assertThat(openingTag(dialog, "name=\"containerPort\"")).contains("aria-invalid=\"true\"");
+    assertThat(response.getBody()).contains("<h1>Bind a container</h1>");
+    String form = formTo(response.getBody(), "/containers/bind");
+    assertThat(openingTag(form, "name=\"containerPort\"")).contains("aria-invalid=\"true\"");
     assertThat(openingTag(response.getBody(), "name=\"container\""))
         .contains("value=\"" + name + "\"");
     assertThat(openingTag(response.getBody(), "name=\"publish\"")).doesNotContain("checked");
@@ -948,8 +932,6 @@ class ContainersTest extends DashboardTest {
                 "web"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(openingTag(response.getBody(), "id=\"" + BIND_DIALOG + "\""))
-        .contains("data-dialog-shown");
     assertThat(openingTag(response.getBody(), "value=\"COMPOSE\"")).contains("checked");
     assertThat(openingTag(response.getBody(), "name=\"composeProject\""))
         .contains("aria-invalid=\"true\"");
@@ -1074,15 +1056,9 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void bindingFormInputsOutsideRefreshedListRetainUserInputAcrossContainerUpdates() {
-    String page = getPage("/containers").getBody();
-    int formPos = page.indexOf("id=\"" + BIND_DIALOG + "\"");
-    int regionPos = page.indexOf("id=\"containers\"");
-    assertThat(formPos).isGreaterThan(regionPos);
-    String dialog = dialog(page, BIND_DIALOG);
-    assertThat(dialog).contains("action=\"/containers/bind\"");
-    assertThat(dialog).contains("id=\"container\"");
-    assertThat(dialog).contains("id=\"composeProject\"");
+  void bindingFormPageHasNoRefreshThatCouldResetWhatIsTyped() {
+    String page = getPage("/containers/new").getBody();
+    assertThat(page).doesNotContain("id=\"containers\"").doesNotContain("hx-get=\"/containers\"");
 
     String name = newContainerName();
     ResponseEntity<String> response =
@@ -1096,10 +1072,9 @@ class ContainersTest extends DashboardTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     String responseBody = response.getBody();
+    assertThat(responseBody).doesNotContain("id=\"containers\"");
     assertThat(openingTag(responseBody, "name=\"container\"")).contains("value=\"" + name + "\"");
     assertThat(openingTag(responseBody, "name=\"name\"")).contains("value=\"my-input-preserved\"");
-    assertThat(responseBody.indexOf("id=\"" + BIND_DIALOG + "\""))
-        .isGreaterThan(responseBody.indexOf("id=\"containers\""));
   }
 
   /** The table row of {@code container} on the Containers page. */

@@ -124,7 +124,13 @@ class PagesController {
   @GetMapping(path = StaticInstancesPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
   @ResponseBody
   String staticInstances() {
-    return staticInstancesPage("", InstanceForm.Fields.EMPTY, true, null);
+    return StaticInstancesPage.render(workstation, yard.services(workstation.name()));
+  }
+
+  @GetMapping(path = StaticInstancesPage.NEW_PATH, produces = MediaType.TEXT_HTML_VALUE)
+  @ResponseBody
+  String newStaticInstance() {
+    return newStaticInstancePage("", InstanceForm.Fields.EMPTY, true, null);
   }
 
   /**
@@ -144,24 +150,18 @@ class PagesController {
     } catch (InvalidRegistrationException error) {
       return ResponseEntity.badRequest()
           .contentType(Layout.HTML)
-          .body(staticInstancesPage(name, fields, publish != null, error));
+          .body(newStaticInstancePage(name, fields, publish != null, error));
     }
     return seeOther(ServicePage.path(workstation.name(), service));
   }
 
-  private String staticInstancesPage(
+  private String newStaticInstancePage(
       String name,
       InstanceForm.Fields fields,
       boolean publish,
       InvalidRegistrationException error) {
-    return StaticInstancesPage.render(
-        workstation,
-        yard.services(workstation.name()),
-        name,
-        fields,
-        publish,
-        registrations.defaultHost(),
-        error);
+    return StaticInstancesPage.renderNew(
+        workstation, name, fields, publish, registrations.defaultHost(), error);
   }
 
   @GetMapping(path = "/services/{workstation}/{service}", produces = MediaType.TEXT_HTML_VALUE)
@@ -354,22 +354,25 @@ class PagesController {
   String containers(@RequestParam(required = false) String registered) {
     return containersPage(
         registered == null ? null : yard.service(workstation.name(), registered).orElse(null),
-        null,
-        ContainersPage.BindForm.EMPTY);
+        null);
+  }
+
+  @GetMapping(path = ContainersPage.NEW_PATH, produces = MediaType.TEXT_HTML_VALUE)
+  @ResponseBody
+  String newContainerBinding() {
+    return ContainersPage.renderNew(workstation, ContainersPage.BindForm.EMPTY);
   }
 
   /**
    * @param registered the Service that the one-click Register just gave a container, or {@code
    *     null}
    */
-  private String containersPage(
-      Service registered, ContainersPage.RegisterFailure failure, ContainersPage.BindForm bind) {
+  private String containersPage(Service registered, ContainersPage.RegisterFailure failure) {
     try {
       return ContainersPage.render(
-          workstation, containerRegistration.unfollowed(), null, registered, failure, bind);
+          workstation, containerRegistration.unfollowed(), null, registered, failure);
     } catch (UnreadableDockerException e) {
-      return ContainersPage.render(
-          workstation, List.of(), e.getMessage(), registered, failure, bind);
+      return ContainersPage.render(workstation, List.of(), e.getMessage(), registered, failure);
     }
   }
 
@@ -402,8 +405,8 @@ class PagesController {
     return ResponseEntity.badRequest()
         .contentType(Layout.HTML)
         .body(
-            containersPage(
-                null, null, new ContainersPage.BindForm(binding, publish != null, error)));
+            ContainersPage.renderNew(
+                workstation, new ContainersPage.BindForm(binding, publish != null, error)));
   }
 
   @GetMapping(
@@ -443,9 +446,7 @@ class PagesController {
                   ? ContainersPage.renderRegister(
                       workstation, unfollowed(container), name, port == null ? "" : port, e)
                   : containersPage(
-                      null,
-                      new ContainersPage.RegisterFailure(container, e.getMessage()),
-                      ContainersPage.BindForm.EMPTY));
+                      null, new ContainersPage.RegisterFailure(container, e.getMessage())));
     } catch (FollowedContainerException e) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage(), e);
     } catch (UnreadableDockerException e) {
@@ -494,7 +495,20 @@ class PagesController {
   @GetMapping(path = AliasesPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
   @ResponseBody
   String aliases() {
-    return aliasesPage("", "", null);
+    Yard read = yard.routableYard();
+    return AliasesPage.render(workstation, read, aliases.of(read));
+  }
+
+  /** With no Remote Service to name, the Aliases page tells why no Alias can be added. */
+  @GetMapping(path = AliasesPage.NEW_PATH, produces = MediaType.TEXT_HTML_VALUE)
+  ResponseEntity<String> newAlias() {
+    List<Service> shared = AliasesPage.shared(yard.routableYard());
+    if (shared.isEmpty()) {
+      return seeOther(AliasesPage.PATH);
+    }
+    return ResponseEntity.ok()
+        .contentType(Layout.HTML)
+        .body(AliasesPage.renderNew(workstation, shared, "", "", null));
   }
 
   @PostMapping(path = AliasesPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
@@ -510,7 +524,9 @@ class PagesController {
     } catch (InvalidRegistrationException error) {
       return ResponseEntity.badRequest()
           .contentType(Layout.HTML)
-          .body(aliasesPage(name, target, error));
+          .body(
+              AliasesPage.renderNew(
+                  workstation, AliasesPage.shared(yard.routableYard()), name, target, error));
     }
     return seeOther(AliasesPage.PATH);
   }
@@ -523,11 +539,6 @@ class PagesController {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
     }
     return seeOther(AliasesPage.PATH);
-  }
-
-  private String aliasesPage(String name, String target, InvalidRegistrationException error) {
-    Yard read = yard.routableYard();
-    return AliasesPage.render(workstation, read, aliases.of(read), name, target, error);
   }
 
   /**

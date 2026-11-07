@@ -10,8 +10,6 @@ import org.springframework.http.ResponseEntity;
 /** The Aliases page, where this Workstation's Aliases are added, seen and removed. */
 class AliasesPageTest extends DashboardTest {
 
-  private static final String DIALOG = "add-alias";
-
   @Test
   void catalogLinksToTheAliasesPage() {
     assertThat(getPage("/").getBody()).contains("href=\"/aliases\"");
@@ -26,7 +24,7 @@ class AliasesPageTest extends DashboardTest {
     remote.register(local, Map.of("host", "10.9.8.7", "port", 3001));
     remote.publish(local, "local");
 
-    String page = getPage("/aliases").getBody();
+    String page = getPage("/aliases/new").getBody();
 
     assertThat(page)
         .contains("name=\"name\"")
@@ -35,39 +33,15 @@ class AliasesPageTest extends DashboardTest {
   }
 
   @Test
-  void addButtonOpensAClosedDialogThatHoldsTheForm() {
+  void addLinkOpensTheFormOnItsOwnPage() {
     String grafana = newServiceName("grafana");
     remote.register(grafana, Map.of("host", "10.9.8.7", "port", 3000));
     remote.publish(grafana, "yard");
 
-    String page = getPage("/aliases").getBody();
-
-    String button = openingTag(page, "data-dialog-open=\"" + DIALOG + "\"");
-    assertThat(button).startsWith("<button").contains("type=\"button\"");
-    assertThat(page).contains(button + "Add an Alias</button>");
-    String dialog = dialog(page, DIALOG);
-    assertThat(openingTag(dialog, "id=\"" + DIALOG + "\""))
-        .contains("class=\"dialog\"")
-        .doesNotContain("data-dialog-shown");
-    assertThat(dialog)
-        .contains("Add an Alias")
-        .contains("action=\"/aliases\"")
+    assertFormPage("/aliases", "/aliases/new", "Add an Alias", "/aliases");
+    assertThat(formTo(getPage("/aliases/new").getBody(), "/aliases"))
         .contains("name=\"name\"")
-        .contains("name=\"target\"")
-        .contains("type=\"submit\"");
-    assertThat(openingTag(dialog, "data-dialog-close")).contains("type=\"button\"");
-  }
-
-  @Test
-  void listComesBeforeTheDialog() {
-    String grafana = newServiceName("grafana");
-    remote.register(grafana, Map.of("host", "10.9.8.7", "port", 3000));
-    remote.publish(grafana, "yard");
-    postForm("/aliases", Map.of("name", grafana, "target", RemoteWorkstation.NAME + "/" + grafana));
-
-    String page = getPage("/aliases").getBody();
-
-    assertThat(page.indexOf(grafana + ".lvh.test")).isLessThan(page.indexOf("<dialog"));
+        .contains("name=\"target\"");
   }
 
   @Test
@@ -117,9 +91,8 @@ class AliasesPageTest extends DashboardTest {
             "/aliases", Map.of("name", "consul", "target", RemoteWorkstation.NAME + "/" + grafana));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    String dialog = dialog(response.getBody(), DIALOG);
-    assertThat(openingTag(dialog, "id=\"" + DIALOG + "\"")).contains("data-dialog-shown");
-    assertThat(dialog)
+    assertThat(response.getBody()).contains("<h1>Add an Alias</h1>");
+    assertThat(formTo(response.getBody(), "/aliases"))
         .contains("own entry in its catalog")
         .contains("aria-invalid=\"true\"")
         .contains("value=\"consul\"");
