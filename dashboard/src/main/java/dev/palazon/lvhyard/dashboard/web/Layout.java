@@ -94,7 +94,7 @@ public final class Layout {
         .__()
         .body()
         .addAttr("hx-ext", "sse")
-        .addAttr("sse-connect", "/events")
+        .addAttr("hx-sse:connect", "/events")
         .header()
         .attrClass("border-b")
         .div()
@@ -162,7 +162,7 @@ public final class Layout {
         .div()
         .attrId("status-dots")
         .addAttr("hx-get", StatusSummary.PATH)
-        .addAttr("hx-trigger", "load, sse:" + STATUS_CHANGED + ", every 30s")
+        .addAttr("hx-trigger", "load, " + onEvent(STATUS_CHANGED) + ", every 30s")
         .addAttr("hx-status:4xx", "swap:none")
         .addAttr("hx-status:5xx", "swap:none")
         .__();
@@ -236,11 +236,21 @@ public final class Layout {
   }
 
   /**
-   * A region of the page, with id {@code id}, that HTMX loads again from {@code path} every 5
-   * seconds and swaps for the same region of the answer. What is outside it, such as a form being
-   * filled in, stays as it is. An error answer, such as while a Workstation is unreachable, swaps
-   * nothing: HTMX 4 would otherwise swap the region for the error page, which has no such region,
-   * and the refresh would stop for good.
+   * The trigger for an event of the {@code /events} stream. HTMX 4 sends the event, with no {@code
+   * sse:} prefix, to the {@code <body>} that holds the stream, and it does not reach the elements
+   * inside. An element therefore listens on the body.
+   */
+  static String onEvent(String event) {
+    return event + " from:body";
+  }
+
+  /**
+   * A region of the page, with id {@code id}, that HTMX loads again from {@code path} when one of
+   * {@code events} arrives, and every 30 seconds. With no events, it loads every 5 seconds. HTMX
+   * swaps for the same region of the answer. What is outside it, such as a form being filled in,
+   * stays as it is. An error answer, such as while a Workstation is unreachable, swaps nothing:
+   * HTMX 4 would otherwise swap the region for the error page, which has no such region, and the
+   * refresh would stop for good.
    */
   public static void refreshed(
       Main<?> main, String id, String path, List<String> events, Consumer<Div<?>> content) {
@@ -249,8 +259,7 @@ public final class Layout {
       trigger = "every 5s";
     } else {
       trigger =
-          events.stream().map(event -> "sse:" + event).collect(Collectors.joining(", "))
-              + ", every 30s";
+          events.stream().map(Layout::onEvent).collect(Collectors.joining(", ")) + ", every 30s";
     }
     main.div()
         .attrId(id)

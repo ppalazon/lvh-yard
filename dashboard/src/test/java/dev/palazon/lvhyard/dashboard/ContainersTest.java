@@ -367,7 +367,7 @@ class ContainersTest extends DashboardTest {
   void pageRefreshesItsListByItself() {
     assertThat(openingTag(getPage("/containers").getBody(), "id=\"containers\""))
         .contains("hx-get=\"/containers\"")
-        .contains("hx-trigger=\"sse:containers-changed, sse:yard-changed, every 30s\"");
+        .contains("hx-trigger=\"containers-changed from:body, yard-changed from:body, every 30s\"");
   }
 
   @Test
@@ -658,7 +658,7 @@ class ContainersTest extends DashboardTest {
     String page = getPage(response.getHeaders().getLocation().toString()).getBody();
     assertThat(div(page, "id=\"containers\"")).doesNotContain(name);
     assertThat(openingTag(page, "id=\"containers\""))
-        .contains("hx-trigger=\"sse:containers-changed, sse:yard-changed, every 30s\"");
+        .contains("hx-trigger=\"containers-changed from:body, yard-changed from:body, every 30s\"");
     assertThat(div(page, "data-registered")).contains("href=\"/services/ws-test/" + name + "\"");
   }
 

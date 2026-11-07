@@ -182,7 +182,7 @@ class StatusTest extends DashboardTest {
   void pageRefreshesItsPartsWithSseAndFallback() {
     assertThat(openingTag(getPage("/status").getBody(), "id=\"status\""))
         .contains("hx-get=\"/status\"")
-        .contains("hx-trigger=\"sse:status-changed, every 30s\"")
+        .contains("hx-trigger=\"status-changed from:body, every 30s\"")
         .contains("hx-select=\"#status\"");
   }
 
@@ -222,7 +222,7 @@ class StatusTest extends DashboardTest {
       assertThat(openingTag(getPage(path).getBody(), "id=\"status-dots\""))
           .as(path)
           .contains("hx-get=\"/status/summary\"")
-          .contains("hx-trigger=\"load, sse:status-changed, every 30s\"")
+          .contains("hx-trigger=\"load, status-changed from:body, every 30s\"")
           .contains("hx-status:4xx=\"swap:none\"")
           .contains("hx-status:5xx=\"swap:none\"");
     }

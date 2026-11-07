@@ -211,7 +211,7 @@ class CatalogPageTest extends DashboardTest {
     String region = openingTag(page, "id=\"catalog\"");
     assertThat(region)
         .contains("hx-get=\"/?workstation=" + RemoteWorkstation.NAME + "&amp;state=healthy\"")
-        .contains("hx-trigger=\"sse:yard-changed, every 30s\"")
+        .contains("hx-trigger=\"yard-changed from:body, every 30s\"")
         .contains("hx-select=\"#catalog\"")
         .contains("hx-swap=\"outerHTML\"");
     assertThat(div(page, "id=\"catalog\""))

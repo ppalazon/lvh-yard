@@ -828,7 +828,7 @@ class ServicePageTest extends DashboardTest {
 
     assertThat(region)
         .contains("hx-get=\"/services/ws-test/" + web + "\"")
-        .contains("hx-trigger=\"sse:yard-changed, every 30s\"")
+        .contains("hx-trigger=\"yard-changed from:body, every 30s\"")
         .contains("hx-select=\"#service\"")
         .contains("hx-swap=\"outerHTML\"")
         .as(

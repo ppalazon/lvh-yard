@@ -85,7 +85,7 @@ class EventsTest extends DashboardTest {
   void layoutIncludesHxSseAndConnectsToEvents() {
     String html = getPage("/").getBody();
     assertThat(html)
-        .contains("<body hx-ext=\"sse\" sse-connect=\"/events\">")
+        .contains("<body hx-ext=\"sse\" hx-sse:connect=\"/events\">")
         .containsPattern(
             Pattern.compile(
                 "<script src=\"/webjars/htmx\\.org/dist/ext/hx-sse\\.min\\.js\""
@@ -106,7 +106,7 @@ class EventsTest extends DashboardTest {
         .__()
         .__()
         .__();
-    assertThat(singleOut.toString()).contains("hx-trigger=\"sse:yard-changed, every 30s\"");
+    assertThat(singleOut.toString()).contains("hx-trigger=\"yard-changed from:body, every 30s\"");
 
     StringBuilder multiOut = new StringBuilder();
     HtmlFlow.doc(multiOut)
@@ -125,7 +125,7 @@ class EventsTest extends DashboardTest {
         .__()
         .__();
     assertThat(multiOut.toString())
-        .contains("hx-trigger=\"sse:containers-changed, sse:yard-changed, every 30s\"");
+        .contains("hx-trigger=\"containers-changed from:body, yard-changed from:body, every 30s\"");
 
     StringBuilder fallbackOut = new StringBuilder();
     HtmlFlow.doc(fallbackOut)

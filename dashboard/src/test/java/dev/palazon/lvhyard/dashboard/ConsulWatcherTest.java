@@ -88,11 +88,11 @@ class ConsulWatcherTest extends DashboardTest {
     // Verify Catalog and Service pages include HTMX SSE trigger for yard-changed
     String catalogPage = getPage("/").getBody();
     assertThat(openingTag(catalogPage, "id=\"catalog\""))
-        .contains("hx-trigger=\"sse:" + YARD_CHANGED + ", every 30s\"");
+        .contains("hx-trigger=\"" + YARD_CHANGED + " from:body, every 30s\"");
 
     String servicePage = getPage("/services/ws-test/" + service).getBody();
     assertThat(openingTag(servicePage, "id=\"service\""))
-        .contains("hx-trigger=\"sse:" + YARD_CHANGED + ", every 30s\"");
+        .contains("hx-trigger=\"" + YARD_CHANGED + " from:body, every 30s\"");
 
     try (EventStreamClient client = new EventStreamClient(port)) {
       // Trigger WAN pool membership change by force-leaving remote WAN member
