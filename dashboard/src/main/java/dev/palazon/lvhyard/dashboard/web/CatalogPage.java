@@ -95,7 +95,7 @@ final class CatalogPage {
                 Stream.of(yard.home().name()), yard.remotes().stream().map(YardWorkstation::name))
             .toList();
     main.form()
-        .attrClass("form flex flex-wrap items-end gap-4")
+        .attrClass("form flex flex-nowrap items-end justify-end gap-4")
         .addAttr("hx-get", "/")
         .addAttr("hx-trigger", "change")
         .addAttr("hx-target", "#catalog")
