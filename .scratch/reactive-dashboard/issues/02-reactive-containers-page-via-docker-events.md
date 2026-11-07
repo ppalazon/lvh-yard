@@ -12,3 +12,7 @@
 - [x] Starting a container causes the Containers page to show the new Unfollowed Container within milliseconds.
 - [x] Partially filled Container Binding forms outside the refreshed list retain their user input across container event updates.
 - [x] Black-box tests verify that starting and stopping a container emits `containers-changed` on the SSE stream and updates the rendered HTML.
+
+## Comments
+
+Implemented in `44cfc13`, merged in `0758071`. Code review adjustments merged in `69e2272`.

@@ -15,3 +15,7 @@
 - [x] Open or closed risk disclosure boxes on the Service page retain their state across reactive updates.
 - [x] The Reachability test section on the Service page does not listen to or trigger on SSE events.
 - [x] Black-box tests verify that registering an Instance or changing a check emits `yard-changed` and updates the Catalog row and Service page.
+
+## Comments
+
+Implemented in `cfdd44e`, merged in `c1114a5`. Code review adjustments merged in `69e2272`.

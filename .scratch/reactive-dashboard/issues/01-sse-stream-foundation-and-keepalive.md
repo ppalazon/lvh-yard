@@ -12,3 +12,7 @@
 - [x] The event debouncer coalesces triggers occurring within 300 ms and flushes distinct event names once the quiet window elapses.
 - [x] The dashboard layout shell includes the `hx-sse` extension and connects to `/events` on the `<body>` element.
 - [x] Black-box tests in the test suite verify that `/events` answers with `text/event-stream` and receives heartbeat comments.
+
+## Comments
+
+Implemented in `b6c0673`, merged in `4f0ed43`. Code review adjustments merged in `69e2272`.

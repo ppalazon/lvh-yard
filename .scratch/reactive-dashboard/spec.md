@@ -1,6 +1,6 @@
 # Reactive dashboard with Server-Sent Events and HTMX
 
-Status: ready-for-agent
+Status: done
 
 Words follow `GLOSSARY.md`. Architectural decisions follow `docs/adr/0007-reactive-dashboard-with-sse-and-htmx.md`.
 

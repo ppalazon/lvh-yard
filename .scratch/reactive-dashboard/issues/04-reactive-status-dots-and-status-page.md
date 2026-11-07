@@ -4,10 +4,14 @@
 
 **Blocked by:** 01: SSE stream foundation and keepalive, 03: Reactive Catalog and Service pages via Consul watcher
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Status transitions in Consul, Traefik, or Docker trigger a debounced `status-changed` signal over the `/events` SSE stream.
-- [ ] The status summary dots in the navigation bar use `hx-trigger="load, sse:status-changed, every 30s"`.
-- [ ] The Status page refreshed region uses `hx-trigger="sse:status-changed, every 30s"`.
-- [ ] When an infrastructure part fails or recovers, the header dots update their color and status text without a manual page reload.
-- [ ] Black-box tests verify that an infrastructure status transition emits `status-changed` on the SSE stream and updates the status dots.
+- [x] Status transitions in Consul, Traefik, or Docker trigger a debounced `status-changed` signal over the `/events` SSE stream.
+- [x] The status summary dots in the navigation bar use `hx-trigger="load, sse:status-changed, every 30s"`.
+- [x] The Status page refreshed region uses `hx-trigger="sse:status-changed, every 30s"`.
+- [x] When an infrastructure part fails or recovers, the header dots update their color and status text without a manual page reload.
+- [x] Black-box tests verify that an infrastructure status transition emits `status-changed` on the SSE stream and updates the status dots.
+
+## Comments
+
+Implemented in `369af63`, merged in `540a0ec`. Code review adjustments merged in `69e2272`.
