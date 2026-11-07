@@ -2,9 +2,11 @@ package dev.palazon.lvhyard.dashboard;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import dev.palazon.lvhyard.dashboard.consul.ConsulSettings;
+import dev.palazon.lvhyard.dashboard.web.ErrorPage;
 import java.net.URI;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
@@ -59,7 +61,9 @@ class ProblemsTest {
 
   @Test
   void aPageAnswersAnUnansweredConsulWithTheErrorPage() throws Exception {
-    mvc.perform(get("/unanswered")).andExpect(status().isServiceUnavailable());
+    mvc.perform(get("/unanswered"))
+        .andExpect(status().isServiceUnavailable())
+        .andExpect(request().attribute(ErrorPage.CONSUL_URL, "http://127.0.0.1:8500"));
   }
 
   @Test

@@ -407,6 +407,11 @@ abstract class DashboardTest {
     return http.get().uri(path).retrieve().toEntity(String.class);
   }
 
+  /** As a client that accepts only {@code accept}, such as a browser with text/html. */
+  ResponseEntity<String> getAccepting(String path, MediaType accept) {
+    return http.get().uri(path).accept(accept).retrieve().toEntity(String.class);
+  }
+
   /** As a client that asks for YAML, such as {@code lvh-yard export}. */
   ResponseEntity<String> getYaml(String path) {
     return http.get()

@@ -1,6 +1,7 @@
 package dev.palazon.lvhyard.dashboard;
 
 import dev.palazon.lvhyard.dashboard.consul.ConsulSettings;
+import dev.palazon.lvhyard.dashboard.web.ErrorPage;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -54,6 +55,7 @@ class Problems {
     LOG.atWarn()
         .setCause(stackTraces ? e : null)
         .log("{} {} failed: {}", request.getMethod(), request.getRequestURI(), e.getMessage());
+    request.setAttribute(ErrorPage.CONSUL_URL, consul.url().toString());
     return answer(
         HttpStatus.SERVICE_UNAVAILABLE,
         "Consul does not answer at " + consul.url() + ". Try again in a moment.",

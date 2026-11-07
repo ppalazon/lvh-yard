@@ -82,6 +82,11 @@ If a request to the dashboard fails, `docker compose logs dashboard` shows one
 line for it, with no stack trace. To also log the stack trace, set
 `YARD_STACK_TRACES=true` in `.env`. Then run `docker compose up -d`.
 
+If a page of the dashboard fails, the browser shows an error page. It says
+what failed and links to the Status page. If Consul does not answer, the page
+gives the `docker compose` commands that show whether Consul runs and start it
+again. The REST API still answers errors with JSON.
+
 The files that `init` writes are a reference setup, and they are yours. You
 can change `compose.yaml`, or run Consul, Traefik and the dashboard another
 way. The comments in `compose.yaml` and `.env` explain each value. `lvh-yard`
@@ -751,7 +756,7 @@ the Consul KV of this Workstation, under `lvh-yard/aliases/`.
 To add an Alias on the Aliases page, click "Add an Alias". The form opens on
 its own page, `/aliases/new`. Cancel goes back to the Aliases page. If a value
 is wrong, the form shows your input again with the error under its field.
-The link shows only when a Remote Service has Yard Scope.
+If no Remote Service has Yard Scope, the page shows no link.
 
 The name of an Alias follows the rules for a Service name, so it cannot be
 `consul`. The Workstation and the Service that it names must each be a DNS
