@@ -14,7 +14,7 @@ import tools.jackson.databind.JsonNode;
  * The OpenAPI document of the REST API, the CLI's contract. A copy is committed at {@code
  * dashboard/openapi.yaml}; {@code mise run openapi} rewrites it.
  */
-class OpenApiIT extends DashboardIT {
+class OpenApiComponentTest extends DashboardComponentTest {
 
   private static final Path COMMITTED_DOCUMENT = Path.of("openapi.yaml");
 

@@ -12,7 +12,7 @@ import org.springframework.web.util.HtmlUtils;
 import tools.jackson.databind.json.JsonMapper;
 
 /** The Route Profiles page, where this Workstation's Route Profiles are seen, added and removed. */
-class RouteProfilesPageIT extends DashboardIT {
+class RouteProfilesPageComponentTest extends DashboardComponentTest {
 
   private static final JsonMapper JSON = new JsonMapper();
 

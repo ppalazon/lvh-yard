@@ -6,7 +6,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /** The navigation bar in the header of every page. */
-class NavigationBarIT extends DashboardIT {
+class NavigationBarComponentTest extends DashboardComponentTest {
 
   @Test
   void linksToEachList() {

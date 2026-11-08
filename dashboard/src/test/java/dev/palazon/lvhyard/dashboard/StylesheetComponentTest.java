@@ -7,7 +7,7 @@ import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
 /** The stylesheet that every page loads: the Phyxor theme with the system fonts. */
-class StylesheetIT extends DashboardIT {
+class StylesheetComponentTest extends DashboardComponentTest {
 
   /** The Phyxor primary amber, as its oklch hue. tweakcn theme cmq3zh8z1000104i6bwg93nqa. */
   private static final String PHYXOR_PRIMARY_HUE = "91.9268";

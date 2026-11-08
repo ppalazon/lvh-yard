@@ -15,7 +15,7 @@ import org.springframework.http.ResponseEntity;
 import tools.jackson.databind.JsonNode;
 
 /** Each import that changes something first writes a safety Backup to the Backups folder. */
-class SafetyBackupIT extends DashboardIT {
+class SafetyBackupComponentTest extends DashboardComponentTest {
 
   @Test
   void importThatChangesSomethingWritesASafetyBackupOfTheSetupBefore() throws IOException {
@@ -39,7 +39,7 @@ class SafetyBackupIT extends DashboardIT {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     String name = response.getBody().get("safetyBackup").asString();
     assertThat(name).matches(WORKSTATION + "-\\d{8}-\\d{6}(-\\d+)?-before-import\\.yaml");
-    Path file = TestcontainersConfiguration.BACKUPS.resolve(name);
+    Path file = BACKUPS.resolve(name);
     assertThat(PosixFilePermissions.toString(Files.getPosixFilePermissions(file)))
         .isEqualTo("rw-------");
     Map<String, Object> services = map(yaml(Files.readString(file)).get("services"));
@@ -94,7 +94,7 @@ class SafetyBackupIT extends DashboardIT {
 
   /** The tests of one JVM run one at a time and share its Backups folder. */
   private static long backupCount() throws IOException {
-    try (var files = Files.list(TestcontainersConfiguration.BACKUPS)) {
+    try (var files = Files.list(BACKUPS)) {
       return files.count();
     }
   }

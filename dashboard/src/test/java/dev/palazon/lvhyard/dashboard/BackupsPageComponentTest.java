@@ -22,7 +22,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 /** The Backups page, where the files of the Backups folder are seen, made and deleted. */
-class BackupsPageIT extends DashboardIT {
+class BackupsPageComponentTest extends DashboardComponentTest {
 
   /** Every test class of this JVM shares the Backups folder, so each test names its own files. */
   private final List<Path> files = new ArrayList<>();
@@ -104,8 +104,8 @@ class BackupsPageIT extends DashboardIT {
         .asString()
         .matches(WORKSTATION + "-\\d{8}-\\d{6}(-\\d+)?\\.yaml");
     String name = added.iterator().next();
-    files.add(TestcontainersConfiguration.BACKUPS.resolve(name));
-    assertThat(Files.readString(TestcontainersConfiguration.BACKUPS.resolve(name))).contains(web);
+    files.add(BACKUPS.resolve(name));
+    assertThat(Files.readString(BACKUPS.resolve(name))).contains(web);
     assertThat(getPage("/backups").getBody()).contains(name).contains(old);
   }
 
@@ -142,7 +142,7 @@ class BackupsPageIT extends DashboardIT {
 
     assertThat(confirm.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(confirm.getBody()).contains(name).contains("action=\"" + deletePath + "\"");
-    assertThat(TestcontainersConfiguration.BACKUPS.resolve(name)).exists();
+    assertThat(BACKUPS.resolve(name)).exists();
   }
 
   @Test
@@ -154,7 +154,7 @@ class BackupsPageIT extends DashboardIT {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
     assertThat(response.getHeaders().getLocation()).hasPath("/backups");
-    assertThat(TestcontainersConfiguration.BACKUPS.resolve(name)).doesNotExist();
+    assertThat(BACKUPS.resolve(name)).doesNotExist();
     assertThat(getPage("/backups").getBody()).doesNotContain(name);
   }
 
@@ -193,7 +193,7 @@ class BackupsPageIT extends DashboardIT {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
     assertThat(response.getHeaders().getLocation()).hasPath("/backups");
-    assertThat(Files.readString(TestcontainersConfiguration.BACKUPS.resolve(name))).isEqualTo(text);
+    assertThat(Files.readString(BACKUPS.resolve(name))).isEqualTo(text);
     assertThat(getPage("/backups").getBody()).contains("id=\"backup-" + name + "\"");
   }
 
@@ -207,7 +207,7 @@ class BackupsPageIT extends DashboardIT {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(alert(response.getBody())).contains("Not uploaded").contains("has a folder in it");
     assertThat(names()).isEqualTo(before);
-    assertThat(TestcontainersConfiguration.BACKUPS.resolveSibling("page-up.yaml")).doesNotExist();
+    assertThat(BACKUPS.resolveSibling("page-up.yaml")).doesNotExist();
   }
 
   @Test
@@ -230,7 +230,7 @@ class BackupsPageIT extends DashboardIT {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(alert(response.getBody())).contains(".yaml or .yml");
-    assertThat(TestcontainersConfiguration.BACKUPS.resolve(name)).doesNotExist();
+    assertThat(BACKUPS.resolve(name)).doesNotExist();
   }
 
   @Test
@@ -243,8 +243,7 @@ class BackupsPageIT extends DashboardIT {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(alert(response.getBody())).contains(name).contains("already");
-    assertThat(Files.readString(TestcontainersConfiguration.BACKUPS.resolve(name)))
-        .contains("the first");
+    assertThat(Files.readString(BACKUPS.resolve(name))).contains("the first");
   }
 
   @Test
@@ -255,7 +254,7 @@ class BackupsPageIT extends DashboardIT {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(alert(response.getBody())).contains("The file is not valid YAML");
-    assertThat(TestcontainersConfiguration.BACKUPS.resolve(name)).doesNotExist();
+    assertThat(BACKUPS.resolve(name)).doesNotExist();
   }
 
   @Test
@@ -322,7 +321,7 @@ class BackupsPageIT extends DashboardIT {
 
     Set<String> added = names();
     added.removeAll(before);
-    added.forEach(file -> files.add(TestcontainersConfiguration.BACKUPS.resolve(file)));
+    added.forEach(file -> files.add(BACKUPS.resolve(file)));
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(plan(response.getBody()))
         .containsExactly(
@@ -374,7 +373,7 @@ class BackupsPageIT extends DashboardIT {
 
     Set<String> added = names();
     added.removeAll(before);
-    added.forEach(file -> files.add(TestcontainersConfiguration.BACKUPS.resolve(file)));
+    added.forEach(file -> files.add(BACKUPS.resolve(file)));
     assertThat(plan(preview)).contains("Update Publication of " + grafana);
     assertThat(form(preview, "method=\"post\"")).contains("name=\"mode\" value=\"update\"");
     assertThat(plan(response.getBody())).contains("Update Publication of " + grafana);
@@ -410,7 +409,7 @@ class BackupsPageIT extends DashboardIT {
 
     Set<String> added = names();
     added.removeAll(before);
-    added.forEach(file -> files.add(TestcontainersConfiguration.BACKUPS.resolve(file)));
+    added.forEach(file -> files.add(BACKUPS.resolve(file)));
     assertThat(again.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(get(servicePath(grafana)).getBody().get("instances")).hasSize(2);
   }
@@ -555,7 +554,7 @@ class BackupsPageIT extends DashboardIT {
   }
 
   private static Set<String> names() throws IOException {
-    try (Stream<Path> files = Files.list(TestcontainersConfiguration.BACKUPS)) {
+    try (Stream<Path> files = Files.list(BACKUPS)) {
       return files
           .map(file -> file.getFileName().toString())
           .collect(Collectors.toCollection(HashSet::new));
@@ -564,13 +563,13 @@ class BackupsPageIT extends DashboardIT {
 
   private String newFile(String extension) {
     String name = "page-" + UUID.randomUUID() + extension;
-    files.add(TestcontainersConfiguration.BACKUPS.resolve(name));
+    files.add(BACKUPS.resolve(name));
     return name;
   }
 
   private static void write(String name, String text) throws IOException {
-    Files.createDirectories(TestcontainersConfiguration.BACKUPS);
-    Files.writeString(TestcontainersConfiguration.BACKUPS.resolve(name), text);
+    Files.createDirectories(BACKUPS);
+    Files.writeString(BACKUPS.resolve(name), text);
   }
 
   private static String row(String page, String name) {

@@ -8,7 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 /** The error page for browsers, and the JSON error that other clients still get. */
-class ErrorPagesIT extends DashboardIT {
+class ErrorPagesComponentTest extends DashboardComponentTest {
 
   @Test
   void browserGetsTheDashboardErrorPage() {

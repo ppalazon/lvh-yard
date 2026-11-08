@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /** Server-Sent Events stream foundation, debouncer, keepalive and layout triggers. */
-class EventsIT extends DashboardIT {
+class EventsComponentTest extends DashboardComponentTest {
 
   @Autowired EventBroadcaster broadcaster;
 
