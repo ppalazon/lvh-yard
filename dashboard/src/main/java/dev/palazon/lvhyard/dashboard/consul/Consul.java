@@ -3,221 +3,93 @@ package dev.palazon.lvhyard.dashboard.consul;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.TreeMap;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.util.UriBuilder;
 
 /**
  * Only the calls LVH Yard makes, with Consul's own names. A read can name another datacenter, which
- * the agent forwards over WAN federation. {@code null} names the agent's own.
+ * the agent forwards over WAN federation. {@code null} names the agent's own. {@link ConsulAgent}
+ * is the real one.
  */
-@Component
-public class Consul {
+public interface Consul {
 
   /**
    * The name and ID of the Consul server's own entry in its catalog, which is no Instance of the
    * Yard.
    */
-  private static final String CONSUL_SERVICE = "consul";
+  String CONSUL_SERVICE = "consul";
 
   /** Consul's own limit on the operations of one transaction. */
-  public static final int TRANSACTION_SIZE = 64;
-
-  private final RestClient http;
-
-  public Consul(ConsulSettings settings) {
-    JdkClientHttpRequestFactory requests =
-        new JdkClientHttpRequestFactory(
-            HttpClient.newBuilder().connectTimeout(settings.answerTimeout()).build());
-    requests.setReadTimeout(settings.answerTimeout());
-    this.http =
-        RestClient.builder().baseUrl(settings.url().toString()).requestFactory(requests).build();
-  }
+  int TRANSACTION_SIZE = 64;
 
   /** Every federated datacenter, answering or not. */
-  public List<String> datacenters() {
-    List<String> datacenters =
-        http.get()
-            .uri("/v1/catalog/datacenters")
-            .retrieve()
-            .body(new ParameterizedTypeReference<>() {});
-    return datacenters == null ? List.of() : datacenters;
-  }
+  List<String> datacenters();
 
   /** Empty while the datacenter has no leader. */
-  public String leader() {
-    String leader = http.get().uri("/v1/status/leader").retrieve().body(String.class);
-    return leader == null ? "" : leader.strip().replace("\"", "");
-  }
+  String leader();
 
   /** The members of the agent's WAN pool: one server for each federated datacenter. */
-  public List<WanMember> wanMembers() {
-    List<WanMember> members =
-        http.get()
-            .uri("/v1/agent/members?wan=1")
-            .retrieve()
-            .body(new ParameterizedTypeReference<>() {});
-    return members == null ? List.of() : members;
-  }
+  List<WanMember> wanMembers();
 
   /** compose.yaml sets it to the Workstation's LAN address. */
-  public String agentAddress() {
-    return http.get().uri("/v1/agent/self").retrieve().body(AgentSelf.class).member().address();
-  }
+  String agentAddress();
 
   /** Replaces the registration with the same ID. */
-  public void register(Registration registration) {
-    http.put()
-        .uri("/v1/agent/service/register")
-        .contentType(MediaType.APPLICATION_JSON)
-        .body(registration)
-        .retrieve()
-        .toBodilessEntity();
-  }
+  void register(Registration registration);
 
-  public Map<String, AgentService> agentServices() {
-    Map<String, AgentService> services =
-        http.get().uri("/v1/agent/services").retrieve().body(new ParameterizedTypeReference<>() {});
-    return services == null ? Map.of() : services;
-  }
+  Map<String, AgentService> agentServices();
 
-  public Optional<AgentService> agentService(String id) {
-    return http.get()
-        .uri("/v1/agent/service/{id}", id)
-        .exchange((request, response) ->
-            response.getStatusCode() == HttpStatus.NOT_FOUND
-                ? Optional.empty()
-                : Optional.ofNullable(response.bodyTo(AgentService.class)));
-  }
+  Optional<AgentService> agentService(String id);
 
-  public void deregister(String id) {
-    http.put().uri("/v1/agent/service/deregister/{id}", id).retrieve().toBodilessEntity();
-  }
+  void deregister(String id);
 
-  public List<String> serviceNames(String datacenter) {
-    Map<String, List<String>> services =
-        http.get()
-            .uri(builder -> in(datacenter, builder.path("/v1/catalog/services")))
-            .retrieve()
-            .body(new ParameterizedTypeReference<>() {});
-    return services == null ? List.of() : List.copyOf(services.keySet());
-  }
+  List<String> serviceNames(String datacenter);
 
   /** Each registration comes with its own checks and its node's. */
-  public List<HealthEntry> health(String service) {
+  default List<HealthEntry> health(String service) {
     return health(null, service);
   }
 
-  public List<HealthEntry> health(String datacenter, String service) {
-    List<HealthEntry> entries =
-        http.get()
-            .uri(builder -> in(datacenter, builder.path("/v1/health/service/{service}"), service))
-            .retrieve()
-            .body(new ParameterizedTypeReference<>() {});
-    return entries == null ? List.of() : entries;
-  }
+  List<HealthEntry> health(String datacenter, String service);
 
-  public void putValue(String key, String value) {
-    http.put()
-        .uri(builder -> builder.path("/v1/kv/" + key).build())
-        .contentType(MediaType.TEXT_PLAIN)
-        .body(value)
-        .retrieve()
-        .toBodilessEntity();
-  }
+  void putValue(String key, String value);
 
   /**
    * Writes each value at its key in one Consul transaction, so Consul takes all or none.
    *
    * @param values at most {@link #TRANSACTION_SIZE}
    */
-  public void putValues(Map<String, String> values) {
-    if (values.size() > TRANSACTION_SIZE) {
-      throw new IllegalArgumentException(
-          "One Consul transaction takes at most " + TRANSACTION_SIZE + " writes.");
-    }
-    if (values.isEmpty()) {
-      return;
-    }
-    List<Map<String, Object>> writes =
-        values.entrySet().stream()
-            .<Map<String, Object>>map(entry ->
-                Map.of(
-                    "KV",
-                    Map.of(
-                        "Verb",
-                        "set",
-                        "Key",
-                        entry.getKey(),
-                        "Value",
-                        Base64.getEncoder()
-                            .encodeToString(entry.getValue().getBytes(StandardCharsets.UTF_8)))))
-            .toList();
-    http.put()
-        .uri("/v1/txn")
-        .contentType(MediaType.APPLICATION_JSON)
-        .body(writes)
-        .retrieve()
-        .toBodilessEntity();
-  }
+  void putValues(Map<String, String> values);
 
-  public Map<String, String> values(String datacenter, String prefix) {
-    List<KeyValue> entries =
-        http.get()
-            .uri(builder ->
-                in(datacenter, builder.path("/v1/kv/" + prefix).queryParam("recurse", true)))
-            .exchange((request, response) ->
-                response.getStatusCode() == HttpStatus.NOT_FOUND
-                    ? List.of()
-                    : response.bodyTo(new ParameterizedTypeReference<>() {}));
-    Map<String, String> values = new TreeMap<>();
-    if (entries != null) {
-      entries.forEach(entry -> values.put(entry.key(), entry.value()));
-    }
-    return values;
-  }
+  Map<String, String> values(String datacenter, String prefix);
 
   /** A key that is not there is no error. */
-  public void deleteValue(String key) {
-    http.delete()
-        .uri(builder -> builder.path("/v1/kv/" + key).build())
-        .retrieve()
-        .toBodilessEntity();
+  void deleteValue(String key);
+
+  /**
+   * Waits until {@code watched} changes after {@code index}, or for {@code wait}, and answers its
+   * index then. Index 0 answers at once.
+   */
+  long awaitChange(Watched watched, long index, Duration wait);
+
+  /** What {@link #awaitChange} can wait for, in this datacenter. */
+  enum Watched {
+    /** The Health of every check. */
+    HEALTH,
+    /** Every key under {@code lvh-yard/}. */
+    KV,
+    /** The names of the Services in the catalog. */
+    SERVICES
   }
 
-  public static boolean isServerItself(AgentService registration) {
+  static boolean isServerItself(AgentService registration) {
     return registration.name().equals(CONSUL_SERVICE) && registration.id().equals(CONSUL_SERVICE);
   }
 
-  /** {@code null} asks the agent's own datacenter. */
-  private static URI in(String datacenter, UriBuilder builder, Object... variables) {
-    return (datacenter == null ? builder : builder.queryParam("dc", datacenter)).build(variables);
-  }
-
-  /** Consul gives the value in base64, or null when empty. */
-  record KeyValue(@JsonProperty("Key") String key, @JsonProperty("Value") String base64) {
-
-    String value() {
-      return base64 == null
-          ? ""
-          : new String(Base64.getDecoder().decode(base64), StandardCharsets.UTF_8);
-    }
-  }
-
   /** {@code status} is alive, leaving, left or failed. The {@code dc} tag is its datacenter. */
-  public record WanMember(
+  record WanMember(
       @JsonProperty("Addr") String address,
       @JsonProperty("Port") int port,
       @JsonProperty("Status") SerfStatus status,
@@ -239,7 +111,7 @@ public class Consul {
   }
 
   /** Consul sends it as Serf's code. */
-  public enum SerfStatus {
+  enum SerfStatus {
     UNKNOWN,
     ALIVE,
     LEAVING,
@@ -259,11 +131,7 @@ public class Consul {
     }
   }
 
-  record AgentSelf(@JsonProperty("Member") Member member) {}
-
-  record Member(@JsonProperty("Addr") String address) {}
-
-  public record Registration(
+  record Registration(
       @JsonProperty("ID") String id,
       @JsonProperty("Name") String name,
       @JsonProperty("Address") String address,
@@ -274,7 +142,7 @@ public class Consul {
 
   /** Consul starts every check as critical until it first passes. */
   @JsonInclude(JsonInclude.Include.NON_NULL)
-  public record Check(
+  record Check(
       @JsonProperty("Name") String name,
       @JsonProperty("HTTP") String http,
       @JsonProperty("TCP") String tcp,
@@ -282,7 +150,7 @@ public class Consul {
       @JsonProperty("Timeout") String timeout) {}
 
   /** Consul leaves out a port of 0 and empty meta. */
-  public record AgentService(
+  record AgentService(
       @JsonProperty("ID") String id,
       @JsonProperty("Service") String name,
       @JsonProperty("Address") String address,
@@ -297,7 +165,7 @@ public class Consul {
     }
   }
 
-  public record HealthEntry(
+  record HealthEntry(
       @JsonProperty("Service") AgentService service,
       @JsonProperty("Checks") List<CheckStatus> checks) {}
 
@@ -305,7 +173,7 @@ public class Consul {
    * Maintenance counts as critical. A node's check has no service ID, type, interval or timeout.
    * Consul gives durations in Go format, such as {@code 1m30s}.
    */
-  public record CheckStatus(
+  record CheckStatus(
       @JsonProperty("Name") String name,
       @JsonProperty("Status") String status,
       @JsonProperty("Output") String output,

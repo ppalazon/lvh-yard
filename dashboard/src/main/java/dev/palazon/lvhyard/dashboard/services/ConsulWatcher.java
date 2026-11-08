@@ -2,14 +2,12 @@ package dev.palazon.lvhyard.dashboard.services;
 
 import static dev.palazon.lvhyard.dashboard.events.EventBroadcaster.YARD_CHANGED;
 
-import dev.palazon.lvhyard.dashboard.consul.ConsulSettings;
+import dev.palazon.lvhyard.dashboard.consul.Consul;
+import dev.palazon.lvhyard.dashboard.consul.Consul.WanMember;
+import dev.palazon.lvhyard.dashboard.consul.Consul.Watched;
 import dev.palazon.lvhyard.dashboard.events.EventDebouncer;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.Objects;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -32,37 +30,35 @@ public class ConsulWatcher implements SmartLifecycle {
   private static final Duration DEFAULT_BACKOFF = Duration.ofSeconds(5);
   private static final Duration DEFAULT_WAIT = Duration.ofSeconds(60);
 
-  private final URI consulBaseUri;
+  private final Consul consul;
   private final EventDebouncer debouncer;
   private final Duration backoffPause;
   private final Duration queryWait;
   private final Consumer<String> warnLogger;
   private final Consumer<String> infoLogger;
 
-  private final HttpClient httpClient;
   private final AtomicBoolean failing = new AtomicBoolean(false);
   private volatile boolean running;
   private ExecutorService executor;
 
   @Autowired
-  public ConsulWatcher(ConsulSettings settings, EventDebouncer debouncer) {
-    this(settings, debouncer, DEFAULT_BACKOFF, DEFAULT_WAIT, LOG::warn, LOG::info);
+  public ConsulWatcher(Consul consul, EventDebouncer debouncer) {
+    this(consul, debouncer, DEFAULT_BACKOFF, DEFAULT_WAIT, LOG::warn, LOG::info);
   }
 
   public ConsulWatcher(
-      ConsulSettings settings,
+      Consul consul,
       EventDebouncer debouncer,
       Duration backoffPause,
       Duration queryWait,
       Consumer<String> warnLogger,
       Consumer<String> infoLogger) {
-    this.consulBaseUri = settings.url();
+    this.consul = consul;
     this.debouncer = debouncer;
     this.backoffPause = backoffPause;
     this.queryWait = queryWait;
     this.warnLogger = warnLogger;
     this.infoLogger = infoLogger;
-    this.httpClient = HttpClient.newBuilder().connectTimeout(backoffPause).build();
   }
 
   @Override
@@ -73,9 +69,9 @@ public class ConsulWatcher implements SmartLifecycle {
     running = true;
     executor =
         Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("consul-watcher-", 0).factory());
-    executor.submit(() -> watchBlocking("/v1/health/state/any"));
-    executor.submit(() -> watchBlocking("/v1/kv/lvh-yard/?recurse=true"));
-    executor.submit(() -> watchBlocking("/v1/catalog/services"));
+    for (Watched watched : Watched.values()) {
+      executor.submit(() -> watchBlocking(watched));
+    }
     executor.submit(this::watchWanMembers);
   }
 
@@ -93,19 +89,19 @@ public class ConsulWatcher implements SmartLifecycle {
     return running;
   }
 
-  private void watchBlocking(String path) {
+  private void watchBlocking(Watched watched) {
     long index = 0;
 
     while (running && !Thread.currentThread().isInterrupted()) {
       try {
-        QueryOutcome outcome = queryBlocking(path, index, queryWait);
+        long changed = consul.awaitChange(watched, index, queryWait);
         recovered();
 
-        if (index > 0 && outcome.index() != index) {
+        if (index > 0 && changed != index) {
           debouncer.trigger(YARD_CHANGED);
         }
-        index = outcome.index();
-      } catch (Exception e) {
+        index = changed;
+      } catch (RuntimeException e) {
         if (!running || Thread.currentThread().isInterrupted()) {
           return;
         }
@@ -117,24 +113,24 @@ public class ConsulWatcher implements SmartLifecycle {
     }
   }
 
+  /** The WAN members have no blocking query, so they are read every {@code backoffPause}. */
   private void watchWanMembers() {
-    String lastBody = "";
+    List<WanMember> last = null;
 
     while (running && !Thread.currentThread().isInterrupted()) {
       try {
-        WanOutcome outcome = queryWanMembers();
+        List<WanMember> members = consul.wanMembers();
         recovered();
 
-        if (!lastBody.isEmpty() && !Objects.equals(lastBody, outcome.body())) {
+        if (last != null && !last.equals(members)) {
           debouncer.trigger(YARD_CHANGED);
         }
-        lastBody = outcome.body();
+        last = members;
 
-        // WAN members endpoint does not support blocking queries; poll every backoffPause
         Thread.sleep(backoffPause);
       } catch (InterruptedException e) {
         return;
-      } catch (Exception e) {
+      } catch (RuntimeException e) {
         if (!running || Thread.currentThread().isInterrupted()) {
           return;
         }
@@ -163,55 +159,6 @@ public class ConsulWatcher implements SmartLifecycle {
     }
   }
 
-  private QueryOutcome queryBlocking(String path, long index, Duration wait) throws Exception {
-    String waitParam = wait.toSeconds() + "s";
-    String uri =
-        consulBaseUri.toString()
-            + path
-            + (path.contains("?") ? "&" : "?")
-            + "index="
-            + index
-            + "&wait="
-            + waitParam;
-
-    HttpRequest request =
-        HttpRequest.newBuilder().uri(URI.create(uri)).timeout(wait.plusSeconds(5)).GET().build();
-
-    HttpResponse<Void> response = httpClient.send(request, HttpResponse.BodyHandlers.discarding());
-
-    int status = response.statusCode();
-    if (status != 200 && status != 404) {
-      throw new IllegalStateException("Consul answered with HTTP status " + status);
-    }
-
-    long newIndex = index;
-    var indexHeader = response.headers().firstValue("X-Consul-Index");
-    if (indexHeader.isPresent()) {
-      try {
-        newIndex = Long.parseLong(indexHeader.get());
-      } catch (NumberFormatException ignored) {
-      }
-    }
-    return new QueryOutcome(newIndex);
-  }
-
-  private WanOutcome queryWanMembers() throws Exception {
-    String uri = consulBaseUri.toString() + "/v1/agent/members?wan=1";
-    HttpRequest request =
-        HttpRequest.newBuilder()
-            .uri(URI.create(uri))
-            .timeout(queryWait.isZero() ? Duration.ofSeconds(5) : queryWait)
-            .GET()
-            .build();
-
-    HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-    if (response.statusCode() != 200) {
-      throw new IllegalStateException("Consul answered with HTTP status " + response.statusCode());
-    }
-    return new WanOutcome(response.body());
-  }
-
   private boolean pause() {
     try {
       Thread.sleep(backoffPause);
@@ -220,8 +167,4 @@ public class ConsulWatcher implements SmartLifecycle {
       return false;
     }
   }
-
-  private record QueryOutcome(long index) {}
-
-  private record WanOutcome(String body) {}
 }

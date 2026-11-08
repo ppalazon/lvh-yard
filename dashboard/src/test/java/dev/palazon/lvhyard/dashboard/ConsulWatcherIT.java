@@ -4,6 +4,7 @@ import static dev.palazon.lvhyard.dashboard.events.EventBroadcaster.YARD_CHANGED
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import dev.palazon.lvhyard.dashboard.consul.ConsulAgent;
 import dev.palazon.lvhyard.dashboard.consul.ConsulSettings;
 import dev.palazon.lvhyard.dashboard.events.EventDebouncer;
 import dev.palazon.lvhyard.dashboard.services.ConsulWatcher;
@@ -134,7 +135,7 @@ class ConsulWatcherIT extends DashboardIT {
 
     ConsulWatcher watcher =
         new ConsulWatcher(
-            deadConsul,
+            new ConsulAgent(deadConsul),
             mockDebouncer,
             Duration.ofMillis(200),
             Duration.ofMillis(200),

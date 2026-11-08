@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.sun.net.httpserver.HttpServer;
 import dev.palazon.lvhyard.dashboard.consul.Consul;
+import dev.palazon.lvhyard.dashboard.consul.ConsulAgent;
 import dev.palazon.lvhyard.dashboard.consul.ConsulSettings;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -92,7 +93,7 @@ class ConsulStatusTest {
   }
 
   private static Consul consul(URI url) {
-    return new Consul(settings(url, ""));
+    return new ConsulAgent(settings(url, ""));
   }
 
   private static ConsulSettings settings(URI url, String peers) {
