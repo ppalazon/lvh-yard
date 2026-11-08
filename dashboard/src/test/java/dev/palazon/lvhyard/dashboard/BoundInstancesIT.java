@@ -13,7 +13,7 @@ import tools.jackson.databind.JsonNode;
  * Bound Instances that need real containers: those of the other Workstation, whose own dashboard
  * follows the real Docker, and those whose checks Consul runs.
  */
-class BoundInstancesIT extends RealDockerIT {
+class BoundInstancesIT extends DashboardIT {
 
   private static final Duration FOLLOW_TIMEOUT = Duration.ofSeconds(15);
 

@@ -52,7 +52,7 @@ abstract class DashboardClient {
 
   @LocalServerPort int port;
 
-  /** This dashboard's Docker, unless the test is a {@link RealDockerIT}. */
+  /** This dashboard's Docker in a component test. An integration test has the real Docker. */
   @Autowired(required = false)
   FakeDocker docker;
 

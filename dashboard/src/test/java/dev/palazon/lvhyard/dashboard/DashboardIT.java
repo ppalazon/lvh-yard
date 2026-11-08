@@ -45,10 +45,7 @@ import tools.jackson.databind.JsonNode;
 @Import(TestcontainersConfiguration.class)
 abstract class DashboardIT extends DashboardClient {
 
-  /**
-   * Each Consul just after its first setup, which each test starts from, by container ID. A JVM can
-   * hold two test Yards: one for fake Docker and one for {@link RealDockerIT}.
-   */
+  /** Each Consul just after its first setup, which each test starts from, by container ID. */
   private static final Map<String, ConsulBaseline> BASELINES = new ConcurrentHashMap<>();
 
   @Autowired GenericContainer<?> consulContainer;
@@ -77,9 +74,6 @@ abstract class DashboardIT extends DashboardClient {
               RemoteWorkstation.awaitFirstSetup(consul);
               return ConsulBaseline.of(consul);
             });
-    if (docker != null) {
-      docker.reset();
-    }
     baseline.restore(consul);
     TestcontainersConfiguration.empty(TestcontainersConfiguration.BACKUPS);
     if (remote.reset()) {

@@ -24,7 +24,7 @@ import tools.jackson.databind.JsonNode;
  * The Instance Priority wired end to end: real checks, Aliases, other Workstations and Traefik.
  * RoutingTest covers each case of the Route choice itself.
  */
-class InstancePriorityIT extends RealDockerIT {
+class InstancePriorityIT extends DashboardIT {
 
   /** Long enough for a Bound Instance to appear and for its first check to run. */
   static final Duration SWITCH_TIMEOUT = Duration.ofSeconds(30);
