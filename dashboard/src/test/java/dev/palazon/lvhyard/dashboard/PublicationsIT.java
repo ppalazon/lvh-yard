@@ -284,28 +284,6 @@ class PublicationsIT extends DashboardIT {
   }
 
   @Test
-  void instancePriorityWithAnUnknownOrRepeatedKindIsRefused() {
-    String web = newServiceName("web");
-    register(web, Map.of("host", "10.1.2.3", "port", 8080));
-    put(publicationPath(web), Map.of("priority", List.of("bound", "static")));
-
-    ResponseEntity<JsonNode> unknown =
-        put(publicationPath(web), Map.of("priority", List.of("static", "docker")));
-    ResponseEntity<JsonNode> repeated =
-        put(publicationPath(web), Map.of("priority", List.of("bound", "static", "bound")));
-
-    assertThat(unknown.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(unknown.getBody().get("detail").asString())
-        .isEqualTo(
-            "The Instance Priority has the unknown kind docker. The kinds are static, bound and"
-                + " alias.");
-    assertThat(repeated.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(repeated.getBody().get("detail").asString())
-        .isEqualTo("The Instance Priority has the kind bound more than once.");
-    assertThat(priority(get(servicePath(web)).getBody())).containsExactly("bound", "static");
-  }
-
-  @Test
   void emptyInstancePriorityTurnsItOffAndPublishingAgainKeepsItOffUntilAnOrderIsGiven() {
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));

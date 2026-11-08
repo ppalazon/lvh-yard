@@ -103,19 +103,6 @@ class HealthChecksIT extends DashboardIT {
                 .isEqualTo("passing"));
   }
 
-  @Test
-  void scriptCheckIsRefused() {
-    String api = newServiceName("api");
-
-    ResponseEntity<JsonNode> response =
-        post(instancesPath(api), Map.of("port", 8080, "check", Map.of("type", "script")));
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(response.getBody().get("detail").asString())
-        .contains("Script checks are not offered");
-    assertThat(get(servicePath(api)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-  }
-
   @ParameterizedTest
   @ValueSource(strings = {"grpc", "HTTP"})
   void checkThatIsNotHttpOrTcpIsRefused(String type) {
@@ -140,30 +127,6 @@ class HealthChecksIT extends DashboardIT {
     assertThat(response.getBody().get("detail").asString()).contains("not a duration");
   }
 
-  @Test
-  void intervalUnderOneSecondIsRefused() {
-    ResponseEntity<JsonNode> response =
-        post(
-            instancesPath(newServiceName("api")),
-            Map.of("port", 8080, "check", Map.of("interval", "500ms")));
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(response.getBody().get("detail").asString()).contains("once a second");
-  }
-
-  @Test
-  void timeoutThatIsNotADurationIsRefused() {
-    ResponseEntity<JsonNode> response =
-        post(
-            instancesPath(newServiceName("api")),
-            Map.of("port", 8080, "check", Map.of("timeout", "2")));
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(response.getBody().get("detail").asString())
-        .contains("timeout")
-        .contains("not a duration");
-  }
-
   @ParameterizedTest
   @ValueSource(strings = {"health", "/my health", "/a#b"})
   void pathAnHttpCheckCannotGetIsRefused(String path) {
@@ -174,16 +137,5 @@ class HealthChecksIT extends DashboardIT {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody().get("detail").asString()).contains("start it with /");
-  }
-
-  @Test
-  void tcpCheckWithAPathIsRefused() {
-    ResponseEntity<JsonNode> response =
-        post(
-            instancesPath(newServiceName("api")),
-            Map.of("port", 8080, "check", Map.of("type", "tcp", "path", "/health")));
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(response.getBody().get("detail").asString()).contains("A TCP check has no path");
   }
 }

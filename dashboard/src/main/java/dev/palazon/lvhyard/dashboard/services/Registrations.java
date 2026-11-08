@@ -167,7 +167,7 @@ public class Registrations {
     String host =
         request.host() == null || request.host().isBlank() ? defaultHost() : request.host().strip();
     checkHost(host);
-    HealthCheck check = checked(request.check());
+    HealthCheck check = check(request.check());
     checkTags(request.tags());
     checkMeta(request.meta());
     return new StaticInstanceRequest(
@@ -233,7 +233,7 @@ public class Registrations {
             consulCheck(
                 instance.host(),
                 instance.port(),
-                checked(new HealthCheck(null, null, HealthCheck.format(boundCheckInterval), null)));
+                check(new HealthCheck(null, null, HealthCheck.format(boundCheckInterval), null)));
         consul.register(
             new Registration(
                 instance.id(),
@@ -464,7 +464,7 @@ public class Registrations {
     });
   }
 
-  private static void checkPort(Integer port) {
+  static void checkPort(Integer port) {
     checkPort("port", "A Static Instance", port);
   }
 
@@ -488,7 +488,7 @@ public class Registrations {
   }
 
   /** With no check at all, the Instance gets a TCP check on its port. */
-  private static HealthCheck checked(HealthCheck check) {
+  static HealthCheck check(HealthCheck check) {
     if (check == null) {
       check = new HealthCheck(null, null, null, null);
     }

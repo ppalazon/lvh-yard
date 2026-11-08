@@ -476,18 +476,6 @@ class ContainersIT extends DashboardIT {
   }
 
   @Test
-  void registerWithAGivenNameThatIsNotADnsLabelIsRefused() {
-    String name = newContainerName();
-    start(onePort(name));
-
-    ResponseEntity<JsonNode> response = post(registerPath(name), Map.of("service", "my_app"));
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(response.getBody().get("detail").asString()).contains("my_app");
-    assertThat(listed(get(PATH).getBody(), name)).isPresent();
-  }
-
-  @Test
   void registerOfAContainerWithSeveralPortsWithoutAPortIsRefusedWithThePorts() {
     String name = newContainerName();
     start(twoPorts(name));

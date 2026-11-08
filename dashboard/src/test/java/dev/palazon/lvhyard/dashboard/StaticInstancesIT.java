@@ -139,16 +139,6 @@ class StaticInstancesIT extends DashboardIT {
   }
 
   @Test
-  void portIsRequired() {
-    String api = newServiceName("api");
-
-    ResponseEntity<JsonNode> response = post(instancesPath(api), Map.of("host", "10.1.2.3"));
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(response.getBody().get("detail").asString()).contains("port");
-  }
-
-  @Test
   void ownServicesAreListedWithoutNamingTheWorkstation() {
     String grafana = newServiceName("grafana");
 

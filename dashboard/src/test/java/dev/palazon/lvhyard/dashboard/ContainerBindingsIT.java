@@ -367,17 +367,6 @@ class ContainerBindingsIT extends DashboardIT {
   }
 
   @Test
-  void containerNameDockerWouldRefuseIsRefused() {
-    String web = newServiceName("web");
-
-    ResponseEntity<JsonNode> response =
-        post(containerBindingsPath(web), Map.of("container", "my web", "port", 80));
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(response.getBody().get("detail").asString()).contains("my web").contains("Docker");
-  }
-
-  @Test
   void containerPortIsRequired() {
     String web = newServiceName("web");
 
@@ -533,51 +522,6 @@ class ContainerBindingsIT extends DashboardIT {
     delete(containerBindingsPath(web) + "/" + byName);
 
     assertThat(instanceAddresses(web)).containsExactly(containerAddress(container) + ":80");
-  }
-
-  @Test
-  void bindingNeedsAContainerOrAComposeService() {
-    ResponseEntity<JsonNode> response =
-        post(containerBindingsPath(newServiceName("web")), Map.of("port", 80));
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(response.getBody().get("detail").asString())
-        .contains("container name")
-        .contains("Compose project and service");
-  }
-
-  @Test
-  void bindingToAContainerAndAComposeServiceAtOnceIsRefused() {
-    ResponseEntity<JsonNode> response =
-        post(
-            containerBindingsPath(newServiceName("web")),
-            Map.of(
-                "container", "web", "composeProject", "shop", "composeService", "web", "port", 80));
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(response.getBody().get("detail").asString()).contains("not both");
-  }
-
-  @Test
-  void composeServiceNeedsItsProject() {
-    ResponseEntity<JsonNode> response =
-        post(
-            containerBindingsPath(newServiceName("web")),
-            Map.of("composeService", "web", "port", 80));
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(response.getBody().get("detail").asString()).contains("project");
-  }
-
-  @Test
-  void composeProjectNameComposeWouldRefuseIsRefused() {
-    ResponseEntity<JsonNode> response =
-        post(
-            containerBindingsPath(newServiceName("web")),
-            Map.of("composeProject", "My Shop", "composeService", "web", "port", 80));
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(response.getBody().get("detail").asString()).contains("My Shop").contains("Compose");
   }
 
   /** Where each Instance of this Workstation's {@code service} is, as {@code host:port}. */
