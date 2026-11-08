@@ -224,12 +224,14 @@ public final class FakeDocker implements Docker {
 
     /** Published on every host address, as Docker does on 0.0.0.0 and ::. */
     public Spec published(int containerPort) {
+      ports.remove(Integer.valueOf(containerPort));
       published.put(containerPort, "0.0.0.0,::");
       return this;
     }
 
     /** Published on {@code hostIp} only, such as 127.0.0.1. */
     public Spec publishedOn(String hostIp, int containerPort) {
+      ports.remove(Integer.valueOf(containerPort));
       published.put(containerPort, hostIp);
       return this;
     }

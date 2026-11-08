@@ -3,6 +3,7 @@ package dev.palazon.lvhyard.dashboard;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import dev.palazon.lvhyard.dashboard.docker.Docker.Container;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
@@ -10,7 +11,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.testcontainers.containers.GenericContainer;
 import tools.jackson.databind.JsonNode;
 
 /**
@@ -28,7 +28,7 @@ class ContainerBindingsIT extends DashboardIT {
   void runningContainerWithAnUnpublishedPortGivesABoundInstanceAtItsOwnAddress() {
     String web = newServiceName("web");
     String name = newContainerName();
-    GenericContainer<?> container = startContainer(name, 80, false);
+    Container container = startContainer(name, 80, false);
 
     ResponseEntity<JsonNode> response =
         post(containerBindingsPath(web), Map.of("container", name, "port", 80));
@@ -53,7 +53,7 @@ class ContainerBindingsIT extends DashboardIT {
   void publishedContainerPortGivesABoundInstanceAtTheLanAddressAndTheHostPort() {
     String web = newServiceName("web");
     String name = newContainerName();
-    GenericContainer<?> container = startContainer(name, 80, true);
+    Container container = startContainer(name, 80, true);
 
     bind(web, name, 80);
 
@@ -62,10 +62,10 @@ class ContainerBindingsIT extends DashboardIT {
         .untilAsserted(() -> {
           JsonNode instance = get(servicePath(web)).getBody().get("instances").get(0);
           assertThat(instance.get("host").asString()).isEqualTo(lanAddress());
-          assertThat(instance.get("port").asInt()).isEqualTo(container.getMappedPort(80));
+          assertThat(instance.get("port").asInt()).isEqualTo(hostPort(container, 80));
           assertThat(instance.get("container").asString()).isEqualTo(name);
           assertThat(instance.get("containerPort").asInt()).isEqualTo(80);
-          assertThat(instance.get("hostPort").asInt()).isEqualTo(container.getMappedPort(80));
+          assertThat(instance.get("hostPort").asInt()).isEqualTo(hostPort(container, 80));
         });
   }
 
@@ -76,7 +76,7 @@ class ContainerBindingsIT extends DashboardIT {
     bind(web, name, 8080);
     assertThat(get(servicePath(web)).getBody().get("instances")).isEmpty();
 
-    GenericContainer<?> container = startContainer(name, 8080, false);
+    Container container = startContainer(name, 8080, false);
 
     await()
         .atMost(FOLLOW_TIMEOUT)
@@ -89,7 +89,7 @@ class ContainerBindingsIT extends DashboardIT {
   void stoppedContainerLosesItsBoundInstanceAndTheBindingStays() {
     String web = newServiceName("web");
     String name = newContainerName();
-    GenericContainer<?> container = startContainer(name, 80, false);
+    Container container = startContainer(name, 80, false);
     bind(web, name, 80);
     await().atMost(FOLLOW_TIMEOUT).until(() -> instanceAddresses(web).size() == 1);
 
@@ -107,11 +107,11 @@ class ContainerBindingsIT extends DashboardIT {
   void removedContainerLosesItsBoundInstance() {
     String web = newServiceName("web");
     String name = newContainerName();
-    GenericContainer<?> container = startContainer(name, 80, false);
+    Container container = startContainer(name, 80, false);
     bind(web, name, 80);
     await().atMost(FOLLOW_TIMEOUT).until(() -> instanceAddresses(web).size() == 1);
 
-    container.stop();
+    docker.remove(name);
 
     await()
         .atMost(FOLLOW_TIMEOUT)
@@ -122,7 +122,7 @@ class ContainerBindingsIT extends DashboardIT {
   void boundInstanceGetsTheDefaultTcpCheck() {
     String web = newServiceName("web");
     String name = newContainerName();
-    GenericContainer<?> container = startContainer(name, 80, false);
+    Container container = startContainer(name, 80, false);
 
     bind(web, name, 80);
 
@@ -143,7 +143,7 @@ class ContainerBindingsIT extends DashboardIT {
   void yardScopedServiceWarnsAboutABoundInstanceOnAnUnpublishedContainerPortUntilItIsLocal() {
     String web = newServiceName("web");
     String name = newContainerName();
-    GenericContainer<?> container = startContainer(name, 80, false);
+    Container container = startContainer(name, 80, false);
     bind(web, name, 80);
     await().atMost(FOLLOW_TIMEOUT).until(() -> instanceAddresses(web).size() == 1);
 
@@ -164,21 +164,21 @@ class ContainerBindingsIT extends DashboardIT {
   void warningAboutAnUnpublishedContainerPortGoesAwayWhenTheContainerIsRestartedWithItPublished() {
     String web = newServiceName("web");
     String name = newContainerName();
-    GenericContainer<?> unpublished = startContainer(name, 80, false);
+    Container unpublished = startContainer(name, 80, false);
     bind(web, name, 80);
     await().atMost(FOLLOW_TIMEOUT).until(() -> instanceAddresses(web).size() == 1);
     assertThat(put(publicationPath(web), Map.of("scope", "yard")).getBody().get("warnings"))
         .hasSize(1);
 
-    unpublished.stop();
-    GenericContainer<?> published = startContainer(name, 80, true);
+    docker.remove(name);
+    Container published = startContainer(name, 80, true);
 
     await()
         .atMost(FOLLOW_TIMEOUT)
         .untilAsserted(() -> {
           JsonNode service = get(servicePath(web)).getBody();
           assertThat(addresses(service))
-              .containsExactly(lanAddress() + ":" + published.getMappedPort(80));
+              .containsExactly(lanAddress() + ":" + hostPort(published, 80));
           assertThat(service.get("warnings")).isEmpty();
         });
   }
@@ -402,39 +402,13 @@ class ContainerBindingsIT extends DashboardIT {
   }
 
   @Test
-  void dashboardCatchesUpOnStartupWithContainersThatChangedWhileItWasNotRunning() {
-    String started = newServiceName("started");
-    String stopped = newServiceName("stopped");
-    String startedName = newContainerName();
-    String stoppedName = newContainerName();
-    GenericContainer<?> stopping = startContainer(stoppedName, 80, false);
-    remote.bind(started, startedName, 80);
-    remote.bind(stopped, stoppedName, 80);
-    await().atMost(FOLLOW_TIMEOUT).until(() -> remoteInstanceAddresses(stopped).size() == 1);
-
-    GenericContainer<?>[] starting = new GenericContainer<?>[1];
-    remote.whileDashboardIsStopped(() -> {
-      stopping.stop();
-      starting[0] = startContainer(startedName, 80, false);
-    });
-
-    await()
-        .atMost(FOLLOW_TIMEOUT)
-        .untilAsserted(() -> {
-          assertThat(remoteInstanceAddresses(started))
-              .containsExactly(containerAddress(starting[0]) + ":80");
-          assertThat(remoteInstanceAddresses(stopped)).isEmpty();
-        });
-  }
-
-  @Test
   void composeBindingGivesABoundInstanceForEachContainerOfThatProjectAndService() {
     String web = newServiceName("web");
     String project = newComposeProject();
     String firstName = newContainerName();
     String secondName = newContainerName();
-    GenericContainer<?> first = startComposeContainer(firstName, project, "web", 80);
-    GenericContainer<?> second = startComposeContainer(secondName, project, "web", 80);
+    Container first = startComposeContainer(firstName, project, "web", 80);
+    Container second = startComposeContainer(secondName, project, "web", 80);
     startComposeContainer(newContainerName(), project, "db", 80);
     startComposeContainer(newContainerName(), newComposeProject(), "web", 80);
 
@@ -464,11 +438,11 @@ class ContainerBindingsIT extends DashboardIT {
   void scalingTheComposeServiceUpAndDownAddsAndRemovesBoundInstances() {
     String web = newServiceName("web");
     String project = newComposeProject();
-    GenericContainer<?> first = startComposeContainer(newContainerName(), project, "web", 80);
+    Container first = startComposeContainer(newContainerName(), project, "web", 80);
     bindCompose(web, project, "web", 80);
     await().atMost(FOLLOW_TIMEOUT).until(() -> instanceAddresses(web).size() == 1);
 
-    GenericContainer<?> second = startComposeContainer(newContainerName(), project, "web", 80);
+    Container second = startComposeContainer(newContainerName(), project, "web", 80);
     await()
         .atMost(FOLLOW_TIMEOUT)
         .untilAsserted(() ->
@@ -505,7 +479,7 @@ class ContainerBindingsIT extends DashboardIT {
     String web = newServiceName("web");
     String project = newComposeProject();
     String name = newContainerName();
-    GenericContainer<?> container = startComposeContainer(name, project, "web", 80);
+    Container container = startComposeContainer(name, project, "web", 80);
     String byName = bind(web, name, 80).get("id").asString();
     bindCompose(web, project, "web", 80);
     await()

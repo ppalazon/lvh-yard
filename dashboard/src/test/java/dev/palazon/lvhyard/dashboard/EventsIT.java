@@ -77,7 +77,8 @@ class EventsIT extends DashboardIT {
         .atMost(Duration.ofSeconds(5))
         .untilAsserted(() -> {
           broadcaster.sendHeartbeat();
-          assertThat(broadcaster.clientCount()).isEqualTo(initialCount);
+          // A stream that an earlier test left open can close meanwhile too.
+          assertThat(broadcaster.clientCount()).isLessThanOrEqualTo(initialCount);
         });
   }
 

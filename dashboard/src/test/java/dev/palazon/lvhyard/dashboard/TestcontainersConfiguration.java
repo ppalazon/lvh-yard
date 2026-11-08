@@ -1,5 +1,6 @@
 package dev.palazon.lvhyard.dashboard;
 
+import dev.palazon.lvhyard.dashboard.docker.FakeDocker;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.ServerSocket;
@@ -7,8 +8,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.DynamicPropertyRegistrar;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
@@ -79,6 +82,17 @@ class TestcontainersConfiguration {
   @Bean(destroyMethod = "close")
   RemoteWorkstation remoteWorkstation(Network yardNetwork, GenericContainer<?> consulContainer) {
     return new RemoteWorkstation(yardNetwork, CONSUL_HOSTNAME + ":8302");
+  }
+
+  /**
+   * Docker for this dashboard, in memory. A RealDockerIT test sets {@code test.docker=real}, and
+   * its dashboard then follows the real Docker.
+   */
+  @Bean
+  @Primary
+  @ConditionalOnProperty(name = "test.docker", havingValue = "fake", matchIfMissing = true)
+  FakeDocker fakeDocker() {
+    return new FakeDocker();
   }
 
   @Bean

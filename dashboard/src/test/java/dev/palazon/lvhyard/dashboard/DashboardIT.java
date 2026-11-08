@@ -3,12 +3,14 @@ package dev.palazon.lvhyard.dashboard;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import dev.palazon.lvhyard.dashboard.docker.Docker.Container;
+import dev.palazon.lvhyard.dashboard.docker.FakeDocker;
+import dev.palazon.lvhyard.dashboard.docker.FakeDocker.Spec;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -77,8 +79,11 @@ abstract class DashboardIT {
   /** Every port {@link #newLanPort} has given out, as the Consul container keeps its listeners. */
   private static final Set<Integer> LAN_PORTS = ConcurrentHashMap.newKeySet();
 
-  /** This Workstation's Consul just after the first setup, which each test starts from. */
-  private static volatile ConsulBaseline baseline;
+  /**
+   * Each Consul just after its first setup, which each test starts from, by container ID. A JVM can
+   * hold two test Yards: one for fake Docker and one for {@link RealDockerIT}.
+   */
+  private static final Map<String, ConsulBaseline> BASELINES = new ConcurrentHashMap<>();
 
   @LocalServerPort int port;
 
@@ -86,6 +91,10 @@ abstract class DashboardIT {
 
   /** The test Yard's other Workstation, whose Services are Remote Services here. */
   @Autowired RemoteWorkstation remote;
+
+  /** This dashboard's Docker, unless the test is a {@link RealDockerIT}. */
+  @Autowired(required = false)
+  FakeDocker docker;
 
   @Autowired Network yardNetwork;
 
@@ -107,10 +116,16 @@ abstract class DashboardIT {
                 + consulContainer.getHost()
                 + ":"
                 + consulContainer.getMappedPort(TestcontainersConfiguration.CONSUL_HTTP_PORT));
-    if (baseline == null) {
-      // The dashboard does its first setup in the background, after it has started.
-      RemoteWorkstation.awaitFirstSetup(consul);
-      baseline = ConsulBaseline.of(consul);
+    ConsulBaseline baseline =
+        BASELINES.computeIfAbsent(
+            consulContainer.getContainerId(),
+            id -> {
+              // The dashboard does its first setup in the background, after it has started.
+              RemoteWorkstation.awaitFirstSetup(consul);
+              return ConsulBaseline.of(consul);
+            });
+    if (docker != null) {
+      docker.reset();
     }
     baseline.restore(consul);
     TestcontainersConfiguration.empty(TestcontainersConfiguration.BACKUPS);
@@ -156,18 +171,17 @@ abstract class DashboardIT {
   }
 
   /**
-   * Starts a container called {@code name} on Docker's default bridge network that accepts TCP
-   * connections on {@code containerPort}, published on a free host port when {@code publish} is
-   * true. It is removed after the test.
+   * Starts a fake container called {@code name} that listens on {@code containerPort}, published on
+   * every host address when {@code publish} is true.
    */
-  GenericContainer<?> startContainer(String name, int containerPort, boolean publish) {
-    GenericContainer<?> container = TestcontainersConfiguration.listener(name, containerPort);
-    if (publish) {
-      container.withExposedPorts(containerPort);
-    }
-    containers.add(container);
-    container.start();
-    return container;
+  Container startContainer(String name, int containerPort, boolean publish) {
+    Spec spec = FakeDocker.container(name);
+    return start(publish ? spec.published(containerPort) : spec.port(containerPort));
+  }
+
+  /** Starts a fake container as {@code spec} describes it. */
+  Container start(Spec spec) {
+    return docker.start(spec);
   }
 
   /**
@@ -201,19 +215,12 @@ abstract class DashboardIT {
   }
 
   /**
-   * Starts a container called {@code name} on the host's network that accepts TCP connections on a
-   * free port, and answers that port. It is removed after the test.
+   * Starts a fake container called {@code name} on the host's network, and answers the port it
+   * listens on. Docker lists no ports for such a container.
    */
-  int startHostNetworkContainer(String name) throws IOException {
-    int port;
-    try (ServerSocket free = new ServerSocket(0)) {
-      port = free.getLocalPort();
-    }
-    GenericContainer<?> container =
-        TestcontainersConfiguration.listener(name, port).withNetworkMode("host");
-    containers.add(container);
-    container.start();
-    return port;
+  int startHostNetworkContainer(String name) {
+    start(FakeDocker.container(name).hostNetwork());
+    return newLanPort();
   }
 
   /** A Compose project name no other test, nor an earlier run, uses. */
@@ -222,19 +229,12 @@ abstract class DashboardIT {
   }
 
   /**
-   * Starts a container called {@code name} with the labels Compose gives a container of {@code
-   * composeService} in {@code project}. Otherwise it is as {@link #startContainer} starts one, with
-   * {@code containerPort} unpublished.
+   * Starts a fake container called {@code name} with the labels Compose gives a container of {@code
+   * composeService} in {@code project}, with {@code containerPort} unpublished.
    */
-  GenericContainer<?> startComposeContainer(
+  Container startComposeContainer(
       String name, String project, String composeService, int containerPort) {
-    GenericContainer<?> container =
-        TestcontainersConfiguration.listener(name, containerPort)
-            .withLabel("com.docker.compose.project", project)
-            .withLabel("com.docker.compose.service", composeService);
-    containers.add(container);
-    container.start();
-    return container;
+    return start(FakeDocker.container(name).compose(project, composeService).port(containerPort));
   }
 
   /** The address {@code container} has on its network. */
@@ -247,6 +247,21 @@ abstract class DashboardIT {
         .iterator()
         .next()
         .getIpAddress();
+  }
+
+  /** The address that the fake {@code container} has on its network. */
+  static String containerAddress(Container container) {
+    return container.address().orElseThrow();
+  }
+
+  /** The host port that the fake {@code container} publishes {@code containerPort} on. */
+  static int hostPort(Container container, int containerPort) {
+    return container.published(containerPort).getFirst().publicPort();
+  }
+
+  /** Stops the fake {@code container}, as {@code docker stop} does. */
+  void stopContainer(Container container) {
+    docker.stop(container.name());
   }
 
   /**

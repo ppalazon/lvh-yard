@@ -87,7 +87,8 @@ class ServiceStatesIT extends DashboardIT {
     String service = newServiceName("priority");
     addHttpInstance(service, "200 OK");
     String container = newContainerName();
-    startYardNetworkContainer(container, 80);
+    // Consul cannot reach a fake container, so its Bound Instance fails.
+    startContainer(container, 81, false);
     bind(service, container, 81);
     publish(service);
 

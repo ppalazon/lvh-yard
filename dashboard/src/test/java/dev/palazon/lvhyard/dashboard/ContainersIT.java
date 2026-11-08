@@ -4,22 +4,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.awaitility.Awaitility.await;
 
-import com.github.dockerjava.api.command.CreateContainerCmd;
-import com.github.dockerjava.api.model.ExposedPort;
-import com.github.dockerjava.api.model.HealthCheck;
-import com.github.dockerjava.api.model.Ports;
+import dev.palazon.lvhyard.dashboard.docker.Docker.Container;
+import dev.palazon.lvhyard.dashboard.docker.Docker.Port;
+import dev.palazon.lvhyard.dashboard.docker.FakeDocker;
+import dev.palazon.lvhyard.dashboard.docker.FakeDocker.Spec;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.utility.DockerImageName;
 import tools.jackson.databind.JsonNode;
 
 /**
@@ -30,29 +25,10 @@ class ContainersIT extends DashboardIT {
 
   private static final String PATH = "/api/workstation/containers";
 
-  /** Busybox has {@code nc}, and, unlike the Consul image, exposes no port of its own. */
-  private static final DockerImageName BUSYBOX = DockerImageName.parse("busybox:1.37");
-
   @Test
   void runningContainerIsListedWithItsLoopbackMappingAndUnpublishedPorts() {
     String name = newContainerName();
-    GenericContainer<?> container =
-        start(
-            listener(
-                    name,
-                    command ->
-                        command
-                            .withExposedPorts(
-                                Stream.concat(
-                                        Arrays.stream(command.getExposedPorts()),
-                                        Stream.of(ExposedPort.tcp(9000)))
-                                    .toList())
-                            .getHostConfig()
-                            .withPortBindings(
-                                new Ports(
-                                    ExposedPort.tcp(80),
-                                    Ports.Binding.bindIpAndPort("127.0.0.1", 0))))
-                .withExposedPorts(80));
+    Container container = start(FakeDocker.container(name).port(9000).publishedOn("127.0.0.1", 80));
 
     ResponseEntity<JsonNode> response = get(PATH);
 
@@ -63,7 +39,7 @@ class ContainersIT extends DashboardIT {
     JsonNode ports = listed.get("ports");
     assertThat(ports).hasSize(2);
     assertThat(ports.get(0).get("containerPort").asInt()).isEqualTo(80);
-    assertThat(ports.get(0).get("hostPort").asInt()).isEqualTo(container.getMappedPort(80));
+    assertThat(ports.get(0).get("hostPort").asInt()).isEqualTo(hostPort(container, 80));
     assertThat(ports.get(0).get("hostIp").asString()).isEqualTo("127.0.0.1");
     assertThat(ports.get(1).get("containerPort").asInt()).isEqualTo(9000);
     assertThat(ports.get(1).has("hostPort")).isFalse();
@@ -73,43 +49,31 @@ class ContainersIT extends DashboardIT {
   @Test
   void mappedPortsKeepEveryDockerBindAddressWithoutRepeatingPagePorts() {
     String name = newContainerName();
-    GenericContainer<?> container = start(onePort(name).withExposedPorts(80));
-    Ports.Binding[] bindings =
-        container
-            .getContainerInfo()
-            .getNetworkSettings()
-            .getPorts()
-            .getBindings()
-            .get(ExposedPort.tcp(80));
+    Container container = start(onePort(name).published(80));
+    List<Port> bindings = container.published(80);
 
     JsonNode ports = listed(get(PATH).getBody(), name).orElseThrow().get("ports");
 
-    assertThat(bindings).isNotEmpty();
+    assertThat(bindings).hasSize(2);
     assertThat(ports.valueStream())
         .extracting(
             port -> port.get("containerPort").asInt(),
             port -> port.get("hostPort").asInt(),
             port -> port.get("hostIp").asString())
         .containsExactlyInAnyOrderElementsOf(
-            Arrays.stream(bindings)
-                .map(binding ->
-                    tuple(80, Integer.parseInt(binding.getHostPortSpec()), binding.getHostIp()))
+            bindings.stream()
+                .map(binding -> tuple(80, binding.publicPort(), binding.ip()))
                 .toList());
     String row = row(getPage("/containers").getBody(), name);
     // Docker publishes the port on 0.0.0.0 and on ::, and the page shows it once.
-    for (Ports.Binding binding : bindings) {
-      assertThat(row).containsOnlyOnce("host:" + binding.getHostPortSpec() + " -&gt; 80");
-    }
+    assertThat(row).containsOnlyOnce("host:" + hostPort(container, 80) + " -&gt; 80");
   }
 
   @Test
   void composeContainerIsListedWithItsProjectAndService() {
     String name = newContainerName();
     String project = newComposeProject();
-    start(
-        listener(name, command -> {})
-            .withLabel("com.docker.compose.project", project)
-            .withLabel("com.docker.compose.service", "web"));
+    start(FakeDocker.container(name).compose(project, "web"));
 
     JsonNode listed = listed(get(PATH).getBody(), name).orElseThrow();
 
@@ -120,15 +84,7 @@ class ContainersIT extends DashboardIT {
   @Test
   void containerWithAHealthcheckIsListedWithItsHealth() {
     String name = newContainerName();
-    start(
-        listener(
-            name,
-            command ->
-                command.withHealthcheck(
-                    new HealthCheck()
-                        .withTest(List.of("CMD-SHELL", "true"))
-                        .withInterval(Duration.ofMillis(500).toNanos())
-                        .withStartInterval(Duration.ofMillis(500).toNanos()))));
+    start(FakeDocker.container(name).health("healthy"));
 
     await()
         .atMost(Duration.ofSeconds(15))
@@ -141,7 +97,7 @@ class ContainersIT extends DashboardIT {
   @Test
   void containerThatABindingFollowsByNameIsLeftOut() {
     String name = newContainerName();
-    start(listener(name, command -> {}));
+    start(FakeDocker.container(name));
     assertThat(listed(get(PATH).getBody(), name)).isPresent();
 
     bind(newServiceName("web"), name, 1234);
@@ -153,10 +109,7 @@ class ContainersIT extends DashboardIT {
   void containerThatABindingFollowsByComposeServiceIsLeftOut() {
     String name = newContainerName();
     String project = newComposeProject();
-    start(
-        listener(name, command -> {})
-            .withLabel("com.docker.compose.project", project)
-            .withLabel("com.docker.compose.service", "web"));
+    start(FakeDocker.container(name).compose(project, "web"));
 
     bindCompose(newServiceName("web"), project, "web", 1234);
 
@@ -180,11 +133,8 @@ class ContainersIT extends DashboardIT {
     String plain = newContainerName();
     String composed = newContainerName();
     String project = newComposeProject();
-    start(listener(plain, command -> command.withExposedPorts(ExposedPort.tcp(80))));
-    start(
-        listener(composed, command -> {})
-            .withLabel("com.docker.compose.project", project)
-            .withLabel("com.docker.compose.service", "api"));
+    start(onePort(plain));
+    start(FakeDocker.container(composed).compose(project, "api"));
 
     ResponseEntity<String> response = getPage("/containers");
 
@@ -203,43 +153,12 @@ class ContainersIT extends DashboardIT {
     String unhealthy = newContainerName();
     String unchecked = newContainerName();
     String starting = newContainerName();
-    GenericContainer<?> first =
-        start(
-            onePort(healthy)
-                .withExposedPorts(80)
-                .withLabel("com.docker.compose.project", project)
-                .withLabel("com.docker.compose.service", "api")
-                .withCreateContainerCmdModifier(command ->
-                    command.withHealthcheck(
-                        new HealthCheck()
-                            .withTest(List.of("CMD-SHELL", "true"))
-                            .withInterval(Duration.ofMillis(500).toNanos()))));
-    GenericContainer<?> second =
-        start(
-            twoPorts(unhealthy)
-                .withExposedPorts(80)
-                .withLabel("com.docker.compose.project", project)
-                .withLabel("com.docker.compose.service", "api")
-                .withCreateContainerCmdModifier(command ->
-                    command.withHealthcheck(
-                        new HealthCheck()
-                            .withTest(List.of("CMD-SHELL", "false"))
-                            .withRetries(1)
-                            .withInterval(Duration.ofMillis(500).toNanos()))));
-    start(
-        onePort(unchecked)
-            .withLabel("com.docker.compose.project", project)
-            .withLabel("com.docker.compose.service", "api"));
-    start(
-        onePort(starting)
-            .withLabel("com.docker.compose.project", project)
-            .withLabel("com.docker.compose.service", "api")
-            .withCreateContainerCmdModifier(command ->
-                command.withHealthcheck(
-                    new HealthCheck()
-                        .withTest(List.of("CMD-SHELL", "false"))
-                        .withStartPeriod(Duration.ofMinutes(5).toNanos())
-                        .withInterval(Duration.ofMillis(500).toNanos()))));
+    Container first =
+        start(onePort(healthy).published(80).compose(project, "api").health("healthy"));
+    Container second =
+        start(twoPorts(unhealthy).published(80).compose(project, "api").health("unhealthy"));
+    start(onePort(unchecked).compose(project, "api"));
+    start(onePort(starting).compose(project, "api").health("starting"));
     await()
         .atMost(Duration.ofSeconds(15))
         .untilAsserted(() -> {
@@ -255,8 +174,8 @@ class ContainersIT extends DashboardIT {
 
     assertThat(group).containsOnlyOnce(">api<").contains("4 containers");
     assertThat(group)
-        .contains("host:" + first.getMappedPort(80) + " -&gt; 80")
-        .contains("host:" + second.getMappedPort(80) + " -&gt; 80")
+        .contains("host:" + hostPort(first, 80) + " -&gt; 80")
+        .contains("host:" + hostPort(second, 80) + " -&gt; 80")
         .containsOnlyOnce("80 not published")
         .containsOnlyOnce("9000 not published");
     assertThat(group).contains("1 healthy", "1 unhealthy", "1 starting", "1 without HEALTHCHECK");
@@ -269,14 +188,8 @@ class ContainersIT extends DashboardIT {
     String second = prefix + "-b";
     String project = newComposeProject();
     String web = newServiceName("web");
-    start(
-        onePort(first)
-            .withLabel("com.docker.compose.project", project)
-            .withLabel("com.docker.compose.service", web));
-    start(
-        twoPorts(second)
-            .withLabel("com.docker.compose.project", project)
-            .withLabel("com.docker.compose.service", web));
+    start(onePort(first).compose(project, web));
+    start(twoPorts(second).compose(project, web));
 
     String group =
         div(getPage("/containers").getBody(), "data-compose-project=\"" + project + "\"");
@@ -309,14 +222,8 @@ class ContainersIT extends DashboardIT {
     String second = prefix + "-b";
     String project = newComposeProject();
     String web = newServiceName("web");
-    start(
-        listener(first, command -> {})
-            .withLabel("com.docker.compose.project", project)
-            .withLabel("com.docker.compose.service", web));
-    start(
-        onePort(second)
-            .withLabel("com.docker.compose.project", project)
-            .withLabel("com.docker.compose.service", web));
+    start(FakeDocker.container(first).compose(project, web));
+    start(onePort(second).compose(project, web));
 
     String group =
         div(getPage("/containers").getBody(), "data-compose-project=\"" + project + "\"");
@@ -340,15 +247,9 @@ class ContainersIT extends DashboardIT {
     String first = newComposeProject();
     String second = newComposeProject();
     for (String service : List.of("web", "api")) {
-      start(
-          onePort(newContainerName())
-              .withLabel("com.docker.compose.project", first)
-              .withLabel("com.docker.compose.service", service));
+      start(onePort(newContainerName()).compose(first, service));
     }
-    start(
-        twoPorts(newContainerName())
-            .withLabel("com.docker.compose.project", second)
-            .withLabel("com.docker.compose.service", "web"));
+    start(twoPorts(newContainerName()).compose(second, "web"));
 
     String page = getPage("/containers").getBody();
     String firstGroup = div(page, "data-compose-project=\"" + first + "\"");
@@ -395,14 +296,8 @@ class ContainersIT extends DashboardIT {
     String sibling = newContainerName();
     String project = newComposeProject();
     String web = newServiceName("web");
-    start(
-        onePort(name)
-            .withLabel("com.docker.compose.project", project)
-            .withLabel("com.docker.compose.service", web));
-    start(
-        onePort(sibling)
-            .withLabel("com.docker.compose.project", project)
-            .withLabel("com.docker.compose.service", web));
+    start(onePort(name).compose(project, web));
+    start(onePort(sibling).compose(project, web));
     assertThat(listed(get(PATH).getBody(), name).orElseThrow().get("service").asString())
         .isEqualTo(web);
 
@@ -459,10 +354,7 @@ class ContainersIT extends DashboardIT {
   void pageRegistersAComposeServiceWithItsCleanedProposedName() {
     String name = newContainerName();
     String project = newComposeProject();
-    start(
-        onePort(name)
-            .withLabel("com.docker.compose.project", project)
-            .withLabel("com.docker.compose.service", "My_App.v2"));
+    start(onePort(name).compose(project, "My_App.v2"));
 
     assertThat(listed(get(PATH).getBody(), name).orElseThrow().get("service").asString())
         .isEqualTo("my-app-v2");
@@ -501,7 +393,7 @@ class ContainersIT extends DashboardIT {
   @Test
   void registerOfAContainerWithNoExposedPortNeedsAPort() {
     String name = newContainerName();
-    start(listener(name, command -> {}));
+    start(FakeDocker.container(name));
 
     ResponseEntity<JsonNode> refused = post(registerPath(name), Map.of());
     JsonNode service = post(registerPath(name), Map.of("port", 80)).getBody();
@@ -652,10 +544,7 @@ class ContainersIT extends DashboardIT {
     String name = newContainerName();
     String project = newComposeProject();
     String web = newServiceName("web");
-    start(
-        onePort(name)
-            .withLabel("com.docker.compose.project", project)
-            .withLabel("com.docker.compose.service", "web"));
+    start(onePort(name).compose(project, "web"));
     bindCompose(web, project, "web", 80);
 
     ResponseEntity<JsonNode> response = post(registerPath(name), Map.of("port", 9000));
@@ -668,7 +557,7 @@ class ContainersIT extends DashboardIT {
   @Test
   void containerWithAComposeProjectButNoComposeServiceIsRegisteredByItsName() {
     String name = newContainerName();
-    start(onePort(name).withLabel("com.docker.compose.project", newComposeProject()));
+    start(onePort(name).label("com.docker.compose.project", newComposeProject()));
 
     ResponseEntity<JsonNode> response = post(registerPath(name), Map.of());
 
@@ -681,10 +570,7 @@ class ContainersIT extends DashboardIT {
   @Test
   void composeServiceNameThatCleansToNothingProposesTheContainerName() {
     String name = newContainerName();
-    start(
-        onePort(name)
-            .withLabel("com.docker.compose.project", newComposeProject())
-            .withLabel("com.docker.compose.service", "___"));
+    start(onePort(name).compose(newComposeProject(), "___"));
 
     assertThat(listed(get(PATH).getBody(), name).orElseThrow().get("service").asString())
         .isEqualTo(name);
@@ -693,10 +579,7 @@ class ContainersIT extends DashboardIT {
   @Test
   void pageShowsWhyARegisterFailsNextToTheContainer() {
     String name = newContainerName();
-    start(
-        onePort(name)
-            .withLabel("com.docker.compose.project", newComposeProject())
-            .withLabel("com.docker.compose.service", "consul"));
+    start(onePort(name).compose(newComposeProject(), "consul"));
 
     ResponseEntity<String> response = postForm("/containers/" + name + "/register", Map.of());
 
@@ -974,7 +857,7 @@ class ContainersIT extends DashboardIT {
   void startingAndStoppingContainerEmitsContainersChangedOverSseStream() throws Exception {
     try (EventStreamClient client = new EventStreamClient(port)) {
       String name = newContainerName();
-      GenericContainer<?> container = start(onePort(name));
+      Container container = start(onePort(name));
 
       await()
           .atMost(Duration.ofSeconds(10))
@@ -1044,29 +927,14 @@ class ContainersIT extends DashboardIT {
   }
 
   /** A container called {@code name} whose one port is 80. */
-  private static GenericContainer<?> onePort(String name) {
-    return listener(name, command -> command.withExposedPorts(ExposedPort.tcp(80)));
+  /** A container called {@code name} whose port 80 is not published. */
+  private static Spec onePort(String name) {
+    return FakeDocker.container(name).port(80);
   }
 
   /** A container called {@code name} whose ports are 80 and 9000. */
-  private static GenericContainer<?> twoPorts(String name) {
-    return listener(
-        name, command -> command.withExposedPorts(ExposedPort.tcp(80), ExposedPort.tcp(9000)));
-  }
-
-  /**
-   * A container called {@code name} that accepts TCP connections on port 80, with what {@code more}
-   * adds. It waits for nothing, as its ports may be unpublished.
-   */
-  private static GenericContainer<?> listener(String name, Consumer<CreateContainerCmd> more) {
-    return new GenericContainer<>(BUSYBOX)
-        .withCreateContainerCmdModifier(command -> {
-          command
-              .withName(name)
-              .withEntrypoint("sh", "-c", "while true; do nc -l -p 80 >/dev/null; done")
-              .withCmd();
-          more.accept(command);
-        });
+  private static Spec twoPorts(String name) {
+    return FakeDocker.container(name).port(80).port(9000);
   }
 
   private static String rowOf(String page, String container) {
