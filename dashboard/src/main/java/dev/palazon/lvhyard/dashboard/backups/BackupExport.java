@@ -81,7 +81,7 @@ public class BackupExport {
                 service.publication().accessLog())
             : new Unpublished(),
         service.instances().stream()
-            .filter(instance -> !instance.bound())
+            .filter(Instance::staticInstance)
             .sorted(Comparator.comparing(Instance::host).thenComparing(Instance::port))
             .map(instance ->
                 new StaticInstance(

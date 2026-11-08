@@ -370,7 +370,8 @@ public class YardReader {
             ? null
             : Integer.valueOf(registration.meta().get(Registrations.CONTAINER_PORT)),
         binding == null || unpublished ? null : registration.port(),
-        unpublished);
+        unpublished,
+        binding == null && !Registrations.isStaticInstance(registration.meta()));
   }
 
   /** A duration as Consul writes it, in Go's way, such as {@code 1m30s} or {@code 1.5s}. */

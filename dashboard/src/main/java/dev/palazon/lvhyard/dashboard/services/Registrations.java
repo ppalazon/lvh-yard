@@ -192,6 +192,7 @@ public class Registrations {
         null,
         null,
         null,
+        false,
         false);
   }
 
@@ -345,7 +346,11 @@ public class Registrations {
   }
 
   private static boolean isStaticInstance(AgentService registration) {
-    return registration.meta().entrySet().containsAll(STATIC_INSTANCE.entrySet());
+    return isStaticInstance(registration.meta());
+  }
+
+  static boolean isStaticInstance(Map<String, String> meta) {
+    return meta.entrySet().containsAll(STATIC_INSTANCE.entrySet());
   }
 
   private static boolean isBoundInstance(AgentService registration) {

@@ -53,6 +53,7 @@ class RouteBuilderTest {
             null,
             null,
             null,
+            false,
             false);
     Map<String, Map<String, Object>> middlewares =
         Map.of(profile, Map.of("basicAuth", Map.of("users", List.of(user + ":hash"))));

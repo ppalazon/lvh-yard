@@ -42,6 +42,10 @@ _Avoid_: Docker registration, container mapping
 An Instance created and removed by a Container Binding, at the matching container's current address and port.
 _Avoid_: Dynamic instance, container instance
 
+**Foreign Instance**:
+An Instance that another tool registered straight in Consul, not LVH Yard. LVH Yard shows and routes it as a Static Instance, but cannot change or remove it, and a Backup does not hold it.
+_Avoid_: External instance, unmanaged instance
+
 **Container Port**:
 The port a process listens on inside a container. A Container Binding names one.
 _Avoid_: Internal port, exposed port

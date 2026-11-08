@@ -16,6 +16,7 @@ public enum InstanceKind {
   /** For a Publication that has no order of its own, such as one from before Instance Priority. */
   public static final List<InstanceKind> DEFAULT_PRIORITY = List.of(STATIC, BOUND, ALIAS);
 
+  /** A Foreign Instance counts as a Static Instance. */
   static InstanceKind of(Instance instance) {
     return instance.bound() ? BOUND : STATIC;
   }

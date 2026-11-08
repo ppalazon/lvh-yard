@@ -218,7 +218,7 @@ final class ServicePage {
                         .of(cell -> InstanceViews.checks(cell, instance))
                         .__()
                         .of(row -> {
-                          if (own && instance.bound()) {
+                          if (own && !instance.staticInstance()) {
                             row.td().__();
                           } else if (own) {
                             actions(row, service, instance);

@@ -10,6 +10,8 @@ import java.util.Map;
 /**
  * {@code checks} include its Workstation's own. Container fields are left out of the JSON for a
  * Static Instance. {@code hostPort} is left out when the Container Port has no Host Port.
+ *
+ * @param foreign whether another tool registered it in Consul, so LVH Yard cannot change it
  */
 public record Instance(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String id,
@@ -25,11 +27,17 @@ public record Instance(
     @JsonInclude(JsonInclude.Include.NON_NULL) String container,
     @JsonInclude(JsonInclude.Include.NON_NULL) Integer containerPort,
     @JsonInclude(JsonInclude.Include.NON_NULL) Integer hostPort,
-    @JsonInclude(JsonInclude.Include.NON_DEFAULT) boolean unpublishedContainerPort) {
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT) boolean unpublishedContainerPort,
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT) boolean foreign) {
 
   /** So it comes and goes with its container, and cannot be edited. */
   public boolean bound() {
     return containerBinding != null;
+  }
+
+  /** Whether LVH Yard registered it at a fixed host and port, so it can edit and remove it. */
+  public boolean staticInstance() {
+    return !bound() && !foreign;
   }
 
   public String address() {

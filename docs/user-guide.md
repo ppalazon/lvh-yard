@@ -605,8 +605,21 @@ one of two levels:
 
 - **error**: the hostname does not work. An unknown Route Profile is an error.
 - **risk**: the hostname works, but other Workstations or users can meet a
-  problem. An Instance on loopback, a container port that is not published, and
-  a Route Profile that asks who the user is are risks.
+  problem. An Instance on loopback, a container port that is not published, a
+  Route Profile that asks who the user is, and a Foreign Instance are risks.
+
+A Foreign Instance is an Instance that another tool registered straight in
+Consul, for example with `curl` or the `consul` command. LVH Yard shows it and
+routes it as a Static Instance. LVH Yard cannot edit or remove it, so its row
+has no Edit or Remove button. A Backup does not hold it. The risk names the
+command that removes it. Run that command on its Home Workstation, in the
+Workstation Folder:
+
+```text
+docker compose exec consul consul services deregister -id=<instance-id>
+```
+
+An unpublished Service also shows this risk.
 
 The API sends each Service Warning in `warnings`, with its `kind`, its
 `severity` (`error` or `risk`) and its `message`. The Service state is not a

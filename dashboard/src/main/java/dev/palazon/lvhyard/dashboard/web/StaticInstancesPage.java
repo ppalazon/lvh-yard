@@ -83,7 +83,7 @@ final class StaticInstancesPage {
         services.stream()
             .flatMap(service ->
                 service.instances().stream()
-                    .filter(instance -> !instance.bound())
+                    .filter(Instance::staticInstance)
                     .map(instance -> new Row(service, instance)))
             .toList();
     if (rows.isEmpty()) {

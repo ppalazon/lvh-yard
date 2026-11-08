@@ -1022,6 +1022,8 @@ components:
         containerPort:
           type: integer
           format: int32
+        foreign:
+          type: boolean
         health:
           type: string
           enum:
@@ -1329,6 +1331,7 @@ components:
           - unpublished-container-port
           - route-profile-auth
           - unknown-route-profile
+          - foreign-instance
         message:
           type: string
         severity:

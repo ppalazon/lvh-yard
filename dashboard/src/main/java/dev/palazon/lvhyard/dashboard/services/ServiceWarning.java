@@ -48,7 +48,10 @@ public record ServiceWarning(
     ROUTE_PROFILE_AUTH(Severity.RISK),
 
     /** Its Home Workstation does not hold the Route Profile, so Traefik refuses the Route. */
-    UNKNOWN_ROUTE_PROFILE(Severity.ERROR);
+    UNKNOWN_ROUTE_PROFILE(Severity.ERROR),
+
+    /** Another tool registered it in Consul, so LVH Yard cannot change or remove it. */
+    FOREIGN_INSTANCE(Severity.RISK);
 
     private final Severity severity;
 
@@ -74,14 +77,32 @@ public record ServiceWarning(
       List<Instance> instances,
       Map<String, RouteProfileDefinition> profiles) {
     if (publication == null) {
-      return List.of();
+      return foreign(instances).toList();
     }
     return Stream.of(
             yardScope(publication, instances),
             unknown(publication, profiles),
-            auth(publication, instances, profiles))
+            auth(publication, instances, profiles),
+            foreign(instances))
         .flatMap(warnings -> warnings)
         .toList();
+  }
+
+  /** An unpublished Service also gets it, because the Instance stays until someone removes it. */
+  private static Stream<ServiceWarning> foreign(List<Instance> instances) {
+    return instances.stream()
+        .filter(Instance::foreign)
+        .map(instance ->
+            new ServiceWarning(
+                Kind.FOREIGN_INSTANCE,
+                "Another tool registered the Instance "
+                    + instance.id()
+                    + " at "
+                    + instance.address()
+                    + " in Consul, so LVH Yard cannot change or remove it. To remove it, run"
+                    + " docker compose exec consul consul services deregister -id="
+                    + instance.id()
+                    + " on its Home Workstation."));
   }
 
   /**
