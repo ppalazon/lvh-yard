@@ -131,7 +131,7 @@ class ContainerBindingsTest extends DashboardTest {
         .untilAsserted(() -> {
           JsonNode instance = get(servicePath(web)).getBody().get("instances").get(0);
           assertThat(instance.get("check").get("type").asString()).isEqualTo("tcp");
-          assertThat(instance.get("check").get("interval").asString()).isEqualTo("10s");
+          assertThat(instance.get("check").get("interval").asString()).isEqualTo("1s");
           assertThat(instance.get("check").get("timeout").asString()).isEqualTo("2s");
           assertThat(
                   instance.get("checks").valueStream().map(check -> check.get("name").asString()))

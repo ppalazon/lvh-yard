@@ -178,6 +178,7 @@ final class RemoteWorkstation implements AutoCloseable {
       "--lvh-yard.docker.host=" + TestcontainersConfiguration.dockerHost(),
       "--lvh-yard.consul.url=http://" + consul.getHost() + ":" + consulPort(),
       "--lvh-yard.backups.path=" + BACKUPS,
+      "--lvh-yard.bound-instances.check-interval=1s",
       // Its real Peer is a name only the Docker network resolves. Not the Peers of a developer's
       // .env.
       "--lvh-yard.consul.peers="

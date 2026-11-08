@@ -12,16 +12,10 @@ import java.util.function.Supplier;
 import org.testcontainers.containers.GenericContainer;
 import tools.jackson.databind.JsonNode;
 
-/**
- * Static and Bound Instances whose checks pass, for the Instance Priority tests. They are split in
- * classes that run side by side, as each Bound Instance waits up to 10 s for its first check.
- */
+/** Static and Bound Instances whose checks pass, for the Instance Priority tests. */
 abstract class InstancePriorityTestSupport extends DashboardTest {
 
-  /**
-   * Long enough for a Bound Instance to appear and for its first check, every 10 s by default, to
-   * run.
-   */
+  /** Long enough for a Bound Instance to appear and for its first check to run. */
   static final Duration SWITCH_TIMEOUT = Duration.ofSeconds(30);
 
   /**

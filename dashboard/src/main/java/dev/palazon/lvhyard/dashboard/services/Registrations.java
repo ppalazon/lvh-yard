@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /** Checks the Yard's rules. The only writer of registrations on the local agent. */
@@ -96,9 +97,16 @@ public class Registrations {
 
   private final Consul consul;
 
-  Registrations(Workstation workstation, Consul consul) {
+  /** The check interval of every Bound Instance. Only the tests change it, so they wait less. */
+  private final Duration boundCheckInterval;
+
+  Registrations(
+      Workstation workstation,
+      Consul consul,
+      @Value("${lvh-yard.bound-instances.check-interval:10s}") Duration boundCheckInterval) {
     this.workstation = workstation;
     this.consul = consul;
+    this.boundCheckInterval = boundCheckInterval;
   }
 
   /**
@@ -221,7 +229,11 @@ public class Registrations {
         if (!instance.onHostPort()) {
           meta.put(UNPUBLISHED_CONTAINER_PORT, "true");
         }
-        Check check = consulCheck(instance.host(), instance.port(), checked((HealthCheck) null));
+        Check check =
+            consulCheck(
+                instance.host(),
+                instance.port(),
+                checked(new HealthCheck(null, null, HealthCheck.format(boundCheckInterval), null)));
         consul.register(
             new Registration(
                 instance.id(),

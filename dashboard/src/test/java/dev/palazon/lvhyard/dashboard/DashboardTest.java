@@ -59,7 +59,9 @@ import tools.jackson.databind.JsonNode;
       "lvh-yard.consul.peers=",
       // A paused ws-remote is found unreachable, and back, in seconds.
       "lvh-yard.consul.answer-timeout=1s",
-      "lvh-yard.consul.unreachable-pause=2s"
+      "lvh-yard.consul.unreachable-pause=2s",
+      // A new Bound Instance passes its first check in about a second.
+      "lvh-yard.bound-instances.check-interval=1s"
     })
 @Import(TestcontainersConfiguration.class)
 abstract class DashboardTest {
