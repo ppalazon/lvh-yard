@@ -61,7 +61,9 @@ import tools.jackson.databind.JsonNode;
       "lvh-yard.consul.answer-timeout=1s",
       "lvh-yard.consul.unreachable-pause=2s",
       // A new Bound Instance passes its first check in about a second.
-      "lvh-yard.bound-instances.check-interval=1s"
+      "lvh-yard.bound-instances.check-interval=1s",
+      // A new event stream gets its first line, and so its answer, within a second.
+      "lvh-yard.events.heartbeat-interval=1s"
     })
 @Import(TestcontainersConfiguration.class)
 abstract class DashboardTest {

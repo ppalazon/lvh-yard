@@ -63,8 +63,9 @@ class PublicationsTest extends DashboardTest {
   @Test
   void publishedServiceWithPassingInstanceIsHealthy() {
     String redis = newServiceName("redis");
-    listenOnLanAddress(6380);
-    register(redis, Map.of("port", 6380));
+    int port = newLanPort();
+    listenOnLanAddress(port);
+    register(redis, Map.of("port", port, "check", Map.of("interval", "1s")));
 
     publish(redis);
 

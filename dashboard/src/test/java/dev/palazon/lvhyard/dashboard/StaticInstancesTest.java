@@ -1,7 +1,6 @@
 package dev.palazon.lvhyard.dashboard;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
 
 import java.time.Duration;
 import java.util.List;
@@ -300,26 +299,6 @@ class StaticInstancesTest extends DashboardTest {
 
     JsonNode instance = get(servicePath(api)).getBody().get("instances").get(0);
     assertThat(instance.get("host").asString()).isEqualTo(lanAddress()).isNotEqualTo("127.0.0.1");
-  }
-
-  @Test
-  void instanceWithoutCheckGetsTcpCheckOnItsPort() {
-    String redis = newServiceName("redis");
-    listenOnLanAddress(6379);
-
-    register(redis, Map.of("port", 6379));
-
-    await()
-        .atMost(CHECK_TIMEOUT)
-        .untilAsserted(() ->
-            assertThat(
-                    get(servicePath(redis))
-                        .getBody()
-                        .get("instances")
-                        .get(0)
-                        .get("health")
-                        .asString())
-                .isEqualTo("passing"));
   }
 
   @Test

@@ -24,6 +24,11 @@ public class EventDebouncer implements AutoCloseable {
   private final Object lock = new Object();
   private ScheduledFuture<?> scheduledFlush;
 
+  /** When the oldest event that waits now was triggered, from {@link System#nanoTime}. */
+  private long firstPending;
+
+  private static final Duration LONGEST_WAIT = Duration.ofSeconds(2);
+
   public EventDebouncer(EventBroadcaster broadcaster) {
     this(broadcaster, Duration.ofMillis(300));
   }
@@ -39,15 +44,27 @@ public class EventDebouncer implements AutoCloseable {
             Thread.ofVirtual().name("event-debouncer-", 0).factory());
   }
 
-  /** Triggers a debounced event signal. Bursts within the quiet window are coalesced. */
+  /**
+   * Triggers a debounced event signal. Bursts within the quiet window are coalesced. Changes that
+   * never stop, such as checks every second, would move the window forever, so the events go out at
+   * most {@link #LONGEST_WAIT} after the first one.
+   */
   public void trigger(String eventName) {
     synchronized (lock) {
+      long now = System.nanoTime();
+      if (pendingEvents.isEmpty()) {
+        firstPending = now;
+      }
       pendingEvents.add(eventName);
       if (scheduledFlush != null && !scheduledFlush.isDone()) {
         scheduledFlush.cancel(false);
       }
+      long left = LONGEST_WAIT.toNanos() - (now - firstPending);
       scheduledFlush =
-          scheduler.schedule(this::flush, quietWindow.toMillis(), TimeUnit.MILLISECONDS);
+          scheduler.schedule(
+              this::flush,
+              Math.max(0, Math.min(quietWindow.toNanos(), left)),
+              TimeUnit.NANOSECONDS);
     }
   }
 
