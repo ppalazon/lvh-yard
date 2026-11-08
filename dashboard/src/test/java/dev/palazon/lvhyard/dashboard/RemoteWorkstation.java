@@ -174,7 +174,7 @@ final class RemoteWorkstation implements AutoCloseable {
       "--server.port=0",
       "--spring.main.banner-mode=off",
       "--lvh-yard.workstation.name=" + NAME,
-      "--lvh-yard.workstation.base-domain=" + DashboardTest.BASE_DOMAIN,
+      "--lvh-yard.workstation.base-domain=" + DashboardIT.BASE_DOMAIN,
       "--lvh-yard.docker.host=" + TestcontainersConfiguration.dockerHost(),
       "--lvh-yard.consul.url=http://" + consul.getHost() + ":" + consulPort(),
       "--lvh-yard.backups.path=" + BACKUPS,
@@ -218,7 +218,7 @@ final class RemoteWorkstation implements AutoCloseable {
     Map<String, Object> body = new HashMap<>(instance);
     body.putIfAbsent("publish", false);
     return http.post()
-        .uri(DashboardTest.instancesPath(service))
+        .uri(DashboardIT.instancesPath(service))
         .contentType(MediaType.APPLICATION_JSON)
         .body(body)
         .retrieve()
@@ -231,7 +231,7 @@ final class RemoteWorkstation implements AutoCloseable {
    */
   void bind(String service, String container, int port) {
     http.post()
-        .uri(DashboardTest.containerBindingsPath(service))
+        .uri(DashboardIT.containerBindingsPath(service))
         .contentType(MediaType.APPLICATION_JSON)
         .body(Map.of("container", container, "port", port, "publish", false))
         .retrieve()
@@ -241,7 +241,7 @@ final class RemoteWorkstation implements AutoCloseable {
   /** Removes the Container Binding {@code id} of {@code service}, through its dashboard. */
   void unbind(String service, String id) {
     http.delete()
-        .uri(DashboardTest.containerBindingsPath(service) + "/" + id)
+        .uri(DashboardIT.containerBindingsPath(service) + "/" + id)
         .retrieve()
         .toBodilessEntity();
   }
@@ -257,13 +257,13 @@ final class RemoteWorkstation implements AutoCloseable {
 
   /** Publishes {@code service} on this Workstation, through its dashboard. */
   void publish(String service) {
-    http.put().uri(DashboardTest.publicationPath(service)).retrieve().toBodilessEntity();
+    http.put().uri(DashboardIT.publicationPath(service)).retrieve().toBodilessEntity();
   }
 
   /** Publishes {@code service} on this Workstation with {@code scope}, such as {@code yard}. */
   void publish(String service, String scope) {
     http.put()
-        .uri(DashboardTest.publicationPath(service))
+        .uri(DashboardIT.publicationPath(service))
         .contentType(MediaType.APPLICATION_JSON)
         .body(Map.of("scope", scope))
         .retrieve()
@@ -273,7 +273,7 @@ final class RemoteWorkstation implements AutoCloseable {
   /** Publishes {@code service} on this Workstation with {@code publication}, the API's body. */
   void publish(String service, Map<String, Object> publication) {
     http.put()
-        .uri(DashboardTest.publicationPath(service))
+        .uri(DashboardIT.publicationPath(service))
         .contentType(MediaType.APPLICATION_JSON)
         .body(publication)
         .retrieve()
@@ -282,7 +282,7 @@ final class RemoteWorkstation implements AutoCloseable {
 
   /** Unpublishes {@code service} on this Workstation, through its dashboard. */
   void unpublish(String service) {
-    http.delete().uri(DashboardTest.publicationPath(service)).retrieve().toBodilessEntity();
+    http.delete().uri(DashboardIT.publicationPath(service)).retrieve().toBodilessEntity();
   }
 
   /**
@@ -290,10 +290,7 @@ final class RemoteWorkstation implements AutoCloseable {
    * dashboard.
    */
   void remove(String service, String id) {
-    http.delete()
-        .uri(DashboardTest.instancesPath(service) + "/" + id)
-        .retrieve()
-        .toBodilessEntity();
+    http.delete().uri(DashboardIT.instancesPath(service) + "/" + id).retrieve().toBodilessEntity();
   }
 
   /** The page at {@code path} of this Workstation's dashboard, as HTML. */
@@ -322,7 +319,7 @@ final class RemoteWorkstation implements AutoCloseable {
 
   /** One of this Workstation's Services, as its own dashboard sees it. */
   ResponseEntity<JsonNode> service(String service) {
-    return http.get().uri(DashboardTest.servicePath(service)).retrieve().toEntity(JsonNode.class);
+    return http.get().uri(DashboardIT.servicePath(service)).retrieve().toEntity(JsonNode.class);
   }
 
   /**
@@ -380,7 +377,7 @@ final class RemoteWorkstation implements AutoCloseable {
    */
   void putRouteProfiles(Object profiles) {
     http.put()
-        .uri(DashboardTest.ROUTE_PROFILES_PATH)
+        .uri(DashboardIT.ROUTE_PROFILES_PATH)
         .contentType(MediaType.APPLICATION_JSON)
         .body(profiles)
         .retrieve()

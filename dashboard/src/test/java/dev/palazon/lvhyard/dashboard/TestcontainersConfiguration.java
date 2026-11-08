@@ -53,7 +53,7 @@ class TestcontainersConfiguration {
    * Where the {@link RemoteWorkstation} finds the test Workstation's Consul on the network, at its
    * serf WAN port.
    */
-  private static final String CONSUL_HOSTNAME = "consul-" + DashboardTest.WORKSTATION;
+  private static final String CONSUL_HOSTNAME = "consul-" + DashboardIT.WORKSTATION;
 
   /** The test Workstation's Backups folder, of this JVM's own, as {@code YARD_BACKUPS} sets it. */
   static final Path BACKUPS = temporaryFolder("lvh-yard-backups");
@@ -73,7 +73,7 @@ class TestcontainersConfiguration {
     return consul()
         .withNetwork(yardNetwork)
         .withNetworkAliases(CONSUL_HOSTNAME)
-        .withCommand(consulCommand(DashboardTest.WORKSTATION));
+        .withCommand(consulCommand(DashboardIT.WORKSTATION));
   }
 
   @Bean(destroyMethod = "close")

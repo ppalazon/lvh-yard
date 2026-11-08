@@ -147,6 +147,11 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- Unit tests (*Test) run with surefire. Integration tests (*IT) run with failsafe: docs/adr/0008. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+            </plugin>
         </plugins>
     </build>
 
@@ -199,6 +204,15 @@
                                 </configuration>
                             </execution>
                         </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <systemPropertyVariables>
+                                <yard.executable>${project.build.directory}/lvh-yard</yard.executable>
+                            </systemPropertyVariables>
+                        </configuration>
                     </plugin>
                 </plugins>
             </build>

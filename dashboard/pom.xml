@@ -97,9 +97,10 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+            <!-- Unit tests (*Test) run with surefire. Integration tests (*IT) run with failsafe: docs/adr/0008. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
+                <artifactId>maven-failsafe-plugin</artifactId>
                 <configuration>
                     <!-- Each JVM starts its own test Yard of containers. More than four was not faster. -->
                     <forkCount>4</forkCount>
