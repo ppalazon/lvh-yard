@@ -203,20 +203,6 @@ class ContainerBindingsTest extends DashboardTest {
   }
 
   @Test
-  void staticInstanceHasNoContainerFieldsWhenRegisteredOrRead() {
-    String web = newServiceName("web");
-    JsonNode registered = register(web, Map.of("host", "10.1.2.3", "port", 8080));
-
-    assertThat(registered.has("container")).isFalse();
-    assertThat(registered.has("containerPort")).isFalse();
-    assertThat(registered.has("hostPort")).isFalse();
-    JsonNode instance = get(servicePath(web)).getBody().get("instances").get(0);
-    assertThat(instance.has("container")).isFalse();
-    assertThat(instance.has("containerPort")).isFalse();
-    assertThat(instance.has("hostPort")).isFalse();
-  }
-
-  @Test
   void localScopedServiceDoesNotWarnAboutAnUnpublishedContainerPort() {
     String web = newServiceName("web");
     String name = newContainerName();

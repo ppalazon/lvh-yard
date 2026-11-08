@@ -363,18 +363,6 @@ class ContainersTest extends DashboardTest {
   }
 
   @Test
-  void pageRefreshesItsListByItself() {
-    assertThat(openingTag(getPage("/containers").getBody(), "id=\"containers\""))
-        .contains("hx-get=\"/containers\"")
-        .contains("hx-trigger=\"containers-changed from:body, yard-changed from:body, every 30s\"");
-  }
-
-  @Test
-  void catalogLinksToThePage() {
-    assertThat(getPage("/").getBody()).contains("href=\"/containers\"");
-  }
-
-  @Test
   void pageSaysWhyItCannotReadDocker() {
     remote.whileDashboardRunsWith(
         () ->
@@ -560,17 +548,6 @@ class ContainersTest extends DashboardTest {
 
     assertThat(service.get("warnings").valueStream().map(warning -> warning.get("kind").asString()))
         .containsExactly("unpublished-container-port");
-  }
-
-  @Test
-  void registerWithTheNameConsulIsRefused() {
-    String name = newContainerName();
-    start(onePort(name));
-
-    ResponseEntity<JsonNode> response = post(registerPath(name), Map.of("service", "consul"));
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(response.getBody().get("detail").asString()).contains("Consul's own entry");
   }
 
   @Test

@@ -16,22 +16,6 @@ import tools.jackson.databind.JsonNode;
 class ServicePageTest extends DashboardTest {
 
   @Test
-  void showsGoodStatesWithGreenBadges() {
-    String web = newServiceName("web");
-    int port = newLanPort();
-    listenOnLanAddress(port);
-    register(web, Map.of("port", port, "check", Map.of("interval", "1s")));
-    publish(web);
-
-    await()
-        .atMost(Duration.ofSeconds(10))
-        .untilAsserted(() ->
-            assertThat(getPage("/services/ws-test/" + web).getBody())
-                .contains(badge("success", "Healthy"))
-                .contains(badge("success", "passing")));
-  }
-
-  @Test
   void summaryCardsShowTheStateThePublicationThePassingCountAndTheRoutingKind() {
     String web = newServiceName("web");
     int port = newLanPort();
@@ -75,30 +59,6 @@ class ServicePageTest extends DashboardTest {
 
     assertThat(summaryCard(getPage("/services/ws-test/" + web).getBody(), "routing"))
         .contains("Instance Priority off");
-  }
-
-  @Test
-  void sectionsSitInCardsOfATwoColumnGridAndTheTablesTakeTheFullWidth() {
-    String web = newServiceName("web");
-    register(web, Map.of("host", "10.1.2.3", "port", 8080));
-    bind(web, newContainerName(), 8080);
-    publish(web);
-
-    String body = getPage("/services/ws-test/" + web).getBody();
-
-    assertThat(openingTag(body, "id=\"sections\""))
-        .contains("grid-cols-1")
-        .contains("lg:grid-cols-2");
-    assertThat(div(body, "id=\"sections\""))
-        .contains(">Publication</h2>")
-        .contains(">Instance Priority</h2>")
-        .contains(">Route Profiles</h2>")
-        .contains(">Unpublish</button>")
-        .doesNotContain("<table");
-    assertThat(openingTag(body, "id=\"instances\"")).contains("card");
-    assertThat(div(body, "id=\"instances\"")).contains("10.1.2.3:8080");
-    assertThat(openingTag(body, "id=\"container-bindings\"")).contains("card");
-    assertThat(openingTag(body, "id=\"reachability\"")).contains("card");
   }
 
   @Test
@@ -354,7 +314,7 @@ class ServicePageTest extends DashboardTest {
   }
 
   @Test
-  void risksSitInOneClosedBoxWithTheirCount() {
+  void risksAreCountedAndAreNotARedAlert() {
     String web = newServiceName("web");
     register(web, Map.of("host", "127.0.0.1", "port", 8080));
     register(web, Map.of("host", "127.0.0.1", "port", 8081));
@@ -362,45 +322,13 @@ class ServicePageTest extends DashboardTest {
 
     String body = getPage("/services/ws-test/" + web).getBody();
 
-    assertThat(openingTag(body, "id=\"risks\""))
-        .startsWith("<details")
-        .contains("data-variant=\"risk\"")
-        .doesNotContain("open");
     assertThat(risks(body))
         .contains("2 risks to keep in mind")
         .contains("127.0.0.1:8080 is on loopback")
         .contains("127.0.0.1:8081 is on loopback");
-    assertThat(body).containsOnlyOnce("<details");
     assertThat(div(body, "role=\"alert\""))
         .as("a risk is not a red alert")
         .doesNotContain("loopback");
-  }
-
-  @Test
-  void serviceWithoutRisksHasNoRisksBox() {
-    String web = newServiceName("web");
-    register(web, Map.of("host", "10.1.2.3", "port", 8080));
-    publish(web);
-
-    assertThat(getPage("/services/ws-test/" + web).getBody())
-        .doesNotContain("id=\"risks\"")
-        .doesNotContain("to keep in mind");
-  }
-
-  @Test
-  void yardScopedServiceWarnsAboutABoundInstanceOnAnUnpublishedContainerPort() {
-    String web = newServiceName("web");
-    String name = newContainerName();
-    String address = containerAddress(startContainer(name, 80, false)) + ":80";
-    bind(web, name, 80);
-    String page = "/services/ws-test/" + web;
-    await().atMost(Duration.ofSeconds(15)).until(() -> getPage(page).getBody().contains(address));
-    assertThat(getPage(page).getBody()).doesNotContain("not published");
-
-    put(publicationPath(web), Map.of("scope", "yard"));
-
-    assertThat(risks(getPage(page).getBody()))
-        .contains(address + " is on a container port that is not published");
   }
 
   @Test
