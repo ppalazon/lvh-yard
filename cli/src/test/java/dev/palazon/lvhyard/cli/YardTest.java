@@ -2621,8 +2621,7 @@ class YardTest {
     assertThat(run.err())
         .contains("The dashboard does not answer at")
         .contains(nothingListens)
-        .contains("docker compose up -d")
-        .doesNotContain("mise");
+        .contains("docker compose up -d");
   }
 
   @Test

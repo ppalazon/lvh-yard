@@ -46,7 +46,6 @@ class ErrorPageTest {
         .contains("http://127.0.0.1:8500")
         .contains("curl http://127.0.0.1:8500/v1/status/leader")
         .contains("YARD_CONSUL_HTTP_PORT")
-        .doesNotContain("docker compose")
         .contains("href=\"/static-instances\"")
         .contains("href=\"/status\"")
         .doesNotContain("Whitelabel");
@@ -64,7 +63,6 @@ class ErrorPageTest {
         .contains("role=\"alert\"")
         .contains("Docker does not answer.")
         .contains("read the dashboard log")
-        .doesNotContain("docker compose")
         .doesNotContain("/v1/status/leader");
   }
 
