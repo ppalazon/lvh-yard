@@ -116,7 +116,24 @@ mise run install
 runs every test. The dashboard tests start a Yard of two federated Consul
 datacenters with Testcontainers, so they need Docker. The second Workstation,
 `ws-remote`, runs its own dashboard in the same JVM. The test classes run in
-four JVMs at the same time, and each JVM starts its own test Yard.
+four JVMs at the same time, and each JVM starts its own test Yard. Before each
+test, the test Yard goes back to its state just after the first setup. Both
+Consuls get back their KV and registrations, and both Backups folders are
+emptied.
+
+A test checks one behavior through the REST API, the pages or the CLI output.
+It checks the status code, the data and the Route that Traefik gets. It does
+not check exact sentences, HTML classes or layout. A page test checks only
+that the key element or link is there. The writing rules in `CLAUDE.md`, for
+example which commands user text names, are not tested. When authors write
+the text, they follow these rules.
+
+After the tests pass, a manual check is needed in two cases only:
+
+- A change to how a page looks. Take one screenshot of the changed page on
+  `ws-a`.
+- Behavior across two Workstations that the test Yard cannot show. Start
+  `ws-a` and `ws-b` with `mise run dev:up` and try the change there.
 
 If no source file changed after the last `mise run check` that passed, mise
 skips the task. The source files are the `pom.xml` files, `.mvn/`,
