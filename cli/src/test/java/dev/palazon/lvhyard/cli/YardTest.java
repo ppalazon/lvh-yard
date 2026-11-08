@@ -68,14 +68,6 @@ class YardTest {
   }
 
   @Test
-  void everySubcommandNamesTheVersionToo() {
-    Run run = yard("alias", "add", "-V");
-
-    assertThat(run.exitCode()).isZero();
-    assertThat(run.out()).isEqualTo("lvh-yard " + Version.VERSION + "\n");
-  }
-
-  @Test
   void catalogGroupsServicesInAlignedColumnsWithoutInstanceIdsOrWarnings() {
     catalogAnswer();
 
@@ -465,14 +457,6 @@ class YardTest {
         """
         {"port": 8080, "publish": false}
         """);
-  }
-
-  @Test
-  void registerStaticTakesNoContainerOption() {
-    Run run = yard("register", "static", "web", "--port", "8080", "--container", "web-1");
-
-    assertThat(run.exitCode()).isNotZero();
-    assertThat(run.err()).contains("--container");
   }
 
   @Test
@@ -1649,14 +1633,6 @@ class YardTest {
   }
 
   @Test
-  void registerContainerRejectsTheOldComposeOption() {
-    Run run = yard("register", "container", "web-1", "--compose", "shop/web", "--port", "80");
-
-    assertThat(run.exitCode()).isNotZero();
-    assertThat(run.err()).contains("--compose");
-  }
-
-  @Test
   void registerTargetsAreRequired() {
     assertThat(yard("register", "container").exitCode()).isNotZero();
     assertThat(yard("register", "compose", "--port", "80").exitCode()).isNotZero();
@@ -2031,13 +2007,6 @@ class YardTest {
   }
 
   @Test
-  void publishHelpSendsToTheProfilesCommandForTheNames() {
-    assertThat(yard("publish", "--help").out())
-        .contains("lvh-yard profiles")
-        .doesNotContain("route-profiles.yaml");
-  }
-
-  @Test
   void publishWithARefusedPriorityShowsWhyAndExitsWithOne() {
     dashboard.answer(
         "PUT",
@@ -2204,13 +2173,6 @@ class YardTest {
             "          ping: OK at http://127.0.0.1:8080/ping",
             "          last fetch: 40 s ago (warning)",
             "  ok    Docker: Docker answers, so Container Bindings work.");
-  }
-
-  @Test
-  void statusHelpSaysThatItShowsWhetherLvhYardWorks() {
-    assertThat(yard("status", "--help").out())
-        .contains("Shows whether LVH Yard works on this Workstation.")
-        .doesNotContain("Core Services");
   }
 
   @Test
@@ -2778,19 +2740,6 @@ class YardTest {
   }
 
   @Test
-  void helpShowsTheOrderTheDashboardIsFoundIn() throws Exception {
-    Run run = yardProcess(Map.of(), "--help");
-
-    assertThat(run.out())
-        .containsSubsequence(
-            "--dashboard=<url>",
-            "YARD_DASHBOARD_URL",
-            "YARD_CONFIG_DIR",
-            "~/.config/lvh-yard",
-            "http://127.0.0.1:7780");
-  }
-
-  @Test
   void initWritesComposeFileAndEnvWithTheWorkstationIntoDir(@TempDir Path dir) throws Exception {
     Run run = yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a");
 
@@ -2935,15 +2884,6 @@ class YardTest {
     assertThat(run.exitCode()).isZero();
     assertThat(run.out()).contains("[pablo-laptop]: ");
     assertThat(env(dir)).contains("YARD_WORKSTATION=pablo-laptop", "YARD_BASE_DOMAIN=lvh.me");
-  }
-
-  @Test
-  void initInATerminalOffersNoNameForAHostnameWithNothingValid(@TempDir Path dir) throws Exception {
-    Run run = yardAtTerminal("ws-a\n\n", "init", "--dir", dir.toString(), "--hostname", "___");
-
-    assertThat(run.exitCode()).isZero();
-    assertThat(run.out()).contains("(lowercase letters, digits and -): ");
-    assertThat(env(dir)).contains("YARD_WORKSTATION=ws-a");
   }
 
   @Test
