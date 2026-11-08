@@ -106,6 +106,17 @@ class TestcontainersConfiguration {
     }
   }
 
+  /** Removes every file in {@code folder}, which holds no folders. */
+  static void empty(Path folder) {
+    try (var files = Files.list(folder)) {
+      for (Path file : (Iterable<Path>) files::iterator) {
+        Files.delete(file);
+      }
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
   /** The Docker the tests start their containers on, which the dashboards follow too. */
   static String dockerHost() {
     return DockerClientFactory.instance().getTransportConfig().getDockerHost().toString();

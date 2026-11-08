@@ -46,8 +46,8 @@ import tools.jackson.databind.JsonNode;
 
 /**
  * The single test seam: the running dashboard as a black box, on Workstation {@code ws-test}, with
- * a real Consul behind it, federated with a {@link RemoteWorkstation}'s. Both are shared by every
- * test, so each test registers Services under names of its own ({@link #newServiceName}).
+ * a real Consul behind it, federated with a {@link RemoteWorkstation}'s. Both are shared by the
+ * tests of one JVM, and put back as they were just after the first setup before each test.
  */
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -73,8 +73,8 @@ abstract class DashboardTest {
   /** Every port {@link #newLanPort} has given out, as the Consul container keeps its listeners. */
   private static final Set<Integer> LAN_PORTS = ConcurrentHashMap.newKeySet();
 
-  /** Whether this Workstation's dashboard has done its first setup. */
-  private static volatile boolean firstSetupDone;
+  /** This Workstation's Consul just after the first setup, which each test starts from. */
+  private static volatile ConsulBaseline baseline;
 
   @LocalServerPort int port;
 
@@ -97,16 +97,48 @@ abstract class DashboardTest {
             .baseUrl("http://127.0.0.1:" + port)
             .defaultStatusHandler(status -> true, (request, response) -> {})
             .build();
-    if (!firstSetupDone) {
+    RestClient consul =
+        RestClient.create(
+            "http://"
+                + consulContainer.getHost()
+                + ":"
+                + consulContainer.getMappedPort(TestcontainersConfiguration.CONSUL_HTTP_PORT));
+    if (baseline == null) {
       // The dashboard does its first setup in the background, after it has started.
-      RemoteWorkstation.awaitFirstSetup(
-          RestClient.create(
-              "http://"
-                  + consulContainer.getHost()
-                  + ":"
-                  + consulContainer.getMappedPort(TestcontainersConfiguration.CONSUL_HTTP_PORT)));
-      firstSetupDone = true;
+      RemoteWorkstation.awaitFirstSetup(consul);
+      baseline = ConsulBaseline.of(consul);
     }
+    baseline.restore(consul);
+    TestcontainersConfiguration.empty(TestcontainersConfiguration.BACKUPS);
+    if (remote.reset()) {
+      awaitRemoteAnswers(consul);
+    }
+  }
+
+  /**
+   * Waits until Consul finds ws-remote alive again and this dashboard reads it again, after a test
+   * paused it. Otherwise the next test sees a failed Peer or an unreachable Workstation.
+   */
+  private void awaitRemoteAnswers(RestClient consul) {
+    await()
+        .atMost(Duration.ofSeconds(60))
+        .ignoreExceptions()
+        .until(() ->
+            consul
+                .get()
+                .uri("/v1/agent/members?wan=1")
+                .retrieve()
+                .body(JsonNode.class)
+                .valueStream()
+                .allMatch(member -> member.get("Status").asInt() == 1));
+    await()
+        .atMost(Duration.ofSeconds(60))
+        .until(() ->
+            get("/api/yard")
+                .getBody()
+                .get("remotes")
+                .valueStream()
+                .noneMatch(workstation -> workstation.get("unreachable").asBoolean()));
   }
 
   @AfterEach

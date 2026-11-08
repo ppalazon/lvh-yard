@@ -54,6 +54,9 @@ final class RemoteWorkstation implements AutoCloseable {
   /** Whether this Workstation's Consul answers, as {@link #stopAnswering} leaves it. */
   private boolean answering = true;
 
+  /** Its Consul just after the first setup, which {@link #reset} puts back. */
+  private final ConsulBaseline baseline;
+
   /**
    * Starts the Workstation's Consul, joined to the Consul at {@code peer} on {@code network}, and
    * its dashboard.
@@ -67,6 +70,22 @@ final class RemoteWorkstation implements AutoCloseable {
     consul.start();
     startDashboard();
     awaitFirstSetup(consulHttp());
+    baseline = ConsulBaseline.of(consulHttp());
+  }
+
+  /**
+   * Puts this Workstation back as it was just after the first setup: its Consul answers and holds
+   * what it held then, and its Backups folder is empty. Answers whether its Consul did not answer,
+   * as the test Workstation then needs a while to find it again.
+   */
+  boolean reset() {
+    boolean wasPaused = !answering;
+    if (wasPaused) {
+      answerAgain();
+    }
+    baseline.restore(consulHttp());
+    TestcontainersConfiguration.empty(BACKUPS);
+    return wasPaused;
   }
 
   /**
