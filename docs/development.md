@@ -44,8 +44,8 @@ and ws-b uses the Base Domain `localhost`.
 
 ```sh
 mise run dev:up                 # Consul and Traefik for both
-mise run dev:dashboard ws-a     # http://yard.lvh.me
-mise run dev:dashboard ws-b     # http://yard.localhost:8081
+mise run dev:dashboard ws-a     # http://yard.lvh.me:10080
+mise run dev:dashboard ws-b     # http://yard.localhost:10090
 mise run dev:down
 ```
 
@@ -53,8 +53,8 @@ Each one keeps its Route Profiles in its own Consul KV. To add test profiles,
 use the Route Profiles page of its dashboard, or `lvh-yard profiles set`:
 
 ```sh
-lvh-yard --dashboard http://127.0.0.1:7780 profiles set profiles.yaml   # ws-a
-lvh-yard --dashboard http://127.0.0.1:7781 profiles set profiles.yaml   # ws-b
+lvh-yard --dashboard http://127.0.0.1:17780 profiles set profiles.yaml   # ws-a
+lvh-yard --dashboard http://127.0.0.1:17790 profiles set profiles.yaml   # ws-b
 ```
 
 Each one writes its Backups to its own folder, `dev/backups/ws-a` or
