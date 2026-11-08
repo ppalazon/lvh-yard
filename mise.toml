@@ -38,6 +38,10 @@ sources = [
 outputs = { auto = true }
 run =[{ task = "css" }, "./mvnw -q -T 2 clean verify"]
 
+[tasks."test:unit"]
+description = "Run the unit tests of both modules, without Docker, while you work. Run check before you commit"
+run = "./mvnw -q -T 2 test"
+
 [tasks.native]
 description = "Build the lvh-yard executable with GraalVM, and run the CLI's tests on it: cli/target/lvh-yard"
 # GraalVM for this task only, as the release workflow uses it. JAVA_HOME then names it, whatever GRAALVM_HOME says.

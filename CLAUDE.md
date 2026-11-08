@@ -14,7 +14,7 @@ Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/ag
 
 ### Checks
 
-Run `mise run check` before committing. To try a change across Workstations, `mise run dev:up` starts two test Workstations on this computer. See `docs/development.md`.
+While you work, run `mise run test:unit` (unit tests only, a few seconds). Run `mise run check` before committing. To try a change across Workstations, `mise run dev:up` starts two test Workstations on this computer. See `docs/development.md`.
 
 ### Docs
 

@@ -112,8 +112,24 @@ mise run install
 
 ## Tests
 
-`mise run check` builds the stylesheet, builds both modules from scratch and
-runs every test. The dashboard tests start a Yard of two federated Consul
+There are two kinds of tests, as `docs/adr/0008` explains:
+
+- A unit test starts no Spring context, no Docker container and no other
+  process. Its class name ends in `Test`, and it lives in the package of the
+  class that it tests. Surefire runs it.
+- An integration test goes through the running dashboard or the `lvh-yard`
+  process. Its class name ends in `IT`. Failsafe runs it.
+
+Give each edge case of a rule a unit test, for example the Route choice or an
+input check. Give each feature one or a few integration tests, which prove
+that the parts work together.
+
+While you work, run `mise run test:unit`. It runs the unit tests of both
+modules in a few seconds, without Docker. Before you commit, run
+`mise run check`. It builds the stylesheet, builds both modules from scratch
+and runs every test.
+
+The dashboard integration tests start a Yard of two federated Consul
 datacenters with Testcontainers, so they need Docker. The second Workstation,
 `ws-remote`, runs its own dashboard in the same JVM. The test classes run in
 four JVMs at the same time, and each JVM starts its own test Yard. Before each
@@ -121,10 +137,10 @@ test, the test Yard goes back to its state just after the first setup. Both
 Consuls get back their KV and registrations, and both Backups folders are
 emptied.
 
-A test checks one behavior through the REST API, the pages or the CLI output.
-It checks the status code, the data and the Route that Traefik gets. It does
-not check exact sentences, HTML classes or layout. A page test checks only
-that the key element or link is there. The writing rules in `CLAUDE.md`, for
+A test checks one behavior. An integration test checks the status code, the
+data, the CLI output or the Route that Traefik gets. It does not check exact
+sentences, HTML classes or layout. A page test checks only that the key
+element or link is there. The writing rules in `CLAUDE.md`, for
 example which commands user text names, are not tested. When authors write
 the text, they follow these rules.
 
