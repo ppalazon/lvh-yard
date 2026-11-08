@@ -99,10 +99,11 @@ public record ServiceWarning(
                     + instance.id()
                     + " at "
                     + instance.address()
-                    + " in Consul, so LVH Yard cannot change or remove it. To remove it, run"
-                    + " docker compose exec consul consul services deregister -id="
+                    + " in Consul, so LVH Yard cannot change or remove it. To remove it,"
+                    + " deregister it from the Consul agent of its Home Workstation, for example"
+                    + " with the HTTP API: PUT /v1/agent/service/deregister/"
                     + instance.id()
-                    + " on its Home Workstation."));
+                    + "."));
   }
 
   /**

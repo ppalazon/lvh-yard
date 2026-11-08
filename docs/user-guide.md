@@ -83,9 +83,10 @@ line for it, with no stack trace. To also log the stack trace, set
 `YARD_STACK_TRACES=true` in `.env`. Then run `docker compose up -d`.
 
 If a page of the dashboard fails, the browser shows an error page. It says
-what failed and links to the Status page. If Consul does not answer, the page
-gives the `docker compose` commands that show whether Consul runs and start it
-again. The REST API still answers errors with JSON.
+what failed and links to the Status page. The dashboard talks to Consul only
+through the Consul HTTP API, whatever runs Consul. If that API does not answer,
+the page shows its address and a request that tests it. The REST API still
+answers errors with JSON.
 
 The files that `init` writes are a reference setup, and they are yours. You
 can change `compose.yaml`, or run Consul, Traefik and the dashboard another
@@ -611,12 +612,13 @@ one of two levels:
 A Foreign Instance is an Instance that another tool registered straight in
 Consul, for example with `curl` or the `consul` command. LVH Yard shows it and
 routes it as a Static Instance. LVH Yard cannot edit or remove it, so its row
-has no Edit or Remove button. A Backup does not hold it. The risk names the
-command that removes it. Run that command on its Home Workstation, in the
-Workstation Folder:
+has no Edit or Remove button. A Backup does not hold it. To remove it,
+deregister it from the Consul agent of its Home Workstation. For example, on
+that Workstation, send this request to the Consul HTTP API. The port is the
+value of `YARD_CONSUL_HTTP_PORT`, 8500 by default:
 
 ```text
-docker compose exec consul consul services deregister -id=<instance-id>
+curl -X PUT http://127.0.0.1:8500/v1/agent/service/deregister/<instance-id>
 ```
 
 An unpublished Service also shows this risk.

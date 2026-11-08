@@ -44,9 +44,9 @@ class ErrorPageTest {
         .contains("<h1>Consul does not answer</h1>")
         .contains("Error 503")
         .contains("http://127.0.0.1:8500")
-        .contains("docker compose ps consul")
-        .contains("docker compose up -d consul")
-        .contains("docker compose logs consul")
+        .contains("curl http://127.0.0.1:8500/v1/status/leader")
+        .contains("YARD_CONSUL_HTTP_PORT")
+        .doesNotContain("docker compose")
         .contains("href=\"/static-instances\"")
         .contains("href=\"/status\"")
         .doesNotContain("Whitelabel");
@@ -63,8 +63,9 @@ class ErrorPageTest {
         .contains("<h1>A part of LVH Yard does not answer</h1>")
         .contains("role=\"alert\"")
         .contains("Docker does not answer.")
-        .contains("docker compose logs dashboard")
-        .doesNotContain("docker compose up -d consul");
+        .contains("read the dashboard log")
+        .doesNotContain("docker compose")
+        .doesNotContain("/v1/status/leader");
   }
 
   @Test

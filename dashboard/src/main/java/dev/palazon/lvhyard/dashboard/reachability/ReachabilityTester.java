@@ -171,7 +171,7 @@ public class ReachabilityTester {
               + traefik
               + ": "
               + describe(e)
-              + ". Start it with docker compose up -d in the folder that lvh-yard init wrote.");
+              + ". Make sure that Traefik runs on this Workstation and listens at that address.");
     }
     int status = status(answer);
     if (status < 0) {

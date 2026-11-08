@@ -54,7 +54,8 @@ class ForeignInstanceTest extends DashboardTest {
     assertThat(warning.get("severity").asString()).isEqualTo("risk");
     assertThat(warning.get("message").asString())
         .contains("10.1.2.3:8080")
-        .contains("docker compose exec consul consul services deregister -id=" + id);
+        .contains("PUT /v1/agent/service/deregister/" + id)
+        .doesNotContain("docker compose");
   }
 
   @Test
@@ -75,7 +76,7 @@ class ForeignInstanceTest extends DashboardTest {
 
     assertThat(page)
         .contains("id=\"risks\"")
-        .contains("consul services deregister -id=" + id)
+        .contains("/v1/agent/service/deregister/" + id)
         .doesNotContain("/instances/" + id + "/edit")
         .doesNotContain("/instances/" + id + "/remove");
   }

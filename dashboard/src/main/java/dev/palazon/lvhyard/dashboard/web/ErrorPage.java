@@ -99,8 +99,7 @@ public class ErrorPage implements ErrorViewResolver {
             main.p()
                 .text(
                     "The Status page shows which part of LVH Yard does not work. If the problem"
-                        + " stays, run docker compose logs dashboard in the Workstation Folder to"
-                        + " read the dashboard log.")
+                        + " stays, read the dashboard log.")
                 .__();
           }
           actions(main, status, path);
@@ -120,35 +119,46 @@ public class ErrorPage implements ErrorViewResolver {
     };
   }
 
+  /** The dashboard knows Consul only by its HTTP API, so the steps name no tool that runs it. */
   private static void consulSteps(Main<?> main, String consulUrl) {
     main.p()
         .text(
-            "The dashboard keeps the Services, Publications and Aliases in the Consul of "
-                + "this Workstation, at "
+            "The dashboard reads and writes the Services, Publications and Aliases through the"
+                + " HTTP API of the Consul of this Workstation, at "
                 + consulUrl
-                + ". Without Consul, the dashboard cannot show or change them.")
+                + ". That address does not answer, so the dashboard cannot show or change them.")
         .__()
         .div()
         .attrClass("card flex flex-col gap-3 p-4")
         .h2()
-        .text("To start Consul again")
-        .__()
-        .p()
-        .text("Run these commands in the Workstation Folder, where compose.yaml is.")
+        .text("To find the problem")
         .__()
         .ol()
         .attrClass("list-decimal space-y-3 pl-5")
-        .of(list -> step(list, "To see whether Consul runs:", "docker compose ps consul"))
-        .of(list -> step(list, "If it does not run, start it:", "docker compose up -d consul"))
-        .of(list -> step(list, "If it stops again, read why:", "docker compose logs consul"))
+        .of(list -> step(list, "Make sure that Consul runs on this Workstation.", null))
+        .of(list ->
+            step(
+                list,
+                "Make sure that its HTTP API answers. This request returns the address of the"
+                    + " leader:",
+                "curl " + consulUrl + "/v1/status/leader"))
+        .of(list ->
+            step(
+                list,
+                "If Consul listens on another port, set YARD_CONSUL_HTTP_PORT for the dashboard"
+                    + " and start the dashboard again.",
+                null))
         .__()
         .p()
         .attrClass("text-muted-foreground text-sm")
-        .text("Consul needs a few seconds to start and to elect itself leader.")
+        .text("After a start, Consul needs a few seconds to elect itself leader.")
         .__()
         .__();
   }
 
+  /**
+   * @param command or {@code null}
+   */
   private static void step(Ol<?> list, String text, String command) {
     // A flex item gets no list number, so the item stays a block.
     list.li()
@@ -156,10 +166,14 @@ public class ErrorPage implements ErrorViewResolver {
         .attrClass("block")
         .text(text)
         .__()
-        .code()
-        .attrClass("mt-1 block w-fit rounded bg-muted px-2 py-1 font-mono text-sm")
-        .text(command)
-        .__()
+        .of(item -> {
+          if (command != null) {
+            item.code()
+                .attrClass("mt-1 block w-fit rounded bg-muted px-2 py-1 font-mono text-sm")
+                .text(command)
+                .__();
+          }
+        })
         .__();
   }
 
