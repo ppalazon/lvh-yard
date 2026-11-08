@@ -23,6 +23,9 @@ public final class FakeDocker implements Docker {
 
   private final Map<String, Container> running = new LinkedHashMap<>();
 
+  /** The ports that each container on the host's network listens on, which Docker does not list. */
+  private final Map<String, List<Integer>> onHostNetwork = new LinkedHashMap<>();
+
   private final List<Recorded> events = new ArrayList<>();
 
   private final Set<FakeEvents> following = ConcurrentHashMap.newKeySet();
@@ -40,7 +43,10 @@ public final class FakeDocker implements Docker {
   public synchronized Container start(Spec spec) {
     next++;
     List<Port> ports = new ArrayList<>();
-    for (int port : spec.ports) {
+    if (spec.hostNetwork) {
+      onHostNetwork.put(spec.name, List.copyOf(spec.ports));
+    }
+    for (int port : spec.hostNetwork ? List.<Integer>of() : spec.ports) {
       // Docker sends an empty IP, not none, for a port that is not published.
       ports.add(new Port("", port, null, "tcp"));
     }
@@ -84,6 +90,31 @@ public final class FakeDocker implements Docker {
     record("destroy");
   }
 
+  /**
+   * Whether a running container accepts connections at {@code host} and {@code port}: on its own
+   * address at each of its ports, and on {@code lanAddress} at each host port it publishes or, on
+   * the host's network, at each of its ports.
+   */
+  public synchronized boolean listensAt(String host, int port, String lanAddress) {
+    for (Map.Entry<String, Container> entry : running.entrySet()) {
+      Container container = entry.getValue();
+      if (host.equals(lanAddress)
+          && onHostNetwork.getOrDefault(entry.getKey(), List.of()).contains(port)) {
+        return true;
+      }
+      for (Port listened : container.ports()) {
+        if (container.address().filter(host::equals).isPresent()
+            && listened.privatePort() == port) {
+          return true;
+        }
+        if (host.equals(lanAddress) && Integer.valueOf(port).equals(listened.publicPort())) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   /** Every call fails with {@code reason} from now on, as a Docker that does not answer. */
   public void failWith(String reason) {
     failure = reason;
@@ -92,6 +123,7 @@ public final class FakeDocker implements Docker {
   /** Back to no containers and no events, and answering. */
   public synchronized void reset() {
     running.clear();
+    onHostNetwork.clear();
     events.clear();
     failure = null;
   }
@@ -236,6 +268,9 @@ public final class FakeDocker implements Docker {
       return this;
     }
 
+    /**
+     * On the host's network. Its ports are where it listens on the LAN address. Docker lists none.
+     */
     public Spec hostNetwork() {
       hostNetwork = true;
       return this;

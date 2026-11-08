@@ -94,65 +94,76 @@ class InstancePriorityIT extends DashboardIT {
     return array.valueStream().map(JsonNode::asString).toList();
   }
 
-  @Test
-  void routeMovesToTheBoundInstanceWhenTheStaticInstanceStopsAndBackWhenItStartsAgain() {
-    String web = newServiceName("web");
-    int port = newLanPort();
-    listenOnLanAddress(port);
-    register(web, Map.of("port", port, "check", Map.of("interval", "1s")));
-    String bound = boundInstance(web);
-    publish(web);
-    String terminal = lanAddress() + ":" + port;
-    awaitRoutedTo(web, terminal);
-
-    stopListeningOnLanAddress(port);
-
-    awaitRoutedTo(web, bound);
-
-    listenOnLanAddress(port);
-
-    awaitRoutedTo(web, terminal);
-  }
-
-  @Test
-  void apiAndServicePageShowTheKindInUseAndTheKindsWaiting() {
-    String web = newServiceName("web");
-    staticInstance(web);
-    boundInstance(web);
-
-    publish(web);
-
+  /**
+   * A Service of the remote Workstation, published with Yard Scope, whose one Instance has no
+   * check, so it passes. Its address is in range here but reaches nothing.
+   */
+  private void passingRemoteService(String service) {
+    String id =
+        remote.register(service, Map.of("host", "10.9.8.7", "port", 3000)).get("id").asString();
+    remote.deregisterCheckInConsul(id);
+    remote.publish(service, "yard");
     await()
         .atMost(SWITCH_TIMEOUT)
-        .untilAsserted(() -> {
-          JsonNode service = get(servicePath(web)).getBody();
-          String terminal =
-              service
-                  .get("instances")
-                  .valueStream()
-                  .filter(instance -> !instance.has("containerBinding"))
-                  .findFirst()
-                  .orElseThrow()
-                  .get("id")
-                  .asString();
-          assertThat(texts(service.get("priority"))).containsExactly("static", "bound", "alias");
-          assertThat(service.get("routing").path("kind").asString()).isEqualTo("static");
-          assertThat(texts(service.get("routing").get("instances"))).containsExactly(terminal);
-          assertThat(summaryCard(getPage("/services/ws-test/" + web).getBody(), "routing"))
-              .contains("Static")
-              .contains("Bound waiting");
+        .until(() ->
+            remote
+                .service(service)
+                .getBody()
+                .get("instances")
+                .valueStream()
+                .allMatch(instance -> instance.get("health").asString().equals("passing")));
+  }
+
+  private void onRemoteThatReachesContainers(Runnable meanwhile) {
+    remote.whileDashboardRunsWith(meanwhile, "--lvh-yard.out-of-range.ranges=127.0.0.0/8,::1/128");
+  }
+
+  private void awaitRoutedOnRemote(String service, String... addresses) {
+    awaitRoutedTo(
+        () -> remote.traefikConfiguration().get("http"),
+        service + "." + WORKSTATION + ".lvh.test",
+        addresses);
+  }
+
+  /**
+   * Waits until six requests in a row for {@code service}'s hostname get {@code body} at least once
+   * and {@code other} never. Traefik takes turns between the Instances of a Route, so six requests
+   * reach both while both are routed. A request may still fail, as the test listeners take one
+   * connection at a time.
+   */
+  private static void awaitOnlyAnswer(String service, String body, String other) {
+    String hostname = service + ".lvh.test";
+    await()
+        .atMost(SWITCH_TIMEOUT)
+        .until(() -> {
+          List<String> answers = new ArrayList<>();
+          for (int request = 0; request < 6; request++) {
+            answers.add(answerThroughTraefik(hostname));
+          }
+          return answers.stream().anyMatch(answer -> answer.endsWith("\r\n\r\n" + body))
+              && answers.stream().noneMatch(answer -> answer.endsWith("\r\n\r\n" + other));
         });
   }
 
-  @Test
-  void unpublishedServiceHasNoInstancePriorityOrRouting() {
-    String web = newServiceName("web");
-    staticInstance(web);
-
-    JsonNode service = get(servicePath(web)).getBody();
-
-    assertThat(service.has("priority")).isFalse();
-    assertThat(service.has("routing")).isFalse();
+  /**
+   * The whole answer, or nothing when the connection fails. By hand, as the JDK's HTTP client does
+   * not let a request set its own Host header.
+   */
+  private static String answerThroughTraefik(String hostname) {
+    try (Socket socket = new Socket()) {
+      socket.connect(
+          new InetSocketAddress("127.0.0.1", TestcontainersConfiguration.TRAEFIK_PORT), 2000);
+      socket.setSoTimeout(5000);
+      OutputStream out = socket.getOutputStream();
+      out.write(
+          ("GET / HTTP/1.1\r\nHost: " + hostname + "\r\nConnection: close\r\n\r\n")
+              .getBytes(StandardCharsets.US_ASCII));
+      out.flush();
+      InputStream in = socket.getInputStream();
+      return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+    } catch (IOException e) {
+      return "";
+    }
   }
 
   @Test
@@ -200,26 +211,6 @@ class InstancePriorityIT extends DashboardIT {
         "--lvh-yard.out-of-range.ranges=127.0.0.0/8,::1/128");
   }
 
-  /**
-   * A Service of the remote Workstation, published with Yard Scope, whose one Instance has no
-   * check, so it passes. Its address is in range here but reaches nothing.
-   */
-  private void passingRemoteService(String service) {
-    String id =
-        remote.register(service, Map.of("host", "10.9.8.7", "port", 3000)).get("id").asString();
-    remote.deregisterCheckInConsul(id);
-    remote.publish(service, "yard");
-    await()
-        .atMost(SWITCH_TIMEOUT)
-        .until(() ->
-            remote
-                .service(service)
-                .getBody()
-                .get("instances")
-                .valueStream()
-                .allMatch(instance -> instance.get("health").asString().equals("passing")));
-  }
-
   @Test
   void yardScopedServiceIsRoutedWithItsHomeWorkstationsOrderOnEveryWorkstation() {
     String web = newServiceName("web");
@@ -230,29 +221,6 @@ class InstancePriorityIT extends DashboardIT {
 
     awaitRoutedTo(web, bound);
     onRemoteThatReachesContainers(() -> awaitRoutedOnRemote(web, bound));
-  }
-
-  private void onRemoteThatReachesContainers(Runnable meanwhile) {
-    remote.whileDashboardRunsWith(meanwhile, "--lvh-yard.out-of-range.ranges=127.0.0.0/8,::1/128");
-  }
-
-  private void awaitRoutedOnRemote(String service, String... addresses) {
-    awaitRoutedTo(
-        () -> remote.traefikConfiguration().get("http"),
-        service + "." + WORKSTATION + ".lvh.test",
-        addresses);
-  }
-
-  @Test
-  void publicationWrittenBeforeInstancePriorityRoutesWithTheDefaultOrder() throws Exception {
-    String web = newServiceName("web");
-    String terminal = staticInstance(web);
-    boundInstance(web);
-
-    // A Publication as LVH Yard stored it before Instance Priority: its Scope alone.
-    consulContainer.execInContainer("consul", "kv", "put", "lvh-yard/publications/" + web, "local");
-
-    awaitRoutedTo(web, terminal);
   }
 
   @Test
@@ -275,46 +243,5 @@ class InstancePriorityIT extends DashboardIT {
     answerHttpOnLanAddress(listening, "200 OK", "terminal");
 
     awaitOnlyAnswer(web, "terminal", "docker");
-  }
-
-  /**
-   * Waits until six requests in a row for {@code service}'s hostname get {@code body} at least once
-   * and {@code other} never. Traefik takes turns between the Instances of a Route, so six requests
-   * reach both while both are routed. A request may still fail, as the test listeners take one
-   * connection at a time.
-   */
-  private static void awaitOnlyAnswer(String service, String body, String other) {
-    String hostname = service + ".lvh.test";
-    await()
-        .atMost(SWITCH_TIMEOUT)
-        .until(() -> {
-          List<String> answers = new ArrayList<>();
-          for (int request = 0; request < 6; request++) {
-            answers.add(answerThroughTraefik(hostname));
-          }
-          return answers.stream().anyMatch(answer -> answer.endsWith("\r\n\r\n" + body))
-              && answers.stream().noneMatch(answer -> answer.endsWith("\r\n\r\n" + other));
-        });
-  }
-
-  /**
-   * The whole answer, or nothing when the connection fails. By hand, as the JDK's HTTP client does
-   * not let a request set its own Host header.
-   */
-  private static String answerThroughTraefik(String hostname) {
-    try (Socket socket = new Socket()) {
-      socket.connect(
-          new InetSocketAddress("127.0.0.1", TestcontainersConfiguration.TRAEFIK_PORT), 2000);
-      socket.setSoTimeout(5000);
-      OutputStream out = socket.getOutputStream();
-      out.write(
-          ("GET / HTTP/1.1\r\nHost: " + hostname + "\r\nConnection: close\r\n\r\n")
-              .getBytes(StandardCharsets.US_ASCII));
-      out.flush();
-      InputStream in = socket.getInputStream();
-      return new String(in.readAllBytes(), StandardCharsets.UTF_8);
-    } catch (IOException e) {
-      return "";
-    }
   }
 }

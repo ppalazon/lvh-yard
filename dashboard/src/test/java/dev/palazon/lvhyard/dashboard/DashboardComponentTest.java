@@ -91,8 +91,10 @@ abstract class DashboardComponentTest extends DashboardClient {
 
     @Bean
     @Primary
-    FakeConsul fakeConsul() {
+    FakeConsul fakeConsul(FakeDocker docker) {
       FakeConsul consul = new FakeConsul(DashboardClient.WORKSTATION);
+      // A running fake container accepts connections, so its Bound Instance passes.
+      consul.alsoListening((host, port) -> docker.listensAt(host, port, FakeConsul.LAN_ADDRESS));
       // The Yard has a second Workstation, as the real test Yard has.
       consul.datacenter(RemoteWorkstation.NAME);
       return consul;

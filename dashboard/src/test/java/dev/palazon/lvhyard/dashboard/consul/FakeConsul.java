@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.function.BiPredicate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.client.HttpServerErrorException;
@@ -33,6 +34,9 @@ public final class FakeConsul implements Consul {
    * plain TCP listener. A check whose status no test set passes or fails from this.
    */
   private final Map<String, Answer> listening = new HashMap<>();
+
+  /** What else listens, such as the containers of FakeDocker. */
+  private BiPredicate<String, Integer> alsoListening = (host, port) -> false;
 
   /** One index for every change, as a blocking query only needs it to grow. */
   private long index = 1;
@@ -75,6 +79,11 @@ public final class FakeConsul implements Consul {
     int code = Integer.parseInt(statusLine.substring(0, 3));
     listening.put(host + ":" + port, new Answer(code, statusLine, body));
     changed();
+  }
+
+  /** {@code more} also says what listens, after what {@link #listen} was told. */
+  public synchronized void alsoListening(BiPredicate<String, Integer> more) {
+    alsoListening = more;
   }
 
   public synchronized void stopListening(String host, int port) {
@@ -275,7 +284,7 @@ public final class FakeConsul implements Consul {
 
   /** As Consul runs the check against what listens: 2xx passes, 429 warns, else it fails. */
   private String derivedStatus(Check check) {
-    Answer answer = listening.get(target(check));
+    Answer answer = answerAt(target(check));
     if (answer == null) {
       return "critical";
     }
@@ -288,7 +297,7 @@ public final class FakeConsul implements Consul {
   /** In the words Consul uses for each outcome. */
   private String derivedOutput(Check check) {
     String target = target(check);
-    Answer answer = listening.get(target);
+    Answer answer = answerAt(target);
     if (check.http() == null) {
       return answer == null
           ? "dial tcp " + target + ": connect: connection refused"
@@ -297,6 +306,18 @@ public final class FakeConsul implements Consul {
     return answer == null
         ? "Get \"" + check.http() + "\": dial tcp " + target + ": connect: connection refused"
         : "HTTP GET " + check.http() + ": " + answer.statusLine() + " Output: " + answer.body();
+  }
+
+  private Answer answerAt(String target) {
+    Answer answer = listening.get(target);
+    if (answer != null) {
+      return answer;
+    }
+    int colon = target.lastIndexOf(':');
+    return alsoListening.test(
+            target.substring(0, colon), Integer.parseInt(target.substring(colon + 1)))
+        ? new Answer(200, "200 OK", "")
+        : null;
   }
 
   /** The {@code host:port} that the check connects to. */

@@ -93,8 +93,8 @@ class ServiceStatesComponentTest extends DashboardComponentTest {
     String service = newServiceName("priority");
     addHttpInstance(service, "200 OK");
     String container = newContainerName();
-    // Consul cannot reach a fake container, so its Bound Instance fails.
-    startContainer(container, 81, false);
+    // Nothing listens on port 81 of the container, so its Bound Instance fails.
+    startContainer(container, 80, false);
     bind(service, container, 81);
     publish(service);
 

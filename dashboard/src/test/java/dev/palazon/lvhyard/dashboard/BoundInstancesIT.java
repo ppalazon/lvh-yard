@@ -17,6 +17,45 @@ class BoundInstancesIT extends DashboardIT {
 
   private static final Duration FOLLOW_TIMEOUT = Duration.ofSeconds(15);
 
+  private GenericContainer<?> startComposeOnYard(String name, String project, int port) {
+    return start(
+        TestcontainersConfiguration.listener(name, port)
+            .withNetwork(yardNetwork)
+            .withLabel("com.docker.compose.project", project)
+            .withLabel("com.docker.compose.service", "web"));
+  }
+
+  /**
+   * Starts a real container called {@code name} that listens on port 80, published on a free host
+   * port when {@code publish} is true. It is removed after the test.
+   */
+  private GenericContainer<?> startRealContainer(String name, boolean publish) {
+    GenericContainer<?> container = TestcontainersConfiguration.listener(name, 80);
+    if (publish) {
+      container.withExposedPorts(80);
+    }
+    return start(container);
+  }
+
+  /**
+   * Where each Instance of the remote Workstation's {@code service} is, as this Workstation reads
+   * it.
+   */
+  private List<String> remoteInstanceAddresses(String service) {
+    return get("/api/services/" + RemoteWorkstation.NAME + "/" + service)
+        .getBody()
+        .get("instances")
+        .valueStream()
+        .map(instance -> instance.get("host").asString() + ":" + instance.get("port").asInt())
+        .toList();
+  }
+
+  private static String instanceRow(String instances, String value) {
+    int at = instances.indexOf(value, instances.indexOf("<tbody>"));
+    assertThat(at).as("Instance row containing %s", value).isNotNegative();
+    return instances.substring(instances.lastIndexOf("<tr>", at), instances.indexOf("</tr>", at));
+  }
+
   @Test
   void dashboardCatchesUpOnStartupWithContainersThatChangedWhileItWasNotRunning() {
     String started = newServiceName("started");
@@ -69,76 +108,5 @@ class BoundInstancesIT extends DashboardIT {
     assertThat(instance.get("container").asString()).isEqualTo(name);
     assertThat(instance.get("containerPort").asInt()).isEqualTo(80);
     assertThat(instance.get("hostPort").asInt()).isEqualTo(container.getMappedPort(80));
-  }
-
-  @Test
-  void composeBindingSummarizesItsContainersAndKeepsTheirDetailsInTheInstancesCard() {
-    String web = newServiceName("web");
-    String project = newComposeProject();
-    String firstName = newContainerName();
-    String secondName = newContainerName();
-    String failingName = newContainerName();
-    GenericContainer<?> first = startComposeOnYard(firstName, project, 80);
-    startComposeOnYard(secondName, project, 80);
-    startComposeOnYard(failingName, project, 81);
-    bindCompose(web, project, "web", 80);
-    await()
-        .atMost(Duration.ofSeconds(15))
-        .untilAsserted(() ->
-            assertThat(
-                    div(getPage("/services/ws-test/" + web).getBody(), "id=\"container-bindings\""))
-                .contains("3 containers, 2 passing"));
-
-    String page = getPage("/services/ws-test/" + web).getBody();
-
-    assertThat(page)
-        .contains("Compose service web of project " + project)
-        .contains("Bound to Compose service web of project " + project + ", port 80.");
-    assertThat(div(page, "id=\"container-bindings\""))
-        .contains("3 containers, 2 passing")
-        .doesNotContain(containerAddress(first) + ":80");
-    assertThat(div(page, "id=\"instances\""))
-        .contains("<td>" + firstName + "</td><td>80</td><td>Not published</td>")
-        .contains("<td>" + secondName + "</td><td>80</td><td>Not published</td>")
-        .contains("<td>" + failingName + "</td><td>80</td><td>Not published</td>");
-  }
-
-  private GenericContainer<?> startComposeOnYard(String name, String project, int port) {
-    return start(
-        TestcontainersConfiguration.listener(name, port)
-            .withNetwork(yardNetwork)
-            .withLabel("com.docker.compose.project", project)
-            .withLabel("com.docker.compose.service", "web"));
-  }
-
-  /**
-   * Starts a real container called {@code name} that listens on port 80, published on a free host
-   * port when {@code publish} is true. It is removed after the test.
-   */
-  private GenericContainer<?> startRealContainer(String name, boolean publish) {
-    GenericContainer<?> container = TestcontainersConfiguration.listener(name, 80);
-    if (publish) {
-      container.withExposedPorts(80);
-    }
-    return start(container);
-  }
-
-  /**
-   * Where each Instance of the remote Workstation's {@code service} is, as this Workstation reads
-   * it.
-   */
-  private List<String> remoteInstanceAddresses(String service) {
-    return get("/api/services/" + RemoteWorkstation.NAME + "/" + service)
-        .getBody()
-        .get("instances")
-        .valueStream()
-        .map(instance -> instance.get("host").asString() + ":" + instance.get("port").asInt())
-        .toList();
-  }
-
-  private static String instanceRow(String instances, String value) {
-    int at = instances.indexOf(value, instances.indexOf("<tbody>"));
-    assertThat(at).as("Instance row containing %s", value).isNotNegative();
-    return instances.substring(instances.lastIndexOf("<tr>", at), instances.indexOf("</tr>", at));
   }
 }

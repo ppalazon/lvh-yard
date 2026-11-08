@@ -28,6 +28,15 @@ abstract class ConsulContract {
 
   abstract Consul consul();
 
+  /** An address, {@code host:port}, where something accepts TCP connections. */
+  abstract String listening();
+
+  /** An address where nothing listens. */
+  abstract String silent();
+
+  /** An address that answers every HTTP request with {@code statusLine} and {@code body}. */
+  abstract String answeringHttp(String statusLine, String body);
+
   @Test
   void ownDatacenterHasALeaderAndAnAliveWanMember() {
     assertThat(consul().datacenters()).contains(DATACENTER);
@@ -88,6 +97,59 @@ abstract class ConsulContract {
     assertThat(probe.type()).isEqualTo("http");
     assertThat(probe.interval()).isEqualTo("1s");
     assertThat(probe.timeout()).isEqualTo("2s");
+  }
+
+  @Test
+  void tcpCheckPassesWhereSomethingListensAndFailsElsewhere() {
+    String up = newName();
+    String down = newName();
+    consul().register(registration(newName(), up, new Check("TCP", null, listening(), "1s", "1s")));
+    consul().register(registration(newName(), down, new Check("TCP", null, silent(), "1s", "1s")));
+
+    assertCheck(up, "passing", "Success");
+    assertCheck(down, "critical", "connection refused");
+  }
+
+  @Test
+  void httpCheckFollowsTheStatusCodeAndKeepsTheBody() {
+    String ok = newName();
+    String busy = newName();
+    String failing = newName();
+    consul().register(registration(newName(), ok, httpCheck(answeringHttp("200 OK", "fine"))));
+    consul()
+        .register(
+            registration(
+                newName(), busy, httpCheck(answeringHttp("429 Too Many Requests", "later"))));
+    consul()
+        .register(
+            registration(
+                newName(),
+                failing,
+                httpCheck(answeringHttp("503 Service Unavailable", "warming"))));
+
+    assertCheck(ok, "passing", "200 OK");
+    assertCheck(busy, "warning", "429 Too Many Requests");
+    assertCheck(failing, "critical", "503 Service Unavailable");
+    assertCheck(failing, "critical", "warming");
+  }
+
+  private static Check httpCheck(String address) {
+    return new Check("HTTP", "http://" + address + "/health", null, "1s", "1s");
+  }
+
+  /** Waits until the check of {@code service}'s one registration has {@code status}. */
+  private void assertCheck(String service, String status, String output) {
+    org.awaitility.Awaitility.await()
+        .atMost(Duration.ofSeconds(20))
+        .untilAsserted(() -> {
+          CheckStatus check =
+              consul().health(service).getFirst().checks().stream()
+                  .filter(found -> !found.serviceId().isEmpty())
+                  .findFirst()
+                  .orElseThrow();
+          assertThat(check.status()).isEqualTo(status);
+          assertThat(check.output()).contains(output);
+        });
   }
 
   @Test

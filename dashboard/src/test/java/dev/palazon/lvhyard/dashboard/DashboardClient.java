@@ -82,8 +82,9 @@ abstract class DashboardClient {
    * listens on. Docker lists no ports for such a container.
    */
   int startHostNetworkContainer(String name) {
-    start(FakeDocker.container(name).hostNetwork());
-    return newLanPort();
+    int port = newLanPort();
+    start(FakeDocker.container(name).hostNetwork().port(port));
+    return port;
   }
 
   /** A Compose project name no other test, nor an earlier run, uses. */
