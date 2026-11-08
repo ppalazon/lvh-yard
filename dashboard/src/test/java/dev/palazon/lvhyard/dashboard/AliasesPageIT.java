@@ -11,11 +11,6 @@ import org.springframework.http.ResponseEntity;
 class AliasesPageIT extends DashboardIT {
 
   @Test
-  void catalogLinksToTheAliasesPage() {
-    assertThat(getPage("/").getBody()).contains("href=\"/aliases\"");
-  }
-
-  @Test
   void formOffersEveryRemoteServiceWithYardScope() {
     String shared = newServiceName("grafana");
     remote.register(shared, Map.of("host", "10.9.8.7", "port", 3000));

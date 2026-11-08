@@ -9,7 +9,7 @@ import org.springframework.http.ResponseEntity;
 import tools.jackson.databind.JsonNode;
 
 /** The Static Instances page: its list, and its form that adds a Static Instance. */
-class StaticInstancesPageIT extends DashboardIT {
+class StaticInstancesPageComponentTest extends DashboardComponentTest {
 
   private static final String PATH = "/static-instances";
 

@@ -97,7 +97,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
-            <!-- Unit tests (*Test) run with surefire. Integration tests (*IT) run with failsafe: docs/adr/0008. -->
+            <!-- Unit and component tests (*Test) run with surefire. Integration tests (*IT) run with failsafe: docs/adr/0008. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>

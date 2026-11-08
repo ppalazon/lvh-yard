@@ -3,6 +3,7 @@ package dev.palazon.lvhyard.dashboard.consul;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,12 @@ public final class FakeConsul implements Consul {
   private final String home;
 
   private final Map<String, Datacenter> datacenters = new LinkedHashMap<>();
+
+  /**
+   * What answers at each {@code host:port}: an HTTP status line and body, or {@code null} for a
+   * plain TCP listener. A check whose status no test set passes or fails from this.
+   */
+  private final Map<String, Answer> listening = new HashMap<>();
 
   /** One index for every change, as a blocking query only needs it to grow. */
   private long index = 1;
@@ -54,6 +61,27 @@ public final class FakeConsul implements Consul {
     throw new IllegalArgumentException("No registration " + id);
   }
 
+  /** Something accepts TCP connections at {@code host} and {@code port} from now on. */
+  public synchronized void listen(String host, int port) {
+    listening.put(host + ":" + port, new Answer(200, "200 OK", ""));
+    changed();
+  }
+
+  /**
+   * HTTP requests to {@code host} and {@code port} get {@code status}, such as 503, and {@code
+   * body}.
+   */
+  public synchronized void answerHttp(String host, int port, String statusLine, String body) {
+    int code = Integer.parseInt(statusLine.substring(0, 3));
+    listening.put(host + ":" + port, new Answer(code, statusLine, body));
+    changed();
+  }
+
+  public synchronized void stopListening(String host, int port) {
+    listening.remove(host + ":" + port);
+    changed();
+  }
+
   /** What every datacenter holds now, for {@link #restore}. */
   public synchronized Map<String, Datacenter> snapshot() {
     Map<String, Datacenter> copy = new LinkedHashMap<>();
@@ -65,6 +93,7 @@ public final class FakeConsul implements Consul {
   public synchronized void restore(Map<String, Datacenter> snapshot) {
     datacenters.clear();
     snapshot.forEach((name, datacenter) -> datacenters.put(name, datacenter.copy()));
+    listening.clear();
     changed();
   }
 
@@ -154,8 +183,8 @@ public final class FakeConsul implements Consul {
             checks.add(
                 new CheckStatus(
                     check.name() == null ? "Service '" + service + "' check" : check.name(),
-                    stored.status(),
-                    stored.output(),
+                    stored.status() != null ? stored.status() : derivedStatus(check),
+                    stored.status() != null ? stored.output() : derivedOutput(check),
                     stored.service().id(),
                     check.http() != null ? "http" : "tcp",
                     check.interval() == null ? "" : check.interval(),
@@ -244,6 +273,45 @@ public final class FakeConsul implements Consul {
     notifyAll();
   }
 
+  /** As Consul runs the check against what listens: 2xx passes, 429 warns, else it fails. */
+  private String derivedStatus(Check check) {
+    Answer answer = listening.get(target(check));
+    if (answer == null) {
+      return "critical";
+    }
+    if (check.http() == null || answer.code() / 100 == 2) {
+      return "passing";
+    }
+    return answer.code() == 429 ? "warning" : "critical";
+  }
+
+  /** In the words Consul uses for each outcome. */
+  private String derivedOutput(Check check) {
+    String target = target(check);
+    Answer answer = listening.get(target);
+    if (check.http() == null) {
+      return answer == null
+          ? "dial tcp " + target + ": connect: connection refused"
+          : "TCP connect " + target + ": Success";
+    }
+    return answer == null
+        ? "Get \"" + check.http() + "\": dial tcp " + target + ": connect: connection refused"
+        : "HTTP GET " + check.http() + ": " + answer.statusLine() + " Output: " + answer.body();
+  }
+
+  /** The {@code host:port} that the check connects to. */
+  private static String target(Check check) {
+    if (check.tcp() != null) {
+      return check.tcp();
+    }
+    String rest = check.http().substring(check.http().indexOf("://") + 3);
+    int slash = rest.indexOf('/');
+    return slash < 0 ? rest : rest.substring(0, slash);
+  }
+
+  private record Answer(int code, String statusLine, String body) {}
+
+  /** {@code status} is null until a test sets it: the check then runs against what listens. */
   private record Stored(AgentService service, Check check, String status, String output) {}
 
   /** One Workstation's datacenter. A test changes another Workstation's through it. */
@@ -277,7 +345,7 @@ public final class FakeConsul implements Consul {
                     registration.tags(),
                     registration.meta()),
                 registration.check(),
-                registration.check() == null ? null : "critical",
+                null,
                 ""));
         changed();
       }

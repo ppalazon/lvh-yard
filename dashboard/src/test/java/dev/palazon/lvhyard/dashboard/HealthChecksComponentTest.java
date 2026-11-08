@@ -16,7 +16,7 @@ import tools.jackson.databind.JsonNode;
  * The health checks of Static Instances, chosen when they are registered, and each check's last
  * output.
  */
-class HealthChecksIT extends DashboardIT {
+class HealthChecksComponentTest extends DashboardComponentTest {
 
   /** Long enough for a check with a 1 s interval to run a few times. */
   private static final Duration CHECK_TIMEOUT = Duration.ofSeconds(10);

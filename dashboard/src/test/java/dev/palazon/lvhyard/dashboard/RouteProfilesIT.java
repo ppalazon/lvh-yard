@@ -26,6 +26,43 @@ class RouteProfilesIT extends DashboardIT {
     removeAllRouteProfiles();
   }
 
+  static JsonNode json(String text) {
+    return JSON.readTree(text);
+  }
+
+  /** The names that reached Consul. */
+  private List<String> names() throws Exception {
+    ExecResult result =
+        consulContainer.execInContainer("consul", "kv", "get", "-keys", "lvh-yard/route-profiles/");
+    return result
+        .getStdout()
+        .lines()
+        .map(key -> key.substring("lvh-yard/route-profiles/".length()))
+        .toList();
+  }
+
+  /** Consul's index of the last write to the profile's key. */
+  private long modifyIndex(String profile) throws Exception {
+    ExecResult result =
+        consulContainer.execInContainer(
+            "consul", "kv", "get", "-detailed", "lvh-yard/route-profiles/" + profile);
+    return result
+        .getStdout()
+        .lines()
+        .filter(line -> line.startsWith("ModifyIndex"))
+        .map(line -> Long.parseLong(line.substring("ModifyIndex".length()).strip()))
+        .findFirst()
+        .orElseThrow();
+  }
+
+  /** The profile's value in the test Workstation's Consul KV, or {@code null} when it has none. */
+  private String kv(String profile) throws Exception {
+    ExecResult result =
+        consulContainer.execInContainer(
+            "consul", "kv", "get", "lvh-yard/route-profiles/" + profile);
+    return result.getExitCode() == 0 ? result.getStdout().strip() : null;
+  }
+
   @Test
   void addedProfileIsListedWithItsTypeAndStoredInConsul() throws Exception {
     ResponseEntity<JsonNode> added =
@@ -46,46 +83,6 @@ class RouteProfilesIT extends DashboardIT {
                 """
                 {"headers": {"customRequestHeaders": {"X-Forwarded-Proto": "https"}}}
                 """));
-  }
-
-  @Test
-  void oneProfileIsReadWithItsDefinitionInTraefiksFormat() {
-    putRouteProfiles(json("{\"compressed\": {\"compress\": {}}}"));
-
-    ResponseEntity<JsonNode> read = get(ROUTE_PROFILES_PATH + "/compressed");
-
-    assertThat(read.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(read.getBody())
-        .isEqualTo(
-            json(
-                """
-                {"name": "compressed", "type": "compress", "services": [],
-                 "definition": {"compress": {}}}
-                """));
-    assertThat(get(ROUTE_PROFILES_PATH + "/missing").getStatusCode())
-        .isEqualTo(HttpStatus.NOT_FOUND);
-  }
-
-  @Test
-  void listNamesTheServicesWhosePublicationsNameTheProfile() {
-    putRouteProfiles(json("{\"used-compress\": {\"compress\": {}}}"));
-    String web = newServiceName("web");
-    String api = newServiceName("api");
-    for (String service : List.of(web, api)) {
-      register(service, Map.of("host", "10.1.2.3", "port", 8080));
-      put(publicationPath(service), Map.of("profiles", List.of("used-compress")));
-    }
-
-    // Other test classes in this JVM add Route Profiles of their own.
-    JsonNode used =
-        get(ROUTE_PROFILES_PATH)
-            .getBody()
-            .valueStream()
-            .filter(profile -> profile.get("name").asString().equals("used-compress"))
-            .findFirst()
-            .orElseThrow();
-    assertThat(used.get("services").toString())
-        .isEqualTo(JSON.writeValueAsString(List.of(api, web).stream().sorted().toList()));
   }
 
   @Test
@@ -273,42 +270,5 @@ class RouteProfilesIT extends DashboardIT {
     assertThat(refused.getBody().get("services").toString()).isEqualTo("[\"" + web + "\"]");
     assertThat(refused.getBody().get("chains").toString()).isEqualTo("[\"protected\"]");
     assertThat(names()).containsExactly("login", "protected");
-  }
-
-  static JsonNode json(String text) {
-    return JSON.readTree(text);
-  }
-
-  /** The names that reached Consul. */
-  private List<String> names() throws Exception {
-    ExecResult result =
-        consulContainer.execInContainer("consul", "kv", "get", "-keys", "lvh-yard/route-profiles/");
-    return result
-        .getStdout()
-        .lines()
-        .map(key -> key.substring("lvh-yard/route-profiles/".length()))
-        .toList();
-  }
-
-  /** Consul's index of the last write to the profile's key. */
-  private long modifyIndex(String profile) throws Exception {
-    ExecResult result =
-        consulContainer.execInContainer(
-            "consul", "kv", "get", "-detailed", "lvh-yard/route-profiles/" + profile);
-    return result
-        .getStdout()
-        .lines()
-        .filter(line -> line.startsWith("ModifyIndex"))
-        .map(line -> Long.parseLong(line.substring("ModifyIndex".length()).strip()))
-        .findFirst()
-        .orElseThrow();
-  }
-
-  /** The profile's value in the test Workstation's Consul KV, or {@code null} when it has none. */
-  private String kv(String profile) throws Exception {
-    ExecResult result =
-        consulContainer.execInContainer(
-            "consul", "kv", "get", "lvh-yard/route-profiles/" + profile);
-    return result.getExitCode() == 0 ? result.getStdout().strip() : null;
   }
 }

@@ -31,6 +31,7 @@ import org.springframework.test.context.DynamicPropertyRegistrar;
       "lvh-yard.docker.host=unix:///fake/docker.sock",
       "lvh-yard.consul.answer-timeout=1s",
       "lvh-yard.consul.unreachable-pause=2s",
+      "lvh-yard.bound-instances.check-interval=1s",
       "lvh-yard.events.heartbeat-interval=1s"
     })
 @Import(DashboardComponentTest.Fakes.class)
@@ -38,9 +39,6 @@ abstract class DashboardComponentTest extends DashboardClient {
 
   /** The Backups folder of this JVM's component tests. */
   static final Path BACKUPS = TestcontainersConfiguration.temporaryFolder("lvh-yard-component");
-
-  /** Two free ports for Traefik, where nothing listens. */
-  private static final int[] TRAEFIK_PORTS = TestcontainersConfiguration.freePorts(2);
 
   /** This Workstation's Consul after the first setup, which each test starts from. */
   private static volatile Map<String, Datacenter> baseline;
@@ -64,6 +62,25 @@ abstract class DashboardComponentTest extends DashboardClient {
     consul.values(null, "lvh-yard/route-profiles/").keySet().forEach(consul::deleteValue);
   }
 
+  /** This Workstation's LAN address, as its Consul agent gives it. */
+  String lanAddress() {
+    return FakeConsul.LAN_ADDRESS;
+  }
+
+  /** Something accepts TCP connections on {@code port} at the LAN address, so its checks pass. */
+  void listenOnLanAddress(int port) {
+    consul.listen(lanAddress(), port);
+  }
+
+  void stopListeningOnLanAddress(int port) {
+    consul.stopListening(lanAddress(), port);
+  }
+
+  /** HTTP requests on {@code port} at the LAN address get {@code status} and {@code body}. */
+  void answerHttpOnLanAddress(int port, String status, String body) {
+    consul.answerHttp(lanAddress(), port, status, body);
+  }
+
   /** The other Workstation's datacenter in {@link FakeConsul}. */
   Datacenter remoteDatacenter() {
     return consul.datacenter(RemoteWorkstation.NAME);
@@ -75,7 +92,10 @@ abstract class DashboardComponentTest extends DashboardClient {
     @Bean
     @Primary
     FakeConsul fakeConsul() {
-      return new FakeConsul(DashboardClient.WORKSTATION);
+      FakeConsul consul = new FakeConsul(DashboardClient.WORKSTATION);
+      // The Yard has a second Workstation, as the real test Yard has.
+      consul.datacenter(RemoteWorkstation.NAME);
+      return consul;
     }
 
     @Bean
@@ -88,8 +108,9 @@ abstract class DashboardComponentTest extends DashboardClient {
     DynamicPropertyRegistrar folderAndPorts() {
       return registry -> {
         registry.add("lvh-yard.backups.path", BACKUPS::toString);
-        registry.add("lvh-yard.traefik.port", () -> TRAEFIK_PORTS[0]);
-        registry.add("lvh-yard.traefik.admin-port", () -> TRAEFIK_PORTS[1]);
+        registry.add("lvh-yard.traefik.port", () -> TestcontainersConfiguration.TRAEFIK_PORT);
+        registry.add(
+            "lvh-yard.traefik.admin-port", () -> TestcontainersConfiguration.TRAEFIK_ADMIN_PORT);
       };
     }
   }

@@ -112,22 +112,28 @@ mise run install
 
 ## Tests
 
-There are two kinds of tests, as `docs/adr/0008` explains:
+There are three kinds of tests, as `docs/adr/0008` explains:
 
-- A unit test starts no Spring context, no Docker container and no other
-  process. Its class name ends in `Test`, and it lives in the package of the
-  class that it tests. Surefire runs it.
-- An integration test goes through the running dashboard or the `lvh-yard`
-  process. Its class name ends in `IT`. Failsafe runs it.
+- A unit test starts no Spring context and no real system. Its class name
+  ends in `Test`, and it lives in the package of the class that it tests.
+- A component test starts the dashboard and goes through its HTTP API and
+  pages. `FakeConsul` and `FakeDocker` stand in for Consul and Docker. Its
+  class name ends in `ComponentTest`, and it extends `DashboardComponentTest`.
+- An integration test uses at least one real system: Docker, Consul, Traefik,
+  or another process such as `lvh-yard`. Its class name ends in `IT`.
+
+Surefire runs unit and component tests. Failsafe runs integration tests.
+`DockerContract` and `ConsulContract` run the same cases against each fake
+and against the real system, so a fake cannot drift from the real one.
 
 Give each edge case of a rule a unit test, for example the Route choice or an
-input check. Give each feature one or a few integration tests, which prove
-that the parts work together.
+input check. Give each feature a component test through the API or a page.
+Keep an integration test only for what a fake cannot show. Examples are a
+passing health check, the other Workstation's own dashboard, and Traefik.
 
-While you work, run `mise run test:unit`. It runs the unit tests of both
-modules in a few seconds, without Docker. Before you commit, run
-`mise run check`. It builds the stylesheet, builds both modules from scratch
-and runs every test.
+While you work, run `mise run test:unit` or `mise run test:component`. Both
+run in seconds, without Docker. Before you commit, run `mise run check`. It
+builds the stylesheet, builds both modules from scratch and runs every test.
 
 The dashboard integration tests start a Yard of two federated Consul
 datacenters with Testcontainers, so they need Docker. The second Workstation,

@@ -54,25 +54,6 @@ class TraefikStatusIT extends DashboardIT {
   }
 
   @Test
-  void stoppedTraefikIsFailingAndSaysWhereItsPingWasAsked() {
-    stopTraefik();
-
-    JsonNode status =
-        await()
-            .atMost(CHANGE)
-            .until(
-                () -> get("/api/status").getBody(),
-                answer -> part(answer, "Traefik").get("state").asString().equals("failing"));
-
-    JsonNode traefikPart = part(status, "Traefik");
-    assertThat(traefikPart.get("reason").asString())
-        .contains("does not answer its ping")
-        .contains("127.0.0.1:" + TestcontainersConfiguration.TRAEFIK_ADMIN_PORT + "/ping");
-    assertThat(detail(traefikPart, "ping").get("state").asString()).isEqualTo("failing");
-    assertThat(status.get("overall").asString()).isEqualTo("failing");
-  }
-
-  @Test
   void traefikThatFetchesItsRoutesElsewhereIsAWarning() {
     int[] ports = TestcontainersConfiguration.freePorts(3);
     String nowhere = "http://127.0.0.1:" + ports[2] + "/traefik/configuration";

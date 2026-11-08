@@ -12,18 +12,9 @@ import tools.jackson.databind.JsonNode;
 /** The REST API's list of the Yard's Services, filtered by Workstation and by state. */
 class ServiceFiltersIT extends DashboardIT {
 
-  @Test
-  void filtersByState() {
-    String web = newServiceName("web");
-    String api = newServiceName("api");
-    register(web, Map.of("host", "10.1.2.3", "port", 8080));
-    register(api, Map.of("host", "10.1.2.3", "port", 9090));
-    publish(api);
-
-    List<String> unhealthy = names(get("/api/services?state=unhealthy"));
-
-    assertThat(unhealthy).contains(api).doesNotContain(web);
-    assertThat(names(get("/api/services?state=unpublished"))).contains(web).doesNotContain(api);
+  private static List<String> names(ResponseEntity<JsonNode> services) {
+    assertThat(services.getStatusCode()).isEqualTo(HttpStatus.OK);
+    return services.getBody().valueStream().map(service -> service.get("name").asString()).toList();
   }
 
   @Test
@@ -37,20 +28,5 @@ class ServiceFiltersIT extends DashboardIT {
         names(get("/api/services?workstation=" + RemoteWorkstation.NAME + "&state=unpublished"));
 
     assertThat(names).contains(other).doesNotContain(own);
-  }
-
-  @Test
-  void refusesAnUnknownState() {
-    ResponseEntity<JsonNode> response = get("/api/services?state=sleepy");
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(response.getBody().get("detail").asString())
-        .isEqualTo(
-            "The state is unpublished, unavailable, unhealthy, degraded or healthy, not sleepy.");
-  }
-
-  private static List<String> names(ResponseEntity<JsonNode> services) {
-    assertThat(services.getStatusCode()).isEqualTo(HttpStatus.OK);
-    return services.getBody().valueStream().map(service -> service.get("name").asString()).toList();
   }
 }

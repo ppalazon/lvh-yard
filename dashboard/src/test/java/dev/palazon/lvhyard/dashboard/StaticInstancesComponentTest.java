@@ -13,13 +13,23 @@ import org.springframework.http.ResponseEntity;
 import tools.jackson.databind.JsonNode;
 
 /** Static Instances, registered and removed through the REST API. */
-class StaticInstancesIT extends DashboardIT {
+class StaticInstancesComponentTest extends DashboardComponentTest {
 
   /**
    * Long enough for a check's first run, which Consul starts at a random point within its 10 s
    * interval.
    */
   private static final Duration CHECK_TIMEOUT = Duration.ofSeconds(20);
+
+  /** The Service called {@code name} in a list of Services, or {@code null}. */
+  static JsonNode findService(JsonNode services, String name) {
+    for (JsonNode service : services) {
+      if (service.get("name").asString().equals(name)) {
+        return service;
+      }
+    }
+    return null;
+  }
 
   @Test
   void registeredInstanceIsListedWithItsService() {
@@ -417,15 +427,5 @@ class StaticInstancesIT extends DashboardIT {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     assertThat(get(servicePath(web)).getBody().get("instances")).hasSize(1);
-  }
-
-  /** The Service called {@code name} in a list of Services, or {@code null}. */
-  static JsonNode findService(JsonNode services, String name) {
-    for (JsonNode service : services) {
-      if (service.get("name").asString().equals(name)) {
-        return service;
-      }
-    }
-    return null;
   }
 }
