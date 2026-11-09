@@ -176,6 +176,33 @@ class AliasesComponentTest extends DashboardComponentTest {
   }
 
   @Test
+  void createMakesAMissingServiceWithLocalScopeAndKeepsAnExistingPublication() {
+    String grafana = sharedRemoteService("grafana");
+    String fresh = newServiceName("fresh");
+    String shared = newServiceName("shared");
+    register(shared, Map.of("host", "10.1.2.3", "port", 8080));
+    put(publicationPath(shared), Map.of("scope", "yard"));
+
+    ResponseEntity<JsonNode> created =
+        post(
+            aliasesPath(fresh),
+            Map.of("workstation", RemoteWorkstation.NAME, "service", grafana, "create", true));
+    ResponseEntity<JsonNode> existing =
+        post(
+            aliasesPath(shared),
+            Map.of("workstation", RemoteWorkstation.NAME, "service", grafana, "create", true));
+
+    assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    JsonNode service = get(servicePath(fresh)).getBody();
+    assertThat(service.get("publication").get("scope").asString()).isEqualTo("local");
+    assertThat(InstancePriorityComponentTest.ids(service.get("sources")))
+        .containsExactly(RemoteWorkstation.NAME + "/" + grafana);
+    assertThat(existing.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(get(servicePath(shared)).getBody().get("publication").get("scope").asString())
+        .isEqualTo("yard");
+  }
+
+  @Test
   void aliasStaysAfterItsTargetLosesYardScopeAndThenGivesNoInstancesAndSaysWhy() {
     String grafana = sharedRemoteService("grafana");
     String web = newServiceName("web");

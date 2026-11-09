@@ -24,31 +24,40 @@ public class Aliases {
 
   private final YardReader yard;
 
-  Aliases(Workstation workstation, ServiceRecords records, YardReader yard) {
+  private final Publications publications;
+
+  Aliases(
+      Workstation workstation, ServiceRecords records, YardReader yard, Publications publications) {
     this.workstation = workstation;
     this.records = records;
     this.yard = yard;
+    this.publications = publications;
   }
 
   /**
    * Adds an Alias at the end of {@code service}'s order. Its Remote Service must have Yard Scope
    * now. Later, the Alias stays when its Remote Service loses Yard Scope or its Workstation stops
-   * answering.
+   * answering. An existing Service keeps its Publication.
    *
+   * @param create when {@code service} has no record, true creates it and publishes it with Local
+   *     Scope, so that its hostname works at once. It is created only after every check passes.
    * @throws InvalidRegistrationException when a name is not one DNS label, the Workstation is this
    *     one, or the Remote Service is not there with Yard Scope now
-   * @throws UnknownServiceException when you have not created {@code service}
+   * @throws UnknownServiceException when you have not created {@code service} and {@code create} is
+   *     false
    * @throws AliasExistsException when {@code service} already has an Alias to this Remote Service
    */
-  public Alias add(String service, String home, String remoteService) {
+  public Alias add(String service, String home, String remoteService, boolean create) {
     Registrations.checkName(service);
     checkTarget("workstation", "Workstation", home);
     checkTarget("service", "Service", remoteService);
     checkRemote(home);
     String id = Alias.id(home, remoteService);
-    ServiceRecords.ServiceRecord record =
-        records.get(service).orElseThrow(() -> new UnknownServiceException(service));
-    if (record.aliases().contains(id)) {
+    Optional<ServiceRecords.ServiceRecord> record = records.get(service);
+    if (record.isEmpty() && !create) {
+      throw new UnknownServiceException(service);
+    }
+    if (record.isPresent() && record.get().aliases().contains(id)) {
       throw new AliasExistsException(service, id);
     }
     Alias target = alias(home, remoteService);
@@ -59,6 +68,11 @@ public class Aliases {
               : "service",
           target.reason()
               + " Only a Remote Service with Yard Scope can be the target of an Alias.");
+    }
+    if (record.isEmpty()) {
+      records.put(service);
+      publications.publish(
+          workstation.name(), service, new PublicationRequest(Scope.LOCAL, null, null));
     }
     records.addAlias(service, id);
     return target;

@@ -47,7 +47,10 @@ class Alias implements Runnable {
   @Command(
       name = "add",
       mixinStandardHelpOptions = true,
-      description = "Adds an Alias to a Remote Service with Yard Scope, at the end of the order.")
+      description = {
+        "Adds an Alias to a Remote Service with Yard Scope, at the end of the order.",
+        "If the Service does not exist, creates it and publishes it with Local Scope."
+      })
   static class Add implements Runnable {
 
     @ParentCommand Alias alias;

@@ -428,7 +428,7 @@ class PagesController {
     String[] parts = chosen.split("/", 2);
     InvalidRegistrationException error;
     try {
-      aliases.add(service, parts[0], parts.length < 2 ? "" : parts[1]);
+      aliases.add(service, parts[0], parts.length < 2 ? "" : parts[1], false);
       return seeOther(ServicePage.path(found));
     } catch (InvalidRegistrationException | AliasExistsException e) {
       error = new InvalidRegistrationException(AddAliasPage.TARGET, e.getMessage());
@@ -440,6 +440,59 @@ class PagesController {
         .body(
             AddAliasPage.render(
                 workstation, found, AddAliasPage.shared(yard.routableYard()), chosen, error));
+  }
+
+  @GetMapping(
+      path = "/services/{workstation}/{service}/alias/new",
+      produces = MediaType.TEXT_HTML_VALUE)
+  @ResponseBody
+  String newAliasTo(@PathVariable("workstation") String home, @PathVariable String service) {
+    Service remote = remoteService(home, service);
+    return AliasRemoteServicePage.render(
+        workstation, remote, ownServiceNames(), remote.name(), null);
+  }
+
+  /**
+   * A new name creates the Service and publishes it with Local Scope, as {@code lvh-yard alias add}
+   * does.
+   *
+   * @param name the Service of this Workstation that gets the Alias
+   */
+  @PostMapping(
+      path = "/services/{workstation}/{service}/alias",
+      produces = MediaType.TEXT_HTML_VALUE)
+  ResponseEntity<String> aliasTo(
+      @PathVariable("workstation") String home,
+      @PathVariable String service,
+      @RequestParam(required = false) String name) {
+    Service remote = remoteService(home, service);
+    String chosen = name == null ? "" : name.strip();
+    InvalidRegistrationException error;
+    try {
+      aliases.add(chosen, home, service, true);
+      return seeOther(ServicePage.path(workstation.name(), chosen));
+    } catch (InvalidRegistrationException e) {
+      error =
+          e.field().equals("name")
+              ? e
+              : new InvalidRegistrationException(AliasRemoteServicePage.TARGET, e.getMessage());
+    } catch (AliasExistsException e) {
+      error = new InvalidRegistrationException(AliasRemoteServicePage.NAME, e.getMessage());
+    }
+    return ResponseEntity.badRequest()
+        .contentType(Layout.HTML)
+        .body(AliasRemoteServicePage.render(workstation, remote, ownServiceNames(), name, error));
+  }
+
+  private Service remoteService(String home, String service) {
+    if (workstation.is(home)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+    }
+    return anyService(home, service);
+  }
+
+  private List<String> ownServiceNames() {
+    return yard.services(workstation.name()).stream().map(Service::name).toList();
   }
 
   @PostMapping("/services/{workstation}/{service}/aliases/{remote}/{remoteService}/remove")
