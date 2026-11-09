@@ -174,6 +174,22 @@ After you change the API, run `mise run openapi` to write it again. The task
 runs that test with `-Dopenapi.update=true`, so it writes the file instead of
 comparing it.
 
+## Consolidation audit
+
+After a large redesign, or about once a month, run `mise run audit`. It lists
+the leads for a cleanup:
+
+- long Trail learnings
+- learnings that a newer one replaces
+- learnings that name files or classes the code no longer has
+- done specs that are still in `.scratch/`
+- the number of tests of each kind, and test files over 800 lines
+
+Each line is a lead to read, not a verdict. For example, a learning can name a
+class to record why it was ruled out. To also time `mise run check` and count
+its output lines, run `mise run audit --check`. Compare the output with the
+last run to see what grew.
+
 ## Releasing
 
 Run `mise run check`, then push a tag:
