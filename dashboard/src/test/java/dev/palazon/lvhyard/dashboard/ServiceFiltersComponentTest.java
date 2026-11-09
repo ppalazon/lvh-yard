@@ -40,4 +40,17 @@ class ServiceFiltersComponentTest extends DashboardComponentTest {
         .isEqualTo(
             "The state is unpublished, unavailable, unhealthy, degraded or healthy, not sleepy.");
   }
+
+  @Test
+  void filtersByWorkstationAndStateTogether() {
+    String own = newServiceName("web");
+    register(own, Map.of("host", "10.1.2.3", "port", 8080));
+    String other = newServiceName("web");
+    remote.register(other, Map.of("host", "10.9.8.7", "port", 8080));
+
+    List<String> names =
+        names(get("/api/services?workstation=" + RemoteWorkstation.NAME + "&state=unpublished"));
+
+    assertThat(names).contains(other).doesNotContain(own);
+  }
 }

@@ -1,7 +1,7 @@
 package dev.palazon.lvhyard.dashboard;
 
-import static dev.palazon.lvhyard.dashboard.BackupExportIT.map;
-import static dev.palazon.lvhyard.dashboard.BackupExportIT.yaml;
+import static dev.palazon.lvhyard.dashboard.BackupExportComponentTest.map;
+import static dev.palazon.lvhyard.dashboard.BackupExportComponentTest.yaml;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
@@ -25,7 +25,7 @@ class SafetyBackupComponentTest extends DashboardComponentTest {
 
     ResponseEntity<JsonNode> response =
         postYaml(
-            BackupImportIT.IMPORT_PATH,
+            BackupImportComponentTest.IMPORT_PATH,
             """
             version: 1
             services:
@@ -62,7 +62,7 @@ class SafetyBackupComponentTest extends DashboardComponentTest {
             .formatted(grafana);
 
     long before = backupCount();
-    ResponseEntity<JsonNode> response = postYaml(BackupImportIT.IMPORT_PATH, backup);
+    ResponseEntity<JsonNode> response = postYaml(BackupImportComponentTest.IMPORT_PATH, backup);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody().has("safetyBackup")).isFalse();
@@ -76,7 +76,7 @@ class SafetyBackupComponentTest extends DashboardComponentTest {
 
     ResponseEntity<JsonNode> response =
         postYaml(
-            BackupImportIT.IMPORT_PATH + "&dry-run=true",
+            BackupImportComponentTest.IMPORT_PATH + "&dry-run=true",
             """
             version: 1
             services:

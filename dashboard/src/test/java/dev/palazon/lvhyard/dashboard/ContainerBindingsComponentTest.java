@@ -496,4 +496,19 @@ class ContainerBindingsComponentTest extends DashboardComponentTest {
 
     assertThat(instanceAddresses(web)).containsExactly(containerAddress(container) + ":80");
   }
+
+  @Test
+  void remoteServicesBindingsAreShownAndCannotBeChangedHere() {
+    String web = newServiceName("web");
+    remote.bind(web, newContainerName(), 80);
+
+    JsonNode service = get("/api/services/" + RemoteWorkstation.NAME + "/" + web).getBody();
+    ResponseEntity<JsonNode> change =
+        post(
+            "/api/services/" + RemoteWorkstation.NAME + "/" + web + "/container-bindings",
+            Map.of("container", "web", "port", 80));
+
+    assertThat(service.get("containerBindings").get(0).get("port").asInt()).isEqualTo(80);
+    assertThat(change.getStatusCode()).isEqualTo(HttpStatus.METHOD_NOT_ALLOWED);
+  }
 }

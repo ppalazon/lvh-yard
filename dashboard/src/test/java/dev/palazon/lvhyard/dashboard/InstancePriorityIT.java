@@ -1,6 +1,6 @@
 package dev.palazon.lvhyard.dashboard;
 
-import static dev.palazon.lvhyard.dashboard.TraefikConfigurationIT.serverUrlsAt;
+import static dev.palazon.lvhyard.dashboard.TraefikConfigurationComponentTest.serverUrlsAt;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -164,63 +164,6 @@ class InstancePriorityIT extends DashboardIT {
     } catch (IOException e) {
       return "";
     }
-  }
-
-  @Test
-  void routeFallsBackToTheAliasWhenNoOwnInstancePassesAndComesBack() {
-    String web = newServiceName("web");
-    passingRemoteService(web);
-    int port = newLanPort();
-    listenOnLanAddress(port);
-    register(web, Map.of("port", port, "check", Map.of("interval", "1s")));
-    publish(web);
-    put(AliasesIT.aliasPath(web), Map.of("workstation", RemoteWorkstation.NAME, "service", web));
-    String terminal = lanAddress() + ":" + port;
-    awaitRoutedTo(web, terminal);
-
-    stopListeningOnLanAddress(port);
-
-    awaitRoutedTo(web, TEAMMATE);
-    JsonNode routing = get(servicePath(web)).getBody().get("routing");
-    assertThat(routing.get("kind").asString()).isEqualTo("alias");
-    assertThat(summaryCard(getPage("/services/ws-test/" + web).getBody(), "routing"))
-        .contains("Alias");
-
-    listenOnLanAddress(port);
-
-    awaitRoutedTo(web, terminal);
-  }
-
-  @Test
-  void otherWorkstationsNeverUseThisWorkstationsAlias() {
-    String web = newServiceName("web");
-    passingRemoteService(web);
-    int port = newLanPort();
-    // Nothing listens on this port, so the Static Instance's check stays critical.
-    register(web, Map.of("port", port, "check", Map.of("interval", "1s")));
-    put(publicationPath(web), Map.of("scope", "yard"));
-    put(AliasesIT.aliasPath(web), Map.of("workstation", RemoteWorkstation.NAME, "service", web));
-
-    awaitRoutedTo(web, TEAMMATE);
-    remote.whileDashboardRunsWith(
-        () ->
-            awaitRoutedTo(
-                () -> remote.traefikConfiguration().get("http"),
-                web + "." + WORKSTATION + ".lvh.test",
-                lanAddress() + ":" + port),
-        "--lvh-yard.out-of-range.ranges=127.0.0.0/8,::1/128");
-  }
-
-  @Test
-  void yardScopedServiceIsRoutedWithItsHomeWorkstationsOrderOnEveryWorkstation() {
-    String web = newServiceName("web");
-    staticInstance(web);
-    String bound = boundInstance(web);
-
-    put(publicationPath(web), Map.of("scope", "yard", "priority", List.of("bound", "static")));
-
-    awaitRoutedTo(web, bound);
-    onRemoteThatReachesContainers(() -> awaitRoutedOnRemote(web, bound));
   }
 
   @Test

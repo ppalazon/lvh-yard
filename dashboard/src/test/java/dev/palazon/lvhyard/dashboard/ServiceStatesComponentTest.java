@@ -107,4 +107,29 @@ class ServiceStatesComponentTest extends DashboardComponentTest {
           assertThat(body.get("routing").get("kind").asString()).isEqualTo("static");
         });
   }
+
+  @Test
+  void outOfRangeDoesNotChangeTheStateOnAnotherWorkstation() {
+    String service = newServiceName("range");
+    String passing =
+        remote.register(service, Map.of("host", "10.9.8.7", "port", 8080)).get("id").asString();
+    remote.deregisterCheckInConsul(passing);
+    remote.register(service, Map.of("host", "127.0.0.1", "port", 1));
+    remote.publish(service, "yard");
+
+    await()
+        .atMost(Duration.ofSeconds(15))
+        .untilAsserted(() -> {
+          JsonNode seen = get("/api/services/" + RemoteWorkstation.NAME + "/" + service).getBody();
+          assertThat(
+                  seen.get("instances")
+                      .valueStream()
+                      .filter(instance -> instance.get("host").asString().equals("127.0.0.1"))
+                      .map(instance -> instance.get("outOfRange").asBoolean()))
+              .containsExactly(true);
+          assertThat(seen.get("state").asString()).isEqualTo("degraded");
+          assertThat(remote.service(service).getBody().get("state").asString())
+              .isEqualTo("degraded");
+        });
+  }
 }

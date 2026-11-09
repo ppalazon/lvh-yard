@@ -52,6 +52,9 @@ abstract class DashboardClient {
 
   @LocalServerPort int port;
 
+  /** The test Yard's other Workstation, whose Services are Remote Services here. */
+  @Autowired RemoteWorkstation remote;
+
   /** This dashboard's Docker in a component test. An integration test has the real Docker. */
   @Autowired(required = false)
   FakeDocker docker;

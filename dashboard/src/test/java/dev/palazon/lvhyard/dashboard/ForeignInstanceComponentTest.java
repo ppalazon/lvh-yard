@@ -2,45 +2,31 @@ package dev.palazon.lvhyard.dashboard;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.palazon.lvhyard.dashboard.consul.Consul.Registration;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.MediaType;
-import org.springframework.web.client.RestClient;
 import tools.jackson.databind.JsonNode;
 
 /** An Instance that another tool registered straight in Consul. */
-class ForeignInstanceIT extends DashboardIT {
+class ForeignInstanceComponentTest extends DashboardComponentTest {
 
   private String service;
   private String id;
-
-  private RestClient consul() {
-    return RestClient.create(
-        "http://"
-            + consulContainer.getHost()
-            + ":"
-            + consulContainer.getMappedPort(TestcontainersConfiguration.CONSUL_HTTP_PORT));
-  }
 
   @BeforeEach
   void registerStraightInConsul() {
     service = newServiceName("foreign");
     id = "foreign-" + UUID.randomUUID();
-    consul()
-        .put()
-        .uri("/v1/agent/service/register")
-        .contentType(MediaType.APPLICATION_JSON)
-        .body(Map.of("ID", id, "Name", service, "Address", "10.1.2.3", "Port", 8080))
-        .retrieve()
-        .toBodilessEntity();
+    consul.register(new Registration(id, service, "10.1.2.3", 8080, List.of(), Map.of(), null));
   }
 
   @AfterEach
   void deregister() {
-    consul().put().uri("/v1/agent/service/deregister/" + id).retrieve().toBodilessEntity();
+    consul.deregister(id);
   }
 
   @Test
@@ -87,10 +73,13 @@ class ForeignInstanceIT extends DashboardIT {
 
   @Test
   void backupDoesNotHoldIt() {
-    Map<String, Object> backup = BackupExportIT.yaml(getYaml(BackupExportIT.BACKUP_PATH).getBody());
+    Map<String, Object> backup =
+        BackupExportComponentTest.yaml(getYaml(BackupExportComponentTest.BACKUP_PATH).getBody());
 
     // The Backup names every Service, but an import must not register the Instance.
-    assertThat(BackupExportIT.map(BackupExportIT.map(backup.get("services")).get(service)))
+    assertThat(
+            BackupExportComponentTest.map(
+                BackupExportComponentTest.map(backup.get("services")).get(service)))
         .doesNotContainKey("static-instances");
   }
 }

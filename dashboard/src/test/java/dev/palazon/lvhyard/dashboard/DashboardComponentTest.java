@@ -6,6 +6,7 @@ import dev.palazon.lvhyard.dashboard.consul.FakeConsul;
 import dev.palazon.lvhyard.dashboard.consul.FakeConsul.Datacenter;
 import dev.palazon.lvhyard.dashboard.docker.FakeDocker;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,8 +54,20 @@ abstract class DashboardComponentTest extends DashboardClient {
       await().until(() -> !consul.values(null, "lvh-yard/first-setup").isEmpty());
       baseline = consul.snapshot();
     }
+    boolean wasPaused = remote.reset();
     consul.restore(baseline);
     TestcontainersConfiguration.empty(BACKUPS);
+    if (wasPaused) {
+      // The dashboard skips a Workstation that failed for a while: wait until it reads it again.
+      await()
+          .atMost(Duration.ofSeconds(30))
+          .until(() ->
+              get("/api/yard")
+                  .getBody()
+                  .get("remotes")
+                  .valueStream()
+                  .noneMatch(workstation -> workstation.get("unreachable").asBoolean()));
+    }
   }
 
   @Override
@@ -81,11 +94,6 @@ abstract class DashboardComponentTest extends DashboardClient {
     consul.answerHttp(lanAddress(), port, status, body);
   }
 
-  /** The other Workstation's datacenter in {@link FakeConsul}. */
-  Datacenter remoteDatacenter() {
-    return consul.datacenter(RemoteWorkstation.NAME);
-  }
-
   @TestConfiguration(proxyBeanMethods = false)
   static class Fakes {
 
@@ -95,8 +103,6 @@ abstract class DashboardComponentTest extends DashboardClient {
       FakeConsul consul = new FakeConsul(DashboardClient.WORKSTATION);
       // A running fake container accepts connections, so its Bound Instance passes.
       consul.alsoListening((host, port) -> docker.listensAt(host, port, FakeConsul.LAN_ADDRESS));
-      // The Yard has a second Workstation, as the real test Yard has.
-      consul.datacenter(RemoteWorkstation.NAME);
       return consul;
     }
 
@@ -104,6 +110,12 @@ abstract class DashboardComponentTest extends DashboardClient {
     @Primary
     FakeDocker fakeDocker() {
       return new FakeDocker();
+    }
+
+    /** The other Workstation: its own dashboard, on the same fakes. */
+    @Bean(destroyMethod = "close")
+    RemoteWorkstation remoteWorkstation(FakeConsul consul, FakeDocker docker) {
+      return new RemoteWorkstation(consul, docker);
     }
 
     @Bean

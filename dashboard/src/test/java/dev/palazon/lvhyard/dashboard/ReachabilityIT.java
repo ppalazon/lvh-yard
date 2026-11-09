@@ -196,7 +196,7 @@ class ReachabilityIT extends DashboardIT {
     remote.publish(grafana, "yard");
     String alias = newServiceName("graf");
     put(
-        AliasesIT.aliasPath(alias),
+        AliasesComponentTest.aliasPath(alias),
         Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
 
     JsonNode result = get(reachabilityPath(RemoteWorkstation.NAME, grafana)).getBody();

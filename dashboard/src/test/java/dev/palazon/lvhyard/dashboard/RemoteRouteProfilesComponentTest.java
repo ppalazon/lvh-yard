@@ -14,7 +14,7 @@ import tools.jackson.databind.json.JsonMapper;
  * Route Profiles of a Service published to the Yard by {@value RemoteWorkstation#NAME}, as the test
  * Workstation routes it: on the Service's remote hostname, on an Alias, and on its page.
  */
-class RemoteRouteProfilesIT extends DashboardIT {
+class RemoteRouteProfilesComponentTest extends DashboardComponentTest {
 
   private static final JsonMapper JSON = new JsonMapper();
 
@@ -30,6 +30,30 @@ class RemoteRouteProfilesIT extends DashboardIT {
   void removeTheProfiles() throws Exception {
     remote.removeAllRouteProfiles();
     removeAllRouteProfiles();
+  }
+
+  /**
+   * A Service of {@value RemoteWorkstation#NAME} with an Instance, published to the Yard with
+   * {@code profiles}. Waits until the test Workstation routes it.
+   */
+  private String sharedRemoteServiceWithProfiles(String prefix, List<String> profiles) {
+    String service = newServiceName(prefix);
+    remote.register(service, Map.of("host", "10.9.8.7", "port", 3000));
+    remote.publish(service, Map.of("scope", "yard", "profiles", profiles));
+    await()
+        .untilAsserted(() ->
+            assertThat(
+                    get("/traefik/configuration")
+                        .getBody()
+                        .get("http")
+                        .get("routers")
+                        .has(service + "." + RemoteWorkstation.NAME))
+                .isTrue());
+    return service;
+  }
+
+  private static org.awaitility.core.ConditionFactory await() {
+    return org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(10));
   }
 
   @Test
@@ -78,7 +102,7 @@ class RemoteRouteProfilesIT extends DashboardIT {
     String alias = newServiceName("alias");
 
     put(
-        AliasesIT.aliasPath(alias),
+        AliasesComponentTest.aliasPath(alias),
         Map.of("workstation", RemoteWorkstation.NAME, "service", admin));
 
     JsonNode http = get("/traefik/configuration").getBody().get("http");
@@ -108,7 +132,7 @@ class RemoteRouteProfilesIT extends DashboardIT {
     String admin = sharedRemoteServiceWithProfiles("admin", List.of("team-login"));
     String alias = newServiceName("alias");
     put(
-        AliasesIT.aliasPath(alias),
+        AliasesComponentTest.aliasPath(alias),
         Map.of("workstation", RemoteWorkstation.NAME, "service", admin));
     String chained = sharedRemoteServiceWithProfiles("chained", List.of("protected"));
 
@@ -164,29 +188,5 @@ class RemoteRouteProfilesIT extends DashboardIT {
     assertThat(JSON.readTree(remote.consulValue(chainKey)))
         .isEqualTo(
             JSON.readTree("{\"chain\": {\"middlewares\": [\"office-only\", \"team-login\"]}}"));
-  }
-
-  /**
-   * A Service of {@value RemoteWorkstation#NAME} with an Instance, published to the Yard with
-   * {@code profiles}. Waits until the test Workstation routes it.
-   */
-  private String sharedRemoteServiceWithProfiles(String prefix, List<String> profiles) {
-    String service = newServiceName(prefix);
-    remote.register(service, Map.of("host", "10.9.8.7", "port", 3000));
-    remote.publish(service, Map.of("scope", "yard", "profiles", profiles));
-    await()
-        .untilAsserted(() ->
-            assertThat(
-                    get("/traefik/configuration")
-                        .getBody()
-                        .get("http")
-                        .get("routers")
-                        .has(service + "." + RemoteWorkstation.NAME))
-                .isTrue());
-    return service;
-  }
-
-  private static org.awaitility.core.ConditionFactory await() {
-    return org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(10));
   }
 }

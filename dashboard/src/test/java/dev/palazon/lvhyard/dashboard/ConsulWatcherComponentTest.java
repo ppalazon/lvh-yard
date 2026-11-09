@@ -1,5 +1,6 @@
 package dev.palazon.lvhyard.dashboard;
 
+import static dev.palazon.lvhyard.dashboard.events.EventBroadcaster.YARD_CHANGED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -161,6 +162,33 @@ class ConsulWatcherComponentTest extends DashboardComponentTest {
       assertThat(recovered.get()).isFalse();
     } finally {
       watcher.stop();
+    }
+  }
+
+  @Test
+  void wanPoolMembershipChangeEmitsYardChangedAndUpdatesCatalogAndServicePages() throws Exception {
+    String service = newServiceName("watcher-wan");
+    register(service, Map.of("host", "10.1.2.3", "port", 8080));
+
+    // Verify Catalog and Service pages include HTMX SSE trigger for yard-changed
+    String catalogPage = getPage("/").getBody();
+    assertThat(openingTag(catalogPage, "id=\"catalog\""))
+        .contains("hx-trigger=\"" + YARD_CHANGED + " from:body, every 30s\"");
+
+    String servicePage = getPage("/services/ws-test/" + service).getBody();
+    assertThat(openingTag(servicePage, "id=\"service\""))
+        .contains("hx-trigger=\"" + YARD_CHANGED + " from:body, every 30s\"");
+
+    try (EventStreamClient client = new EventStreamClient(port)) {
+      // Trigger WAN pool membership change by force-leaving remote WAN member
+      remote.stopAnswering();
+
+      await()
+          .atMost(Duration.ofSeconds(15))
+          .until(() -> client.lines.contains("event:" + YARD_CHANGED));
+    } finally {
+      // Reconnect WAN member so subsequent tests remain federated
+      remote.answerAgain();
     }
   }
 }

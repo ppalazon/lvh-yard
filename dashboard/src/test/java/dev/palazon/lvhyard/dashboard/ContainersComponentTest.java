@@ -920,4 +920,26 @@ class ContainersComponentTest extends DashboardComponentTest {
     assertThat(openingTag(responseBody, "name=\"container\"")).contains("value=\"" + name + "\"");
     assertThat(openingTag(responseBody, "name=\"name\"")).contains("value=\"my-input-preserved\"");
   }
+
+  @Test
+  void dockerThatCannotBeReadIsAProblemThatSaysWhy() {
+    remote.whileDashboardRunsWith(
+        () -> {
+          ResponseEntity<JsonNode> response = remote.get(PATH);
+          assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+          assertThat(response.getBody().get("detail").asString())
+              .contains("No Docker socket at /nowhere/docker.sock");
+        },
+        "--lvh-yard.docker.host=unix:///nowhere/docker.sock");
+  }
+
+  @Test
+  void pageSaysWhyItCannotReadDocker() {
+    remote.whileDashboardRunsWith(
+        () ->
+            assertThat(remote.page("/containers"))
+                .contains("id=\"containers\"")
+                .contains("No Docker socket at /nowhere/docker.sock"),
+        "--lvh-yard.docker.host=unix:///nowhere/docker.sock");
+  }
 }

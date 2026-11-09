@@ -50,9 +50,6 @@ abstract class DashboardIT extends DashboardClient {
 
   @Autowired GenericContainer<?> consulContainer;
 
-  /** The test Yard's other Workstation, whose Services are Remote Services here. */
-  @Autowired RemoteWorkstation remote;
-
   @Autowired Network yardNetwork;
 
   /** The containers this test started, removed after it. */

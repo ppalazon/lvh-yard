@@ -2,16 +2,21 @@ package dev.palazon.lvhyard.dashboard;
 
 import static org.awaitility.Awaitility.await;
 
+import dev.palazon.lvhyard.dashboard.consul.Consul.Registration;
+import dev.palazon.lvhyard.dashboard.consul.FakeConsul;
+import dev.palazon.lvhyard.dashboard.docker.FakeDocker;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.TypeExcludeFilter;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.core.type.classreading.MetadataReader;
 import org.springframework.core.type.classreading.MetadataReaderFactory;
 import org.springframework.http.HttpStatus;
@@ -45,7 +50,14 @@ final class RemoteWorkstation implements AutoCloseable {
   /** How long a dashboard may take to do its first setup after it started. */
   private static final Duration FIRST_SETUP_WAIT = Duration.ofSeconds(30);
 
+  /** Its real Consul, or null when it runs on {@link #fake}. */
   private final GenericContainer<?> consul;
+
+  /** Its Consul in a component test, federated with the test Workstation's; else null. */
+  private final FakeConsul fake;
+
+  /** The Docker that both Workstations share in a component test; else null. */
+  private final FakeDocker fakeDocker;
 
   private ConfigurableApplicationContext dashboard;
 
@@ -54,7 +66,7 @@ final class RemoteWorkstation implements AutoCloseable {
   /** Whether this Workstation's Consul answers, as {@link #stopAnswering} leaves it. */
   private boolean answering = true;
 
-  /** Its Consul just after the first setup, which {@link #reset} puts back. */
+  /** Its real Consul just after the first setup, which {@link #reset} puts back. */
   private final ConsulBaseline baseline;
 
   /**
@@ -68,9 +80,24 @@ final class RemoteWorkstation implements AutoCloseable {
             .withCommand(
                 TestcontainersConfiguration.consulCommand(NAME, "-retry-join-wan=" + peer));
     consul.start();
+    fake = null;
+    fakeDocker = null;
     startDashboard();
     awaitFirstSetup(consulHttp());
     baseline = ConsulBaseline.of(consulHttp());
+  }
+
+  /**
+   * Starts its dashboard on the datacenter {@value #NAME} of {@code yard}, the test Workstation's
+   * FakeConsul, and on {@code docker}, the Docker that both Workstations share.
+   */
+  RemoteWorkstation(FakeConsul yard, FakeDocker docker) {
+    consul = null;
+    fake = yard.as(NAME);
+    fakeDocker = docker;
+    baseline = null;
+    startDashboard();
+    awaitOwnFirstSetup();
   }
 
   /**
@@ -83,7 +110,10 @@ final class RemoteWorkstation implements AutoCloseable {
     if (wasPaused) {
       answerAgain();
     }
-    baseline.restore(consulHttp());
+    if (fake == null) {
+      // A component test puts the whole FakeConsul back, this datacenter too.
+      baseline.restore(consulHttp());
+    }
     TestcontainersConfiguration.empty(BACKUPS);
     return wasPaused;
   }
@@ -108,7 +138,7 @@ final class RemoteWorkstation implements AutoCloseable {
     } finally {
       startDashboard(settings);
       if (answering) {
-        awaitFirstSetup(consulHttp());
+        awaitOwnFirstSetup();
       }
     }
   }
@@ -138,9 +168,19 @@ final class RemoteWorkstation implements AutoCloseable {
         .until(() -> consulValue(consul, FIRST_SETUP), value -> value != null);
   }
 
+  private void awaitOwnFirstSetup() {
+    if (fake == null) {
+      awaitFirstSetup(consulHttp());
+    } else {
+      await()
+          .atMost(FIRST_SETUP_WAIT)
+          .until(() -> fake.values(null, FIRST_SETUP).containsKey(FIRST_SETUP));
+    }
+  }
+
   /** The value at {@code key} in this Workstation's Consul KV, straight from Consul, or null. */
   String consulValue(String key) {
-    return consulValue(consulHttp(), key);
+    return fake == null ? consulValue(consulHttp(), key) : fake.values(null, key).get(key);
   }
 
   private static String consulValue(RestClient consul, String key) {
@@ -155,6 +195,9 @@ final class RemoteWorkstation implements AutoCloseable {
 
   /** Consul's index of the last write to {@code key} in this Workstation's Consul KV. */
   long consulModifyIndex(String key) {
+    if (fake != null) {
+      return fake.modifyIndex(key);
+    }
     JsonNode entries = consulHttp().get().uri("/v1/kv/" + key).retrieve().body(JsonNode.class);
     return entries.get(0).get("ModifyIndex").asLong();
   }
@@ -166,17 +209,24 @@ final class RemoteWorkstation implements AutoCloseable {
 
   /** The port this Workstation's Consul answers on, as its dashboard reaches it. */
   int consulPort() {
+    if (fake != null) {
+      throw new UnsupportedOperationException("A fake Consul has no port");
+    }
     return consul.getMappedPort(TestcontainersConfiguration.CONSUL_HTTP_PORT);
   }
 
   private void startDashboard(String... settings) {
+    String consulUrl =
+        fake == null ? "http://" + consul.getHost() + ":" + consulPort() : "http://127.0.0.1:1";
+    String dockerHost =
+        fake == null ? TestcontainersConfiguration.dockerHost() : "unix:///fake/docker.sock";
     String[] usual = {
       "--server.port=0",
       "--spring.main.banner-mode=off",
       "--lvh-yard.workstation.name=" + NAME,
       "--lvh-yard.workstation.base-domain=" + DashboardIT.BASE_DOMAIN,
-      "--lvh-yard.docker.host=" + TestcontainersConfiguration.dockerHost(),
-      "--lvh-yard.consul.url=http://" + consul.getHost() + ":" + consulPort(),
+      "--lvh-yard.docker.host=" + dockerHost,
+      "--lvh-yard.consul.url=" + consulUrl,
       "--lvh-yard.backups.path=" + BACKUPS,
       "--lvh-yard.bound-instances.check-interval=1s",
       // Its real Peer is a name only the Docker network resolves. Not the Peers of a developer's
@@ -195,11 +245,26 @@ final class RemoteWorkstation implements AutoCloseable {
             .toArray(String[]::new);
     dashboard =
         new SpringApplicationBuilder(DashboardApplication.class)
-            .initializers(context ->
-                context
-                    .getBeanFactory()
-                    .registerSingleton(
-                        SkipTestConfigurations.class.getName(), new SkipTestConfigurations()))
+            .initializers(context -> {
+              context
+                  .getBeanFactory()
+                  .registerSingleton(
+                      SkipTestConfigurations.class.getName(), new SkipTestConfigurations());
+              if (fake != null) {
+                GenericApplicationContext beans = (GenericApplicationContext) context;
+                beans.registerBean(
+                    "fakeConsul", FakeConsul.class, () -> fake, bean -> bean.setPrimary(true));
+                // A test that names a Docker host wants how the dashboard fails on that socket.
+                if (Arrays.stream(settings)
+                    .noneMatch(setting -> setting.startsWith("--lvh-yard.docker.host="))) {
+                  beans.registerBean(
+                      "fakeDocker",
+                      FakeDocker.class,
+                      () -> fakeDocker,
+                      bean -> bean.setPrimary(true));
+                }
+              }
+            })
             // Arguments, which win over the .env a developer may have at the repository root.
             .run(arguments);
     http =
@@ -327,6 +392,10 @@ final class RemoteWorkstation implements AutoCloseable {
    * test can store what its dashboard would refuse.
    */
   void putConsulValue(String key, String value) {
+    if (fake != null) {
+      fake.putValue(key, value);
+      return;
+    }
     consulHttp()
         .put()
         .uri("/v1/kv/" + key)
@@ -341,6 +410,10 @@ final class RemoteWorkstation implements AutoCloseable {
    * Consul agent, straight to Consul, so the test can write it while the dashboard is stopped.
    */
   void registerInConsul(String id, String service, String host, int port) {
+    if (fake != null) {
+      fake.register(new Registration(id, service, host, port, List.of(), Map.of(), null));
+      return;
+    }
     consulHttp()
         .put()
         .uri("/v1/agent/service/register")
@@ -355,6 +428,10 @@ final class RemoteWorkstation implements AutoCloseable {
    * so the test can remove it while the dashboard is stopped.
    */
   void deregisterInConsul(String id) {
+    if (fake != null) {
+      fake.deregister(id);
+      return;
+    }
     consulHttp().put().uri("/v1/agent/service/deregister/" + id).retrieve().toBodilessEntity();
   }
 
@@ -364,6 +441,10 @@ final class RemoteWorkstation implements AutoCloseable {
    * {@code service:<id>}.
    */
   void deregisterCheckInConsul(String id) {
+    if (fake != null) {
+      fake.removeCheck(id);
+      return;
+    }
     consulHttp()
         .put()
         .uri("/v1/agent/check/deregister/service:" + id)
@@ -386,6 +467,10 @@ final class RemoteWorkstation implements AutoCloseable {
 
   /** Removes every Route Profile of this Workstation straight from Consul, Publications or not. */
   void removeAllRouteProfiles() {
+    if (fake != null) {
+      fake.values(null, "lvh-yard/route-profiles/").keySet().forEach(fake::deleteValue);
+      return;
+    }
     consulHttp()
         .delete()
         .uri("/v1/kv/lvh-yard/route-profiles/?recurse")
@@ -395,6 +480,10 @@ final class RemoteWorkstation implements AutoCloseable {
 
   /** Removes {@code key} from this Workstation's Consul KV, straight from Consul. */
   void deleteConsulValue(String key) {
+    if (fake != null) {
+      fake.deleteValue(key);
+      return;
+    }
     consulHttp().delete().uri("/v1/kv/" + key).retrieve().toBodilessEntity();
   }
 
@@ -413,12 +502,22 @@ final class RemoteWorkstation implements AutoCloseable {
    * answered.
    */
   void stopAnswering() {
+    if (fake != null) {
+      answering = false;
+      fake.datacenter(NAME).stopAnswering();
+      return;
+    }
     answering = false;
     DockerClientFactory.instance().client().pauseContainerCmd(consul.getContainerId()).exec();
   }
 
   /** Lets this Workstation's Consul answer again, where {@link #stopAnswering} left it. */
   void answerAgain() {
+    if (fake != null) {
+      fake.datacenter(NAME).answerAgain();
+      answering = true;
+      return;
+    }
     DockerClientFactory.instance().client().unpauseContainerCmd(consul.getContainerId()).exec();
     answering = true;
   }
@@ -426,7 +525,9 @@ final class RemoteWorkstation implements AutoCloseable {
   @Override
   public void close() {
     dashboard.close();
-    consul.stop();
+    if (consul != null) {
+      consul.stop();
+    }
   }
 
   /**

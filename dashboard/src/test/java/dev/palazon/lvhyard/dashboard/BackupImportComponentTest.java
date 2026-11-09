@@ -1,7 +1,7 @@
 package dev.palazon.lvhyard.dashboard;
 
-import static dev.palazon.lvhyard.dashboard.BackupExportIT.map;
-import static dev.palazon.lvhyard.dashboard.BackupExportIT.yaml;
+import static dev.palazon.lvhyard.dashboard.BackupExportComponentTest.map;
+import static dev.palazon.lvhyard.dashboard.BackupExportComponentTest.yaml;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
@@ -18,7 +18,7 @@ import tools.jackson.databind.JsonNode;
 /** An import in add mode: it adds what is new and skips what exists. */
 class BackupImportComponentTest extends DashboardComponentTest {
 
-  static final String IMPORT_PATH = BackupExportIT.BACKUP_PATH + "?mode=add";
+  static final String IMPORT_PATH = BackupExportComponentTest.BACKUP_PATH + "?mode=add";
 
   ResponseEntity<JsonNode> importBackup(String backup) {
     return postYaml(IMPORT_PATH, backup);
@@ -438,7 +438,7 @@ class BackupImportComponentTest extends DashboardComponentTest {
   @Test
   void unknownModeIsRefused() {
     ResponseEntity<JsonNode> response =
-        postYaml(BackupExportIT.BACKUP_PATH + "?mode=merge", "version: 1\n");
+        postYaml(BackupExportComponentTest.BACKUP_PATH + "?mode=merge", "version: 1\n");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody().get("detail").asString()).contains("merge");
@@ -502,5 +502,113 @@ class BackupImportComponentTest extends DashboardComponentTest {
                 .formatted(dash));
 
     assertThat(problems(response)).containsExactly("aliases." + dash + ".workstation");
+  }
+
+  @Test
+  void aliasIsAddedAndAnExistingOneIsSkipped() {
+    String grafana = newServiceName("grafana");
+    remote.register(grafana, Map.of("host", "10.9.8.7", "port", 3000));
+    remote.publish(grafana, "yard");
+    String dash = newServiceName("dash");
+    String board = newServiceName("board");
+    put(
+        "/api/workstation/aliases/" + dash,
+        Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
+
+    ResponseEntity<JsonNode> response =
+        importBackup(
+            """
+            version: 1
+            aliases:
+              %s:
+                workstation: %s
+                service: %s
+              %s:
+                workstation: %s
+                service: %s
+            """
+                .formatted(
+                    dash, RemoteWorkstation.NAME, grafana, board, RemoteWorkstation.NAME, grafana));
+
+    assertThat(entries(response))
+        .containsExactly("skip alias " + dash + ": It is the same already.", "add alias " + board);
+    assertThat(get("/api/workstation/aliases").getBody().findValuesAsString("name"))
+        .contains(dash, board);
+  }
+
+  @Test
+  void backupFromTheRemoteWorkstationAddsItsServicesHere() {
+    String grafana = newServiceName("grafana");
+    remote.register(grafana, Map.of("port", 3000));
+    remote.publish(grafana, "yard");
+
+    ResponseEntity<JsonNode> response = importBackup(only(remote.backup(), Set.of(grafana)));
+
+    assertThat(response.getBody().get("exportedFrom").get("workstation").asString())
+        .isEqualTo(RemoteWorkstation.NAME);
+    assertThat(entries(response))
+        .containsExactly(
+            "add service " + grafana,
+            "add static-instance " + lanAddress() + ":3000 of " + grafana,
+            "add publication " + grafana);
+    JsonNode service = get(servicePath(grafana)).getBody();
+    assertThat(service.get("workstation").asString()).isEqualTo(WORKSTATION);
+    assertThat(service.get("instances").get(0).get("host").asString()).isEqualTo(lanAddress());
+    assertThat(service.get("publication").get("scope").asString()).isEqualTo("yard");
+  }
+
+  @Test
+  void roundTripGivesTheSameBackup() {
+    String compress = newServiceName("compress");
+    putRouteProfiles(Map.of(compress, Map.of("compress", Map.of())));
+    String grafana = newServiceName("grafana");
+    String grafanaId =
+        register(
+                grafana,
+                Map.of(
+                    "port",
+                    3000,
+                    "check",
+                    Map.of("path", "/health", "interval", "5s"),
+                    "tags",
+                    List.of("blue"),
+                    "meta",
+                    Map.of("team", "core")))
+            .get("id")
+            .asString();
+    put(
+        publicationPath(grafana),
+        Map.of("scope", "yard", "priority", List.of("static"), "profiles", List.of(compress)));
+    String web = newServiceName("web");
+    String webBinding = bindCompose(web, "shop", web, 8080).get("id").asString();
+    String docs = newServiceName("docs");
+    String docsId = register(docs, Map.of("host", "10.1.2.3", "port", 80)).get("id").asString();
+    publish(docs);
+    delete(instancesPath(docs) + "/" + docsId);
+    String remoteGrafana = newServiceName("grafana");
+    remote.register(remoteGrafana, Map.of("host", "10.9.8.7", "port", 3000));
+    remote.publish(remoteGrafana, "yard");
+    String dash = newServiceName("dash");
+    put(
+        "/api/workstation/aliases/" + dash,
+        Map.of("workstation", RemoteWorkstation.NAME, "service", remoteGrafana));
+    Set<String> names = Set.of(compress, grafana, web, docs, dash);
+    String before = only(getYaml(BackupExportComponentTest.BACKUP_PATH).getBody(), names);
+    delete(publicationPath(grafana));
+    delete(instancesPath(grafana) + "/" + grafanaId);
+    delete(containerBindingsPath(web) + "/" + webBinding);
+    delete(publicationPath(docs));
+    delete("/api/workstation/aliases/" + dash);
+    delete(ROUTE_PROFILES_PATH + "/" + compress);
+    assertThat(yaml(only(getYaml(BackupExportComponentTest.BACKUP_PATH).getBody(), names)))
+        .containsEntry("services", Map.of())
+        .containsEntry("aliases", Map.of())
+        .containsEntry("route-profiles", Map.of());
+
+    ResponseEntity<JsonNode> response = importBackup(before);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    String after = only(getYaml(BackupExportComponentTest.BACKUP_PATH).getBody(), names);
+    assertThat(withoutExportedFrom(after)).isEqualTo(withoutExportedFrom(before));
   }
 }

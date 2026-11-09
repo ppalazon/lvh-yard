@@ -323,4 +323,16 @@ class PublicationsComponentTest extends DashboardComponentTest {
 
     assertThat(accessLog(get(servicePath(web)).getBody())).isTrue();
   }
+
+  @Test
+  void publicationWrittenBeforeInstancePriorityUsesTheDefaultOrder() {
+    String api = newServiceName("api");
+    remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
+    // A Publication as LVH Yard stored it before Instance Priority: its Scope alone.
+    remote.putConsulValue("lvh-yard/publications/" + api, "yard");
+
+    assertThat(priority(remote.service(api).getBody())).containsExactly("static", "bound", "alias");
+    assertThat(priority(get("/api/services/" + RemoteWorkstation.NAME + "/" + api).getBody()))
+        .containsExactly("static", "bound", "alias");
+  }
 }
