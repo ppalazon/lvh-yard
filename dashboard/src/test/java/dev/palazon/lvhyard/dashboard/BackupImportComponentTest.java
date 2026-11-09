@@ -562,25 +562,22 @@ class BackupImportComponentTest extends DashboardComponentTest {
     String compress = newServiceName("compress");
     putRouteProfiles(Map.of(compress, Map.of("compress", Map.of())));
     String grafana = newServiceName("grafana");
-    String grafanaId =
-        register(
-                grafana,
-                Map.of(
-                    "port",
-                    3000,
-                    "check",
-                    Map.of("path", "/health", "interval", "5s"),
-                    "tags",
-                    List.of("blue"),
-                    "meta",
-                    Map.of("team", "core")))
-            .get("id")
-            .asString();
+    register(
+        grafana,
+        Map.of(
+            "port",
+            3000,
+            "check",
+            Map.of("path", "/health", "interval", "5s"),
+            "tags",
+            List.of("blue"),
+            "meta",
+            Map.of("team", "core")));
     put(
         publicationPath(grafana),
         Map.of("scope", "yard", "priority", List.of("static"), "profiles", List.of(compress)));
     String web = newServiceName("web");
-    String webBinding = bindCompose(web, "shop", web, 8080).get("id").asString();
+    bindCompose(web, "shop", web, 8080);
     String docs = newServiceName("docs");
     String docsId = register(docs, Map.of("host", "10.1.2.3", "port", 80)).get("id").asString();
     publish(docs);
@@ -594,10 +591,9 @@ class BackupImportComponentTest extends DashboardComponentTest {
         Map.of("workstation", RemoteWorkstation.NAME, "service", remoteGrafana));
     Set<String> names = Set.of(compress, grafana, web, docs, dash);
     String before = only(getYaml(BackupExportComponentTest.BACKUP_PATH).getBody(), names);
-    delete(publicationPath(grafana));
-    delete(instancesPath(grafana) + "/" + grafanaId);
-    delete(containerBindingsPath(web) + "/" + webBinding);
-    delete(publicationPath(docs));
+    delete(servicePath(grafana));
+    delete(servicePath(web));
+    delete(servicePath(docs));
     delete("/api/workstation/aliases/" + dash);
     delete(ROUTE_PROFILES_PATH + "/" + compress);
     assertThat(yaml(only(getYaml(BackupExportComponentTest.BACKUP_PATH).getBody(), names)))

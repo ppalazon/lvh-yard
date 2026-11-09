@@ -21,8 +21,6 @@ public class ContainerRegistration {
 
   private final Workstation workstation;
 
-  private final Publications publications;
-
   private final YardReader yard;
 
   ContainerRegistration(
@@ -30,13 +28,11 @@ public class ContainerRegistration {
       DockerFailures failures,
       ContainerBindings bindings,
       Workstation workstation,
-      Publications publications,
       YardReader yard) {
     this.docker = docker;
     this.failures = failures;
     this.bindings = bindings;
     this.workstation = workstation;
-    this.publications = publications;
     this.yard = yard;
   }
 
@@ -128,8 +124,7 @@ public class ContainerRegistration {
         request.service() == null || request.service().isBlank()
             ? proposed
             : request.service().strip();
-    publications.addPublishingNew(
-        service, request.publish(), () -> bindings.add(workstation.name(), service, binding));
+    bindings.add(workstation.name(), service, binding);
     return yard.service(workstation.name(), service).orElseThrow();
   }
 

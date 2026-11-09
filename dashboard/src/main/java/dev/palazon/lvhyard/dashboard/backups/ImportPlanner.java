@@ -26,6 +26,7 @@ import dev.palazon.lvhyard.dashboard.services.PublicationRequest;
 import dev.palazon.lvhyard.dashboard.services.Publications;
 import dev.palazon.lvhyard.dashboard.services.Registrations;
 import dev.palazon.lvhyard.dashboard.services.Scope;
+import dev.palazon.lvhyard.dashboard.services.Services;
 import dev.palazon.lvhyard.dashboard.services.StaticInstanceRequest;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -58,6 +59,8 @@ class ImportPlanner {
 
   private final Publications publications;
 
+  private final Services services;
+
   private final Aliases aliases;
 
   private final RouteProfiles routeProfiles;
@@ -72,6 +75,7 @@ class ImportPlanner {
       Registrations registrations,
       ContainerBindings containerBindings,
       Publications publications,
+      Services services,
       Aliases aliases,
       RouteProfiles routeProfiles,
       RouteProfileChecks routeProfileChecks,
@@ -81,6 +85,7 @@ class ImportPlanner {
     this.registrations = registrations;
     this.containerBindings = containerBindings;
     this.publications = publications;
+    this.services = services;
     this.aliases = aliases;
     this.routeProfiles = routeProfiles;
     this.routeProfileChecks = routeProfileChecks;
@@ -114,6 +119,8 @@ class ImportPlanner {
 
     private final List<Step> profileSteps = new ArrayList<>();
 
+    private final List<Step> serviceSteps = new ArrayList<>();
+
     private final List<Step> instanceSteps = new ArrayList<>();
 
     private final List<Step> publicationSteps = new ArrayList<>();
@@ -136,6 +143,7 @@ class ImportPlanner {
         throw new RefusedBackupException(problems);
       }
       List<Step> steps = new ArrayList<>(profileSteps);
+      steps.addAll(serviceSteps);
       steps.addAll(instanceSteps);
       steps.addAll(publicationSteps);
       steps.addAll(aliasSteps);
@@ -222,6 +230,9 @@ class ImportPlanner {
                 name,
                 null,
                 "It has no Static Instance, Container Binding or Publication to add."));
+      } else if (existing == null) {
+        serviceSteps.add(
+            new Step(List.of(serviceEntry), () -> services.create(workstation.name(), name)));
       }
     }
 
@@ -241,8 +252,7 @@ class ImportPlanner {
                     instance.port(),
                     instance.check(),
                     instance.tags(),
-                    instance.meta(),
-                    false));
+                    instance.meta()));
       } catch (InvalidRegistrationException e) {
         problem(place + staticInstanceField(e.field()), e.getMessage());
         return;
@@ -418,7 +428,7 @@ class ImportPlanner {
           new PublicationRequest(scope, priority, published.routeProfiles(), published.accessLog());
       publicationSteps.add(
           new Step(
-              List.of(entry), () -> publications.restore(workstation.name(), service, request)));
+              List.of(entry), () -> publications.publish(workstation.name(), service, request)));
     }
 
     private void alias(String name, Alias alias) {

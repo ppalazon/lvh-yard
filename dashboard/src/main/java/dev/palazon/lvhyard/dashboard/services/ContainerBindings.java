@@ -72,11 +72,13 @@ public class ContainerBindings {
    * @return the Binding's ID
    * @throws FollowedContainerException when a Binding of this Workstation already names the same
    *     container, or the same Compose project and service, whatever its port
+   * @throws UnknownServiceException when you have not created the Service
    */
   public String add(String workstation, String service, ContainerBindingRequest request) {
     checkHome(workstation);
     Registrations.checkName(service);
     ContainerBindingRequest binding = checked(request);
+    registrations.checkCreated(service);
     following(all(null), other -> sameTarget(binding, other))
         .ifPresent(following -> {
           throw new FollowedContainerException(
@@ -189,6 +191,14 @@ public class ContainerBindings {
     }
     consul.deleteValue(key);
     registrations.removeBoundInstances(service, id);
+  }
+
+  /** Removes every Binding of {@code service} on this Workstation, with its Bound Instances. */
+  void removeAll(String service) {
+    all(null)
+        .getOrDefault(service, Map.of())
+        .keySet()
+        .forEach(id -> remove(workstation.name(), service, id));
   }
 
   /** {@code null} reads this Workstation's own. Each Service's Bindings come by ID. */

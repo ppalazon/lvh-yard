@@ -16,6 +16,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
@@ -55,6 +56,8 @@ public class YardReader {
 
   private final Consul consul;
 
+  private final ServiceRecords records;
+
   private final Publications publications;
 
   private final ContainerBindings containerBindings;
@@ -76,6 +79,7 @@ public class YardReader {
   YardReader(
       Workstation workstation,
       Consul consul,
+      ServiceRecords records,
       Publications publications,
       ContainerBindings containerBindings,
       OutOfRange outOfRange,
@@ -84,6 +88,7 @@ public class YardReader {
       ConsulSettings consulSettings) {
     this.workstation = workstation;
     this.consul = consul;
+    this.records = records;
     this.publications = publications;
     this.containerBindings = containerBindings;
     this.outOfRange = outOfRange;
@@ -157,7 +162,7 @@ public class YardReader {
     return this.workstation.is(workstation) ? withAliases(services, this::aliasTarget) : services;
   }
 
-  /** While it has an Instance, a Container Binding or a Publication. */
+  /** While you created it, or an Instance gives it. */
   public Optional<Service> service(String workstation, String name) {
     checkInYard(workstation);
     Optional<Service> service =
@@ -168,6 +173,7 @@ public class YardReader {
                     workstation,
                     datacenter,
                     name,
+                    records.all(datacenter).containsKey(name),
                     publications.all(datacenter).get(name),
                     containerBindings.all(datacenter).getOrDefault(name, Map.of()),
                     routeProfiles.stored(datacenter)));
@@ -239,19 +245,20 @@ public class YardReader {
     return reading(
         workstation,
         datacenter -> {
+          Set<String> created = records.all(datacenter).keySet();
           Map<String, Publication> published = publications.all(datacenter);
           Map<String, Map<String, ContainerBindingRequest>> bindings =
               containerBindings.all(datacenter);
           Map<String, RouteProfileDefinition> profiles = routeProfiles.stored(datacenter);
           TreeSet<String> names = new TreeSet<>(consul.serviceNames(datacenter));
-          names.addAll(published.keySet());
-          names.addAll(bindings.keySet());
+          names.addAll(created);
           return names.stream()
               .flatMap(name ->
                   service(
                       workstation,
                       datacenter,
                       name,
+                      created.contains(name),
                       published.get(name),
                       bindings.getOrDefault(name, Map.of()),
                       profiles)
@@ -281,6 +288,7 @@ public class YardReader {
       String home,
       String datacenter,
       String name,
+      boolean created,
       Publication publication,
       Map<String, ContainerBindingRequest> bindings,
       Map<String, RouteProfileDefinition> profiles) {
@@ -290,7 +298,7 @@ public class YardReader {
             .map(entry -> instance(entry, !workstation.is(home)))
             .sorted(BY_ADDRESS)
             .toList();
-    if (instances.isEmpty() && publication == null && bindings.isEmpty()) {
+    if (instances.isEmpty() && !created) {
       return Optional.empty();
     }
     List<ContainerBinding> containerBindings =
@@ -308,6 +316,7 @@ public class YardReader {
         new Service(
             home,
             name,
+            created,
             publication,
             hostname(home, name, publication),
             instances,

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -113,6 +114,29 @@ class OpenApiComponentTest extends DashboardComponentTest {
     String registerPath = "/api/workstation/containers/{container}/register";
     assertThat(answersWithProblem(paths, registerPath, "post", "400")).isTrue();
     assertThat(answersWithProblem(paths, registerPath, "post", "503")).isTrue();
+  }
+
+  @Test
+  void servicesAreCreatedAndDeleted() {
+    JsonNode paths = get("/v3/api-docs").getBody().get("paths");
+    String services = "/api/workstation/services";
+    String service = services + "/{service}";
+
+    assertThat(paths.path(services).path("post").path("operationId").asString())
+        .isEqualTo("createService");
+    assertThat(answersWithProblem(paths, services, "post", "400")).isTrue();
+    assertThat(answersWithProblem(paths, services, "post", "409")).isTrue();
+    assertThat(paths.path(service).path("delete").path("operationId").asString())
+        .isEqualTo("deleteService");
+    assertThat(answersWithProblem(paths, service, "delete", "404")).isTrue();
+    assertThat(answersWithProblem(paths, service + "/instances", "post", "404")).isTrue();
+    assertThat(answersWithProblem(paths, service + "/container-bindings", "post", "404")).isTrue();
+    JsonNode schemas = get("/v3/api-docs").getBody().get("components").get("schemas");
+    assertThat(schemas.get("Service").get("required").valueStream().map(JsonNode::asString))
+        .contains("created", "empty");
+    for (String request : List.of("StaticInstanceRequest", "ContainerBindingRequest")) {
+      assertThat(schemas.get(request).get("properties").has("publish")).as(request).isFalse();
+    }
   }
 
   @Test

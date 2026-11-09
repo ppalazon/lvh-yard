@@ -34,6 +34,7 @@ class StaticInstancesComponentTest extends DashboardComponentTest {
   @Test
   void registeredInstanceIsListedWithItsService() {
     String grafana = newServiceName("grafana");
+    create(grafana);
 
     ResponseEntity<JsonNode> response =
         post(instancesPath(grafana), Map.of("host", "10.1.2.3", "port", 3000));
@@ -47,33 +48,13 @@ class StaticInstancesComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void registeringANewServicePublishesItWithLocalScope() {
-    String web = newServiceName("web");
-
-    post(instancesPath(web), Map.of("port", 8080));
-
-    JsonNode service = get(servicePath(web)).getBody();
-    assertThat(service.get("publication").get("scope").asString()).isEqualTo("local");
-  }
-
-  @Test
-  void registeringANewServiceWithPublishFalseLeavesItUnpublished() {
-    String web = newServiceName("web");
-
-    ResponseEntity<JsonNode> response =
-        post(instancesPath(web), Map.of("port", 8080, "publish", false));
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-    assertThat(get(servicePath(web)).getBody().has("publication")).isFalse();
-  }
-
-  @Test
   void registeringIntoAnUnpublishedServiceKeepsItUnpublished() {
     String web = newServiceName("web");
-    register(web, Map.of("port", 8080));
+    create(web);
 
-    post(instancesPath(web), Map.of("port", 8081, "publish", true));
+    ResponseEntity<JsonNode> response = post(instancesPath(web), Map.of("port", 8080));
 
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     assertThat(get(servicePath(web)).getBody().has("publication")).isFalse();
   }
 
@@ -213,14 +194,15 @@ class StaticInstancesComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void serviceWithItsLastInstanceRemovedLeavesTheCatalog() {
+  void serviceWithItsLastInstanceRemovedStaysEmpty() {
     String web = newServiceName("web");
     String id = register(web, Map.of("port", 8080)).get("id").asString();
 
     delete(instancesPath(web) + "/" + id);
 
-    assertThat(findService(get("/api/services").getBody(), web)).isNull();
-    assertThat(get(servicePath(web)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    JsonNode service = findService(get("/api/services").getBody(), web);
+    assertThat(service.get("instances")).isEmpty();
+    assertThat(service.get("empty").asBoolean()).isTrue();
   }
 
   @Test

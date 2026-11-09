@@ -123,7 +123,8 @@ class CatalogPageComponentTest extends DashboardComponentTest {
     publish(web);
     delete(instancesPath(web) + "/" + id);
 
-    assertThat(rowOf(getPage("/").getBody(), web)).contains("Unavailable", "No Instances");
+    assertThat(rowOf(getPage("/").getBody(), web))
+        .contains("Unavailable", badge("outline", "Empty"));
   }
 
   @Test

@@ -263,11 +263,10 @@ class AliasesComponentTest extends DashboardComponentTest {
   @Test
   void aliasOfARemoteServiceThatIsGoneSaysWhy() {
     String grafana = newServiceName("grafana");
-    String id =
-        remote.register(grafana, Map.of("host", "10.9.8.7", "port", 3000)).get("id").asString();
+    remote.register(grafana, Map.of("host", "10.9.8.7", "port", 3000));
     put(aliasPath(grafana), Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
 
-    remote.remove(grafana, id);
+    remote.delete(grafana);
 
     JsonNode alias = alias(grafana);
     assertThat(alias.get("state").asString()).isEqualTo("missing");

@@ -215,6 +215,7 @@ class ContainersComponentTest extends DashboardComponentTest {
     String web = newServiceName("web");
     start(onePort(first).compose(project, web));
     start(twoPorts(second).compose(project, web));
+    create(web);
 
     String group =
         div(getPage("/containers").getBody(), "data-compose-project=\"" + project + "\"");
@@ -249,6 +250,7 @@ class ContainersComponentTest extends DashboardComponentTest {
     String web = newServiceName("web");
     start(FakeDocker.container(first).compose(project, web));
     start(onePort(second).compose(project, web));
+    create(web);
 
     String group =
         div(getPage("/containers").getBody(), "data-compose-project=\"" + project + "\"");
@@ -289,19 +291,31 @@ class ContainersComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void registerGivesAPlainContainerAServiceOfItsNameBoundByNameAndPublishedLocally() {
+  void registerBindsAPlainContainerByNameIntoTheServiceOfItsName() {
     String name = newContainerName();
     start(onePort(name));
+    create(name);
 
     ResponseEntity<JsonNode> response = post(registerPath(name), Map.of());
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     JsonNode service = response.getBody();
     assertThat(service.get("name").asString()).isEqualTo(name);
-    assertThat(service.get("publication").get("scope").asString()).isEqualTo("local");
+    assertThat(service.has("publication")).isFalse();
     assertThat(service.get("containerBindings").get(0).get("id").asString())
         .isEqualTo(name + ":80");
     assertThat(listed(get(PATH).getBody(), name)).isEmpty();
+  }
+
+  @Test
+  void registerIntoAMissingServiceIsNotFound() {
+    String name = newContainerName();
+    start(onePort(name));
+
+    ResponseEntity<JsonNode> response = post(registerPath(name), Map.of());
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    assertThat(listed(get(PATH).getBody(), name)).isPresent();
   }
 
   @Test
@@ -315,14 +329,14 @@ class ContainersComponentTest extends DashboardComponentTest {
     start(onePort(sibling).compose(project, web));
     assertThat(listed(get(PATH).getBody(), name).orElseThrow().get("service").asString())
         .isEqualTo(web);
+    String serviceName = "yard-test-" + id;
+    create(serviceName);
 
     ResponseEntity<JsonNode> response = post(registerPath(name), Map.of());
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     JsonNode service = response.getBody();
-    String serviceName = "yard-test-" + id;
     assertThat(service.get("name").asString()).isEqualTo(serviceName);
-    assertThat(service.get("publication").get("scope").asString()).isEqualTo("local");
     assertThat(service.get("containerBindings")).hasSize(1);
     assertThat(service.get("containerBindings").get(0).get("id").asString())
         .isEqualTo(name + ":80");
@@ -373,6 +387,7 @@ class ContainersComponentTest extends DashboardComponentTest {
 
     assertThat(listed(get(PATH).getBody(), name).orElseThrow().get("service").asString())
         .isEqualTo("my-app-v2");
+    create("my-app-v2");
     ResponseEntity<String> response = postForm("/containers/" + name + "/register", Map.of());
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
@@ -398,6 +413,7 @@ class ContainersComponentTest extends DashboardComponentTest {
   void registerOfAContainerWithSeveralPortsBindsTheChosenPort() {
     String name = newContainerName();
     start(twoPorts(name));
+    create(name);
 
     JsonNode service = post(registerPath(name), Map.of("port", 9000)).getBody();
 
@@ -409,6 +425,7 @@ class ContainersComponentTest extends DashboardComponentTest {
   void registerOfAContainerWithNoExposedPortNeedsAPort() {
     String name = newContainerName();
     start(FakeDocker.container(name));
+    create(name);
 
     ResponseEntity<JsonNode> refused = post(registerPath(name), Map.of());
     JsonNode service = post(registerPath(name), Map.of("port", 80)).getBody();
@@ -417,18 +434,6 @@ class ContainersComponentTest extends DashboardComponentTest {
     assertThat(refused.getBody().get("detail").asString()).contains("no exposed port");
     assertThat(service.get("containerBindings").get(0).get("id").asString())
         .isEqualTo(name + ":80");
-  }
-
-  @Test
-  void registerWithPublishFalseLeavesANewServiceUnpublished() {
-    String name = newContainerName();
-    start(onePort(name));
-
-    JsonNode service = post(registerPath(name), Map.of("publish", false)).getBody();
-
-    assertThat(service.get("name").asString()).isEqualTo(name);
-    assertThat(service.has("publication")).isFalse();
-    assertThat(service.get("containerBindings")).hasSize(1);
   }
 
   @Test
@@ -449,24 +454,24 @@ class ContainersComponentTest extends DashboardComponentTest {
   void registerOfAContainerThatDoesNotRunBindsItByNameIntoAServiceOfTheCleanedName() {
     String id = newContainerName().substring("yard-test-".length());
     String name = "Yard_Test." + id;
+    create("yard-test-" + id);
 
     ResponseEntity<JsonNode> response = post(registerPath(name), Map.of("port", 80));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     JsonNode service = response.getBody();
     assertThat(service.get("name").asString()).isEqualTo("yard-test-" + id);
-    assertThat(service.get("publication").get("scope").asString()).isEqualTo("local");
     assertThat(service.get("containerBindings").get(0).get("id").asString())
         .isEqualTo(name + ":80");
   }
 
   @Test
-  void registerOfAContainerThatDoesNotRunUsesTheGivenServiceAndPublish() {
+  void registerOfAContainerThatDoesNotRunUsesTheGivenService() {
     String name = newContainerName();
     String web = newServiceName("web");
+    create(web);
 
-    JsonNode service =
-        post(registerPath(name), Map.of("port", 8080, "service", web, "publish", false)).getBody();
+    JsonNode service = post(registerPath(name), Map.of("port", 8080, "service", web)).getBody();
 
     assertThat(service.get("name").asString()).isEqualTo(web);
     assertThat(service.has("publication")).isFalse();
@@ -502,6 +507,7 @@ class ContainersComponentTest extends DashboardComponentTest {
   @Test
   void containerRegisteredBeforeItRunsGetsItsInstanceWhenItStarts() {
     String name = newContainerName();
+    create(name);
     JsonNode registered = post(registerPath(name), Map.of("port", 80)).getBody();
     assertThat(registered.get("instances")).isEmpty();
 
@@ -521,6 +527,7 @@ class ContainersComponentTest extends DashboardComponentTest {
         .contains("action=\"/containers/" + name + "/register\"")
         .contains(">Register<")
         .doesNotContainIgnoringCase("import");
+    create(name);
 
     ResponseEntity<String> response = postForm("/containers/" + name + "/register", Map.of());
 
@@ -573,6 +580,7 @@ class ContainersComponentTest extends DashboardComponentTest {
   void containerWithAComposeProjectButNoComposeServiceIsRegisteredByItsName() {
     String name = newContainerName();
     start(onePort(name).label("com.docker.compose.project", newComposeProject()));
+    create(name);
 
     ResponseEntity<JsonNode> response = post(registerPath(name), Map.of());
 
@@ -644,6 +652,7 @@ class ContainersComponentTest extends DashboardComponentTest {
     String name = newContainerName();
     String web = newServiceName("web");
     start(twoPorts(name));
+    create(web);
 
     ResponseEntity<String> response =
         postForm("/containers/" + name + "/register", Map.of("name", web, "port", "9000"));
@@ -652,6 +661,20 @@ class ContainersComponentTest extends DashboardComponentTest {
     assertThat(response.getHeaders().getLocation()).hasPath("/services/ws-test/" + web);
     assertThat(get(servicePath(web)).getBody().get("containerBindings").get(0).get("id").asString())
         .isEqualTo(name + ":9000");
+  }
+
+  @Test
+  void registerFormForAMissingServiceShowsItAtTheNameField() {
+    String name = newContainerName();
+    String web = newServiceName("web");
+    start(onePort(name));
+
+    ResponseEntity<String> response =
+        postForm("/containers/" + name + "/register", Map.of("name", web, "port", "80"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(openingTag(response.getBody(), "name=\"name\"")).contains("aria-invalid=\"true\"");
+    assertThat(response.getBody()).contains("New Service");
   }
 
   @Test
@@ -691,7 +714,7 @@ class ContainersComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void bindingFormPublishesANewServiceByDefault() {
+  void bindingFormHasTheFieldsOfBothKinds() {
     String form = formTo(getPage("/containers/new").getBody(), "/containers/bind");
 
     // app.css shows the fields of the chosen kind by these attributes and ids.
@@ -710,13 +733,31 @@ class ContainersComponentTest extends DashboardComponentTest {
         .contains("id=\"composeService\"")
         .contains("name=\"containerPort\"")
         .contains("name=\"name\"")
-        .contains("type=\"submit\"");
-    assertThat(openingTag(form, "name=\"publish\"")).contains("checked");
+        .contains("type=\"submit\"")
+        .doesNotContain("name=\"publish\"");
   }
 
   @Test
   void bindingFormBindsAContainerNameAndGoesToTheServicePage() {
     String name = newContainerName();
+    String web = newServiceName("web");
+    create(web);
+
+    ResponseEntity<String> response =
+        postForm(
+            "/containers/bind",
+            Map.of("kind", "CONTAINER", "container", name, "containerPort", "8080", "name", web));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    assertThat(response.getHeaders().getLocation()).hasPath("/services/ws-test/" + web);
+    JsonNode service = get(servicePath(web)).getBody();
+    assertThat(service.get("containerBindings").get(0).get("id").asString())
+        .isEqualTo(name + ":8080");
+    assertThat(service.has("publication")).isFalse();
+  }
+
+  @Test
+  void bindingFormForAMissingServiceShowsItAtTheNameField() {
     String web = newServiceName("web");
 
     ResponseEntity<String> response =
@@ -726,26 +767,22 @@ class ContainersComponentTest extends DashboardComponentTest {
                 "kind",
                 "CONTAINER",
                 "container",
-                name,
+                newContainerName(),
                 "containerPort",
-                "8080",
+                "80",
                 "name",
-                web,
-                "publish",
-                "on"));
+                web));
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
-    assertThat(response.getHeaders().getLocation()).hasPath("/services/ws-test/" + web);
-    JsonNode service = get(servicePath(web)).getBody();
-    assertThat(service.get("containerBindings").get(0).get("id").asString())
-        .isEqualTo(name + ":8080");
-    assertThat(service.get("publication").get("scope").asString()).isEqualTo("local");
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(openingTag(response.getBody(), "name=\"name\"")).contains("aria-invalid=\"true\"");
+    assertThat(get(servicePath(web)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
   }
 
   @Test
-  void bindingFormBindsAComposeServiceAndLeavesItUnpublishedWithoutTheCheckbox() {
+  void bindingFormBindsAComposeService() {
     String project = newComposeProject();
     String web = newServiceName("web");
+    create(web);
 
     ResponseEntity<String> response =
         postForm(
@@ -784,7 +821,6 @@ class ContainersComponentTest extends DashboardComponentTest {
     assertThat(openingTag(form, "name=\"containerPort\"")).contains("aria-invalid=\"true\"");
     assertThat(openingTag(response.getBody(), "name=\"container\""))
         .contains("value=\"" + name + "\"");
-    assertThat(openingTag(response.getBody(), "name=\"publish\"")).doesNotContain("checked");
   }
 
   @Test
@@ -812,6 +848,7 @@ class ContainersComponentTest extends DashboardComponentTest {
   void bindingFormWithoutAServiceNameBindsIntoAServiceOfTheCleanedContainerName() {
     String id = newContainerName().substring("yard-test-".length());
     String name = "Yard_Test." + id;
+    create("yard-test-" + id);
 
     ResponseEntity<String> response =
         postForm(
@@ -830,6 +867,7 @@ class ContainersComponentTest extends DashboardComponentTest {
     String project = newComposeProject();
     String composeService = "Web_" + project.substring("yard-test-".length());
     String web = "web-" + project.substring("yard-test-".length());
+    create(web);
 
     ResponseEntity<String> response =
         postForm(
@@ -856,11 +894,13 @@ class ContainersComponentTest extends DashboardComponentTest {
     String name = newContainerName();
     String web = newServiceName("web");
     bind(web, name, 80);
+    String api = newServiceName("api");
+    create(api);
 
     ResponseEntity<String> response =
         postForm(
             "/containers/bind",
-            Map.of("kind", "CONTAINER", "container", name, "containerPort", "9000", "name", "api"));
+            Map.of("kind", "CONTAINER", "container", name, "containerPort", "9000", "name", api));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(openingTag(response.getBody(), "name=\"container\""))

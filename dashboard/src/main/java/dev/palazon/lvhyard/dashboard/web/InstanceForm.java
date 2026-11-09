@@ -69,8 +69,7 @@ final class InstanceForm {
           new HealthCheck(
               check.strip(), http ? path.strip() : null, interval.strip(), timeout.strip()),
           Registrations.parseTags(tags),
-          Registrations.parseMeta(meta),
-          null);
+          Registrations.parseMeta(meta));
     }
   }
 
@@ -236,24 +235,5 @@ final class InstanceForm {
 
   private static boolean isAbout(InvalidRegistrationException error, String name) {
     return error != null && error.field().equals(name);
-  }
-
-  /** A cleared checkbox sends nothing, so the form sends {@code publish} only when it is on. */
-  static void publish(FlowContent<?, ?> parent, boolean checked) {
-    parent
-        .label()
-        .attrClass("label gap-3")
-        .input()
-        .attrType(EnumTypeInputType.CHECKBOX)
-        .attrClass("input")
-        .attrName("publish")
-        .of(input -> {
-          if (checked) {
-            input.attrChecked(true);
-          }
-        })
-        .__()
-        .text("Publish a new Service")
-        .__();
   }
 }

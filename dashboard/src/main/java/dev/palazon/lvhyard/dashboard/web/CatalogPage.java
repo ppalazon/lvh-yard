@@ -66,6 +66,7 @@ final class CatalogPage {
                         + workstation.baseDomain()
                         + ".")
                 .__()
+                .of(content -> FormPage.openLink(content, NewServicePage.SPEC))
                 .of(content -> filterForm(content, yard, filters))
                 .of(content ->
                     Layout.refreshed(
@@ -235,15 +236,21 @@ final class CatalogPage {
         .of(cell -> ServiceViews.hostname(cell, service))
         .__()
         .td()
-        .text(
-            service.instances().isEmpty()
-                ? "No Instances"
-                : service.instances().stream()
-                        .filter(instance -> instance.health() == Health.PASSING)
-                        .count()
-                    + " of "
-                    + service.instances().size()
-                    + " passing")
+        .of(cell -> {
+          if (service.empty()) {
+            cell.span().attrClass("badge").addAttr("data-variant", "outline").text("Empty").__();
+          } else {
+            cell.text(
+                service.instances().isEmpty()
+                    ? "No Instances"
+                    : service.instances().stream()
+                            .filter(instance -> instance.health() == Health.PASSING)
+                            .count()
+                        + " of "
+                        + service.instances().size()
+                        + " passing");
+          }
+        })
         .__()
         .__();
   }

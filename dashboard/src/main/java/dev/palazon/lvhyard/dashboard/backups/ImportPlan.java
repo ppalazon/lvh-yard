@@ -7,8 +7,8 @@ import java.util.List;
  * stop it.
  *
  * @param entries for the person who imports, in the order of the file
- * @param steps the writes, in the order that keeps each one valid: Route Profiles, then Static
- *     Instances and Container Bindings, then Publications, then Aliases
+ * @param steps the writes, in the order that keeps each one valid: Route Profiles, then new
+ *     Services, then Static Instances and Container Bindings, then Publications, then Aliases
  */
 record ImportPlan(Backup backup, ImportMode mode, List<PlanEntry> entries, List<Step> steps) {
 

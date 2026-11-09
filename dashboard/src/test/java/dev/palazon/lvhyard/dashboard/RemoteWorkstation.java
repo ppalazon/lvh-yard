@@ -8,7 +8,6 @@ import dev.palazon.lvhyard.dashboard.docker.FakeDocker;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -276,29 +275,43 @@ final class RemoteWorkstation implements AutoCloseable {
   }
 
   /**
-   * Registers a Static Instance of {@code service} on this Workstation, through its dashboard. A
-   * new Service stays Unpublished unless {@code instance} has {@code publish}.
+   * Creates {@code service} on this Workstation, through its dashboard, unless it exists. It stays
+   * Unpublished.
+   */
+  void create(String service) {
+    http.post()
+        .uri(DashboardIT.SERVICES_PATH)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(Map.of("name", service))
+        .retrieve()
+        .onStatus(status -> status.value() == HttpStatus.CONFLICT.value(), (request, answer) -> {})
+        .toBodilessEntity();
+  }
+
+  /**
+   * Registers a Static Instance of {@code service} on this Workstation, through its dashboard. It
+   * creates the Service first, if needed.
    */
   JsonNode register(String service, Map<String, Object> instance) {
-    Map<String, Object> body = new HashMap<>(instance);
-    body.putIfAbsent("publish", false);
+    create(service);
     return http.post()
         .uri(DashboardIT.instancesPath(service))
         .contentType(MediaType.APPLICATION_JSON)
-        .body(body)
+        .body(instance)
         .retrieve()
         .body(JsonNode.class);
   }
 
   /**
    * Binds {@code service} on this Workstation to {@code container}'s {@code port}, through its
-   * dashboard. A new Service stays Unpublished.
+   * dashboard. It creates the Service first, if needed.
    */
   void bind(String service, String container, int port) {
+    create(service);
     http.post()
         .uri(DashboardIT.containerBindingsPath(service))
         .contentType(MediaType.APPLICATION_JSON)
-        .body(Map.of("container", container, "port", port, "publish", false))
+        .body(Map.of("container", container, "port", port))
         .retrieve()
         .toBodilessEntity();
   }
@@ -322,11 +335,13 @@ final class RemoteWorkstation implements AutoCloseable {
 
   /** Publishes {@code service} on this Workstation, through its dashboard. */
   void publish(String service) {
+    create(service);
     http.put().uri(DashboardIT.publicationPath(service)).retrieve().toBodilessEntity();
   }
 
   /** Publishes {@code service} on this Workstation with {@code scope}, such as {@code yard}. */
   void publish(String service, String scope) {
+    create(service);
     http.put()
         .uri(DashboardIT.publicationPath(service))
         .contentType(MediaType.APPLICATION_JSON)
@@ -337,6 +352,7 @@ final class RemoteWorkstation implements AutoCloseable {
 
   /** Publishes {@code service} on this Workstation with {@code publication}, the API's body. */
   void publish(String service, Map<String, Object> publication) {
+    create(service);
     http.put()
         .uri(DashboardIT.publicationPath(service))
         .contentType(MediaType.APPLICATION_JSON)
@@ -356,6 +372,11 @@ final class RemoteWorkstation implements AutoCloseable {
    */
   void remove(String service, String id) {
     http.delete().uri(DashboardIT.instancesPath(service) + "/" + id).retrieve().toBodilessEntity();
+  }
+
+  /** Deletes {@code service} on this Workstation, through its dashboard. */
+  void delete(String service) {
+    http.delete().uri(DashboardIT.servicePath(service)).retrieve().toBodilessEntity();
   }
 
   /** The page at {@code path} of this Workstation's dashboard, as HTML. */

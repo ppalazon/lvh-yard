@@ -14,6 +14,9 @@ import java.util.stream.Collectors;
  * left out of the JSON when null or empty. {@code containerBindings} include those that match no
  * running container.
  *
+ * @param created whether you created it on its Home Workstation. If not, only Foreign Instances
+ *     give it, and it leaves once they do
+ * @param empty whether it has no Instances and no Container Bindings
  * @param priority the Instance Priority of its Publication
  * @param profiles the Route Profiles of its Publication, in the order its Route applies them
  * @param profileDefinitions the definitions of {@code profiles} that its Home Workstation's Consul
@@ -24,6 +27,16 @@ public record Service(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String workstation,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) ServiceState state,
+    @Schema(
+            requiredMode = Schema.RequiredMode.REQUIRED,
+            description =
+                "Whether you created it on its Home Workstation. If not, only Foreign Instances"
+                    + " give it")
+        boolean created,
+    @Schema(
+            requiredMode = Schema.RequiredMode.REQUIRED,
+            description = "Whether it has no Instances and no Container Bindings")
+        boolean empty,
     @JsonInclude(JsonInclude.Include.NON_NULL) Publication publication,
     @JsonInclude(JsonInclude.Include.NON_NULL) String hostname,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<Instance> instances,
@@ -46,6 +59,7 @@ public record Service(
   Service(
       String workstation,
       String name,
+      boolean created,
       Publication publication,
       String hostname,
       List<Instance> instances,
@@ -55,6 +69,8 @@ public record Service(
         workstation,
         name,
         ServiceState.of(publication, instances),
+        created,
+        instances.isEmpty() && containerBindings.isEmpty(),
         publication,
         hostname,
         instances,
@@ -82,6 +98,8 @@ public record Service(
         workstation,
         name,
         state,
+        created,
+        empty,
         publication,
         hostname,
         instances,

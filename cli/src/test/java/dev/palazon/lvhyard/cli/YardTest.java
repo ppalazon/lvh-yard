@@ -114,13 +114,13 @@ class YardTest extends YardTestSupport {
         200,
         """
         {"home": {"name": "ws-a", "services": [
-           {"workstation": "ws-a", "name": "api", "state": "unavailable", "publication": {"scope": "local", "accessLog": false},
+           {"workstation": "ws-a", "name": "api", "state": "unavailable", "created": true, "empty": false, "publication": {"scope": "local", "accessLog": false},
             "hostname": "api.lvh.me", "containerBindings": [], "warnings": [], "instances": []},
-           {"workstation": "ws-a", "name": "grafana", "state": "healthy", "publication": {"scope": "local", "accessLog": false},
+           {"workstation": "ws-a", "name": "grafana", "state": "healthy", "created": true, "empty": false, "publication": {"scope": "local", "accessLog": false},
             "hostname": "grafana.lvh.me", "containerBindings": [], "warnings": [], "instances": [
               {"id": "3f2a", "host": "10.1.2.3", "port": 3000, "health": "passing",
                "tags": [], "meta": {}, "checks": [], "outOfRange": false}]},
-           {"workstation": "ws-a", "name": "web", "state": "unpublished", "containerBindings": [],
+           {"workstation": "ws-a", "name": "web", "state": "unpublished", "created": true, "empty": false, "containerBindings": [],
             "warnings": [], "instances": [
               {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical",
                "tags": [], "meta": {}, "checks": [], "outOfRange": false},
@@ -128,7 +128,7 @@ class YardTest extends YardTestSupport {
                "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}]},
          "remotes": [
            {"name": "ws-b", "unreachable": false, "services": [
-             {"workstation": "ws-b", "name": "postgres", "state": "unhealthy",
+             {"workstation": "ws-b", "name": "postgres", "state": "unhealthy", "created": true, "empty": false,
               "publication": {"scope": "local", "accessLog": false}, "containerBindings": [], "warnings": [], "instances": [
                 {"id": "5e6f", "host": "10.1.2.4", "port": 5432, "health": "critical",
                  "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}]},
@@ -181,7 +181,7 @@ class YardTest extends YardTestSupport {
         200,
         """
         {"home": {"name": "ws-a", "services": [
-          {"workstation": "ws-a", "name": "web", "state": "healthy",
+          {"workstation": "ws-a", "name": "web", "state": "healthy", "created": true, "empty": false,
            "hostname": "web.lvh.me", "containerBindings": [], "warnings": [],
            "routing": {"kind": "static", "instances": ["1a2b"]},
            "instances": [
@@ -1036,7 +1036,7 @@ class YardTest extends YardTestSupport {
         "/api/workstation/containers/grafana/register",
         200,
         """
-        {"workstation": "ws-a", "name": "grafana", "state": "healthy",
+        {"workstation": "ws-a", "name": "grafana", "state": "healthy", "created": true, "empty": false,
          "publication": {"scope": "local", "accessLog": false}, "hostname": "grafana.lvh.me",
          "containerBindings": [], "warnings": [],
          "instances": [{"id": "grafana:grafana:3000", "host": "172.17.0.2", "port": 3000,
@@ -1059,7 +1059,7 @@ class YardTest extends YardTestSupport {
         "/api/workstation/containers/storefront/register",
         200,
         """
-        {"workstation": "ws-a", "name": "shop", "state": "healthy",
+        {"workstation": "ws-a", "name": "shop", "state": "healthy", "created": true, "empty": false,
          "containerBindings": [], "warnings": [],
          "instances": [{"id": "shop:storefront:9000", "host": "172.17.0.2", "port": 9000,
                         "health": "passing", "outOfRange": false,
@@ -1094,7 +1094,7 @@ class YardTest extends YardTestSupport {
         "/api/workstation/containers/catalog/register",
         200,
         """
-        {"workstation": "ws-a", "name": "catalog", "state": "unavailable",
+        {"workstation": "ws-a", "name": "catalog", "state": "unavailable", "created": true, "empty": false,
          "publication": {"scope": "local", "accessLog": false}, "hostname": "catalog.lvh.me",
          "containerBindings": [], "warnings": [], "instances": []}
         """);
@@ -1169,7 +1169,7 @@ class YardTest extends YardTestSupport {
         "/api/workstation/containers/web-1/register",
         200,
         """
-        {"workstation": "ws-a", "name": "web", "state": "healthy",
+        {"workstation": "ws-a", "name": "web", "state": "healthy", "created": true, "empty": false,
          "publication": {"scope": "yard", "accessLog": false}, "hostname": "web.lvh.me",
          "containerBindings": [], "warnings": [
             {"kind": "unpublished-container-port", "severity": "risk",
@@ -1543,7 +1543,7 @@ class YardTest extends YardTestSupport {
         "/api/workstation/services/web/publication",
         200,
         """
-        {"workstation": "ws-a", "name": "web", "state": "unhealthy", "publication": {"scope": "local", "accessLog": false},
+        {"workstation": "ws-a", "name": "web", "state": "unhealthy", "created": true, "empty": false, "publication": {"scope": "local", "accessLog": false},
          "hostname": "web.lvh.me", "containerBindings": [], "warnings": [], "instances": [
             {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical",
              "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}
@@ -1564,7 +1564,7 @@ class YardTest extends YardTestSupport {
         "/api/workstation/services/web/publication",
         200,
         """
-        {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "yard", "accessLog": false},
+        {"workstation": "ws-a", "name": "web", "state": "healthy", "created": true, "empty": false, "publication": {"scope": "yard", "accessLog": false},
          "hostname": "web.lvh.me", "containerBindings": [],
           "warnings": [], "instances": [
             {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "passing",
@@ -1593,7 +1593,7 @@ class YardTest extends YardTestSupport {
         "/api/workstation/services/web/publication",
         200,
         """
-        {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "local", "accessLog": false},
+        {"workstation": "ws-a", "name": "web", "state": "healthy", "created": true, "empty": false, "publication": {"scope": "local", "accessLog": false},
          "hostname": "web.lvh.me", "containerBindings": [], "warnings": [],
          "priority": ["bound", "static"], "instances": []}
         """);
@@ -1616,7 +1616,7 @@ class YardTest extends YardTestSupport {
         "/api/workstation/services/web/publication",
         200,
         """
-        {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "local", "accessLog": false},
+        {"workstation": "ws-a", "name": "web", "state": "healthy", "created": true, "empty": false, "publication": {"scope": "local", "accessLog": false},
          "hostname": "web.lvh.me", "containerBindings": [], "warnings": [],
          "priority": [], "instances": []}
         """);
@@ -1640,7 +1640,7 @@ class YardTest extends YardTestSupport {
         "/api/workstation/services/admin/publication",
         200,
         """
-        {"workstation": "ws-a", "name": "admin", "state": "healthy",
+        {"workstation": "ws-a", "name": "admin", "state": "healthy", "created": true, "empty": false,
          "publication": {"scope": "local", "accessLog": false}, "hostname": "admin.lvh.me", "containerBindings": [],
          "profiles": ["basic-auth", "cors"],
          "warnings": [
@@ -1671,7 +1671,7 @@ class YardTest extends YardTestSupport {
         "/api/workstation/services/admin/publication",
         200,
         """
-        {"workstation": "ws-a", "name": "admin", "state": "healthy",
+        {"workstation": "ws-a", "name": "admin", "state": "healthy", "created": true, "empty": false,
          "publication": {"scope": "local", "accessLog": false}, "hostname": "admin.lvh.me", "containerBindings": [],
          "warnings": [], "instances": []}
         """);
@@ -1720,7 +1720,7 @@ class YardTest extends YardTestSupport {
         "/api/workstation/services/web/publication",
         200,
         """
-        {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "yard", "accessLog": false},
+        {"workstation": "ws-a", "name": "web", "state": "healthy", "created": true, "empty": false, "publication": {"scope": "yard", "accessLog": false},
          "hostname": "web.lvh.me", "containerBindings": [], "warnings": [
             {"kind": "unknown-route-profile", "severity": "error",
              "message": "The Route Profile team-login does not exist."},
@@ -1747,7 +1747,7 @@ class YardTest extends YardTestSupport {
         "/api/workstation/services/web/publication",
         200,
         """
-        {"workstation": "ws-a", "name": "web", "state": "healthy", "publication": {"scope": "local", "accessLog": true},
+        {"workstation": "ws-a", "name": "web", "state": "healthy", "created": true, "empty": false, "publication": {"scope": "local", "accessLog": true},
          "hostname": "web.lvh.me", "containerBindings": [], "warnings": [], "instances": []}
         """);
 

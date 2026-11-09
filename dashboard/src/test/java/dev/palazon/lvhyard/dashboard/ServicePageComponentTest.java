@@ -109,7 +109,7 @@ class ServicePageComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void removingTheLastInstanceGoesBackToTheCatalog() {
+  void removingTheLastInstanceStaysOnTheServicePage() {
     String web = newServiceName("web");
     String id = register(web, Map.of("host", "10.1.2.3", "port", 8080)).get("id").asString();
 
@@ -117,8 +117,8 @@ class ServicePageComponentTest extends DashboardComponentTest {
         postForm("/services/ws-test/" + web + "/instances/" + id + "/remove", Map.of());
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
-    assertThat(response.getHeaders().getLocation()).hasPath("/");
-    assertThat(getPage("/").getBody()).doesNotContain(web);
+    assertThat(response.getHeaders().getLocation()).hasPath("/services/ws-test/" + web);
+    assertThat(get(servicePath(web)).getBody().get("empty").asBoolean()).isTrue();
   }
 
   @Test
@@ -344,7 +344,7 @@ class ServicePageComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void unpublishingServiceWithoutInstancesGoesBackToTheCatalog() {
+  void unpublishingServiceWithoutInstancesStaysOnTheServicePage() {
     String web = newServiceName("web");
     String id = register(web, Map.of("host", "10.1.2.3", "port", 8080)).get("id").asString();
     publish(web);
@@ -353,7 +353,7 @@ class ServicePageComponentTest extends DashboardComponentTest {
 
     ResponseEntity<String> response = postForm("/services/ws-test/" + web + "/unpublish", Map.of());
 
-    assertThat(response.getHeaders().getLocation()).hasPath("/");
+    assertThat(response.getHeaders().getLocation()).hasPath("/services/ws-test/" + web);
   }
 
   @Test
@@ -625,7 +625,7 @@ class ServicePageComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void removingTheLastContainerBindingGoesBackToTheCatalog() {
+  void removingTheLastContainerBindingStaysOnTheServicePage() {
     String web = newServiceName("web");
     String id = bind(web, newContainerName(), 80).get("id").asString();
     String removePath = "/services/ws-test/" + web + "/container-bindings/" + id + "/remove";
@@ -635,8 +635,8 @@ class ServicePageComponentTest extends DashboardComponentTest {
     ResponseEntity<String> response = postForm(removePath, Map.of());
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
-    assertThat(response.getHeaders().getLocation()).hasPath("/");
-    assertThat(get(servicePath(web)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    assertThat(response.getHeaders().getLocation()).hasPath("/services/ws-test/" + web);
+    assertThat(get(servicePath(web)).getBody().get("containerBindings")).isEmpty();
   }
 
   @Test

@@ -97,15 +97,19 @@ public class Registrations {
 
   private final Consul consul;
 
+  private final ServiceRecords records;
+
   /** The check interval of every Bound Instance. Only the tests change it, so they wait less. */
   private final Duration boundCheckInterval;
 
   Registrations(
       Workstation workstation,
       Consul consul,
+      ServiceRecords records,
       @Value("${lvh-yard.bound-instances.check-interval:10s}") Duration boundCheckInterval) {
     this.workstation = workstation;
     this.consul = consul;
+    this.records = records;
     this.boundCheckInterval = boundCheckInterval;
   }
 
@@ -115,11 +119,13 @@ public class Registrations {
    * port again replaces that Instance, which keeps its ID.
    *
    * @return the new Instance, critical until its check first passes
+   * @throws UnknownServiceException when you have not created the Service
    */
   public Instance register(String workstation, String service, StaticInstanceRequest request) {
     checkHome(workstation);
     checkName(service);
     StaticInstanceRequest checked = checked(request);
+    checkCreated(service);
     String id =
         staticInstanceAt(service, checked.host(), checked.port())
             .orElseGet(() -> UUID.randomUUID().toString());
@@ -170,8 +176,7 @@ public class Registrations {
     HealthCheck check = check(request.check());
     checkTags(request.tags());
     checkMeta(request.meta());
-    return new StaticInstanceRequest(
-        host, request.port(), check, request.tags(), request.meta(), request.publish());
+    return new StaticInstanceRequest(host, request.port(), check, request.tags(), request.meta());
   }
 
   private Instance put(String id, String service, StaticInstanceRequest instance) {
@@ -331,6 +336,14 @@ public class Registrations {
     return values;
   }
 
+  /** Removes every Static Instance of {@code service} on this Workstation. */
+  void removeStaticInstances(String service) {
+    consul.agentServices().values().stream()
+        .filter(
+            registration -> registration.name().equals(service) && isStaticInstance(registration))
+        .forEach(registration -> consul.deregister(registration.id()));
+  }
+
   /** {@code workstation} must be this one. */
   public void remove(String workstation, String service, String id) {
     checkHome(workstation);
@@ -376,6 +389,12 @@ public class Registrations {
   private void checkHome(String workstation) {
     if (!this.workstation.is(workstation)) {
       throw new RemoteServiceException(workstation);
+    }
+  }
+
+  void checkCreated(String service) {
+    if (!records.exists(service)) {
+      throw new UnknownServiceException(service);
     }
   }
 

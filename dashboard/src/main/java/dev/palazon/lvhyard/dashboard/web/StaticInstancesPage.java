@@ -47,7 +47,6 @@ final class StaticInstancesPage {
   }
 
   /**
-   * @param publish whether the "Publish a new Service" checkbox is on
    * @param defaultHost the host a Static Instance gets when none is typed
    * @param error why the last post failed, shown at its field, or {@code null}
    */
@@ -55,7 +54,6 @@ final class StaticInstancesPage {
       Workstation workstation,
       String name,
       InstanceForm.Fields fields,
-      boolean publish,
       String defaultHost,
       InvalidRegistrationException error) {
     return FormPage.render(
@@ -72,7 +70,6 @@ final class StaticInstancesPage {
               "Lowercase letters, digits and -.",
               error);
           InstanceForm.fields(section, fields, defaultHost, error);
-          InstanceForm.publish(section, publish);
         });
   }
 

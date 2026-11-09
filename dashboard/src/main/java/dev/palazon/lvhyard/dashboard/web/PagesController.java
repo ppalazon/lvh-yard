@@ -18,7 +18,9 @@ import dev.palazon.lvhyard.dashboard.services.Registrations;
 import dev.palazon.lvhyard.dashboard.services.RemoteServiceException;
 import dev.palazon.lvhyard.dashboard.services.Scope;
 import dev.palazon.lvhyard.dashboard.services.Service;
+import dev.palazon.lvhyard.dashboard.services.ServiceExistsException;
 import dev.palazon.lvhyard.dashboard.services.ServiceState;
+import dev.palazon.lvhyard.dashboard.services.Services;
 import dev.palazon.lvhyard.dashboard.services.UnfollowedContainer;
 import dev.palazon.lvhyard.dashboard.services.UnknownAliasException;
 import dev.palazon.lvhyard.dashboard.services.UnknownContainerBindingException;
@@ -71,6 +73,8 @@ class PagesController {
 
   private final RouteProfiles routeProfiles;
 
+  private final Services services;
+
   PagesController(
       Workstation workstation,
       YardReader yard,
@@ -80,7 +84,8 @@ class PagesController {
       ContainerBindings containerBindings,
       ContainerRegistration containerRegistration,
       ReachabilityTester reachability,
-      RouteProfiles routeProfiles) {
+      RouteProfiles routeProfiles,
+      Services services) {
     this.workstation = workstation;
     this.yard = yard;
     this.registrations = registrations;
@@ -90,6 +95,7 @@ class PagesController {
     this.containerRegistration = containerRegistration;
     this.reachability = reachability;
     this.routeProfiles = routeProfiles;
+    this.services = services;
   }
 
   @GetMapping(path = "/", produces = MediaType.TEXT_HTML_VALUE)
@@ -130,44 +136,88 @@ class PagesController {
   @GetMapping(path = StaticInstancesPage.NEW_PATH, produces = MediaType.TEXT_HTML_VALUE)
   @ResponseBody
   String newStaticInstance() {
-    return newStaticInstancePage("", InstanceForm.Fields.EMPTY, true, null);
+    return newStaticInstancePage("", InstanceForm.Fields.EMPTY, null);
   }
 
-  /**
-   * @param publish sent only when the "Publish a new Service" checkbox is on
-   */
   @PostMapping(path = StaticInstancesPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
   ResponseEntity<String> registerStaticInstance(
-      @RequestParam String name,
-      InstanceForm.Fields fields,
-      @RequestParam(required = false) String publish) {
+      @RequestParam String name, InstanceForm.Fields fields) {
     String service = name.strip();
+    InvalidRegistrationException error;
     try {
-      publications.addPublishingNew(
-          service,
-          publish != null,
-          () -> registrations.register(workstation.name(), service, fields.request()));
-    } catch (InvalidRegistrationException error) {
-      return ResponseEntity.badRequest()
-          .contentType(Layout.HTML)
-          .body(newStaticInstancePage(name, fields, publish != null, error));
+      registrations.register(workstation.name(), service, fields.request());
+      return seeOther(ServicePage.path(workstation.name(), service));
+    } catch (InvalidRegistrationException e) {
+      error = e;
+    } catch (UnknownServiceException e) {
+      error = notCreated(e);
     }
-    return seeOther(ServicePage.path(workstation.name(), service));
+    return ResponseEntity.badRequest()
+        .contentType(Layout.HTML)
+        .body(newStaticInstancePage(name, fields, error));
+  }
+
+  /** A form that names a Service shows this at its name field. */
+  private static InvalidRegistrationException notCreated(UnknownServiceException e) {
+    return new InvalidRegistrationException(
+        "name", e.getMessage() + " Create it first, with New Service in the catalog.");
   }
 
   private String newStaticInstancePage(
-      String name,
-      InstanceForm.Fields fields,
-      boolean publish,
-      InvalidRegistrationException error) {
+      String name, InstanceForm.Fields fields, InvalidRegistrationException error) {
     return StaticInstancesPage.renderNew(
-        workstation, name, fields, publish, registrations.defaultHost(), error);
+        workstation, name, fields, registrations.defaultHost(), error);
+  }
+
+  @GetMapping(path = NewServicePage.PATH, produces = MediaType.TEXT_HTML_VALUE)
+  @ResponseBody
+  String newService() {
+    return NewServicePage.render(workstation, "", null);
+  }
+
+  /** A name that breaks a rule or is in use shows at the name field. */
+  @PostMapping(path = NewServicePage.ACTION, produces = MediaType.TEXT_HTML_VALUE)
+  ResponseEntity<String> createService(@RequestParam(required = false) String name) {
+    String service = name == null ? "" : name.strip();
+    InvalidRegistrationException error;
+    try {
+      services.create(workstation.name(), service);
+      return seeOther(ServicePage.path(workstation.name(), service));
+    } catch (InvalidRegistrationException e) {
+      error = e;
+    } catch (ServiceExistsException e) {
+      error = new InvalidRegistrationException("name", e.getMessage());
+    }
+    return ResponseEntity.badRequest()
+        .contentType(Layout.HTML)
+        .body(NewServicePage.render(workstation, name, error));
   }
 
   @GetMapping(path = "/services/{workstation}/{service}", produces = MediaType.TEXT_HTML_VALUE)
   @ResponseBody
   String service(@PathVariable("workstation") String home, @PathVariable String service) {
     return ServicePage.render(workstation, anyService(home, service), routeProfiles.names(), null);
+  }
+
+  @GetMapping(
+      path = "/services/{workstation}/{service}/delete",
+      produces = MediaType.TEXT_HTML_VALUE)
+  @ResponseBody
+  String confirmDeleteService(
+      @PathVariable("workstation") String home, @PathVariable String service) {
+    return DeleteServicePage.render(workstation, anyService(home, service));
+  }
+
+  /** The Catalog, or the Service page while Foreign Instances keep the Service. */
+  @PostMapping("/services/{workstation}/{service}/delete")
+  ResponseEntity<String> deleteService(
+      @PathVariable("workstation") String home, @PathVariable String service) {
+    try {
+      services.delete(home, service);
+    } catch (UnknownServiceException e) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+    }
+    return seeOther(yard.service(home, service).map(ServicePage::path).orElse("/"));
   }
 
   /** The results are not kept. */
@@ -379,34 +429,28 @@ class PagesController {
   /**
    * The binding form of the Containers page. A followed target is shown at its field, as the other
    * failures are. With no Service name, the Service name is the one the register endpoint proposes.
-   *
-   * @param publish sent only when the "Publish a new Service" checkbox is on
    */
   @PostMapping(path = ContainersPage.BIND_PATH, produces = MediaType.TEXT_HTML_VALUE)
-  ResponseEntity<String> bindContainer(
-      ContainersPage.Binding binding, @RequestParam(required = false) String publish) {
+  ResponseEntity<String> bindContainer(ContainersPage.Binding binding) {
     InvalidRegistrationException error;
     try {
-      ContainerBindingRequest request = binding.request(publish != null);
+      ContainerBindingRequest request = binding.request();
       String service =
           binding.name().isBlank() && request.proposedService() != null
               ? request.proposedService()
               : binding.name().strip();
-      publications.addPublishingNew(
-          service,
-          request.publish(),
-          () -> containerBindings.add(workstation.name(), service, request));
+      containerBindings.add(workstation.name(), service, request);
       return seeOther(ServicePage.path(workstation.name(), service));
     } catch (InvalidRegistrationException e) {
       error = e;
     } catch (FollowedContainerException e) {
       error = new InvalidRegistrationException(e.field(), e.getMessage());
+    } catch (UnknownServiceException e) {
+      error = notCreated(e);
     }
     return ResponseEntity.badRequest()
         .contentType(Layout.HTML)
-        .body(
-            ContainersPage.renderNew(
-                workstation, new ContainersPage.BindForm(binding, publish != null, error)));
+        .body(ContainersPage.renderNew(workstation, new ContainersPage.BindForm(binding, error)));
   }
 
   @GetMapping(
@@ -433,29 +477,32 @@ class PagesController {
       @RequestParam(required = false) String port) {
     boolean fromForm = name != null;
     Service service;
+    InvalidRegistrationException error;
     try {
       service =
           containerRegistration.register(
-              container,
-              new ContainerRegistrationRequest(Registrations.parsePort(port), name, null));
+              container, new ContainerRegistrationRequest(Registrations.parsePort(port), name));
+      return seeOther(
+          fromForm
+              ? ServicePage.path(service)
+              : ContainersPage.PATH + "?registered=" + service.name());
     } catch (InvalidRegistrationException e) {
-      return ResponseEntity.badRequest()
-          .contentType(Layout.HTML)
-          .body(
-              fromForm
-                  ? ContainersPage.renderRegister(
-                      workstation, unfollowed(container), name, port == null ? "" : port, e)
-                  : containersPage(
-                      null, new ContainersPage.RegisterFailure(container, e.getMessage())));
+      error = e;
+    } catch (UnknownServiceException e) {
+      error = notCreated(e);
     } catch (FollowedContainerException e) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage(), e);
     } catch (UnreadableDockerException e) {
       throw dockerUnavailable(e);
     }
-    return seeOther(
-        fromForm
-            ? ServicePage.path(service)
-            : ContainersPage.PATH + "?registered=" + service.name());
+    return ResponseEntity.badRequest()
+        .contentType(Layout.HTML)
+        .body(
+            fromForm
+                ? ContainersPage.renderRegister(
+                    workstation, unfollowed(container), name, port == null ? "" : port, error)
+                : containersPage(
+                    null, new ContainersPage.RegisterFailure(container, error.getMessage())));
   }
 
   private List<UnfollowedContainer> unfollowed(String name) {

@@ -115,7 +115,7 @@ class PublicationsComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void unpublishingServiceWithoutInstancesRemovesIt() {
+  void unpublishingServiceWithoutInstancesKeepsIt() {
     String web = newServiceName("web");
     String id = register(web, Map.of("host", "10.1.2.3", "port", 8080)).get("id").asString();
     publish(web);
@@ -123,7 +123,9 @@ class PublicationsComponentTest extends DashboardComponentTest {
 
     delete(publicationPath(web));
 
-    assertThat(get(servicePath(web)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    JsonNode service = get(servicePath(web)).getBody();
+    assertThat(service.get("state").asString()).isEqualTo("unpublished");
+    assertThat(service.get("empty").asBoolean()).isTrue();
   }
 
   @Test

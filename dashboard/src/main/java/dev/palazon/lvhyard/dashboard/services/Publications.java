@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
@@ -29,18 +28,15 @@ public class Publications {
 
   private final Consul consul;
 
-  private final ContainerBindings containerBindings;
+  private final ServiceRecords records;
 
   private final RouteProfiles routeProfiles;
 
   Publications(
-      Workstation workstation,
-      Consul consul,
-      ContainerBindings containerBindings,
-      RouteProfiles routeProfiles) {
+      Workstation workstation, Consul consul, ServiceRecords records, RouteProfiles routeProfiles) {
     this.workstation = workstation;
     this.consul = consul;
-    this.containerBindings = containerBindings;
+    this.records = records;
     this.routeProfiles = routeProfiles;
   }
 
@@ -51,19 +47,6 @@ public class Publications {
    * @param change its {@code profiles} are names of this Workstation's valid Route Profiles
    */
   public void publish(String workstation, String service, PublicationRequest change) {
-    write(workstation, service, change, true);
-  }
-
-  /**
-   * As {@link #publish}, but the Service need not exist yet. A Backup can hold a Service that has
-   * only a Publication, and the Publication is what makes it exist.
-   */
-  public void restore(String workstation, String service, PublicationRequest change) {
-    write(workstation, service, change, false);
-  }
-
-  private void write(
-      String workstation, String service, PublicationRequest change, boolean mustExist) {
     checkHome(workstation);
     Scope scope = change.scope();
     List<String> priority = change.priority();
@@ -73,9 +56,7 @@ public class Publications {
     }
     Registrations.checkName(service);
     List<InstanceKind> kinds = priority == null ? null : InstanceKind.priority(priority);
-    if (mustExist) {
-      checkExists(service);
-    }
+    checkExists(service);
     Publication existing = all().get(service);
     Publication chosen =
         new Publication(
@@ -174,36 +155,14 @@ public class Publications {
   }
 
   private void checkExists(String service) {
-    if (!exists(service)) {
+    if (!records.exists(service)) {
       throw new UnknownServiceException(service);
     }
   }
 
-  /**
-   * Runs {@code add}, which gives {@code service} something on this Workstation. If the Service did
-   * not exist before, it then gets a Publication with Local Scope, unless {@code publish} is false.
-   * An existing Service keeps its Publication, or stays Unpublished.
-   *
-   * @return what {@code add} returns
-   */
-  public <T> T addPublishingNew(String service, Boolean publish, Supplier<T> add) {
-    // Before add, which makes the Service exist. Only this Workstation's Instances, Publication
-    // and Bindings count, so a Service with any of them but no Publication stays Unpublished.
-    // A name Consul cannot look up fails here, as a 400, not in exists.
-    Registrations.checkName(service);
-    boolean isNew = !exists(service);
-    T added = add.get();
-    if (isNew && !Boolean.FALSE.equals(publish)) {
-      publish(workstation.name(), service, PublicationRequest.KEEP_ALL);
-    }
-    return added;
-  }
-
-  /** It has an Instance, a Publication or a Container Binding on this Workstation. */
-  boolean exists(String service) {
-    return !consul.health(service).isEmpty()
-        || all().containsKey(service)
-        || containerBindings.all(null).containsKey(service);
+  /** Removes the Publication, if there is one. */
+  void remove(String service) {
+    consul.deleteValue(PREFIX + service);
   }
 
   private void checkHome(String workstation) {

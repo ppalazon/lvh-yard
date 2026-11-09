@@ -88,6 +88,7 @@ class FirstSetupComponentTest extends DashboardComponentTest {
 
   @Test
   void yardAndTraefikAreFreeNames() {
+    create("traefik");
     String id =
         post(instancesPath("traefik"), Map.of("host", "10.1.2.3", "port", 8080))
             .getBody()
@@ -116,7 +117,10 @@ class FirstSetupComponentTest extends DashboardComponentTest {
     remote.whileDashboardIsStopped(
         () -> {
           ids.forEach(remote::deregisterInConsul);
-          OWN_SERVICES.forEach(name -> remote.deleteConsulValue("lvh-yard/publications/" + name));
+          OWN_SERVICES.forEach(name -> {
+            remote.deleteConsulValue("lvh-yard/publications/" + name);
+            remote.deleteConsulValue("lvh-yard/services/" + name);
+          });
           remote.deleteConsulValue(RemoteWorkstation.FIRST_SETUP);
         },
         settings);
@@ -174,9 +178,7 @@ class FirstSetupComponentTest extends DashboardComponentTest {
   @Test
   void removedServiceStaysRemovedAfterARestart() {
     try {
-      List<String> ids = instanceIds("consul-ui");
-      ids.forEach(id -> remote.remove("consul-ui", id));
-      remote.unpublish("consul-ui");
+      remote.delete("consul-ui");
 
       remote.whileDashboardIsStopped(() -> {});
 
@@ -198,7 +200,10 @@ class FirstSetupComponentTest extends DashboardComponentTest {
     try {
       remote.whileDashboardIsStopped(() -> {
         ids.forEach(remote::deregisterInConsul);
-        OWN_SERVICES.forEach(name -> remote.deleteConsulValue("lvh-yard/publications/" + name));
+        OWN_SERVICES.forEach(name -> {
+          remote.deleteConsulValue("lvh-yard/publications/" + name);
+          remote.deleteConsulValue("lvh-yard/services/" + name);
+        });
         remote.deleteConsulValue(RemoteWorkstation.FIRST_SETUP);
         remote.registerInConsul("my-yard", "yard", "10.9.8.7", 9000);
       });
@@ -259,7 +264,10 @@ class FirstSetupComponentTest extends DashboardComponentTest {
       // The test dashboard starts on another port, so yard cannot be the one.
       remote.whileDashboardIsStopped(() -> {
         ids.forEach(remote::deregisterInConsul);
-        OWN_SERVICES.forEach(name -> remote.deleteConsulValue("lvh-yard/publications/" + name));
+        OWN_SERVICES.forEach(name -> {
+          remote.deleteConsulValue("lvh-yard/publications/" + name);
+          remote.deleteConsulValue("lvh-yard/services/" + name);
+        });
         remote.deleteConsulValue(RemoteWorkstation.FIRST_SETUP);
         remote.putConsulValue(RemoteWorkstation.FIRST_SETUP_NAMES, String.join(",", OWN_SERVICES));
       });

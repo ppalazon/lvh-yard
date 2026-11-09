@@ -38,6 +38,8 @@ class WorkstationServicesController {
 
   private final ContainerBindings containerBindings;
 
+  private final Services services;
+
   private final ReachabilityTester reachability;
 
   WorkstationServicesController(
@@ -46,12 +48,14 @@ class WorkstationServicesController {
       Registrations registrations,
       Publications publications,
       ContainerBindings containerBindings,
+      Services services,
       ReachabilityTester reachability) {
     this.workstation = workstation;
     this.yard = yard;
     this.registrations = registrations;
     this.publications = publications;
     this.containerBindings = containerBindings;
+    this.services = services;
     this.reachability = reachability;
   }
 
@@ -59,6 +63,40 @@ class WorkstationServicesController {
   @Operation(operationId = "ownServices", summary = "Lists this Workstation's Services")
   List<Service> services() {
     return yard.services(workstation.name());
+  }
+
+  @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+  @ResponseStatus(HttpStatus.CREATED)
+  @Operation(
+      operationId = "createService",
+      summary = "Creates a Service",
+      description =
+          "The new Service is empty and Unpublished. It stays until you delete it. You can also"
+              + " create a Service that only Foreign Instances give, so that you can publish it.")
+  @ApiResponse(responseCode = "201", description = "Created", useReturnTypeSchema = true)
+  @ApiResponse(responseCode = "400", description = Registrations.INVALID_NAME)
+  @ApiResponse(
+      responseCode = "409",
+      description = "This Workstation already has a Service of this name")
+  Service create(@RequestBody NewServiceRequest request) {
+    String name = request.name() == null ? "" : request.name().strip();
+    services.create(workstation.name(), name);
+    return service(name);
+  }
+
+  @DeleteMapping("/{service}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Operation(
+      operationId = "deleteService",
+      summary = "Deletes a Service",
+      description =
+          "Removes its Publication, its Static Instances, and its Container Bindings with their"
+              + " Bound Instances. Containers keep running. Foreign Instances stay, and the Service"
+              + " stays while they do.")
+  @ApiResponse(responseCode = "204", description = "Deleted")
+  @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
+  void delete(@PathVariable String service) {
+    services.delete(workstation.name(), service);
   }
 
   @GetMapping("/{service}")
@@ -95,17 +133,14 @@ class WorkstationServicesController {
       description =
           "With no host, the Instance is at this Workstation's LAN address. With no check, it gets"
               + " a TCP check on its port. It is critical until its check first passes. The same"
-              + " host and port again replaces that Instance, which keeps its ID. A new Service"
-              + " gets a Publication with Local Scope, unless publish is false.")
+              + " host and port again replaces that Instance, which keeps its ID.")
   @ApiResponse(responseCode = "201", description = "Registered", useReturnTypeSchema = true)
   @ApiResponse(
       responseCode = "400",
       description = Registrations.INVALID_NAME + ". " + INVALID_INSTANCE)
+  @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
   Instance register(@PathVariable String service, @RequestBody StaticInstanceRequest request) {
-    return publications.addPublishingNew(
-        service,
-        request.publish(),
-        () -> registrations.register(workstation.name(), service, request));
+    return registrations.register(workstation.name(), service, request);
   }
 
   @PutMapping(path = "/{service}/instances/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -148,9 +183,8 @@ class WorkstationServicesController {
       summary = "Binds a Service to a container or a Compose service",
       description =
           "Give either container, or composeProject and composeService. Each running container that"
-              + " matches is a Bound Instance with a TCP check. A new Service gets a Publication"
-              + " with Local Scope, unless publish is false. Binding the same target again, even"
-              + " with the same port, answers 409.")
+              + " matches is a Bound Instance with a TCP check. Binding the same target again,"
+              + " even with the same port, answers 409.")
   @ApiResponse(responseCode = "201", description = "Bound", useReturnTypeSchema = true)
   @ApiResponse(
       responseCode = "400",
@@ -158,6 +192,7 @@ class WorkstationServicesController {
           Registrations.INVALID_NAME
               + ", the body names both or neither of a container and a Compose service, a name is"
               + " not one Docker or Compose allows, or the port is not a TCP port")
+  @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
   @ApiResponse(
       responseCode = "409",
       description =
@@ -166,11 +201,7 @@ class WorkstationServicesController {
               + " Service")
   ContainerBinding bind(
       @PathVariable String service, @RequestBody ContainerBindingRequest request) {
-    String id =
-        publications.addPublishingNew(
-            service,
-            request.publish(),
-            () -> containerBindings.add(workstation.name(), service, request));
+    String id = containerBindings.add(workstation.name(), service, request);
     return service(service).containerBindings().stream()
         .filter(binding -> binding.id().equals(id))
         .findFirst()
@@ -182,7 +213,7 @@ class WorkstationServicesController {
   @Operation(
       operationId = "unbindContainer",
       summary = "Removes a Container Binding and its Bound Instances",
-      description = "A Service with nothing left leaves the Catalog.")
+      description = "The Service stays, even with nothing left.")
   @ApiResponse(responseCode = "204", description = "Removed")
   @ApiResponse(
       responseCode = "404",
@@ -231,7 +262,7 @@ class WorkstationServicesController {
   @Operation(
       operationId = "unpublish",
       summary = "Unpublishes a Service",
-      description = "A Service with no Instances left leaves the Catalog.")
+      description = "The Service stays, Unpublished.")
   @ApiResponse(responseCode = "204", description = "Unpublished, or it was not published")
   @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
   void unpublish(@PathVariable String service) {

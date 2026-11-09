@@ -9,42 +9,38 @@ class ContainerBindingsTest {
 
   @Test
   void containerNameDockerWouldRefuseIsRefused() {
-    assertRefused(
-        new ContainerBindingRequest("my web", null, null, 80, null), "container", "my web");
+    assertRefused(new ContainerBindingRequest("my web", null, null, 80), "container", "my web");
   }
 
   @Test
   void containerPortIsRequired() {
     assertRefused(
-        new ContainerBindingRequest("web", null, null, null, null),
-        "containerPort",
-        "needs a port");
+        new ContainerBindingRequest("web", null, null, null), "containerPort", "needs a port");
   }
 
   @Test
   void bindingNeedsAContainerOrAComposeService() {
     assertRefused(
-        new ContainerBindingRequest(null, null, null, 80, null),
+        new ContainerBindingRequest(null, null, null, 80),
         "container",
         "a Compose project and service");
   }
 
   @Test
   void bindingToAContainerAndAComposeServiceAtOnceIsRefused() {
-    assertRefused(
-        new ContainerBindingRequest("web", "shop", "web", 80, null), "container", "not both");
+    assertRefused(new ContainerBindingRequest("web", "shop", "web", 80), "container", "not both");
   }
 
   @Test
   void composeServiceNeedsItsProject() {
     assertRefused(
-        new ContainerBindingRequest(null, null, "web", 80, null), "composeProject", "its project");
+        new ContainerBindingRequest(null, null, "web", 80), "composeProject", "its project");
   }
 
   @Test
   void composeProjectNameComposeWouldRefuseIsRefused() {
     assertRefused(
-        new ContainerBindingRequest(null, "My Shop", "web", 80, null), "composeProject", "My Shop");
+        new ContainerBindingRequest(null, "My Shop", "web", 80), "composeProject", "My Shop");
   }
 
   private static void assertRefused(ContainerBindingRequest request, String field, String reason) {

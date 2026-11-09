@@ -40,6 +40,7 @@ class ContainerBindingsComponentTest extends DashboardComponentTest {
   @Test
   void runningContainerWithAnUnpublishedPortGivesABoundInstanceAtItsOwnAddress() {
     String web = newServiceName("web");
+    create(web);
     String name = newContainerName();
     Container container = startContainer(name, 80, false);
 
@@ -275,37 +276,14 @@ class ContainerBindingsComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void bindingANewServicePublishesItWithLocalScope() {
+  void bindingIntoAnUnpublishedServiceKeepsItUnpublished() {
     String web = newServiceName("web");
+    create(web);
 
     ResponseEntity<JsonNode> response =
         post(containerBindingsPath(web), Map.of("container", newContainerName(), "port", 80));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-    JsonNode service = get(servicePath(web)).getBody();
-    assertThat(service.get("publication").get("scope").asString()).isEqualTo("local");
-  }
-
-  @Test
-  void bindingANewServiceWithPublishFalseLeavesItUnpublished() {
-    String web = newServiceName("web");
-
-    post(
-        containerBindingsPath(web),
-        Map.of("container", newContainerName(), "port", 80, "publish", false));
-
-    assertThat(get(servicePath(web)).getBody().get("state").asString()).isEqualTo("unpublished");
-  }
-
-  @Test
-  void bindingIntoAnUnpublishedServiceKeepsItUnpublished() {
-    String web = newServiceName("web");
-    bind(web, newContainerName(), 80);
-
-    post(
-        containerBindingsPath(web),
-        Map.of("container", newContainerName(), "port", 80, "publish", true));
-
     assertThat(get(servicePath(web)).getBody().get("state").asString()).isEqualTo("unpublished");
   }
 
@@ -313,6 +291,7 @@ class ContainerBindingsComponentTest extends DashboardComponentTest {
   void bindingAContainerNameThatABindingFollowsIsRefusedWithItsServiceWhateverThePort() {
     String web = newServiceName("web");
     String api = newServiceName("api");
+    create(api);
     String name = newContainerName();
     bind(web, name, 80);
 
@@ -321,7 +300,7 @@ class ContainerBindingsComponentTest extends DashboardComponentTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     assertThat(response.getBody().get("detail").asString()).contains(name).contains(web);
-    assertThat(get(servicePath(api)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    assertThat(get(servicePath(api)).getBody().get("containerBindings")).isEmpty();
   }
 
   @Test
@@ -341,6 +320,7 @@ class ContainerBindingsComponentTest extends DashboardComponentTest {
   void bindingAComposeServiceThatABindingFollowsIsRefusedWithItsService() {
     String web = newServiceName("web");
     String api = newServiceName("api");
+    create(api);
     String project = newComposeProject();
     bindCompose(web, project, "web", 80);
 
@@ -356,7 +336,7 @@ class ContainerBindingsComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void removingABindingRemovesItsBoundInstancesAndAServiceWithNothingLeft() {
+  void removingABindingRemovesItsBoundInstancesAndKeepsTheService() {
     String web = newServiceName("web");
     String name = newContainerName();
     startContainer(name, 80, false);
@@ -366,7 +346,9 @@ class ContainerBindingsComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response = delete(containerBindingsPath(web) + "/" + id);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-    assertThat(get(servicePath(web)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    JsonNode service = get(servicePath(web)).getBody();
+    assertThat(service.get("instances")).isEmpty();
+    assertThat(service.get("empty").asBoolean()).isTrue();
   }
 
   @Test
@@ -469,7 +451,7 @@ class ContainerBindingsComponentTest extends DashboardComponentTest {
 
     assertThat(id).isEqualTo("compose:" + project + ":web:80");
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-    assertThat(get(servicePath(web)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    assertThat(get(servicePath(web)).getBody().get("instances")).isEmpty();
   }
 
   @Test

@@ -50,8 +50,7 @@ final class ContainersPage {
   record RegisterFailure(String container, String reason) {}
 
   /**
-   * What the binding form sends, besides {@code publish}. Spring fills the fields by name. A field
-   * left out is empty.
+   * What the binding form sends. Spring fills the fields by name. A field left out is empty.
    *
    * @param kind by default {@link Kind#CONTAINER}
    * @param name the Service name, or empty to use the proposed one
@@ -76,11 +75,11 @@ final class ContainersPage {
     }
 
     /** The other kind's fields are left out. */
-    ContainerBindingRequest request(boolean publish) {
+    ContainerBindingRequest request() {
       Integer port = Registrations.parsePort("containerPort", containerPort);
       return kind == Kind.COMPOSE
-          ? new ContainerBindingRequest(null, composeProject, composeService, port, publish)
-          : new ContainerBindingRequest(container, null, null, port, publish);
+          ? new ContainerBindingRequest(null, composeProject, composeService, port)
+          : new ContainerBindingRequest(container, null, null, port);
     }
   }
 
@@ -89,9 +88,9 @@ final class ContainersPage {
    *
    * @param error why the last binding failed, shown at its field, or {@code null}
    */
-  record BindForm(Binding binding, boolean publish, InvalidRegistrationException error) {
+  record BindForm(Binding binding, InvalidRegistrationException error) {
 
-    static final BindForm EMPTY = new BindForm(Binding.EMPTY, true, null);
+    static final BindForm EMPTY = new BindForm(Binding.EMPTY, null);
   }
 
   private ContainersPage() {}
@@ -229,7 +228,6 @@ final class ContainersPage {
         "web",
         "Lowercase letters, digits and -. If empty, the container or Compose service name.",
         error);
-    InstanceForm.publish(section, bind.publish());
   }
 
   private static void kind(Div<?> group, Kind kind, String label, Kind chosen) {

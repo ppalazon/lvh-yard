@@ -511,7 +511,63 @@ paths:
       summary: Lists this Workstation's Services
       tags:
       - workstation-services-controller
+    post:
+      description: "The new Service is empty and Unpublished. It stays until you delete\
+        \ it. You can also create a Service that only Foreign Instances give, so that\
+        \ you can publish it."
+      operationId: createService
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewServiceRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Service"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: The name is not a single DNS label or is consul
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: This Workstation already has a Service of this name
+      summary: Creates a Service
+      tags:
+      - workstation-services-controller
   /api/workstation/services/{service}:
+    delete:
+      description: "Removes its Publication, its Static Instances, and its Container\
+        \ Bindings with their Bound Instances. Containers keep running. Foreign Instances\
+        \ stay, and the Service stays while they do."
+      operationId: deleteService
+      parameters:
+      - in: path
+        name: service
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: This Workstation has no Service of this name
+      summary: Deletes a Service
+      tags:
+      - workstation-services-controller
     get:
       operationId: ownService
       parameters:
@@ -539,8 +595,7 @@ paths:
   /api/workstation/services/{service}/container-bindings:
     post:
       description: "Give either container, or composeProject and composeService. Each\
-        \ running container that matches is a Bound Instance with a TCP check. A new\
-        \ Service gets a Publication with Local Scope, unless publish is false. Binding\
+        \ running container that matches is a Bound Instance with a TCP check. Binding\
         \ the same target again, even with the same port, answers 409."
       operationId: bindContainer
       parameters:
@@ -570,6 +625,12 @@ paths:
           description: "The name is not a single DNS label or is consul, the body\
             \ names both or neither of a container and a Compose service, a name is\
             \ not one Docker or Compose allows, or the port is not a TCP port"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: This Workstation has no Service of this name
         "409":
           content:
             application/problem+json:
@@ -583,7 +644,7 @@ paths:
       - workstation-services-controller
   /api/workstation/services/{service}/container-bindings/{id}:
     delete:
-      description: A Service with nothing left leaves the Catalog.
+      description: "The Service stays, even with nothing left."
       operationId: unbindContainer
       parameters:
       - in: path
@@ -613,8 +674,7 @@ paths:
       description: "With no host, the Instance is at this Workstation's LAN address.\
         \ With no check, it gets a TCP check on its port. It is critical until its\
         \ check first passes. The same host and port again replaces that Instance,\
-        \ which keeps its ID. A new Service gets a Publication with Local Scope, unless\
-        \ publish is false."
+        \ which keeps its ID."
       operationId: register
       parameters:
       - in: path
@@ -642,6 +702,12 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
           description: "The name is not a single DNS label or is consul. The host,\
             \ port, check, tags or meta break a rule"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: This Workstation has no Service of this name
       summary: Registers a Static Instance
       tags:
       - workstation-services-controller
@@ -717,7 +783,7 @@ paths:
       - workstation-services-controller
   /api/workstation/services/{service}/publication:
     delete:
-      description: A Service with no Instances left leaves the Catalog.
+      description: "The Service stays, Unpublished."
       operationId: unpublish
       parameters:
       - in: path
@@ -919,11 +985,6 @@ components:
         port:
           type: integer
           format: int32
-        publish:
-          type: boolean
-          description: "If the Service is new, false leaves it Unpublished. Otherwise\
-            \ it gets a Publication with Local Scope. An existing Service keeps its\
-            \ Publication, or stays Unpublished."
       required:
       - port
     ContainerPort:
@@ -945,8 +1006,6 @@ components:
         port:
           type: integer
           format: int32
-        publish:
-          type: boolean
         service:
           type: string
     ExportedFrom:
@@ -1080,6 +1139,14 @@ components:
       - address
       - id
       - reached
+    NewServiceRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: One DNS label
+      required:
+      - name
     PlanEntry:
       type: object
       properties:
@@ -1274,6 +1341,13 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ContainerBinding"
+        created:
+          type: boolean
+          description: "Whether you created it on its Home Workstation. If not, only\
+            \ Foreign Instances give it"
+        empty:
+          type: boolean
+          description: Whether it has no Instances and no Container Bindings
         hostname:
           type: string
         instances:
@@ -1316,6 +1390,8 @@ components:
           type: string
       required:
       - containerBindings
+      - created
+      - empty
       - instances
       - name
       - state
@@ -1357,11 +1433,6 @@ components:
         port:
           type: integer
           format: int32
-        publish:
-          type: boolean
-          description: "If the Service is new, false leaves it Unpublished. Otherwise\
-            \ it gets a Publication with Local Scope. An existing Service keeps its\
-            \ Publication, or stays Unpublished. An edit ignores this field."
         tags:
           type: array
           items:

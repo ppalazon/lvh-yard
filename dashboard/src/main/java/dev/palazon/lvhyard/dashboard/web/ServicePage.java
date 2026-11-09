@@ -104,6 +104,7 @@ final class ServicePage {
                                                 + service.workstation()
                                                 + "."))
                                 .__()
+                                .of(content -> foreignOnly(content, service, own))
                                 .of(content -> alerts(content, service))
                                 .of(content -> summary(content, service))
                                 .div()
@@ -139,7 +140,35 @@ final class ServicePage {
                 .attrId("reachability")
                 .attrClass(CARD)
                 .of(card -> reachability(card, workstation, service, reachability))
-                .__());
+                .__()
+                .of(content -> {
+                  if (own && service.created()) {
+                    content
+                        .div()
+                        .attrId("delete")
+                        .a()
+                        .attrHref(Layout.attr(DeleteServicePage.path(service)))
+                        .attrClass("btn w-fit")
+                        .addAttr("data-variant", "destructive")
+                        .text("Delete Service")
+                        .__()
+                        .__();
+                  }
+                }));
+  }
+
+  /** Why a Service that LVH Yard did not create is here, and how long it stays. */
+  private static void foreignOnly(Div<?> content, Service service, boolean own) {
+    if (service.created()) {
+      return;
+    }
+    content
+        .p()
+        .addAttr("data-foreign-only", "")
+        .text(
+            "Only Foreign Instances give this Service, so it stays while they are registered."
+                + (own ? " To publish it, create a Service of this name in the catalog." : ""))
+        .__();
   }
 
   /** A section card, with its heading written. The caller closes it. */

@@ -59,10 +59,8 @@ class StaticInstancesPageComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void formHasAPublishCheckboxThatIsOnByDefault() {
-    assertThat(openingTag(getPage(PATH + "/new").getBody(), "name=\"publish\""))
-        .contains("type=\"checkbox\"")
-        .contains("checked");
+  void formHasNoPublishCheckbox() {
+    assertThat(getPage(PATH + "/new").getBody()).doesNotContain("name=\"publish\"");
   }
 
   @Test
@@ -75,29 +73,29 @@ class StaticInstancesPageComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void registeringWithPublishCheckedPublishesANewService() {
+  void registeringLeavesTheServiceUnpublished() {
     String web = newServiceName("web");
-
-    postForm(PATH, Map.of("name", web, "port", "8080", "publish", "on"));
-
-    JsonNode service = get(servicePath(web)).getBody();
-    assertThat(service.get("publication").get("scope").asString()).isEqualTo("local");
-  }
-
-  @Test
-  void registeringWithPublishClearedLeavesANewServiceUnpublished() {
-    String web = newServiceName("web");
+    create(web);
 
     postForm(PATH, Map.of("name", web, "port", "8080"));
 
-    assertThat(get(servicePath(web)).getBody().has("publication")).isFalse();
+    JsonNode service = get(servicePath(web)).getBody();
+    assertThat(service.get("instances")).hasSize(1);
+    assertThat(service.has("publication")).isFalse();
   }
 
   @Test
-  void clearedPublishCheckboxStaysClearedWhenTheFormIsRefused() {
-    ResponseEntity<String> response = postForm(PATH, Map.of("name", "My_API", "port", "8080"));
+  void missingServiceIsShownAtTheNameField() {
+    String web = newServiceName("web");
 
-    assertThat(openingTag(response.getBody(), "name=\"publish\"")).doesNotContain("checked");
+    ResponseEntity<String> response = postForm(PATH, Map.of("name", web, "port", "8080"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(openingTag(response.getBody(), "name=\"name\""))
+        .contains("aria-invalid=\"true\"")
+        .contains("value=\"" + web + "\"");
+    assertThat(response.getBody()).contains("New Service");
+    assertThat(get(servicePath(web)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
   }
 
   @Test
@@ -115,6 +113,7 @@ class StaticInstancesPageComponentTest extends DashboardComponentTest {
   @Test
   void registeringLeadsToTheServicesPage() {
     String grafana = newServiceName("grafana");
+    create(grafana);
 
     ResponseEntity<String> response =
         postForm(PATH, Map.of("name", grafana, "host", "10.1.2.3", "port", "3000"));
@@ -127,6 +126,7 @@ class StaticInstancesPageComponentTest extends DashboardComponentTest {
   @Test
   void emptyHostRegistersAtTheLanAddress() {
     String api = newServiceName("api");
+    create(api);
 
     postForm(PATH, Map.of("name", api, "host", "", "port", "8080"));
 
@@ -186,6 +186,7 @@ class StaticInstancesPageComponentTest extends DashboardComponentTest {
   @Test
   void registeringWithAnHttpCheckTagsAndMeta() {
     String api = newServiceName("api");
+    create(api);
 
     postForm(
         PATH,

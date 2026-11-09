@@ -54,6 +54,8 @@ public class FirstSetup implements SmartLifecycle {
 
   private final Publications publications;
 
+  private final ServiceRecords records;
+
   private final ConsulSettings consulSettings;
 
   private final TraefikSettings traefik;
@@ -69,6 +71,7 @@ public class FirstSetup implements SmartLifecycle {
       Consul consul,
       Registrations registrations,
       Publications publications,
+      ServiceRecords records,
       ConsulSettings consulSettings,
       TraefikSettings traefik,
       Environment environment) {
@@ -76,6 +79,7 @@ public class FirstSetup implements SmartLifecycle {
     this.consul = consul;
     this.registrations = registrations;
     this.publications = publications;
+    this.records = records;
     this.consulSettings = consulSettings;
     this.traefik = traefik;
     this.environment = environment;
@@ -150,7 +154,8 @@ public class FirstSetup implements SmartLifecycle {
       toWrite = new ArrayList<>();
       for (OwnService service : services) {
         failIfPast(deadline);
-        if (!publications.exists(service.name())) {
+        // A Service that only Foreign Instances give is in use too, so it is left alone.
+        if (!records.exists(service.name()) && consul.health(service.name()).isEmpty()) {
           toWrite.add(service.name());
         }
       }
@@ -165,6 +170,8 @@ public class FirstSetup implements SmartLifecycle {
         continue;
       }
       failIfPast(deadline);
+      records.put(service.name());
+      failIfPast(deadline);
       // The same host and port again replaces the Instance, so a second try adds no other one.
       registrations.register(
           workstation.name(),
@@ -174,8 +181,7 @@ public class FirstSetup implements SmartLifecycle {
               service.port(),
               new HealthCheck(HealthCheck.HTTP, service.path(), null, null),
               List.of(),
-              null,
-              false));
+              null));
       failIfPast(deadline);
       publications.publish(
           workstation.name(),

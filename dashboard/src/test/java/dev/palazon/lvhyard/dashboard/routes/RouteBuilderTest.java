@@ -61,6 +61,8 @@ class RouteBuilderTest {
         workstation,
         name,
         ServiceState.HEALTHY,
+        true,
+        false,
         new Publication(Scope.YARD, InstanceKind.DEFAULT_PRIORITY, List.of(profile), true),
         name + "." + workstation + ".lvh.me",
         List.of(instance),

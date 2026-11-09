@@ -14,7 +14,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -304,26 +303,39 @@ abstract class DashboardClient {
   }
 
   /**
+   * Creates {@code service} on this Workstation through the REST API, unless it exists. It stays
+   * Unpublished, so a test publishes it only when it needs to.
+   */
+  void create(String service) {
+    ResponseEntity<JsonNode> response = post(SERVICES_PATH, Map.of("name", service));
+    if (!response.getStatusCode().is2xxSuccessful()
+        && response.getStatusCode() != HttpStatus.CONFLICT) {
+      throw new AssertionError("Creating " + service + " answered " + response);
+    }
+  }
+
+  /**
    * Registers a Static Instance of {@code service} on this Workstation through the REST API, and
-   * checks it took. A new Service stays Unpublished unless {@code instance} has {@code publish}, so
-   * a test publishes it only when it needs to.
+   * checks it took. It creates the Service first, if needed.
    */
   JsonNode register(String service, Map<String, Object> instance) {
-    Map<String, Object> body = new HashMap<>(instance);
-    body.putIfAbsent("publish", false);
-    ResponseEntity<JsonNode> response = post(instancesPath(service), body);
+    create(service);
+    ResponseEntity<JsonNode> response = post(instancesPath(service), instance);
     if (!response.getStatusCode().is2xxSuccessful()) {
       throw new AssertionError("Registering " + service + " answered " + response);
     }
     return response.getBody();
   }
 
+  /** This Workstation's own Services, which the REST API lists and creates. */
+  static final String SERVICES_PATH = "/api/workstation/services";
+
   /**
    * One of this Workstation's own Services, which the REST API reads and changes without naming the
    * Workstation.
    */
   static String servicePath(String service) {
-    return "/api/workstation/services/" + service;
+    return SERVICES_PATH + "/" + service;
   }
 
   static String instancesPath(String service) {
@@ -336,13 +348,12 @@ abstract class DashboardClient {
 
   /**
    * Binds {@code service} on this Workstation to {@code container}'s {@code port} through the REST
-   * API. A new Service stays Unpublished, as with {@link #register}.
+   * API. It creates the Service first, if needed.
    */
   JsonNode bind(String service, String container, int port) {
+    create(service);
     ResponseEntity<JsonNode> response =
-        post(
-            containerBindingsPath(service),
-            Map.of("container", container, "port", port, "publish", false));
+        post(containerBindingsPath(service), Map.of("container", container, "port", port));
     if (!response.getStatusCode().is2xxSuccessful()) {
       throw new AssertionError("Binding " + service + " answered " + response);
     }
@@ -351,21 +362,14 @@ abstract class DashboardClient {
 
   /**
    * Binds {@code service} on this Workstation to {@code composeService} of {@code project}'s {@code
-   * port}. A new Service stays Unpublished, as with {@link #register}.
+   * port}. It creates the Service first, if needed.
    */
   JsonNode bindCompose(String service, String project, String composeService, int port) {
+    create(service);
     ResponseEntity<JsonNode> response =
         post(
             containerBindingsPath(service),
-            Map.of(
-                "composeProject",
-                project,
-                "composeService",
-                composeService,
-                "port",
-                port,
-                "publish",
-                false));
+            Map.of("composeProject", project, "composeService", composeService, "port", port));
     if (!response.getStatusCode().is2xxSuccessful()) {
       throw new AssertionError("Binding " + service + " answered " + response);
     }
@@ -388,8 +392,12 @@ abstract class DashboardClient {
     return servicePath(service) + "/publication";
   }
 
-  /** Publishes {@code service} through the REST API, and checks it took. */
+  /**
+   * Publishes {@code service} through the REST API, and checks it took. It creates the Service
+   * first, if needed.
+   */
   void publish(String service) {
+    create(service);
     ResponseEntity<JsonNode> response = put(publicationPath(service));
     if (!response.getStatusCode().is2xxSuccessful()) {
       throw new AssertionError("Publishing " + service + " answered " + response);
