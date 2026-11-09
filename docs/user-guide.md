@@ -21,7 +21,8 @@ The Catalog shows one row for each Service, grouped by Workstation. Its columns
 are Service, State, Hostname and Instances. The Instances count says "2 of 3
 passing", for example, or "No Instances". Unpublished Services show the count
 too. Instance addresses are on the Service page. You can filter by Workstation
-and state. The Catalog refreshes every five seconds and keeps your filters.
+and state. The Catalog refreshes when something in the Yard changes, and at
+least every 30 seconds. It keeps your filters.
 
 ## Running on a Workstation
 
@@ -693,8 +694,8 @@ Service also shows "No Instances are registered", and an Unhealthy Service
 shows "No Instance passes its checks".
 
 Under the red alerts, one closed box holds the risks, for example "2 risks to
-keep in mind". Click it to read them. The page refreshes every 5 seconds, and
-the box stays open or closed as you left it. If you leave the page, the box is
+keep in mind". Click it to read them. When the page refreshes, the box stays
+open or closed as you left it. If you leave the page, the box is
 closed again on your next visit. A Service without risks has no box.
 
 Under the alerts, a row of cards shows the Service at a glance:
