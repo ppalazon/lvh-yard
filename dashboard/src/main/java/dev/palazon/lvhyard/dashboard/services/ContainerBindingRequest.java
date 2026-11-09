@@ -2,7 +2,6 @@ package dev.palazon.lvhyard.dashboard.services;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
-import java.util.Optional;
 
 /**
  * Also how a Binding is kept in Consul KV. It names either a container, or a Compose project and
@@ -26,17 +25,6 @@ public record ContainerBindingRequest(
 
   boolean followsCompose() {
     return composeProject != null || composeService != null;
-  }
-
-  /**
-   * The Service name to propose, as the register endpoint and the CLI do: the Compose service or
-   * the container name, cleaned. {@code null} when the name it would come from is empty.
-   */
-  public String proposedService() {
-    String target = followsCompose() ? composeService : container;
-    return target == null || target.isBlank()
-        ? null
-        : UnfollowedContainer.proposedService(Optional.empty(), target.strip());
   }
 
   String follows() {

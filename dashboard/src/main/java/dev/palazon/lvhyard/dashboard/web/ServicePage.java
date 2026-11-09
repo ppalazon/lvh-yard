@@ -131,11 +131,8 @@ final class ServicePage {
                                 })
                                 .__()
                                 .of(content -> instances(content, service, own))
-                                .of(content -> {
-                                  if (!service.containerBindings().isEmpty()) {
-                                    containerBindings(content, service, own);
-                                  }
-                                })))
+                                .of(content ->
+                                    ContainerBindingsCard.render(content, service, own))))
                 .div()
                 .attrId("reachability")
                 .attrClass(CARD)
@@ -402,94 +399,6 @@ final class ServicePage {
 
   private static String routeDetails(RouteReachability route) {
     return route.reached() ? "Answered " + route.status() + " through Traefik." : route.error();
-  }
-
-  private static void containerBindings(Div<?> content, Service service, boolean own) {
-    card(content, "container-bindings", "Container Bindings")
-        .div()
-        .attrClass("table-container")
-        .table()
-        .attrClass("table")
-        .thead()
-        .tr()
-        .th()
-        .text("Follows")
-        .__()
-        .th()
-        .text("Container port")
-        .__()
-        .th()
-        .text("Bound Instances")
-        .__()
-        .of(row -> {
-          if (own) {
-            row.th().of(cell -> cell.span().attrClass("sr-only").text("Actions").__()).__();
-          }
-        })
-        .__()
-        .__()
-        .tbody()
-        .of(body ->
-            service
-                .containerBindings()
-                .forEach(binding ->
-                    body.tr()
-                        .td()
-                        .text(binding.follows())
-                        .__()
-                        .td()
-                        .text(String.valueOf(binding.port()))
-                        .__()
-                        .td()
-                        .of(cell -> {
-                          if (binding.instances().isEmpty()) {
-                            cell.span()
-                                .attrClass("text-muted-foreground")
-                                .text(
-                                    binding.container() != null
-                                        ? "No container of this name runs."
-                                        : "No container of this Compose service runs.")
-                                .__();
-                          } else {
-                            long passing =
-                                service.instances().stream()
-                                    .filter(instance -> binding.instances().contains(instance.id()))
-                                    .filter(instance -> instance.health() == Health.PASSING)
-                                    .count();
-                            int count = binding.instances().size();
-                            cell.text(
-                                count
-                                    + (count == 1 ? " container, " : " containers, ")
-                                    + passing
-                                    + " passing");
-                          }
-                        })
-                        .__()
-                        .of(row -> {
-                          if (own) {
-                            row.td()
-                                .div()
-                                .attrClass("flex justify-end")
-                                .form()
-                                .addAttr("method", "post")
-                                .addAttr("action", Layout.attr(removePath(service, binding)))
-                                .button()
-                                .attrType(EnumTypeButtonType.SUBMIT)
-                                .attrClass("btn")
-                                .addAttr("data-variant", "outline")
-                                .addAttr("data-size", "sm")
-                                .text("Remove")
-                                .__()
-                                .__()
-                                .__()
-                                .__();
-                          }
-                        })
-                        .__()))
-        .__()
-        .__()
-        .__()
-        .__();
   }
 
   private static void publicationForms(Div<?> div, Service service) {

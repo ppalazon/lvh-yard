@@ -23,6 +23,9 @@ public interface Docker {
 
   List<Container> runningContainers();
 
+  /** The running containers and the stopped ones. */
+  List<Container> containers();
+
   /**
    * The events already past, then each one as it happens. Docker answers only once it has an event,
    * so this call waits, like reading the next one. Closing the events stops the wait.
@@ -51,6 +54,7 @@ public interface Docker {
       @JsonProperty("Ports") List<Port> ports,
       @JsonProperty("NetworkSettings") NetworkSettings networkSettings,
       @JsonProperty("Labels") Map<String, String> labels,
+      @JsonProperty("State") String state,
       @JsonProperty("Status") String status,
       @JsonProperty("Health") Health health) {
 
@@ -67,6 +71,11 @@ public interface Docker {
       ports = ports == null ? List.of() : ports;
       networkSettings = networkSettings == null ? new NetworkSettings(Map.of()) : networkSettings;
       labels = labels == null ? Map.of() : labels;
+    }
+
+    /** Docker's state is running, exited, created or another word. */
+    public boolean running() {
+      return "running".equals(state);
     }
 
     public boolean isNamed(String name) {

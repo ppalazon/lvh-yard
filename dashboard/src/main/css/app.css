@@ -110,16 +110,6 @@
   }
 }
 
-/* The binding form of the Containers page shows only the fields of the chosen kind, without JavaScript. */
-@layer components {
-  [data-bind-form]:has(#kind-compose:checked) .field:has(#container),
-  [data-bind-form]:not(:has(#kind-compose:checked)) .field:has(#composeProject),
-  [data-bind-form]:not(:has(#kind-compose:checked))
-    .field:has(#composeService) {
-    display: none;
-  }
-}
-
 /* Basecoat has no green badge. Good states use this one, with the same green in the light and the dark theme. */
 @layer components {
   .badge[data-variant="success"] {

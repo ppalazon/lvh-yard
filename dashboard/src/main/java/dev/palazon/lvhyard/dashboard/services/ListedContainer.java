@@ -9,26 +9,29 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * A running container on this Workstation that no Container Binding follows.
+ * A container on this Workstation, running or stopped.
  *
  * @param composeProject none unless the container has both Compose labels, as a Binding by Compose
  *     needs the service too
  * @param service the proposed Service name: the Compose service or the container name, cleaned to
  *     follow the Service name rule
- * @param ports its TCP port mappings, each once
+ * @param ports its TCP port mappings, each once. Docker lists none for a stopped container
  * @param health none when it has no HEALTHCHECK
+ * @param followedBy the Service of a Container Binding that matches it, whatever the Binding's
+ *     port, or none
  */
-public record UnfollowedContainer(
+public record ListedContainer(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
     @JsonInclude(JsonInclude.Include.NON_NULL) String composeProject,
     @JsonInclude(JsonInclude.Include.NON_NULL) String composeService,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String service,
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean running,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ContainerPort> ports,
-    @JsonInclude(JsonInclude.Include.NON_NULL) HealthcheckState health) {
+    @JsonInclude(JsonInclude.Include.NON_NULL) HealthcheckState health,
+    @JsonInclude(JsonInclude.Include.NON_NULL) String followedBy) {
 
   /** {@code hostPort} and {@code hostIp} are none when the container port is not published. */
   public record ContainerPort(
@@ -52,14 +55,15 @@ public record UnfollowedContainer(
     }
   }
 
-  static UnfollowedContainer of(Docker.Container container) {
+  static ListedContainer of(Docker.Container container, String followedBy) {
     Optional<String> composeService =
         container.composeProject().isPresent() ? container.composeService() : Optional.empty();
-    return new UnfollowedContainer(
+    return new ListedContainer(
         container.name(),
         composeService.flatMap(service -> container.composeProject()).orElse(null),
         composeService.orElse(null),
         proposedService(composeService, container.name()),
+        container.running(),
         container.ports().stream()
             .filter(port -> "tcp".equals(port.type()))
             .map(port ->
@@ -75,17 +79,13 @@ public record UnfollowedContainer(
                     .thenComparing(
                         ContainerPort::hostIp, Comparator.nullsFirst(Comparator.naturalOrder())))
             .toList(),
-        container.healthState().flatMap(HealthcheckState::of).orElse(null));
+        container.healthState().flatMap(HealthcheckState::of).orElse(null),
+        followedBy);
   }
 
   /** A port published on IPv4 and IPv6 has two mappings in {@link #ports}. */
   public List<Integer> containerPorts() {
     return ports.stream().map(ContainerPort::containerPort).distinct().toList();
-  }
-
-  /** {@link #containerPorts()} as text, such as {@code 80, 9000}. */
-  public String containerPortList() {
-    return containerPorts().stream().map(String::valueOf).collect(Collectors.joining(", "));
   }
 
   /**
@@ -94,7 +94,7 @@ public record UnfollowedContainer(
    */
   static String proposedService(Optional<String> composeService, String container) {
     return Stream.concat(composeService.stream(), Stream.of(container))
-        .map(UnfollowedContainer::cleaned)
+        .map(ListedContainer::cleaned)
         .filter(Registrations::isDnsLabel)
         .findFirst()
         .orElse("container");

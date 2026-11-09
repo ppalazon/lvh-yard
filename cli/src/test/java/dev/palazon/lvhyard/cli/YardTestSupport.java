@@ -87,11 +87,11 @@ abstract class YardTestSupport {
         "/api/workstation/containers",
         200,
         """
-        [{"name": "worker-1", "service": "worker", "ports": []},
-         {"name": "metrics-2", "service": "metrics", "health": "starting",
+        [{"name": "worker-1", "service": "worker", "running": true, "ports": []},
+         {"name": "metrics-2", "service": "metrics", "running": true, "health": "starting",
           "ports": [{"containerPort": 9090}]},
-         {"name": "database-1", "service": "database", "ports": [{"containerPort": 5432}]},
-         {"name": "metrics-1", "service": "metrics",
+         {"name": "database-1", "service": "database", "running": true, "ports": [{"containerPort": 5432}]},
+         {"name": "metrics-1", "service": "metrics", "running": true,
           "ports": [{"containerPort": 8080, "hostIp": "::", "hostPort": 37137},
                     {"containerPort": 8080, "hostIp": "127.0.0.1", "hostPort": 37138},
                     {"containerPort": 8080, "hostIp": "0.0.0.0", "hostPort": 37137}]}]
@@ -105,21 +105,21 @@ abstract class YardTestSupport {
         200,
         """
         [{"name": "lvh-yard-test-whoami-3", "composeProject": "lvh-yard-test",
-          "composeService": "whoami", "service": "whoami",
+          "composeService": "whoami", "service": "whoami", "running": true,
           "ports": [{"containerPort": 80, "hostIp": "0.0.0.0", "hostPort": 37143}]},
          {"name": "lvh-yard-test-http-https-echo-2", "composeProject": "lvh-yard-test",
-          "composeService": "http-https-echo", "service": "http-https-echo",
+          "composeService": "http-https-echo", "service": "http-https-echo", "running": true,
           "ports": [{"containerPort": 8443, "hostIp": "0.0.0.0", "hostPort": 37140},
                     {"containerPort": 8080, "hostIp": "0.0.0.0", "hostPort": 37139}]},
          {"name": "lvh-yard-test-whoami-1", "composeProject": "lvh-yard-test",
-          "composeService": "whoami", "service": "whoami",
+          "composeService": "whoami", "service": "whoami", "running": true,
           "ports": [{"containerPort": 80, "hostIp": "0.0.0.0", "hostPort": 37141}]},
          {"name": "lvh-yard-test-http-https-echo-1", "composeProject": "lvh-yard-test",
-          "composeService": "http-https-echo", "service": "http-https-echo", "health": "healthy",
+          "composeService": "http-https-echo", "service": "http-https-echo", "running": true, "health": "healthy",
           "ports": [{"containerPort": 8080, "hostIp": "0.0.0.0", "hostPort": 37137},
                     {"containerPort": 8443, "hostIp": "0.0.0.0", "hostPort": 37138}]},
          {"name": "lvh-yard-test-whoami-2", "composeProject": "lvh-yard-test",
-          "composeService": "whoami", "service": "whoami",
+          "composeService": "whoami", "service": "whoami", "running": true,
           "ports": [{"containerPort": 80, "hostIp": "0.0.0.0", "hostPort": 37142}]}]
         """);
   }

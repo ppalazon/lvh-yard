@@ -28,14 +28,15 @@ class Containers implements Runnable {
 
   @Override
   public void run() {
-    List<Dashboard.UnfollowedContainer> containers = yard.dashboard().containers();
+    List<Dashboard.Container> containers =
+        yard.dashboard().containers().stream().filter(Dashboard.Container::unfollowed).toList();
     PrintWriter out = spec.commandLine().getOut();
     if (containers.isEmpty()) {
       out.println("Every running container is followed.");
     }
-    Map<String, Map<String, List<Dashboard.UnfollowedContainer>>> projects = new TreeMap<>();
-    List<Dashboard.UnfollowedContainer> others = new ArrayList<>();
-    for (Dashboard.UnfollowedContainer container : containers) {
+    Map<String, Map<String, List<Dashboard.Container>>> projects = new TreeMap<>();
+    List<Dashboard.Container> others = new ArrayList<>();
+    for (Dashboard.Container container : containers) {
       if (container.composeProject() != null && container.composeService() != null) {
         projects
             .computeIfAbsent(container.composeProject(), project -> new TreeMap<>())
@@ -52,17 +53,16 @@ class Containers implements Runnable {
     if (!others.isEmpty()) {
       out.println("Other containers");
       others.sort(
-          Comparator.comparing(Dashboard.UnfollowedContainer::service)
-              .thenComparing(Dashboard.UnfollowedContainer::name));
-      for (Dashboard.UnfollowedContainer container : others) {
+          Comparator.comparing(Dashboard.Container::service)
+              .thenComparing(Dashboard.Container::name));
+      for (Dashboard.Container container : others) {
         printService(out, container.service(), List.of(container));
       }
     }
     out.flush();
   }
 
-  private void printService(
-      PrintWriter out, String service, List<Dashboard.UnfollowedContainer> containers) {
+  private void printService(PrintWriter out, String service, List<Dashboard.Container> containers) {
     String ports =
         containers.stream()
             .flatMap(container -> container.ports().stream())
@@ -82,7 +82,7 @@ class Containers implements Runnable {
             + (service.equals(registration) ? "" : "; registers as " + registration));
     if (details) {
       containers.stream()
-          .sorted(Comparator.comparing(Dashboard.UnfollowedContainer::name))
+          .sorted(Comparator.comparing(Dashboard.Container::name))
           .forEach(container ->
               out.println(
                   "    "

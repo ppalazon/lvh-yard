@@ -131,6 +131,19 @@ abstract class DockerContract {
   }
 
   @Test
+  void everyContainerListsAStoppedOneAsNotRunningWithItsLabels() {
+    Spec spec = FakeDocker.container(newName()).compose("shop", "web");
+    start(spec);
+    assertThat(every(spec.name()).running()).isTrue();
+
+    stop(spec.name());
+
+    Container stopped = every(spec.name());
+    assertThat(stopped.running()).isFalse();
+    assertThat(stopped.composeService()).contains("web");
+  }
+
+  @Test
   void versionAndPingAnswer() {
     docker().ping();
     assertThat(docker().version().apiVersion()).isNotBlank();
@@ -141,6 +154,13 @@ abstract class DockerContract {
         .filter(container -> container.isNamed(name))
         .findFirst()
         .orElseThrow(() -> new AssertionError("Docker does not list " + name));
+  }
+
+  private Container every(String name) {
+    return docker().containers().stream()
+        .filter(container -> container.isNamed(name))
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("Docker does not list " + name + " at all"));
   }
 
   private static String newName() {

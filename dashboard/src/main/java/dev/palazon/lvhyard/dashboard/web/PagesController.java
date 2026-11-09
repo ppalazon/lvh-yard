@@ -4,11 +4,7 @@ import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.profiles.RouteProfiles;
 import dev.palazon.lvhyard.dashboard.reachability.ReachabilityTester;
 import dev.palazon.lvhyard.dashboard.services.Aliases;
-import dev.palazon.lvhyard.dashboard.services.ContainerBindingRequest;
 import dev.palazon.lvhyard.dashboard.services.ContainerBindings;
-import dev.palazon.lvhyard.dashboard.services.ContainerRegistration;
-import dev.palazon.lvhyard.dashboard.services.ContainerRegistrationRequest;
-import dev.palazon.lvhyard.dashboard.services.FollowedContainerException;
 import dev.palazon.lvhyard.dashboard.services.Instance;
 import dev.palazon.lvhyard.dashboard.services.InvalidPriorityException;
 import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
@@ -21,7 +17,6 @@ import dev.palazon.lvhyard.dashboard.services.Service;
 import dev.palazon.lvhyard.dashboard.services.ServiceExistsException;
 import dev.palazon.lvhyard.dashboard.services.ServiceState;
 import dev.palazon.lvhyard.dashboard.services.Services;
-import dev.palazon.lvhyard.dashboard.services.UnfollowedContainer;
 import dev.palazon.lvhyard.dashboard.services.UnknownAliasException;
 import dev.palazon.lvhyard.dashboard.services.UnknownContainerBindingException;
 import dev.palazon.lvhyard.dashboard.services.UnknownInstanceException;
@@ -30,13 +25,11 @@ import dev.palazon.lvhyard.dashboard.services.UnknownServiceException;
 import dev.palazon.lvhyard.dashboard.services.UnknownStateException;
 import dev.palazon.lvhyard.dashboard.services.UnknownWorkstationException;
 import dev.palazon.lvhyard.dashboard.services.UnreachableWorkstationException;
-import dev.palazon.lvhyard.dashboard.services.UnreadableDockerException;
 import dev.palazon.lvhyard.dashboard.services.Yard;
 import dev.palazon.lvhyard.dashboard.services.YardReader;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -67,8 +60,6 @@ class PagesController {
 
   private final ContainerBindings containerBindings;
 
-  private final ContainerRegistration containerRegistration;
-
   private final ReachabilityTester reachability;
 
   private final RouteProfiles routeProfiles;
@@ -82,7 +73,6 @@ class PagesController {
       Publications publications,
       Aliases aliases,
       ContainerBindings containerBindings,
-      ContainerRegistration containerRegistration,
       ReachabilityTester reachability,
       RouteProfiles routeProfiles,
       Services services) {
@@ -92,7 +82,6 @@ class PagesController {
     this.publications = publications;
     this.aliases = aliases;
     this.containerBindings = containerBindings;
-    this.containerRegistration = containerRegistration;
     this.reachability = reachability;
     this.routeProfiles = routeProfiles;
     this.services = services;
@@ -396,147 +385,6 @@ class PagesController {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
     }
     return seeOther(yard.service(home, service).map(ServicePage::path).orElse("/"));
-  }
-
-  /** Docker that cannot be read is told on the page, which the refresh can only swap from a 200. */
-  @GetMapping(path = ContainersPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
-  @ResponseBody
-  String containers(@RequestParam(required = false) String registered) {
-    return containersPage(
-        registered == null ? null : yard.service(workstation.name(), registered).orElse(null),
-        null);
-  }
-
-  @GetMapping(path = ContainersPage.NEW_PATH, produces = MediaType.TEXT_HTML_VALUE)
-  @ResponseBody
-  String newContainerBinding() {
-    return ContainersPage.renderNew(workstation, ContainersPage.BindForm.EMPTY);
-  }
-
-  /**
-   * @param registered the Service that the one-click Register just gave a container, or {@code
-   *     null}
-   */
-  private String containersPage(Service registered, ContainersPage.RegisterFailure failure) {
-    try {
-      return ContainersPage.render(
-          workstation, containerRegistration.unfollowed(), null, registered, failure);
-    } catch (UnreadableDockerException e) {
-      return ContainersPage.render(workstation, List.of(), e.getMessage(), registered, failure);
-    }
-  }
-
-  /**
-   * The binding form of the Containers page. A followed target is shown at its field, as the other
-   * failures are. With no Service name, the Service name is the one the register endpoint proposes.
-   */
-  @PostMapping(path = ContainersPage.BIND_PATH, produces = MediaType.TEXT_HTML_VALUE)
-  ResponseEntity<String> bindContainer(ContainersPage.Binding binding) {
-    InvalidRegistrationException error;
-    try {
-      ContainerBindingRequest request = binding.request();
-      String service =
-          binding.name().isBlank() && request.proposedService() != null
-              ? request.proposedService()
-              : binding.name().strip();
-      containerBindings.add(workstation.name(), service, request);
-      return seeOther(ServicePage.path(workstation.name(), service));
-    } catch (InvalidRegistrationException e) {
-      error = e;
-    } catch (FollowedContainerException e) {
-      error = new InvalidRegistrationException(e.field(), e.getMessage());
-    } catch (UnknownServiceException e) {
-      error = notCreated(e);
-    }
-    return ResponseEntity.badRequest()
-        .contentType(Layout.HTML)
-        .body(ContainersPage.renderNew(workstation, new ContainersPage.BindForm(binding, error)));
-  }
-
-  @GetMapping(
-      path = ContainersPage.PATH + "/{container}/register",
-      produces = MediaType.TEXT_HTML_VALUE)
-  @ResponseBody
-  String registerForm(@PathVariable String container) {
-    List<UnfollowedContainer> unfollowed = unfollowed(container);
-    return ContainersPage.renderRegister(
-        workstation, unfollowed, unfollowed.getFirst().service(), null, null);
-  }
-
-  /**
-   * The register form shows the Service it gave the container, or why it failed at its field. The
-   * one-click Register of the list goes back to the list, which says what it registered, or shows
-   * why it failed in the container's row.
-   *
-   * @param name the Service name, sent only by the register form
-   */
-  @PostMapping(ContainersPage.PATH + "/{container}/register")
-  ResponseEntity<String> registerContainer(
-      @PathVariable String container,
-      @RequestParam(required = false) String name,
-      @RequestParam(required = false) String port) {
-    boolean fromForm = name != null;
-    Service service;
-    InvalidRegistrationException error;
-    try {
-      service =
-          containerRegistration.register(
-              container, new ContainerRegistrationRequest(Registrations.parsePort(port), name));
-      return seeOther(
-          fromForm
-              ? ServicePage.path(service)
-              : ContainersPage.PATH + "?registered=" + service.name());
-    } catch (InvalidRegistrationException e) {
-      error = e;
-    } catch (UnknownServiceException e) {
-      error = notCreated(e);
-    } catch (FollowedContainerException e) {
-      throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage(), e);
-    } catch (UnreadableDockerException e) {
-      throw dockerUnavailable(e);
-    }
-    return ResponseEntity.badRequest()
-        .contentType(Layout.HTML)
-        .body(
-            fromForm
-                ? ContainersPage.renderRegister(
-                    workstation, unfollowed(container), name, port == null ? "" : port, error)
-                : containersPage(
-                    null, new ContainersPage.RegisterFailure(container, error.getMessage())));
-  }
-
-  private List<UnfollowedContainer> unfollowed(String name) {
-    List<UnfollowedContainer> containers;
-    try {
-      containers = containerRegistration.unfollowed();
-    } catch (UnreadableDockerException e) {
-      throw dockerUnavailable(e);
-    }
-    UnfollowedContainer target =
-        containers.stream()
-            .filter(container -> container.name().equals(name))
-            .findFirst()
-            .orElseThrow(() ->
-                new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    "No running container that LVH Yard does not follow is called " + name + "."));
-    if (target.composeProject() == null) {
-      return List.of(target);
-    }
-    List<UnfollowedContainer> members = new ArrayList<>();
-    members.add(target);
-    for (UnfollowedContainer container : containers) {
-      if (!container.name().equals(name)
-          && target.composeProject().equals(container.composeProject())
-          && target.composeService().equals(container.composeService())) {
-        members.add(container);
-      }
-    }
-    return members;
-  }
-
-  private static ResponseStatusException dockerUnavailable(UnreadableDockerException e) {
-    return new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage(), e);
   }
 
   @GetMapping(path = AliasesPage.PATH, produces = MediaType.TEXT_HTML_VALUE)

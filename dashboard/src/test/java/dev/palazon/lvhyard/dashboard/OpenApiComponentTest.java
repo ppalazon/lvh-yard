@@ -66,7 +66,6 @@ class OpenApiComponentTest extends DashboardComponentTest {
             "/api/workstation/aliases/{alias}",
             "/api/workstation/backup",
             "/api/workstation/containers",
-            "/api/workstation/containers/{container}/register",
             "/api/workstation/route-profiles",
             "/api/workstation/route-profiles/{name}",
             "/api/workstation/services",
@@ -111,9 +110,16 @@ class OpenApiComponentTest extends DashboardComponentTest {
     assertThat(answersWithProblem(paths, "/api/workstation/aliases/{alias}", "delete", "404"))
         .isTrue();
     assertThat(answersWithProblem(paths, "/api/workstation/containers", "get", "503")).isTrue();
-    String registerPath = "/api/workstation/containers/{container}/register";
-    assertThat(answersWithProblem(paths, registerPath, "post", "400")).isTrue();
-    assertThat(answersWithProblem(paths, registerPath, "post", "503")).isTrue();
+  }
+
+  @Test
+  void containerListGivesEveryContainerWithItsStateAndFollowingService() {
+    JsonNode schema =
+        get("/v3/api-docs").getBody().get("components").get("schemas").get("ListedContainer");
+
+    assertThat(schema.get("required").valueStream().map(JsonNode::asString))
+        .contains("name", "running", "ports");
+    assertThat(schema.get("properties").has("followedBy")).isTrue();
   }
 
   @Test

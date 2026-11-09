@@ -197,7 +197,7 @@ final class InstanceForm {
   }
 
   /** Shows the error, or else the help, below the control. */
-  private static void field(
+  static void field(
       FlowContent<?, ?> parent,
       String name,
       String label,

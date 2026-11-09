@@ -103,16 +103,30 @@ final class Dashboard {
   }
 
   /**
-   * The API leaves {@code composeProject}, {@code composeService} and {@code health} out when the
-   * container has none.
+   * A container of the Workstation, running or stopped. The API leaves {@code composeProject},
+   * {@code composeService}, {@code health} and {@code followedBy} out when the container has none.
+   *
+   * @param followedBy the Service of a Container Binding that matches the container
    */
-  record UnfollowedContainer(
+  record Container(
       String name,
       String composeProject,
       String composeService,
       String service,
+      boolean running,
       List<ContainerPort> ports,
-      String health) {}
+      String health,
+      String followedBy) {
+
+    /** A running container that no Container Binding matches. */
+    boolean unfollowed() {
+      return running && followedBy == null;
+    }
+
+    List<Integer> containerPorts() {
+      return ports.stream().map(ContainerPort::containerPort).distinct().sorted().toList();
+    }
+  }
 
   /**
    * {@code hostPort} is null when unpublished. {@code hostIp} can be unknown for a published port.
@@ -293,6 +307,17 @@ final class Dashboard {
     binding.put("composeProject", project);
     binding.put("composeService", composeService);
     binding.put("port", port);
+    return bind(service, binding);
+  }
+
+  ContainerBinding bindContainer(String service, String container, int port) {
+    Map<String, Object> binding = new LinkedHashMap<>();
+    binding.put("container", container);
+    binding.put("port", port);
+    return bind(service, binding);
+  }
+
+  private ContainerBinding bind(String service, Map<String, Object> binding) {
     HttpRequest.Builder request =
         HttpRequest.newBuilder(containerBindingsUrl(service))
             .header("Content-Type", "application/json")
@@ -344,8 +369,8 @@ final class Dashboard {
     }
   }
 
-  /** Compose projects first, then the other containers. */
-  List<UnfollowedContainer> containers() {
+  /** Every container, stopped ones too. Compose projects first, then the other containers. */
+  List<Container> containers() {
     return read(send(get("api/workstation/containers")), new TypeReference<>() {});
   }
 
@@ -465,23 +490,6 @@ final class Dashboard {
 
   private static String routeProfilePath(String name) {
     return "api/workstation/route-profiles/" + segment(name);
-  }
-
-  /** A {@code null} argument gets the dashboard's default. */
-  Service registerContainer(String container, Integer port, String service) {
-    Map<String, Object> body = new LinkedHashMap<>();
-    if (port != null) {
-      body.put("port", port);
-    }
-    if (service != null) {
-      body.put("service", service);
-    }
-    HttpRequest.Builder request =
-        HttpRequest.newBuilder(
-                url.resolve("api/workstation/containers/" + segment(container) + "/register"))
-            .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body)));
-    return read(attach(request), new TypeReference<>() {});
   }
 
   void unbind(String service, String id) {

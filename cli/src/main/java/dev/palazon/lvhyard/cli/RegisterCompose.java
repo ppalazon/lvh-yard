@@ -66,7 +66,7 @@ class RegisterCompose implements Runnable {
   }
 
   /** As the dashboard cleans a Compose service into the Service name it proposes. */
-  private static String cleaned(String name) {
+  static String cleaned(String name) {
     String cleaned = name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9-]", "-");
     if (cleaned.length() > MAX_NAME_LENGTH) {
       cleaned = cleaned.substring(0, MAX_NAME_LENGTH);

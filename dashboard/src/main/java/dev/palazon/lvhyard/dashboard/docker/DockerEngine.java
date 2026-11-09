@@ -73,7 +73,16 @@ public class DockerEngine implements Docker {
 
   @Override
   public List<Container> runningContainers() {
-    try (Response response = http.execute(get("/containers/json"))) {
+    return containers("/containers/json");
+  }
+
+  @Override
+  public List<Container> containers() {
+    return containers("/containers/json?all=1");
+  }
+
+  private List<Container> containers(String path) {
+    try (Response response = http.execute(get(path))) {
       checkOk(response);
       return JSON.readValue(response.getBody(), new TypeReference<List<Container>>() {});
     } catch (JacksonException e) {

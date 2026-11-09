@@ -14,7 +14,7 @@ Each Workstation runs three things:
   ([ADR-0002](adr/0002-traefik-reads-routes-from-lvh-yard.md))
 
 Each page of the dashboard has a navigation bar at the top. It links to the
-Catalog, Containers, Aliases, Static Instances and Route Profiles pages, and it
+Catalog, Aliases, Static Instances and Route Profiles pages, and it
 highlights the current page.
 
 The Catalog shows one row for each Service, grouped by Workstation. Its columns
@@ -952,8 +952,9 @@ error under the Service name.
 ### Container Bindings
 
 A Container Binding binds a Service to a Docker container by its name, or to
-each container of a Compose project and service. Add one on the Containers
-page, with `lvh-yard register container`, or with `lvh-yard register compose`.
+each container of a Compose project and service. Add one on the page of the
+Service, with `lvh-yard register container`, or with `lvh-yard register compose`.
+A Service can have many Container Bindings.
 Remove it on the page of the
 Service, or with `lvh-yard remove` and `--container`, or `--compose-project`
 and `--compose-service`. The Bindings are in the Consul KV of this
@@ -977,104 +978,88 @@ Host Port and Health. Checks appear under Health. A Bound Instance with no Host
 Port says "Not published". A Static Instance has empty container cells.
 Remote Services show the same columns, from their Home Workstation.
 
-The Container Bindings card shows a count for each Binding, such as
-"3 containers, 2 passing". A Binding with no match says that no container runs.
-The API gives each Bound Instance's `container` and `containerPort`.
-It also gives `hostPort` when the Instance has a Host Port.
+The Container Bindings card of the Service page lists each Binding. Under
+Bound Instances, it gives a count such as "3 containers, 2 passing", then
+each container that the Binding follows now. A Binding with no match says that no
+container runs. The API gives each Bound Instance's `container` and
+`containerPort`. It also gives `hostPort` when the Instance has a Host Port.
 A Static Instance has none of these fields.
 
 The dashboard follows the Docker events at `DOCKER_HOST`. If that is not set,
 it uses `unix:///var/run/docker.sock`. When it starts, or when Docker answers
 again, it updates each Binding to the containers that run then.
 
-The Containers page (`/containers`) lists the running containers that no
-Container Binding follows yet. It groups them by Compose project, with one
-row per Compose service. Each row shows the number of containers, their
-combined TCP ports and Host Ports, and counts for each Docker HEALTHCHECK
-state. Containers without a HEALTHCHECK have a separate count.
-Other containers keep one row each, with their ports and HEALTHCHECK state.
+#### Bind a container on the Service page
 
-A container that any Container Binding matches is not listed, whatever the
-port of the Container Binding. A container with a Compose project label but
-no Compose service label is listed with the other containers. The list
-refreshes every 5 seconds. If the dashboard cannot read Docker, the page says
-why. `GET /api/workstation/containers` gives one entry per container.
-Each published TCP port mapping includes `containerPort` and `hostPort`.
-The optional `hostIp` field gives the address Docker binds on the Workstation.
-An unpublished port has no `hostPort` or `hostIp`.
+On the page of a Service that you created, click "Bind container" in the
+Container Bindings card. The form opens on its own page,
+`/services/<workstation>/<service>/container-bindings/new`. Cancel goes back
+to the page of the Service.
 
-`lvh-yard containers` groups containers by Compose project and service.
-Each service line starts with its name, then gives the container count and
-combined Container Ports. Standalone containers keep separate lines.
+The Container field is a list that you can also type in. It lists:
+
+1. Each Compose service, as `project/service`. A Binding to it follows every
+   container of that Compose service, so it still works after
+   `docker compose up` makes new containers.
+2. Each container with no Compose project, by its name.
+
+The list holds stopped containers too. A target that another Container
+Binding follows shows the Service of that Binding, and you cannot select it.
+
+You can also type a target that does not exist yet. Type a container name,
+or a Compose project and service as `project/service`. A Docker container
+name has no `/`, so the two cannot mix.
+
+The Container Port field lists the Container Ports of your pick. You can also
+type any other port. Docker lists no ports for a stopped container, so then
+you type the port.
+
+Click Bind. The page of the Service opens. If the binding fails, the form
+shows your input again with the error under its field. A typed target that
+another Container Binding follows is refused at the Container field, and the
+error names the Service of that Binding.
+
+If the Service has Yard Scope and the container port is not published, the
+page of the Service warns that other Workstations cannot reach the Bound
+Instance.
+
+#### The container list
+
+`GET /api/workstation/containers` gives every container of this Workstation,
+stopped ones too. Compose projects come first. Each entry gives `name`,
+`composeProject` and `composeService` when the container has both Compose
+labels, and `running`. Each published TCP port mapping includes
+`containerPort` and `hostPort`. The optional `hostIp` field gives the address
+Docker binds on the Workstation. An unpublished port has no `hostPort` or
+`hostIp`. A stopped container has no ports. `followedBy` names the Service of
+a Container Binding that matches the container, whatever the port of the
+Binding. If the dashboard cannot read Docker, the answer is 503 and says why.
+
+`lvh-yard containers` lists the Unfollowed Containers: the running containers
+that no Container Binding matches. It groups them by Compose project and
+service. Each service line starts with its name, then gives the container
+count and combined Container Ports. Standalone containers keep separate lines.
 Add `--details` to list each container below its service, with mappings such
 as `127.0.0.1:8080->80`. IPv6 addresses have brackets, such as `[::]:8080->80`.
 If the bind address is unknown, the CLI keeps the Host Port and marks the
 mapping with `(bind address unknown)`.
 The detail lines also show the Docker HEALTHCHECK state when one is set.
 
-If a row has one Container Port, click Register to give it a hostname.
-This adds a Container Binding on that port. A Compose service row binds all
-its containers by Compose project and service, so the Container Binding still
-works after `docker compose up` makes new containers. Another container is
-bound by its name.
-The Service gets the name of the Compose service, or of the container.
-If that name is not a single DNS label, LVH Yard uses a cleaned name: lower
-case, with `_`, `.` and other characters changed to `-`. If the cleaned
-Compose service name is empty, LVH Yard uses the cleaned container name.
-The Service must exist on this Workstation. It keeps its Publication and
-Scope, or stays Unpublished. After the registration, the list says which Service got
-the container, with a link to the page of the Service. If the registration
-fails, for example because the name is `consul`, the page shows why next to the
-container.
+#### The REST API
 
-To choose another Service name, click Choose name. If a row has several
-Container Ports or none, click Choose port. The form lists the combined
-Container Ports of a Compose service, or the ports of a standalone container.
-Change the name and port, and click Register. The page of the Service then
-opens. If the registration fails, the form shows why next to the field.
-
-If the Service has Yard Scope and the container port is not published, the
-page of the Service warns that other Workstations cannot reach the Bound
-Instance.
-
-`POST /api/workstation/containers/<container>/register` binds only that named
-container, even when it has Compose labels. The Service gets the cleaned
-container name unless the body gives `service`.
-The body can give `port` and `service` (another Service name). Give `port` when
-the container does not have exactly one TCP port. If you do not, the error
-lists the ports of the container. If a Container Binding already follows the
-container, the registration is refused with 409, and names the Service of that
-Container Binding. If the Service does not exist, the registration is refused
-with 404, and the `service` of the error names it.
-
-If no container of that name runs, LVH Yard binds the name, so you can set up
-the Container Binding before the container starts. Then `port` is needed:
-without it, the registration is refused with 400, and the `field` of the
-error is `port`. The Service gets the cleaned container name. The Service gets
-its Bound Instance when the container starts.
-
-To bind a container name or a Compose service, click "Bind a container" above
-the list. The form opens on its own page, `/containers/new`. Cancel goes back
-to the Containers page. The container or Compose service does not need to run.
-Choose "Container name" or
-"Compose service", and fill in its names and the container port. If you leave
-the Service name empty, LVH Yard uses the cleaned container name or the cleaned
-Compose service name. The Service must exist. Then click Bind. The page of the Service opens. If the binding
-fails, the form shows your input again with the error under its field.
-
-`POST /api/workstation/services/<service>/container-bindings` does the same.
+`POST /api/workstation/services/<service>/container-bindings` binds a Service.
 The body gives `container`, or `composeProject` and `composeService`, and
 `port`. If the Service does not exist, the binding is refused with 404. If a
-Container Binding of this
-Workstation already follows the same container name, or the same Compose
-project and service, the binding is refused with 409, and names the Service of
-that Container Binding. This is also true for the same target and port again.
+Container Binding of this Workstation already follows the same container
+name, or the same Compose project and service, the binding is refused with
+409, and names the Service of that Container Binding. This is also true for
+the same target and port again.
 
 From the terminal:
 
 ```sh
-lvh-yard containers                                      # the running containers that LVH Yard does not follow
-lvh-yard register container shop-web-1                   # a running container with one port
+lvh-yard containers                                      # the Unfollowed Containers
+lvh-yard register container shop-web-1                   # a container with one Container Port
 lvh-yard register container shop-web-1 --port 9000       # choose the port of a container with several or none
 lvh-yard register container shop-web-1 --service shop    # choose the Service name
 lvh-yard register container shop-web-1 --port 80         # a container that does not run yet
@@ -1084,8 +1069,8 @@ lvh-yard register compose shop/web --port 80 --service shop # choose the Service
 
 `lvh-yard register container <name>` follows only the named container, even
 when it belongs to a Compose service. The default Service name is the cleaned
-container name. If the running container has exactly one TCP port, `--port`
-can be left out.
+container name. If the dashboard lists exactly one Container Port for the
+container, `--port` can be left out.
 
 `lvh-yard register compose <project>/<service>` follows every container of
 that Compose service. The default Service name is the cleaned Compose

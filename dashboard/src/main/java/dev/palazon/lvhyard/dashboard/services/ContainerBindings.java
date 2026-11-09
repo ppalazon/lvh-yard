@@ -158,7 +158,7 @@ public class ContainerBindings {
     return ContainerBindingRequest.compose(project, composeService, request.port());
   }
 
-  private static boolean sameTarget(ContainerBindingRequest one, ContainerBindingRequest other) {
+  static boolean sameTarget(ContainerBindingRequest one, ContainerBindingRequest other) {
     return one.followsCompose()
         ? one.composeProject().equals(other.composeProject())
             && one.composeService().equals(other.composeService())

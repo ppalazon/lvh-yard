@@ -23,6 +23,9 @@ public final class FakeDocker implements Docker {
 
   private final Map<String, Container> running = new LinkedHashMap<>();
 
+  /** As Docker lists a stopped container: with no ports and no address. */
+  private final Map<String, Container> stopped = new LinkedHashMap<>();
+
   /** The ports that each container on the host's network listens on, which Docker does not list. */
   private final Map<String, List<Integer>> onHostNetwork = new LinkedHashMap<>();
 
@@ -67,8 +70,10 @@ public final class FakeDocker implements Docker {
             ports,
             new NetworkSettings(networks),
             spec.labels,
+            "running",
             "Up 1 second" + (spec.health == null ? "" : " (" + spec.health + ")"),
             spec.health == null ? null : new Health(spec.health));
+    stopped.remove(spec.name);
     running.put(spec.name, container);
     record("start");
     return container;
@@ -76,14 +81,33 @@ public final class FakeDocker implements Docker {
 
   /** Stops the container called {@code name}, as {@code docker stop} does. */
   public synchronized void stop(String name) {
-    if (running.remove(name) == null) {
+    Container container = running.remove(name);
+    if (container == null) {
       throw new NoSuchElementException("No running container " + name);
     }
+    Map<String, Network> networks = new LinkedHashMap<>();
+    container
+        .networkSettings()
+        .networks()
+        .keySet()
+        .forEach(net -> networks.put(net, new Network("")));
+    stopped.put(
+        name,
+        new Container(
+            container.id(),
+            container.names(),
+            List.of(),
+            new NetworkSettings(networks),
+            container.labels(),
+            "exited",
+            "Exited (0) 1 second ago",
+            null));
     record("die");
   }
 
   /** Stops and removes the container called {@code name}, as {@code docker rm -f} does. */
   public synchronized void remove(String name) {
+    stopped.remove(name);
     if (running.remove(name) != null) {
       record("die");
     }
@@ -123,6 +147,7 @@ public final class FakeDocker implements Docker {
   /** Back to no containers and no events, and answering. */
   public synchronized void reset() {
     running.clear();
+    stopped.clear();
     onHostNetwork.clear();
     events.clear();
     failure = null;
@@ -143,6 +168,14 @@ public final class FakeDocker implements Docker {
   public synchronized List<Container> runningContainers() {
     answer();
     return List.copyOf(running.values());
+  }
+
+  @Override
+  public synchronized List<Container> containers() {
+    answer();
+    List<Container> every = new ArrayList<>(running.values());
+    every.addAll(stopped.values());
+    return every;
   }
 
   @Override

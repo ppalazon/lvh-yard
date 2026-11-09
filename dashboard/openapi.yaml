@@ -292,7 +292,9 @@ paths:
   /api/workstation/containers:
     get:
       description: "Compose projects come first, then the other containers. Each port\
-        \ is a TCP container port, with its host port when it is published."
+        \ is a TCP container port, with its host port when it is published. A stopped\
+        \ container has no ports. followedBy names the Service of a Container Binding\
+        \ that matches the container, whatever its port."
       operationId: containers
       responses:
         "200":
@@ -301,7 +303,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/UnfollowedContainer"
+                  $ref: "#/components/schemas/ListedContainer"
           description: The containers
         "503":
           content:
@@ -309,62 +311,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: "Docker does not answer, so its containers are not known"
-      summary: Lists the running containers that no Container Binding follows
-      tags:
-      - containers-controller
-  /api/workstation/containers/{container}/register:
-    post:
-      description: "Binds only the named container, even when it has Compose labels.\
-        \ The Service is named after the container, cleaned to follow the Service\
-        \ name rule, unless service is given. The port is needed when the container\
-        \ does not run, or does not have exactly one TCP port. The Service must exist,\
-        \ and it keeps its Publication. The body can be left out."
-      operationId: registerContainer
-      parameters:
-      - in: path
-        name: container
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ContainerRegistrationRequest"
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Service"
-          description: "The Service, with the container bound"
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-          description: "The name is not a single DNS label or is consul, or the port\
-            \ is missing or not a TCP port"
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-          description: This Workstation has no Service of this name. The problem names
-            it as service
-        "409":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-          description: A Container Binding already follows the container
-        "503":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-          description: "Docker does not answer, so its containers are not known"
-      summary: Gives a container a Service
+      summary: "Lists every container of this Workstation, stopped ones too"
       tags:
       - containers-controller
   /api/workstation/route-profiles:
@@ -1006,14 +953,6 @@ components:
           format: int32
       required:
       - containerPort
-    ContainerRegistrationRequest:
-      type: object
-      properties:
-        port:
-          type: integer
-          format: int32
-        service:
-          type: string
     ExportedFrom:
       type: object
       properties:
@@ -1145,6 +1084,36 @@ components:
       - address
       - id
       - reached
+    ListedContainer:
+      type: object
+      properties:
+        composeProject:
+          type: string
+        composeService:
+          type: string
+        followedBy:
+          type: string
+        health:
+          type: string
+          enum:
+          - starting
+          - healthy
+          - unhealthy
+        name:
+          type: string
+        ports:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContainerPort"
+        running:
+          type: boolean
+        service:
+          type: string
+      required:
+      - name
+      - ports
+      - running
+      - service
     NewServiceRequest:
       type: object
       properties:
@@ -1499,31 +1468,6 @@ components:
       - name
       - reason
       - state
-    UnfollowedContainer:
-      type: object
-      properties:
-        composeProject:
-          type: string
-        composeService:
-          type: string
-        health:
-          type: string
-          enum:
-          - starting
-          - healthy
-          - unhealthy
-        name:
-          type: string
-        ports:
-          type: array
-          items:
-            $ref: "#/components/schemas/ContainerPort"
-        service:
-          type: string
-      required:
-      - name
-      - ports
-      - service
     Yard:
       type: object
       properties:

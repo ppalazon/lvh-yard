@@ -467,9 +467,9 @@ class YardTest extends YardTestSupport {
 
   @Test
   void registerContainerOnAMissingServiceNamesServiceCreate() {
-    answerNoService("POST", "/api/workstation/containers/grafana/register", "web");
+    answerNoService("POST", "/api/workstation/services/web/container-bindings", "web");
 
-    Run run = yard("register", "container", "grafana", "--service", "web");
+    Run run = yard("register", "container", "grafana", "--service", "web", "--port", "3000");
 
     assertThat(run.exitCode()).isNotZero();
     assertThat(run.err()).contains("lvh-yard service create web");
@@ -477,9 +477,9 @@ class YardTest extends YardTestSupport {
 
   @Test
   void registerContainerOnAMissingServiceOfTheContainerNameNamesServiceCreate() {
-    answerNoService("POST", "/api/workstation/containers/grafana/register", "grafana");
+    answerNoService("POST", "/api/workstation/services/grafana/container-bindings", "grafana");
 
-    Run run = yard("register", "container", "grafana");
+    Run run = yard("register", "container", "grafana", "--port", "3000");
 
     assertThat(run.exitCode()).isNotZero();
     assertThat(run.err()).contains("lvh-yard service create grafana");
@@ -576,13 +576,13 @@ class YardTest extends YardTestSupport {
         200,
         """
         [{"name": "beta-web-1", "composeProject": "beta", "composeService": "web",
-          "service": "web", "ports": [{"containerPort": 8080}]},
+          "service": "web", "running": true, "ports": [{"containerPort": 8080}]},
          {"name": "alpha-web-2", "composeProject": "alpha", "composeService": "web",
-          "service": "web", "ports": [{"containerPort": 9000}, {"containerPort": 80}]},
+          "service": "web", "running": true, "ports": [{"containerPort": 9000}, {"containerPort": 80}]},
          {"name": "alpha-worker-1", "composeProject": "alpha", "composeService": "worker",
-          "service": "worker", "ports": []},
+          "service": "worker", "running": true, "ports": []},
          {"name": "alpha-web-1", "composeProject": "alpha", "composeService": "web",
-          "service": "web", "ports": [{"containerPort": 443}, {"containerPort": 80}]}]
+          "service": "web", "running": true, "ports": [{"containerPort": 443}, {"containerPort": 80}]}]
         """);
 
     Run run = yard("containers");
@@ -607,7 +607,7 @@ class YardTest extends YardTestSupport {
         200,
         """
         [{"name": "shop-Front_End-1", "composeProject": "shop", "composeService": "Front_End",
-          "service": "front-end", "ports": [{"containerPort": 80}]}]
+          "service": "front-end", "running": true, "ports": [{"containerPort": 80}]}]
         """);
 
     Run run = yard("containers");
@@ -668,7 +668,7 @@ class YardTest extends YardTestSupport {
         "/api/workstation/containers",
         200,
         """
-        [{"name": "web-1", "service": "web",
+        [{"name": "web-1", "service": "web", "running": true,
           "ports": [{"containerPort": 8080, "hostPort": 37137}]}]
         """);
 
@@ -681,6 +681,30 @@ class YardTest extends YardTestSupport {
             Other containers
               web: 1 container; 8080
                 web-1: 37137->8080 (bind address unknown)
+            """);
+  }
+
+  @Test
+  void containersLeavesOutStoppedAndFollowedContainers() {
+    dashboard.answer(
+        "GET",
+        "/api/workstation/containers",
+        200,
+        """
+        [{"name": "api-1", "service": "api", "running": true, "ports": [{"containerPort": 80}]},
+         {"name": "old-1", "service": "old", "running": false, "ports": []},
+         {"name": "web-1", "service": "web", "running": true, "followedBy": "web",
+          "ports": [{"containerPort": 80}]}]
+        """);
+
+    Run run = yard("containers");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out())
+        .isEqualTo(
+            """
+            Other containers
+              api: 1 container; 80
             """);
   }
 
@@ -1151,11 +1175,37 @@ class YardTest extends YardTestSupport {
                 + " it: web. These chains name it: protected.\n");
   }
 
-  @Test
-  void registerContainerRegistersTheContainerAndSaysWhereItIsPublished() {
+  /** The container list with one running container called {@code name} on {@code ports}. */
+  private void answerContainer(String name, String ports) {
+    dashboard.answer(
+        "GET",
+        "/api/workstation/containers",
+        200,
+        """
+        [{"name": "%s", "service": "%s", "running": true, "ports": [%s]}]
+        """
+            .formatted(name, name, ports));
+  }
+
+  /** The Binding that the dashboard answers for a bound container. */
+  private void answerContainerBinding(String service, String container, int port) {
     dashboard.answer(
         "POST",
-        "/api/workstation/containers/grafana/register",
+        "/api/workstation/services/" + service + "/container-bindings",
+        201,
+        """
+        {"id": "%s:%d", "container": "%s", "port": %d, "instances": []}
+        """
+            .formatted(container, port, container, port));
+  }
+
+  @Test
+  void registerContainerBindsTheOnlyPortAndSaysWhereItIsPublished() {
+    answerContainer("grafana", "{\"containerPort\": 3000}");
+    answerContainerBinding("grafana", "grafana", 3000);
+    dashboard.answer(
+        "GET",
+        "/api/workstation/services/grafana",
         200,
         """
         {"workstation": "ws-a", "name": "grafana", "state": "healthy", "created": true, "empty": false,
@@ -1171,14 +1221,20 @@ class YardTest extends YardTestSupport {
     assertThat(run.exitCode()).isZero();
     assertThat(run.out())
         .isEqualTo("Registered grafana as grafana, published at grafana.lvh.me.\n");
-    dashboard.verifyCalled("POST", "/api/workstation/containers/grafana/register", "{}");
+    dashboard.verifyCalled(
+        "POST",
+        "/api/workstation/services/grafana/container-bindings",
+        """
+        {"container": "grafana", "port": 3000}
+        """);
   }
 
   @Test
   void registerContainerSendsThePortAndTheService() {
+    answerContainerBinding("shop", "storefront", 9000);
     dashboard.answer(
-        "POST",
-        "/api/workstation/containers/storefront/register",
+        "GET",
+        "/api/workstation/services/shop",
         200,
         """
         {"workstation": "ws-a", "name": "shop", "state": "healthy", "created": true, "empty": false,
@@ -1194,17 +1250,41 @@ class YardTest extends YardTestSupport {
     assertThat(run.out()).isEqualTo("Registered storefront as shop. shop is not published.\n");
     dashboard.verifyCalled(
         "POST",
-        "/api/workstation/containers/storefront/register",
+        "/api/workstation/services/shop/container-bindings",
         """
-        {"port": 9000, "service": "shop"}
+        {"container": "storefront", "port": 9000}
+        """);
+  }
+
+  @Test
+  void registerContainerUsesTheCleanedContainerNameAsTheService() {
+    answerContainerBinding("my-web", "My_Web", 80);
+    dashboard.answer(
+        "GET",
+        "/api/workstation/services/my-web",
+        200,
+        """
+        {"workstation": "ws-a", "name": "my-web", "state": "unpublished", "created": true,
+         "empty": false, "containerBindings": [], "warnings": [], "instances": []}
+        """);
+
+    Run run = yard("register", "container", "My_Web", "--port", "80");
+
+    assertThat(run.exitCode()).isZero();
+    dashboard.verifyCalled(
+        "POST",
+        "/api/workstation/services/my-web/container-bindings",
+        """
+        {"container": "My_Web", "port": 80}
         """);
   }
 
   @Test
   void registerContainerOfAContainerThatDoesNotRunSaysWhenItGetsItsInstance() {
+    answerContainerBinding("catalog", "catalog", 80);
     dashboard.answer(
-        "POST",
-        "/api/workstation/containers/catalog/register",
+        "GET",
+        "/api/workstation/services/catalog",
         200,
         """
         {"workstation": "ws-a", "name": "catalog", "state": "unavailable", "created": true, "empty": false,
@@ -1219,56 +1299,41 @@ class YardTest extends YardTestSupport {
         .isEqualTo(
             "Registered catalog as catalog, published at catalog.lvh.me. No container"
                 + " of that name runs now: catalog gets its Bound Instance once one starts.\n");
-    dashboard.verifyCalled(
-        "POST", "/api/workstation/containers/catalog/register", "{\"port\": 80}");
   }
 
   @Test
-  void registerContainerOfAContainerThatDoesNotRunWithoutAPortSaysToGiveIt() {
-    dashboard.answer(
-        "POST",
-        "/api/workstation/containers/catalog/register",
-        400,
-        """
-        {"status": 400, "field": "port",
-         "detail": "The container catalog does not run: give the port."}
-        """);
+  void registerContainerWithoutAPortOfAContainerThatIsNotListedSaysToGiveIt() {
+    dashboard.answer("GET", "/api/workstation/containers", 200, "[]");
 
     Run run = yard("register", "container", "catalog");
 
     assertThat(run.exitCode()).isEqualTo(1);
-    assertThat(run.err()).contains("The container catalog does not run: give the port.");
+    assertThat(run.err()).contains("catalog").contains("--port");
+    dashboard.verifyNotCalled("POST", "/api/workstation/services/catalog/container-bindings");
   }
 
   @Test
   void registerContainerWithoutAPortOnAContainerWithSeveralListsThePorts() {
-    dashboard.answer(
-        "POST",
-        "/api/workstation/containers/storefront/register",
-        400,
-        """
-        {"status": 400, "field": "port",
-         "detail": "The container storefront has more than one port: give one of 80, 9000."}
-        """);
+    answerContainer("storefront", "{\"containerPort\": 80}, {\"containerPort\": 9000}");
 
     Run run = yard("register", "container", "storefront");
 
     assertThat(run.exitCode()).isEqualTo(1);
-    assertThat(run.err()).contains("give one of 80, 9000.");
+    assertThat(run.err()).contains("80, 9000").contains("--port");
   }
 
   @Test
   void registerContainerOfAFollowedContainerSaysWhichServiceFollowsIt() {
     dashboard.answer(
         "POST",
-        "/api/workstation/containers/grafana/register",
+        "/api/workstation/services/grafana/container-bindings",
         409,
         """
         {"status": 409,
          "detail": "The container grafana is already followed by a Container Binding of the Service metrics."}
         """);
 
-    Run run = yard("register", "container", "grafana");
+    Run run = yard("register", "container", "grafana", "--port", "3000");
 
     assertThat(run.exitCode()).isEqualTo(1);
     assertThat(run.err())
@@ -1277,9 +1342,10 @@ class YardTest extends YardTestSupport {
 
   @Test
   void registerContainerPrintsTheServicesWarnings() {
+    answerContainerBinding("web", "web-1", 80);
     dashboard.answer(
-        "POST",
-        "/api/workstation/containers/web-1/register",
+        "GET",
+        "/api/workstation/services/web",
         200,
         """
         {"workstation": "ws-a", "name": "web", "state": "healthy", "created": true, "empty": false,
@@ -1292,7 +1358,7 @@ class YardTest extends YardTestSupport {
                         "checks": [], "tags": [], "meta": {}}]}
         """);
 
-    Run run = yard("register", "container", "web-1", "--service", "web");
+    Run run = yard("register", "container", "web-1", "--service", "web", "--port", "80");
 
     assertThat(run.exitCode()).isZero();
     assertThat(run.err())
