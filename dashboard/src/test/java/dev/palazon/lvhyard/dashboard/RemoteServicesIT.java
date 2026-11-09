@@ -60,8 +60,8 @@ class RemoteServicesIT extends DashboardIT {
     remote.publish(api, "yard");
     publish(web);
     // The Alias makes this Workstation's own Service read the Remote Service as its fallback.
-    put(
-        AliasesComponentTest.aliasPath(web),
+    post(
+        AliasesComponentTest.aliasesPath(web),
         Map.of("workstation", RemoteWorkstation.NAME, "service", api));
 
     remote.stopAnswering();

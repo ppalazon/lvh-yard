@@ -157,15 +157,16 @@ class BackupExportComponentTest extends DashboardComponentTest {
     String grafana = newServiceName("grafana");
     remote.register(grafana, Map.of("host", "10.9.8.7", "port", 3000));
     remote.publish(grafana, "yard");
-    String alias = newServiceName("dash");
-    put(
-        "/api/workstation/aliases/" + alias,
+    String dash = newServiceName("dash");
+    create(dash);
+    post(
+        AliasesComponentTest.aliasesPath(dash),
         Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
 
     Map<String, Object> backup = exported();
 
-    assertThat(map(backup.get("aliases")).get(alias))
-        .isEqualTo(Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
+    assertThat(map(map(backup.get("services")).get(dash)).get("aliases"))
+        .isEqualTo(List.of(Map.of("workstation", RemoteWorkstation.NAME, "service", grafana)));
     assertThat(map(backup.get("services"))).doesNotContainKey(grafana);
   }
 }

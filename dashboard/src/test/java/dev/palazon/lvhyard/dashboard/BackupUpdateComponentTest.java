@@ -248,59 +248,36 @@ class BackupUpdateComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void aliasGetsTheTargetOfTheFile() {
+  void aliasOfTheFileJoinsTheAliasesThereAndKeepsThem() {
     String grafana = newServiceName("grafana");
     String loki = newServiceName("loki");
     for (String service : List.of(grafana, loki)) {
       remote.register(service, Map.of("host", "10.9.8.7", "port", 3000));
+      remote.publish(service, "yard");
     }
     String dash = newServiceName("dash");
-    put(
-        "/api/workstation/aliases/" + dash,
+    create(dash);
+    post(
+        AliasesComponentTest.aliasesPath(dash),
         Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
 
     ResponseEntity<JsonNode> response =
         update(
             """
             version: 1
-            aliases:
+            services:
               %s:
-                workstation: %s
-                service: %s
+                aliases:
+                  - workstation: %s
+                    service: %s
             """
                 .formatted(dash, RemoteWorkstation.NAME, loki));
 
-    assertThat(entries(response)).containsExactly("update alias " + dash);
-    JsonNode alias =
-        get("/api/workstation/aliases")
-            .getBody()
-            .valueStream()
-            .filter(candidate -> candidate.get("name").asString().equals(dash))
-            .findFirst()
-            .orElseThrow();
-    assertThat(alias.findValuesAsString("service")).contains(loki);
-  }
-
-  @Test
-  void aliasOverwriteToAMissingRemoteServiceIsApplied() {
-    String grafana = newServiceName("grafana");
-    remote.register(grafana, Map.of("host", "10.9.8.7", "port", 3000));
-    String dash = newServiceName("dash");
-    put(
-        "/api/workstation/aliases/" + dash,
-        Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
-
-    ResponseEntity<JsonNode> response =
-        update(
-            """
-            version: 1
-            aliases:
-              %s:
-                workstation: %s
-                service: nothing-here
-            """
-                .formatted(dash, RemoteWorkstation.NAME));
-
-    assertThat(entries(response)).containsExactly("update alias " + dash);
+    assertThat(entries(response))
+        .containsExactly(
+            "skip service " + dash + ": It exists already.",
+            "add alias " + RemoteWorkstation.NAME + "/" + loki + " of " + dash);
+    assertThat(get(AliasesComponentTest.aliasesPath(dash)).getBody().findValuesAsString("service"))
+        .containsExactly(grafana, loki);
   }
 }

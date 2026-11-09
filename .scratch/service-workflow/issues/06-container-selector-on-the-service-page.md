@@ -15,5 +15,5 @@
 - [x] The Containers page, its routes and the one-click register endpoint go away, with no redirects. The menu loses its link.
 - [x] `lvh-yard containers` keeps listing the Unfollowed Containers.
 - [x] Component tests cover the list API, both groups, a typed target, the port field, a followed target and the removed page. The OpenAPI test covers the changed endpoints.
-- [ ] If 03 and 05 are done, the Service page parts follow the order of the spec.
+- [x] If 03 and 05 are done, the Service page parts follow the order of the spec.
 - [x] `docs/user-guide.md` explains the container selector.

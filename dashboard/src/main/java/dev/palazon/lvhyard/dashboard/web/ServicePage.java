@@ -6,6 +6,7 @@ import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.reachability.InstanceReachability;
 import dev.palazon.lvhyard.dashboard.reachability.Reachability;
 import dev.palazon.lvhyard.dashboard.reachability.RouteReachability;
+import dev.palazon.lvhyard.dashboard.services.Alias;
 import dev.palazon.lvhyard.dashboard.services.ContainerBinding;
 import dev.palazon.lvhyard.dashboard.services.Health;
 import dev.palazon.lvhyard.dashboard.services.Instance;
@@ -71,12 +72,14 @@ final class ServicePage {
   }
 
   /**
+   * @param aliases the Aliases of an own Service, with their state, in order
    * @param profileNames this Workstation's valid Route Profiles, which its own Services can name
    * @param reachability the results of a Reachability test, or {@code null}
    */
   static String render(
       Workstation workstation,
       Service service,
+      List<Alias> aliases,
       List<String> profileNames,
       Reachability reachability) {
     boolean own = workstation.is(service.workstation());
@@ -117,7 +120,7 @@ final class ServicePage {
                                 .attrId("sections")
                                 .attrClass("grid grid-cols-1 items-start gap-4 lg:grid-cols-2")
                                 .of(grid ->
-                                    card(grid, null, "Publication")
+                                    card(grid, "publication", "Publication")
                                         .of(card -> publication(card, workstation, service, own))
                                         .of(card -> {
                                           if (own) {
@@ -125,7 +128,7 @@ final class ServicePage {
                                           }
                                         })
                                         .__())
-                                .of(grid -> instanceSources(grid, service, own))
+                                .of(grid -> instanceSources(grid, service, aliases, own))
                                 .of(grid -> {
                                   if (own ? service.published() : !service.profiles().isEmpty()) {
                                     routeProfiles(grid, service, own, profileNames);
@@ -397,7 +400,8 @@ final class ServicePage {
    * the whole new order, so the page needs no script. The buttons hide while the Instance Priority
    * is off, but the order stays. Each kind of source has its own method below.
    */
-  private static void instanceSources(Div<?> grid, Service service, boolean own) {
+  private static void instanceSources(
+      Div<?> grid, Service service, List<Alias> aliases, boolean own) {
     List<InstanceSource> sources = service.sources();
     boolean movable = own && service.instancePriority() && sources.size() > 1;
     Routing routing = service.routing();
@@ -433,6 +437,7 @@ final class ServicePage {
           .attrClass("flex flex-wrap gap-2")
           .of(row -> AddStaticInstancePage.openLink(row, service))
           .of(row -> ContainerBindingsCard.openLink(row, service))
+          .of(row -> AddAliasPage.openLink(row, service))
           .__();
     }
     if (sources.isEmpty()) {
@@ -484,7 +489,7 @@ final class ServicePage {
                   switch (source.kind()) {
                     case STATIC -> staticSource(item, service, source, own);
                     case BOUND -> boundSource(item, service, source, own);
-                    case ALIAS -> aliasSource(item, service, source);
+                    case ALIAS -> aliasSource(item, service, source, aliases, own);
                     case FOREIGN -> foreignSource(item, service, source, own);
                   }
                 })
@@ -521,20 +526,49 @@ final class ServicePage {
         });
   }
 
-  /** The Instances of an Alias belong to its Remote Service, so they have no actions here. */
-  private static void aliasSource(Li<?> item, Service service, InstanceSource source) {
-    if (source.givenInstances().isEmpty()) {
+  /**
+   * The Instances of an Alias belong to its Remote Service, so they have no actions here. An Alias
+   * that gives no Instances says why.
+   */
+  private static void aliasSource(
+      Li<?> item, Service service, InstanceSource source, List<Alias> aliases, boolean own) {
+    String[] target = source.id().split("/", 2);
+    String remoteService = target.length < 2 ? "" : target[1];
+    Optional<Alias> alias =
+        aliases.stream().filter(candidate -> candidate.id().equals(source.id())).findFirst();
+    item.div()
+        .attrClass("flex flex-wrap items-center gap-2")
+        .a()
+        .attrHref(Layout.attr(path(target[0], remoteService)))
+        .text("Open " + remoteService + " on " + target[0])
+        .__()
+        .of(row -> {
+          if (own) {
+            row.form()
+                .addAttr("method", "post")
+                .addAttr("action", Layout.attr(AddAliasPage.removePath(service, source.id())))
+                .button()
+                .attrType(EnumTypeButtonType.SUBMIT)
+                .attrClass("btn")
+                .addAttr("data-variant", "outline")
+                .addAttr("data-size", "sm")
+                .addAttr("aria-label", Layout.attr("Remove " + sourceLabel(service, source)))
+                .text("Remove")
+                .__()
+                .__();
+          }
+        })
+        .__();
+    if (alias.isPresent() && alias.get().reason() != null) {
       item.p()
           .attrClass("text-muted-foreground")
-          .text(
-              service.published()
-                  ? "It gives no Instances now: its Remote Service has no Yard Scope, or its"
-                      + " Workstation does not answer."
-                  : "It gives Instances once this Service is published.")
+          .addAttr("data-alias-reason", "")
+          .text("It gives no Instances now. " + alias.get().reason())
           .__();
-      return;
     }
-    instanceTable(item, service, source.givenInstances(), false);
+    if (!source.givenInstances().isEmpty()) {
+      instanceTable(item, service, source.givenInstances(), false);
+    }
   }
 
   /** How the page and the summary name a source, such as {@code Static Instance 10.0.0.5:80}. */
@@ -679,7 +713,7 @@ final class ServicePage {
       Div<?> content, Service service, boolean own, List<String> profileNames) {
     List<String> chosen = service.profiles();
     List<String> addable = profileNames.stream().filter(name -> !chosen.contains(name)).toList();
-    card(content, null, "Route Profiles")
+    card(content, "route-profiles", "Route Profiles")
         .p()
         .attrClass("text-muted-foreground")
         .text(

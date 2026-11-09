@@ -829,7 +829,7 @@ class YardTest extends YardTestSupport {
            {"kind": "static-instance", "name": "10.1.2.3:8080", "service": "web",
             "action": "update"},
            {"kind": "publication", "name": "web", "action": "update"},
-           {"kind": "alias", "name": "dash", "action": "add"}]}
+           {"kind": "alias", "name": "ws-b/grafana", "service": "dash", "action": "add"}]}
         """);
     Path file = dir.resolve("ws-a.yaml");
     Files.writeString(file, BACKUP);
@@ -843,7 +843,7 @@ class YardTest extends YardTestSupport {
             skip Service web: It exists already.
             update Static Instance 10.1.2.3:8080 of web
             update Publication of web
-            add Alias dash
+            add Alias to ws-b/grafana of dash
             Added 1, updated 2, skipped 1.
             """);
     dashboard.verifyCalled("POST", "/api/workstation/backup", "application/yaml", BACKUP);
@@ -2329,8 +2329,8 @@ class YardTest extends YardTestSupport {
                         "error": "Connection refused"}],
          "routes": [{"hostname": "web.lvh.me", "reached": true, "status": 200}],
          "routing": {"waiting": [], "kind": "alias", "instances": ["9e3f"]},
-         "alias": {"name": "web", "workstation": "ws-b", "service": "web",
-                   "hostname": "web.lvh.me", "state": "fallback"}}
+         "alias": {"id": "ws-b/web", "workstation": "ws-b", "service": "web",
+                   "state": "active"}}
         """);
 
     Run run = yard("test", "web");
@@ -2363,126 +2363,133 @@ class YardTest extends YardTestSupport {
   }
 
   @Test
-  void aliasAddGivesTheRemoteServiceOfTheSameNameItsAlias() {
+  void aliasAddAddsAnAliasToTheService() {
     dashboard.answer(
-        "PUT",
-        "/api/workstation/aliases/grafana",
-        200,
+        "POST",
+        "/api/workstation/services/web/aliases",
+        201,
         """
-        {"name": "grafana", "workstation": "ws-b", "service": "grafana", "hostname": "grafana.lvh.me",
-         "state": "active"}
+        {"id": "ws-b/grafana", "workstation": "ws-b", "service": "grafana", "state": "active"}
         """);
 
-    Run run = yard("alias", "add", "grafana", "--workstation", "ws-b");
+    Run run = yard("alias", "add", "web", "--workstation", "ws-b", "--service", "grafana");
 
     assertThat(run.exitCode()).isZero();
-    assertThat(run.out()).isEqualTo("grafana.lvh.me now reaches grafana on ws-b.\n");
+    assertThat(run.out()).isEqualTo("web now has an Alias to grafana on ws-b.\n");
+    assertThat(run.err()).isEmpty();
     dashboard.verifyCalled(
-        "PUT",
-        "/api/workstation/aliases/grafana",
+        "POST",
+        "/api/workstation/services/web/aliases",
         """
         {"workstation": "ws-b", "service": "grafana"}
         """);
   }
 
   @Test
-  void aliasAddWithoutARouteSaysWhy() {
+  void aliasAddThatGivesNoInstancesNowSaysWhy() {
     dashboard.answer(
-        "PUT",
-        "/api/workstation/aliases/db",
-        200,
+        "POST",
+        "/api/workstation/services/web/aliases",
+        201,
         """
-        {"name": "db", "workstation": "ws-b", "service": "postgres", "hostname": "db.lvh.me",
-         "state": "not-shared", "reason": "ws-b publishes postgres with Local Scope, so only ws-b routes it."}
+        {"id": "ws-b/grafana", "workstation": "ws-b", "service": "grafana",
+         "state": "unavailable", "reason": "grafana has no Instance this Workstation can reach."}
         """);
 
-    Run run = yard("alias", "add", "db", "--workstation", "ws-b", "--service", "postgres");
+    Run run = yard("alias", "add", "web", "--workstation", "ws-b", "--service", "grafana");
 
     assertThat(run.exitCode()).isZero();
-    assertThat(run.out())
-        .isEqualTo("db.lvh.me names postgres on ws-b, but has no Route for now.\n");
+    assertThat(run.out()).isEqualTo("web now has an Alias to grafana on ws-b.\n");
     assertThat(run.err())
-        .isEqualTo("Warning: ws-b publishes postgres with Local Scope, so only ws-b routes it.\n");
-    dashboard.verifyCalled(
-        "PUT",
-        "/api/workstation/aliases/db",
-        """
-        {"workstation": "ws-b", "service": "postgres"}
-        """);
+        .isEqualTo("Warning: grafana has no Instance this Workstation can reach.\n");
   }
 
   @Test
-  void aliasAddNeedsTheWorkstation() {
-    Run run = yard("alias", "add", "grafana");
+  void aliasAddNeedsTheWorkstationAndTheService() {
+    Run noWorkstation = yard("alias", "add", "web", "--service", "grafana");
+    Run noService = yard("alias", "add", "web", "--workstation", "ws-b");
 
-    assertThat(run.exitCode()).isEqualTo(CommandLine.ExitCode.USAGE);
-    assertThat(run.err()).contains("--workstation");
+    assertThat(noWorkstation.exitCode()).isEqualTo(CommandLine.ExitCode.USAGE);
+    assertThat(noWorkstation.err()).contains("--workstation");
+    assertThat(noService.exitCode()).isEqualTo(CommandLine.ExitCode.USAGE);
+    assertThat(noService.err()).contains("--service");
   }
 
   @Test
-  void aliasAddOfAServiceNotInTheYardKeepsTheAliasAndSaysWhy() {
+  void aliasAddThatIsRefusedPrintsTheReason() {
     dashboard.answer(
-        "PUT",
-        "/api/workstation/aliases/grafana",
-        200,
+        "POST",
+        "/api/workstation/services/web/aliases",
+        409,
         """
-        {"name": "grafana", "workstation": "ws-b", "service": "grafana", "hostname": "grafana.lvh.me",
-         "state": "unreachable", "reason": "Workstation ws-b is unreachable: its Consul does not answer."}
+        {"type": "about:blank", "title": "Conflict", "status": 409,
+         "detail": "web already has an Alias to ws-b/grafana."}
         """);
 
-    Run run = yard("alias", "add", "grafana", "--workstation", "ws-b");
+    Run run = yard("alias", "add", "web", "--workstation", "ws-b", "--service", "grafana");
 
-    assertThat(run.exitCode()).isZero();
-    assertThat(run.out())
-        .isEqualTo("grafana.lvh.me names grafana on ws-b, but has no Route for now.\n");
-    assertThat(run.err())
-        .isEqualTo("Warning: Workstation ws-b is unreachable: its Consul does not answer.\n");
+    assertThat(run.exitCode()).isEqualTo(1);
+    assertThat(run.err()).isEqualTo("web already has an Alias to ws-b/grafana.\n");
   }
 
   @Test
-  void aliasListShowsEachAliasWithItsServiceAndState() {
+  void aliasAddToAMissingServiceNamesServiceCreate() {
+    dashboard.answer(
+        "POST",
+        "/api/workstation/services/web/aliases",
+        404,
+        """
+        {"type": "about:blank", "title": "Not Found", "status": 404,
+         "detail": "This Workstation has no Service web.", "service": "web"}
+        """);
+
+    Run run = yard("alias", "add", "web", "--workstation", "ws-b", "--service", "grafana");
+
+    assertThat(run.exitCode()).isEqualTo(1);
+    assertThat(run.err()).contains("lvh-yard service create web");
+  }
+
+  @Test
+  void aliasListShowsEachAliasOfTheServiceWithItsState() {
     dashboard.answer(
         "GET",
-        "/api/workstation/aliases",
+        "/api/workstation/services/web/aliases",
         200,
         """
-        [{"name": "db", "workstation": "ws-b", "service": "postgres", "hostname": "db.lvh.me",
-          "state": "fallback",
-          "reason": "The last fallback for this Workstation's Service db: used when none of its Instances passes."},
-         {"name": "grafana", "workstation": "ws-b", "service": "grafana", "hostname": "grafana.lvh.me",
-          "state": "active"}]
+        [{"id": "ws-b/grafana", "workstation": "ws-b", "service": "grafana",
+          "state": "not-shared", "reason": "ws-b publishes grafana with Local Scope only."},
+         {"id": "ws-c/grafana", "workstation": "ws-c", "service": "grafana", "state": "active"}]
         """);
 
-    Run run = yard("alias", "list");
+    Run run = yard("alias", "list", "web");
 
     assertThat(run.exitCode()).isZero();
     assertThat(run.lines())
         .containsExactly(
-            "db.lvh.me: postgres on ws-b, fallback",
-            "  The last fallback for this Workstation's Service db: used when none of its Instances"
-                + " passes.",
-            "grafana.lvh.me: grafana on ws-b, active");
+            "grafana on ws-b: not-shared",
+            "  ws-b publishes grafana with Local Scope only.",
+            "grafana on ws-c: active");
   }
 
   @Test
   void aliasListWithoutAliasesSaysSo() {
-    dashboard.answer("GET", "/api/workstation/aliases", 200, "[]");
+    dashboard.answer("GET", "/api/workstation/services/web/aliases", 200, "[]");
 
-    Run run = yard("alias", "list");
+    Run run = yard("alias", "list", "web");
 
     assertThat(run.exitCode()).isZero();
-    assertThat(run.out()).isEqualTo("No Aliases.\n");
+    assertThat(run.out()).isEqualTo("web has no Aliases.\n");
   }
 
   @Test
-  void aliasRemoveRemovesTheAlias() {
-    dashboard.answer("DELETE", "/api/workstation/aliases/grafana", 204, null);
+  void aliasRemoveRemovesOneAliasOfTheService() {
+    dashboard.answer("DELETE", "/api/workstation/services/web/aliases/ws-b/grafana", 204, null);
 
-    Run run = yard("alias", "remove", "grafana");
+    Run run = yard("alias", "remove", "web", "--workstation", "ws-b", "--service", "grafana");
 
     assertThat(run.exitCode()).isZero();
-    assertThat(run.out()).isEqualTo("Removed the Alias grafana.\n");
-    dashboard.verifyCalled("DELETE", "/api/workstation/aliases/grafana");
+    assertThat(run.out()).isEqualTo("Removed the Alias to grafana on ws-b from web.\n");
+    dashboard.verifyCalled("DELETE", "/api/workstation/services/web/aliases/ws-b/grafana");
   }
 
   @Test

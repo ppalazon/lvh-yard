@@ -13,20 +13,32 @@ class NavigationBarComponentTest extends DashboardComponentTest {
     assertThat(navOf(getPage("/").getBody()))
         .contains("href=\"/\"")
         .contains(">Catalog<")
-        .contains("href=\"/aliases\"")
-        .contains(">Aliases<")
+        .doesNotContain("href=\"/aliases\"")
+        .doesNotContain(">Aliases<")
         .contains("href=\"/route-profiles\"")
         .contains(">Route Profiles<")
         .contains("href=\"/backups\"")
-        .contains(">Backups<");
+        .contains(">Backups<")
+        .contains("href=\"/status\"")
+        .contains(">Status<");
+  }
+
+  @Test
+  void menuHoldsCatalogRouteProfilesBackupsAndStatusInThisOrder() {
+    String nav = navOf(getPage("/").getBody());
+
+    assertThat(nav.split("<a ", -1)).hasSize(5);
+    assertThat(nav.indexOf(">Catalog<")).isLessThan(nav.indexOf(">Route Profiles<"));
+    assertThat(nav.indexOf(">Route Profiles<")).isLessThan(nav.indexOf(">Backups<"));
+    assertThat(nav.indexOf(">Backups<")).isLessThan(nav.indexOf(">Status<"));
   }
 
   @Test
   void eachListMarksItsOwnLinkAsCurrent() {
     assertThat(currentLinkOf("/")).isEqualTo("/");
-    assertThat(currentLinkOf("/aliases")).isEqualTo("/aliases");
     assertThat(currentLinkOf("/route-profiles")).isEqualTo("/route-profiles");
     assertThat(currentLinkOf("/backups")).isEqualTo("/backups");
+    assertThat(currentLinkOf("/status")).isEqualTo("/status");
   }
 
   @Test
@@ -37,7 +49,6 @@ class NavigationBarComponentTest extends DashboardComponentTest {
     assertThat(navOf(getPage("/services/ws-test/" + web).getBody())).doesNotContain("aria-current");
     assertThat(navOf(getPage("/services/ws-test/" + web + "/instances/" + id + "/edit").getBody()))
         .doesNotContain("aria-current");
-    assertThat(navOf(getPage("/status").getBody())).doesNotContain("aria-current");
   }
 
   /** The address of the one link that has {@code aria-current="page"}. */

@@ -403,12 +403,12 @@ final class RemoteWorkstation implements AutoCloseable {
     return http.get().uri("/traefik/configuration").retrieve().body(JsonNode.class);
   }
 
-  /** Adds an Alias on this Workstation, through its dashboard. */
-  void addAlias(String alias, String workstation, String service) {
-    http.put()
-        .uri(AliasesComponentTest.aliasPath(alias))
+  /** Adds an Alias to this Workstation's {@code service}, through its dashboard. */
+  void addAlias(String service, String workstation, String remoteService) {
+    http.post()
+        .uri(AliasesComponentTest.aliasesPath(service))
         .contentType(MediaType.APPLICATION_JSON)
-        .body(Map.of("workstation", workstation, "service", service))
+        .body(Map.of("workstation", workstation, "service", remoteService))
         .retrieve()
         .toBodilessEntity();
   }

@@ -18,15 +18,13 @@ import java.util.Map;
 public record Backup(
     ExportedFrom exportedFrom,
     Map<String, Map<String, Object>> routeProfiles,
-    Map<String, Service> services,
-    Map<String, Alias> aliases) {
+    Map<String, Service> services) {
 
   public static final int VERSION = 1;
 
   public Backup {
     routeProfiles = Collections.unmodifiableMap(new LinkedHashMap<>(routeProfiles));
     services = Collections.unmodifiableMap(new LinkedHashMap<>(services));
-    aliases = Collections.unmodifiableMap(new LinkedHashMap<>(aliases));
   }
 
   /**
@@ -36,15 +34,18 @@ public record Backup(
 
   /**
    * @param publication {@code null} when the file has no {@code publication} key
+   * @param aliases in the order they were added
    */
   public record Service(
       Publication publication,
       List<StaticInstance> staticInstances,
-      List<ContainerBinding> containerBindings) {
+      List<ContainerBinding> containerBindings,
+      List<Alias> aliases) {
 
     public Service {
       staticInstances = List.copyOf(staticInstances);
       containerBindings = List.copyOf(containerBindings);
+      aliases = List.copyOf(aliases);
     }
   }
 
@@ -99,5 +100,12 @@ public record Backup(
     }
   }
 
-  public record Alias(String workstation, String service) {}
+  /** An Alias of a Service, to the Remote Service {@code service} of {@code workstation}. */
+  public record Alias(String workstation, String service) {
+
+    /** As the API names it: {@code <workstation>/<service>}. */
+    public String id() {
+      return workstation + "/" + service;
+    }
+  }
 }

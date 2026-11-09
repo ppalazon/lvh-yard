@@ -331,8 +331,8 @@ class InstancePriorityComponentTest extends DashboardComponentTest {
     listenOnLanAddress(port);
     register(web, Map.of("port", port, "check", Map.of("interval", "1s")));
     publish(web);
-    put(
-        AliasesComponentTest.aliasPath(web),
+    post(
+        AliasesComponentTest.aliasesPath(web),
         Map.of("workstation", RemoteWorkstation.NAME, "service", web));
     String terminal = lanAddress() + ":" + port;
     awaitRoutedTo(web, terminal);
@@ -351,6 +351,25 @@ class InstancePriorityComponentTest extends DashboardComponentTest {
   }
 
   @Test
+  void offSharesTheRouteWithThePassingInstancesOfTheAliases() {
+    String web = newServiceName("web");
+    passingRemoteService(web);
+    int port = newLanPort();
+    listenOnLanAddress(port);
+    register(web, Map.of("port", port, "check", Map.of("interval", "1s")));
+    publish(web);
+    post(
+        AliasesComponentTest.aliasesPath(web),
+        Map.of("workstation", RemoteWorkstation.NAME, "service", web));
+    String terminal = lanAddress() + ":" + port;
+    awaitRoutedTo(web, terminal);
+
+    put(instancePriorityPath(web), Map.of("on", false));
+
+    awaitRoutedTo(web, terminal, TEAMMATE);
+  }
+
+  @Test
   void otherWorkstationsSkipThisWorkstationsAliasEvenWhenItIsFirst() {
     String web = newServiceName("web");
     passingRemoteService(web);
@@ -358,8 +377,8 @@ class InstancePriorityComponentTest extends DashboardComponentTest {
     // Nothing listens on this port, so the Static Instance's check stays critical.
     register(web, Map.of("port", port, "check", Map.of("interval", "1s")));
     put(publicationPath(web), Map.of("scope", "yard"));
-    put(
-        AliasesComponentTest.aliasPath(web),
+    post(
+        AliasesComponentTest.aliasesPath(web),
         Map.of("workstation", RemoteWorkstation.NAME, "service", web));
     put(instancePriorityPath(web), Map.of("order", List.of(RemoteWorkstation.NAME + "/" + web)));
 
@@ -403,7 +422,10 @@ class InstancePriorityComponentTest extends DashboardComponentTest {
     String first = passingRemoteInstance(api, 3000);
     String second = passingRemoteInstance(api, 3001);
     remote.publish(api, "yard");
-    remote.addAlias(api, WORKSTATION, newServiceName("gone"));
+    String own = newServiceName("own");
+    register(own, Map.of("host", "10.1.2.3", "port", 8080));
+    put(publicationPath(own), Map.of("scope", "yard"));
+    remote.addAlias(api, WORKSTATION, own);
     remote.setInstancePriority(api, Map.of("order", List.of(second)));
     assertThat(
             remote

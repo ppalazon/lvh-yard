@@ -164,21 +164,12 @@ final class Dashboard {
   record YardWorkstation(String name, boolean unreachable, List<Service> services) {}
 
   /**
-   * {@code state} is active, unavailable, fallback, hidden, not-shared, unreachable or missing.
-   * Only an active one has a Route.
+   * An Alias of a Service. {@code state} is active, unavailable, not-shared, unreachable or
+   * missing. Only an active one gives Instances.
+   *
+   * @param id {@code <workstation>/<service>} of its Remote Service
    */
-  record Alias(
-      String name,
-      String workstation,
-      String service,
-      String hostname,
-      String state,
-      String reason) {
-
-    boolean active() {
-      return "active".equals(state);
-    }
-  }
+  record Alias(String id, String workstation, String service, String state, String reason) {}
 
   record Publication(String scope, boolean accessLog) {}
 
@@ -463,7 +454,7 @@ final class Dashboard {
             case "publication" -> "Publication of " + name;
             case "static-instance" -> "Static Instance " + name;
             case "container-binding" -> "Container Binding " + name;
-            case "alias" -> "Alias " + name;
+            case "alias" -> "Alias to " + name;
             default -> kind + " " + name;
           };
       return action
@@ -560,27 +551,35 @@ final class Dashboard {
     send(HttpRequest.newBuilder(publicationUrl(service)).DELETE());
   }
 
-  List<Alias> aliases() {
-    return read(send(get("api/workstation/aliases")), new TypeReference<>() {});
+  List<Alias> aliases(String service) {
+    return read(send(HttpRequest.newBuilder(aliasesUrl(service)).GET()), new TypeReference<>() {});
   }
 
-  Alias addAlias(String name, String workstation, String service) {
+  Alias addAlias(String service, String workstation, String remoteService) {
     HttpRequest.Builder request =
-        HttpRequest.newBuilder(aliasUrl(name))
+        HttpRequest.newBuilder(aliasesUrl(service))
             .header("Content-Type", "application/json")
-            .PUT(
+            .POST(
                 HttpRequest.BodyPublishers.ofString(
                     JSON.writeValueAsString(
-                        Map.of("workstation", workstation, "service", service))));
-    return read(send(request), new TypeReference<>() {});
+                        Map.of("workstation", workstation, "service", remoteService))));
+    return read(attach(request), new TypeReference<>() {});
   }
 
-  void removeAlias(String name) {
-    send(HttpRequest.newBuilder(aliasUrl(name)).DELETE());
+  void removeAlias(String service, String workstation, String remoteService) {
+    send(
+        HttpRequest.newBuilder(
+                url.resolve(
+                    aliasesUrl(service)
+                        + "/"
+                        + segment(workstation)
+                        + "/"
+                        + segment(remoteService)))
+            .DELETE());
   }
 
-  private URI aliasUrl(String name) {
-    return url.resolve("api/workstation/aliases/" + segment(name));
+  private URI aliasesUrl(String service) {
+    return url.resolve("api/workstation/services/" + segment(service) + "/aliases");
   }
 
   private URI publicationUrl(String service) {

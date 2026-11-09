@@ -20,7 +20,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.stream.Stream;
 import org.springframework.stereotype.Component;
 
 /** Every check runs at once, so one that hangs costs its timeout only once. Nothing is stored. */
@@ -71,31 +70,17 @@ public class ReachabilityTester {
     }
   }
 
-  /** The Alias with the name of this Workstation's {@code service}, whose Route uses it. */
+  /** The Alias of this Workstation's {@code service} that its Route uses now. */
   private Alias fallback(Service service) {
-    return aliases.all().stream()
-        .filter(alias -> alias.name().equals(service.name()))
+    String used = service.routing().source();
+    return aliases.of(service.name()).stream()
+        .filter(alias -> alias.id().equals(used))
         .findFirst()
         .orElse(null);
   }
 
-  /**
-   * Only a Service with Yard Scope can have an active Alias, so the Aliases are read only for one.
-   */
-  private List<String> hostnames(Service service) {
-    if (!service.routed()) {
-      return List.of();
-    }
-    Stream<String> aliased =
-        !service.sharedWithYard()
-            ? Stream.empty()
-            : aliases.all().stream()
-                .filter(alias ->
-                    alias.active()
-                        && alias.workstation().equals(service.workstation())
-                        && alias.service().equals(service.name()))
-                .map(Alias::hostname);
-    return Stream.concat(Stream.of(service.hostname()), aliased).toList();
+  private static List<String> hostnames(Service service) {
+    return service.routed() ? List.of(service.hostname()) : List.of();
   }
 
   private static String noRoute(Service service) {

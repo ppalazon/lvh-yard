@@ -12,7 +12,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Route Profiles of a Service published to the Yard by {@value RemoteWorkstation#NAME}, as the test
- * Workstation routes it: on the Service's remote hostname, on an Alias, and on its page.
+ * Workstation routes it: on the Service's remote hostname and on its page.
  */
 class RemoteRouteProfilesComponentTest extends DashboardComponentTest {
 
@@ -96,22 +96,6 @@ class RemoteRouteProfilesComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void aliasAppliesTheProfilesOfItsRemoteService() throws Exception {
-    remote.putRouteProfiles(REMOTE_PROFILES);
-    String admin = sharedRemoteServiceWithProfiles("admin", List.of("team-login"));
-    String alias = newServiceName("alias");
-
-    put(
-        AliasesComponentTest.aliasPath(alias),
-        Map.of("workstation", RemoteWorkstation.NAME, "service", admin));
-
-    JsonNode http = get("/traefik/configuration").getBody().get("http");
-    assertThat(http.get("routers").get("alias_" + alias).get("middlewares").toString())
-        .isEqualTo("[\"ws-remote_team-login\"]");
-    assertThat(http.get("middlewares").has("ws-remote_team-login")).isTrue();
-  }
-
-  @Test
   void remoteServicePageShowsItsProfileNames() throws Exception {
     remote.putRouteProfiles(REMOTE_PROFILES);
     String admin = sharedRemoteServiceWithProfiles("admin", List.of("protected", "team-login"));
@@ -130,10 +114,6 @@ class RemoteRouteProfilesComponentTest extends DashboardComponentTest {
   void changeOnTheHomeWorkstationReachesTheRemoteConfigurationAndItsChains() throws Exception {
     remote.putRouteProfiles(REMOTE_PROFILES);
     String admin = sharedRemoteServiceWithProfiles("admin", List.of("team-login"));
-    String alias = newServiceName("alias");
-    put(
-        AliasesComponentTest.aliasPath(alias),
-        Map.of("workstation", RemoteWorkstation.NAME, "service", admin));
     String chained = sharedRemoteServiceWithProfiles("chained", List.of("protected"));
 
     remote.putRouteProfiles(
@@ -154,8 +134,8 @@ class RemoteRouteProfilesComponentTest extends DashboardComponentTest {
                 .contains("carla:")
                 .doesNotContain("ana:"));
     JsonNode http = get("/traefik/configuration").getBody().get("http");
-    assertThat(http.get("routers").get("alias_" + alias).get("middlewares").toString())
-        .isEqualTo("[\"ws-remote_team-login\"]");
+    assertThat(http.get("routers").get(admin + "." + RemoteWorkstation.NAME).toString())
+        .contains("ws-remote_team-login");
     assertThat(http.get("routers").get(chained + "." + RemoteWorkstation.NAME).toString())
         .contains("ws-remote_protected");
   }

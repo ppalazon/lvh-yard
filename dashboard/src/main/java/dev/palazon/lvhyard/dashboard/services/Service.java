@@ -89,7 +89,7 @@ public record Service(
         hostname,
         instances,
         containerBindings,
-        ServiceWarning.of(publication, instances, stored),
+        ServiceWarning.of(publication, instances, sources, instancePriority, stored),
         sources,
         instancePriority,
         publication == null ? List.of() : publication.profiles(),
@@ -105,15 +105,15 @@ public record Service(
   }
 
   /**
-   * This Service of the Home Workstation with {@code aliased}, the Instances of the Remote Service
-   * of its Alias.
+   * This Service of the Home Workstation with {@code aliased}: the Instances of the Remote Service
+   * of each Alias, by the Alias's source ID.
    */
-  Service withAlias(List<Instance> aliased) {
+  Service withAliases(Map<String, List<Instance>> aliased) {
     List<InstanceSource> filled =
         sources.stream()
             .map(source ->
-                source.kind() == SourceKind.ALIAS
-                    ? new InstanceSource(source.id(), source.kind(), aliased)
+                source.kind() == SourceKind.ALIAS && aliased.containsKey(source.id())
+                    ? new InstanceSource(source.id(), source.kind(), aliased.get(source.id()))
                     : source)
             .toList();
     return new Service(

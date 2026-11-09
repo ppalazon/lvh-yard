@@ -27,7 +27,7 @@ class BackupImportComponentTest extends DashboardComponentTest {
   /** The Backup with only the entries named {@code names}, as other tests share this Consul. */
   static String only(String backup, Set<String> names) {
     Map<String, Object> file = new LinkedHashMap<>(yaml(backup));
-    for (String key : List.of("route-profiles", "services", "aliases")) {
+    for (String key : List.of("route-profiles", "services")) {
       Map<String, Object> kept = new LinkedHashMap<>(map(file.get(key)));
       kept.keySet().retainAll(names);
       file.put(key, kept);
@@ -51,7 +51,7 @@ class BackupImportComponentTest extends DashboardComponentTest {
         .toList();
   }
 
-  /** Each plan entry as one line, such as {@code skip alias dash: It exists already.}. */
+  /** Each plan entry as one line, such as {@code skip service web: It exists already.}. */
   static List<String> entries(ResponseEntity<JsonNode> response) {
     List<String> lines = new ArrayList<>();
     for (JsonNode entry : response.getBody().get("entries")) {
@@ -451,34 +451,38 @@ class BackupImportComponentTest extends DashboardComponentTest {
         importBackup(
             """
             version: 1
-            aliases:
+            services:
               %s:
-                workstation: %s
-                service: %s
+                aliases:
+                  - workstation: %s
+                    service: %s
             """
                 .formatted(dash, WORKSTATION, grafana));
 
-    assertThat(problems(response)).containsExactly("aliases." + dash + ".workstation");
+    assertThat(problems(response)).containsExactly("services." + dash + ".aliases[0].workstation");
   }
 
   @Test
-  void aliasToAMissingRemoteServiceIsAddedWithoutARoute() {
+  void aliasToAMissingRemoteServiceIsAddedAndGivesNoInstances() {
     String dash = newServiceName("dash");
 
     ResponseEntity<JsonNode> response =
         importBackup(
             """
             version: 1
-            aliases:
+            services:
               %s:
-                workstation: %s
-                service: nothing-here
+                aliases:
+                  - workstation: %s
+                    service: nothing-here
             """
                 .formatted(dash, RemoteWorkstation.NAME));
 
-    assertThat(entries(response)).containsExactly("add alias " + dash);
-    assertThat(get("/api/workstation/aliases").getBody().valueStream())
-        .filteredOn(alias -> alias.get("name").asString().equals(dash))
+    assertThat(entries(response))
+        .containsExactly(
+            "add service " + dash,
+            "add alias " + RemoteWorkstation.NAME + "/nothing-here of " + dash);
+    assertThat(get(AliasesComponentTest.aliasesPath(dash)).getBody().valueStream())
         .singleElement()
         .satisfies(alias -> assertThat(alias.get("state").asString()).isEqualTo("missing"));
   }
@@ -491,46 +495,58 @@ class BackupImportComponentTest extends DashboardComponentTest {
         importBackup(
             """
             version: 1
-            aliases:
+            services:
               %s:
-                workstation: WS_B
-                service: grafana
+                aliases:
+                  - workstation: WS_B
+                    service: grafana
             """
                 .formatted(dash));
 
-    assertThat(problems(response)).containsExactly("aliases." + dash + ".workstation");
+    assertThat(problems(response)).containsExactly("services." + dash + ".aliases[0].workstation");
   }
 
   @Test
   void aliasIsAddedAndAnExistingOneIsSkipped() {
     String grafana = newServiceName("grafana");
-    remote.register(grafana, Map.of("host", "10.9.8.7", "port", 3000));
-    remote.publish(grafana, "yard");
+    String loki = newServiceName("loki");
+    for (String service : List.of(grafana, loki)) {
+      remote.register(service, Map.of("host", "10.9.8.7", "port", 3000));
+      remote.publish(service, "yard");
+    }
     String dash = newServiceName("dash");
-    String board = newServiceName("board");
-    put(
-        "/api/workstation/aliases/" + dash,
+    create(dash);
+    post(
+        AliasesComponentTest.aliasesPath(dash),
         Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
 
     ResponseEntity<JsonNode> response =
         importBackup(
             """
             version: 1
-            aliases:
+            services:
               %s:
-                workstation: %s
-                service: %s
-              %s:
-                workstation: %s
-                service: %s
+                aliases:
+                  - workstation: %s
+                    service: %s
+                  - workstation: %s
+                    service: %s
             """
-                .formatted(
-                    dash, RemoteWorkstation.NAME, grafana, board, RemoteWorkstation.NAME, grafana));
+                .formatted(dash, RemoteWorkstation.NAME, grafana, RemoteWorkstation.NAME, loki));
 
     assertThat(entries(response))
-        .containsExactly("skip alias " + dash + ": It is the same already.", "add alias " + board);
-    assertThat(get("/api/workstation/aliases").getBody().findValuesAsString("name"))
-        .contains(dash, board);
+        .containsExactly(
+            "skip service " + dash + ": It exists already.",
+            "skip alias "
+                + RemoteWorkstation.NAME
+                + "/"
+                + grafana
+                + " of "
+                + dash
+                + ": It is the same already.",
+            "add alias " + RemoteWorkstation.NAME + "/" + loki + " of " + dash);
+    assertThat(get(AliasesComponentTest.aliasesPath(dash)).getBody().findValuesAsString("service"))
+        .containsExactly(grafana, loki);
   }
 
   @Test
@@ -583,19 +599,19 @@ class BackupImportComponentTest extends DashboardComponentTest {
     remote.register(remoteGrafana, Map.of("host", "10.9.8.7", "port", 3000));
     remote.publish(remoteGrafana, "yard");
     String dash = newServiceName("dash");
-    put(
-        "/api/workstation/aliases/" + dash,
+    create(dash);
+    post(
+        AliasesComponentTest.aliasesPath(dash),
         Map.of("workstation", RemoteWorkstation.NAME, "service", remoteGrafana));
     Set<String> names = Set.of(compress, grafana, web, docs, dash);
     String before = only(getYaml(BackupExportComponentTest.BACKUP_PATH).getBody(), names);
     delete(servicePath(grafana));
     delete(servicePath(web));
     delete(servicePath(docs));
-    delete("/api/workstation/aliases/" + dash);
+    delete(servicePath(dash));
     delete(ROUTE_PROFILES_PATH + "/" + compress);
     assertThat(yaml(only(getYaml(BackupExportComponentTest.BACKUP_PATH).getBody(), names)))
         .containsEntry("services", Map.of())
-        .containsEntry("aliases", Map.of())
         .containsEntry("route-profiles", Map.of());
 
     ResponseEntity<JsonNode> response = importBackup(before);

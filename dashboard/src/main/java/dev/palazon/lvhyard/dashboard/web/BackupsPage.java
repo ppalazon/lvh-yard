@@ -520,7 +520,9 @@ final class BackupsPage {
     return String.join(
         ", ",
         count(backup.services().size(), "Service"),
-        count(backup.aliases().size(), "Alias"),
+        count(
+            backup.services().values().stream().mapToInt(service -> service.aliases().size()).sum(),
+            "Alias"),
         count(backup.routeProfiles().size(), "Route Profile"));
   }
 

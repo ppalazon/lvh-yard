@@ -189,20 +189,16 @@ class ReachabilityIT extends DashboardIT {
   }
 
   @Test
-  void remoteServiceWithYardScopeIsRequestedAtItsHostnameAndEachActiveAlias() {
+  void remoteServiceWithYardScopeIsRequestedAtItsHostname() {
     String grafana = newServiceName("grafana");
     // TEST-NET-1, which no computer answers at.
     remote.register(grafana, Map.of("host", "192.0.2.10", "port", 3000));
     remote.publish(grafana, "yard");
-    String alias = newServiceName("graf");
-    put(
-        AliasesComponentTest.aliasPath(alias),
-        Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
 
     JsonNode result = get(reachabilityPath(RemoteWorkstation.NAME, grafana)).getBody();
 
     assertThat(result.get("routes").valueStream().map(route -> route.get("hostname").asString()))
-        .containsExactly(grafana + "." + RemoteWorkstation.NAME + ".lvh.test", alias + ".lvh.test");
+        .containsExactly(grafana + "." + RemoteWorkstation.NAME + ".lvh.test");
     assertThat(result.get("routes").valueStream().map(route -> route.get("reached").asBoolean()))
         .containsOnly(false);
     assertThat(result.get("instances").get(0).get("reached").asBoolean()).isFalse();

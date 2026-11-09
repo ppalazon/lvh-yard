@@ -18,6 +18,7 @@ final class StatusPage {
     return Layout.page(
         "Status",
         workstation.name(),
+        Layout.Section.STATUS,
         main ->
             Layout.refreshed(
                 main,

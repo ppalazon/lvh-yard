@@ -49,10 +49,10 @@ class BackupsPageComponentTest extends DashboardComponentTest {
             ipAllowList:
               sourceRange: [192.168.1.0/24]
         services:
-          grafana: {}
+          grafana:
+            aliases:
+              - {workstation: ws-other, service: grafana}
           loki: {}
-        aliases:
-          logs: {workstation: ws-other, service: loki}
         """);
 
     String row = row(getPage("/backups").getBody(), name);

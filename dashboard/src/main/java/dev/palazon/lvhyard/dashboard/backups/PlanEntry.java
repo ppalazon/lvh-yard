@@ -7,9 +7,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 /**
  * What an import does with one entry of a Backup.
  *
- * @param name the Service, Alias or Route Profile name; {@code host:port} for a Static Instance;
- *     the ID for a Container Binding
- * @param service the Service of a Static Instance or a Container Binding, else {@code null}
+ * @param name the Service or Route Profile name; {@code host:port} for a Static Instance; the ID
+ *     for a Container Binding; {@code <workstation>/<service>} for an Alias
+ * @param service the Service of a Static Instance, a Container Binding or an Alias, else {@code
+ *     null}
  * @param reason why it is skipped, else {@code null}
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -32,7 +33,7 @@ public record PlanEntry(
           case PUBLICATION -> "Publication of " + name;
           case STATIC_INSTANCE -> "Static Instance " + name;
           case CONTAINER_BINDING -> "Container Binding " + name;
-          case ALIAS -> "Alias " + name;
+          case ALIAS -> "Alias to " + name;
         };
     return what + (service == null ? "" : " of " + service);
   }

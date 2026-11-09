@@ -16,8 +16,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * One Consul KV key per Service that you created, holding a JSON object. The key alone makes the
- * Service exist, with no Instances and no Publication. It holds the Instance Priority: the order of
- * the Instance Source IDs and whether the order is on.
+ * Service exist, with no Instances and no Publication. It holds the Instance Priority (the order of
+ * the Instance Source IDs and whether the order is on) and the Aliases of the Service.
  */
 @Component
 public class ServiceRecords {
@@ -28,17 +28,14 @@ public class ServiceRecords {
 
   private final Consul consul;
 
-  private final AliasKeys aliasKeys;
-
-  ServiceRecords(Consul consul, AliasKeys aliasKeys) {
+  ServiceRecords(Consul consul) {
     this.consul = consul;
-    this.aliasKeys = aliasKeys;
   }
 
   /** Writes a new record, or keeps the one there. */
   void put(String service) {
     if (!exists(service)) {
-      write(service, new ServiceRecord(List.of(), null));
+      write(service, new ServiceRecord(List.of(), null, List.of()));
     }
   }
 
@@ -68,8 +65,43 @@ public class ServiceRecords {
           others.remove(id);
           List<String> order = new ArrayList<>(InstanceSource.order(stored.order(), others));
           order.add(id);
-          write(service, new ServiceRecord(order, stored.priorityOff()));
+          write(service, new ServiceRecord(order, stored.priorityOff(), stored.aliases()));
         });
+  }
+
+  /**
+   * Adds an Alias at the end of the order.
+   *
+   * @param id {@code <workstation>/<service>} of its Remote Service
+   * @throws UnknownServiceException when you have not created the Service
+   * @throws AliasExistsException when the Service already has an Alias to this Remote Service
+   */
+  void addAlias(String service, String id) {
+    ServiceRecord stored = get(service).orElseThrow(() -> new UnknownServiceException(service));
+    if (stored.aliases().contains(id)) {
+      throw new AliasExistsException(service, id);
+    }
+    List<String> aliases = new ArrayList<>(stored.aliases());
+    aliases.add(id);
+    write(service, new ServiceRecord(stored.order(), stored.priorityOff(), aliases));
+    addSource(service, id);
+  }
+
+  /**
+   * @throws UnknownServiceException when you have not created the Service
+   * @throws UnknownAliasException when the Service has no Alias to this Remote Service
+   */
+  void removeAlias(String service, String id) {
+    ServiceRecord stored = get(service).orElseThrow(() -> new UnknownServiceException(service));
+    if (!stored.aliases().contains(id)) {
+      throw new UnknownAliasException(service, id);
+    }
+    write(
+        service,
+        new ServiceRecord(
+            stored.order().stream().filter(other -> !other.equals(id)).toList(),
+            stored.priorityOff(),
+            stored.aliases().stream().filter(other -> !other.equals(id)).toList()));
   }
 
   /** Takes a removed Instance Source out of the order. */
@@ -81,7 +113,8 @@ public class ServiceRecords {
                 service,
                 new ServiceRecord(
                     stored.order().stream().filter(other -> !other.equals(id)).toList(),
-                    stored.priorityOff())));
+                    stored.priorityOff(),
+                    stored.aliases())));
   }
 
   /**
@@ -115,12 +148,14 @@ public class ServiceRecords {
     }
     current.stream().filter(id -> !chosen.contains(id)).forEach(chosen::add);
     write(
-        service, new ServiceRecord(chosen, on == null ? stored.priorityOff() : (on ? null : true)));
+        service,
+        new ServiceRecord(
+            chosen, on == null ? stored.priorityOff() : (on ? null : true), stored.aliases()));
   }
 
   /**
    * The IDs of this Workstation's Instance Sources of {@code service} now: its Static and Foreign
-   * Instances, its Container Bindings and its Alias.
+   * Instances, its Container Bindings and its Aliases.
    */
   private Set<String> sourceIds(String service) {
     Set<String> ids = new HashSet<>();
@@ -133,10 +168,7 @@ public class ServiceRecords {
         .map(key -> key.substring((ContainerBindings.PREFIX + service + "/").length()))
         .filter(id -> !id.isEmpty() && !id.contains("/"))
         .forEach(ids::add);
-    AliasKeys.Target alias = aliasKeys.targets().get(service);
-    if (alias != null) {
-      ids.add(alias.id());
-    }
+    get(service).ifPresent(stored -> ids.addAll(stored.aliases()));
     return ids;
   }
 
@@ -172,12 +204,15 @@ public class ServiceRecords {
    *     ones.
    * @param priorityOff {@code true} when the Instance Priority is off. It is left out while on, so
    *     a new record is {@code {}}.
+   * @param aliases the Instance Source IDs of its Aliases, {@code <workstation>/<service>} of each
+   *     Remote Service, in the order they were added. Only this Workstation reads them.
    */
   @JsonInclude(JsonInclude.Include.NON_EMPTY)
-  record ServiceRecord(List<String> order, Boolean priorityOff) {
+  record ServiceRecord(List<String> order, Boolean priorityOff, List<String> aliases) {
 
     ServiceRecord {
       order = order == null ? List.of() : List.copyOf(order);
+      aliases = aliases == null ? List.of() : List.copyOf(aliases);
       priorityOff = Boolean.TRUE.equals(priorityOff) ? true : null;
     }
 

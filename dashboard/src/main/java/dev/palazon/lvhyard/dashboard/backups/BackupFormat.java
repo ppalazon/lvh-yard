@@ -53,13 +53,6 @@ public final class BackupFormat {
     Map<String, Object> services = new LinkedHashMap<>();
     backup.services().forEach((name, service) -> services.put(name, service(service)));
     root.put("services", services);
-    Map<String, Object> aliases = new LinkedHashMap<>();
-    backup
-        .aliases()
-        .forEach((name, alias) ->
-            aliases.put(
-                name, ordered("workstation", alias.workstation(), "service", alias.service())));
-    root.put("aliases", aliases);
     return yaml().dump(root);
   }
 
@@ -89,6 +82,13 @@ public final class BackupFormat {
       entry.put(
           "container-bindings",
           service.containerBindings().stream().map(BackupFormat::containerBinding).toList());
+    }
+    if (!service.aliases().isEmpty()) {
+      entry.put(
+          "aliases",
+          service.aliases().stream()
+              .map(alias -> ordered("workstation", alias.workstation(), "service", alias.service()))
+              .toList());
     }
     return entry;
   }
@@ -183,10 +183,7 @@ public final class BackupFormat {
         return null;
       }
       Map<String, Object> file =
-          keys(
-              root,
-              "",
-              Set.of("version", "exported-from", "route-profiles", "services", "aliases"));
+          keys(root, "", Set.of("version", "exported-from", "route-profiles", "services"));
       Object version = file.get("version");
       if (!Integer.valueOf(Backup.VERSION).equals(version)) {
         problem(
@@ -201,8 +198,7 @@ public final class BackupFormat {
       return new Backup(
           exportedFrom(file.get("exported-from")),
           entries(file.get("route-profiles"), "route-profiles", this::middleware),
-          entries(file.get("services"), "services", this::service),
-          entries(file.get("aliases"), "aliases", this::alias));
+          entries(file.get("services"), "services", this::service));
     }
 
     private ExportedFrom exportedFrom(Object value) {
@@ -235,17 +231,21 @@ public final class BackupFormat {
 
     private Service service(Object value, String place) {
       if (value == null) {
-        return new Service(null, List.of(), List.of());
+        return new Service(null, List.of(), List.of(), List.of());
       }
       Map<String, Object> entry =
-          keys(value, place, Set.of("publication", "static-instances", "container-bindings"));
+          keys(
+              value,
+              place,
+              Set.of("publication", "static-instances", "container-bindings", "aliases"));
       return new Service(
           publication(entry.get("publication"), place + ".publication"),
           list(entry.get("static-instances"), place + ".static-instances", this::staticInstance),
           list(
               entry.get("container-bindings"),
               place + ".container-bindings",
-              this::containerBinding));
+              this::containerBinding),
+          list(entry.get("aliases"), place + ".aliases", this::alias));
     }
 
     private Publication publication(Object value, String place) {

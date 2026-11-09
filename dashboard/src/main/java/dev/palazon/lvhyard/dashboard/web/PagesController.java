@@ -3,6 +3,8 @@ package dev.palazon.lvhyard.dashboard.web;
 import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.profiles.RouteProfiles;
 import dev.palazon.lvhyard.dashboard.reachability.ReachabilityTester;
+import dev.palazon.lvhyard.dashboard.services.Alias;
+import dev.palazon.lvhyard.dashboard.services.AliasExistsException;
 import dev.palazon.lvhyard.dashboard.services.Aliases;
 import dev.palazon.lvhyard.dashboard.services.ContainerBindings;
 import dev.palazon.lvhyard.dashboard.services.Instance;
@@ -26,7 +28,6 @@ import dev.palazon.lvhyard.dashboard.services.UnknownServiceException;
 import dev.palazon.lvhyard.dashboard.services.UnknownStateException;
 import dev.palazon.lvhyard.dashboard.services.UnknownWorkstationException;
 import dev.palazon.lvhyard.dashboard.services.UnreachableWorkstationException;
-import dev.palazon.lvhyard.dashboard.services.Yard;
 import dev.palazon.lvhyard.dashboard.services.YardReader;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -142,7 +143,15 @@ class PagesController {
   @GetMapping(path = "/services/{workstation}/{service}", produces = MediaType.TEXT_HTML_VALUE)
   @ResponseBody
   String service(@PathVariable("workstation") String home, @PathVariable String service) {
-    return ServicePage.render(workstation, anyService(home, service), routeProfiles.names(), null);
+    Service found = anyService(home, service);
+    return ServicePage.render(workstation, found, aliasesOf(found), routeProfiles.names(), null);
+  }
+
+  /** Only this Workstation reads the Aliases of its own Services, and only of those you created. */
+  private List<Alias> aliasesOf(Service service) {
+    return workstation.is(service.workstation()) && service.created()
+        ? aliases.of(service.name())
+        : List.of();
   }
 
   @GetMapping(
@@ -173,7 +182,8 @@ class PagesController {
   @ResponseBody
   String reachability(@PathVariable("workstation") String home, @PathVariable String service) {
     Service found = anyService(home, service);
-    return ServicePage.render(workstation, found, routeProfiles.names(), reachability.test(found));
+    return ServicePage.render(
+        workstation, found, aliasesOf(found), routeProfiles.names(), reachability.test(found));
   }
 
   private Service anyService(String home, String service) {
@@ -392,53 +402,59 @@ class PagesController {
     return seeOther(yard.service(home, service).map(ServicePage::path).orElse("/"));
   }
 
-  @GetMapping(path = AliasesPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
+  @GetMapping(
+      path = "/services/{workstation}/{service}/aliases/new",
+      produces = MediaType.TEXT_HTML_VALUE)
   @ResponseBody
-  String aliases() {
-    Yard read = yard.routableYard();
-    return AliasesPage.render(workstation, read, aliases.of(read));
+  String newAlias(@PathVariable("workstation") String home, @PathVariable String service) {
+    return AddAliasPage.render(
+        workstation, ownService(home, service), AddAliasPage.shared(yard.routableYard()), "", null);
   }
 
-  /** With no Remote Service to name, the Aliases page tells why no Alias can be added. */
-  @GetMapping(path = AliasesPage.NEW_PATH, produces = MediaType.TEXT_HTML_VALUE)
-  ResponseEntity<String> newAlias() {
-    List<Service> shared = AliasesPage.shared(yard.routableYard());
-    if (shared.isEmpty()) {
-      return seeOther(AliasesPage.PATH);
-    }
-    return ResponseEntity.ok()
-        .contentType(Layout.HTML)
-        .body(AliasesPage.renderNew(workstation, shared, "", "", null));
-  }
-
-  @PostMapping(path = AliasesPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
-  ResponseEntity<String> addAlias(@RequestParam String name, @RequestParam String target) {
-    int slash = target.indexOf('/');
-    if (slash < 0) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST,
-          "The Remote Service is <workstation>/<service>, not " + target + ".");
-    }
+  /**
+   * Every refusal shows at the form's one field.
+   *
+   * @param target the Remote Service, as {@code <workstation>/<service>}
+   */
+  @PostMapping(
+      path = "/services/{workstation}/{service}/aliases",
+      produces = MediaType.TEXT_HTML_VALUE)
+  ResponseEntity<String> addAlias(
+      @PathVariable("workstation") String home,
+      @PathVariable String service,
+      @RequestParam(required = false) String target) {
+    Service found = ownService(home, service);
+    String chosen = target == null ? "" : target.strip();
+    String[] parts = chosen.split("/", 2);
+    InvalidRegistrationException error;
     try {
-      aliases.add(name.strip(), target.substring(0, slash), target.substring(slash + 1));
-    } catch (InvalidRegistrationException error) {
-      return ResponseEntity.badRequest()
-          .contentType(Layout.HTML)
-          .body(
-              AliasesPage.renderNew(
-                  workstation, AliasesPage.shared(yard.routableYard()), name, target, error));
-    }
-    return seeOther(AliasesPage.PATH);
-  }
-
-  @PostMapping(AliasesPage.PATH + "/{alias}/remove")
-  ResponseEntity<String> removeAlias(@PathVariable String alias) {
-    try {
-      aliases.remove(alias);
-    } catch (UnknownAliasException e) {
+      aliases.add(service, parts[0], parts.length < 2 ? "" : parts[1]);
+      return seeOther(ServicePage.path(found));
+    } catch (InvalidRegistrationException | AliasExistsException e) {
+      error = new InvalidRegistrationException(AddAliasPage.TARGET, e.getMessage());
+    } catch (UnknownServiceException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
     }
-    return seeOther(AliasesPage.PATH);
+    return ResponseEntity.badRequest()
+        .contentType(Layout.HTML)
+        .body(
+            AddAliasPage.render(
+                workstation, found, AddAliasPage.shared(yard.routableYard()), chosen, error));
+  }
+
+  @PostMapping("/services/{workstation}/{service}/aliases/{remote}/{remoteService}/remove")
+  ResponseEntity<String> removeAlias(
+      @PathVariable("workstation") String home,
+      @PathVariable String service,
+      @PathVariable String remote,
+      @PathVariable String remoteService) {
+    ownService(home, service);
+    try {
+      aliases.remove(service, remote, remoteService);
+    } catch (UnknownAliasException | UnknownServiceException e) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+    }
+    return seeOther(ServicePage.path(home, service));
   }
 
   /**

@@ -11,5 +11,5 @@
 - [x] A Service can have many Static Instances.
 - [x] The Static Instances page and its routes go away, with no redirects. The menu loses its link.
 - [x] Component tests cover add, edit, remove and the removed page.
-- [ ] If 03 and 06 are done, the Service page parts follow the order of the spec.
+- [x] If 03 and 06 are done, the Service page parts follow the order of the spec.
 - [x] `docs/user-guide.md` explains Static Instances on the Service page.

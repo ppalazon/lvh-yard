@@ -62,14 +62,14 @@ class OpenApiComponentTest extends DashboardComponentTest {
             "/api/services/{workstation}/{service}/reachability",
             "/api/status",
             "/api/yard",
-            "/api/workstation/aliases",
-            "/api/workstation/aliases/{alias}",
             "/api/workstation/backup",
             "/api/workstation/containers",
             "/api/workstation/route-profiles",
             "/api/workstation/route-profiles/{name}",
             "/api/workstation/services",
             "/api/workstation/services/{service}",
+            "/api/workstation/services/{service}/aliases",
+            "/api/workstation/services/{service}/aliases/{workstation}/{remoteService}",
             "/api/workstation/services/{service}/container-bindings",
             "/api/workstation/services/{service}/container-bindings/{id}",
             "/api/workstation/services/{service}/instances",
@@ -106,9 +106,12 @@ class OpenApiComponentTest extends DashboardComponentTest {
             answersWithProblem(
                 paths, "/api/workstation/services/{service}/publication", "delete", "404"))
         .isTrue();
-    assertThat(answersWithProblem(paths, "/api/workstation/aliases/{alias}", "put", "400"))
-        .isTrue();
-    assertThat(answersWithProblem(paths, "/api/workstation/aliases/{alias}", "delete", "404"))
+    String aliases = "/api/workstation/services/{service}/aliases";
+    for (String status : new String[] {"400", "404", "409"}) {
+      assertThat(answersWithProblem(paths, aliases, "post", status)).as(status).isTrue();
+    }
+    assertThat(
+            answersWithProblem(paths, aliases + "/{workstation}/{remoteService}", "delete", "404"))
         .isTrue();
     assertThat(answersWithProblem(paths, "/api/workstation/containers", "get", "503")).isTrue();
   }

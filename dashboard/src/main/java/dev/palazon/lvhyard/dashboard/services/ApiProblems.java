@@ -14,7 +14,6 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @Order(0)
 @RestControllerAdvice(
     assignableTypes = {
-      AliasesController.class,
       ContainersController.class,
       ServicesController.class,
       WorkstationServicesController.class,
@@ -78,6 +77,11 @@ class ApiProblems extends ResponseEntityExceptionHandler {
   @ExceptionHandler
   ProblemDetail unknownAlias(UnknownAliasException exception) {
     return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+  }
+
+  @ExceptionHandler
+  ProblemDetail aliasExists(AliasExistsException exception) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
   }
 
   @ExceptionHandler

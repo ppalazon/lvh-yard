@@ -2,59 +2,94 @@ package dev.palazon.lvhyard.dashboard.services;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.TreeMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-/** Aliases never change what other Workstations see, as no other Workstation reads them. */
+/**
+ * The Aliases of this Workstation's Services. Aliases never change what other Workstations see, as
+ * no other Workstation reads them.
+ */
 @Component
 public class Aliases {
 
-  private final Workstation workstation;
+  private static final Logger LOG = LoggerFactory.getLogger(Aliases.class);
 
-  private final AliasKeys keys;
+  private static final String NO_WORKSTATION = "The Yard has no Workstation ";
+
+  private final Workstation workstation;
 
   private final ServiceRecords records;
 
   private final YardReader yard;
 
-  Aliases(Workstation workstation, AliasKeys keys, ServiceRecords records, YardReader yard) {
-    this.records = records;
+  Aliases(Workstation workstation, ServiceRecords records, YardReader yard) {
     this.workstation = workstation;
-    this.keys = keys;
+    this.records = records;
     this.yard = yard;
   }
 
   /**
-   * Also points an existing Alias there. It reads no other Workstation, so the target can be
-   * missing or unreachable now: until it is there with Yard Scope, the Alias has no Route.
+   * Adds an Alias at the end of {@code service}'s order. Its Remote Service must have Yard Scope
+   * now. Later, the Alias stays when its Remote Service loses Yard Scope or its Workstation stops
+   * answering.
+   *
+   * @throws InvalidRegistrationException when a name is not one DNS label, the Workstation is this
+   *     one, or the Remote Service is not there with Yard Scope now
+   * @throws UnknownServiceException when you have not created {@code service}
+   * @throws AliasExistsException when {@code service} already has an Alias to this Remote Service
    */
-  public Alias add(String name, String home, String service) {
-    Registrations.checkName("Alias", name);
+  public Alias add(String service, String home, String remoteService) {
+    Registrations.checkName(service);
     checkTarget("workstation", "Workstation", home);
-    checkTarget("service", "Service", service);
+    checkTarget("service", "Service", remoteService);
+    checkRemote(home);
+    String id = Alias.id(home, remoteService);
+    ServiceRecords.ServiceRecord record =
+        records.get(service).orElseThrow(() -> new UnknownServiceException(service));
+    if (record.aliases().contains(id)) {
+      throw new AliasExistsException(service, id);
+    }
+    Alias target = alias(home, remoteService);
+    if (!target.active() && target.state() != Alias.State.UNAVAILABLE) {
+      throw new InvalidRegistrationException(
+          target.state() == Alias.State.UNREACHABLE || target.reason().startsWith(NO_WORKSTATION)
+              ? "workstation"
+              : "service",
+          target.reason()
+              + " Only a Remote Service with Yard Scope can be the target of an Alias.");
+    }
+    records.addAlias(service, id);
+    return target;
+  }
+
+  /**
+   * Adds an Alias of a Backup. Unlike {@link #add}, it does not read the Remote Service, because
+   * the Alias existed before and stays whatever its Remote Service does now.
+   *
+   * @throws InvalidRegistrationException when a name is not one DNS label, or the Workstation is
+   *     this one
+   * @throws UnknownServiceException when you have not created {@code service}
+   * @throws AliasExistsException when {@code service} already has an Alias to this Remote Service
+   */
+  public void restore(String service, String home, String remoteService) {
+    Registrations.checkName(service);
+    checkTarget("workstation", "Workstation", home);
+    checkTarget("service", "Service", remoteService);
+    checkRemote(home);
+    records.addAlias(service, Alias.id(home, remoteService));
+  }
+
+  private void checkRemote(String home) {
     if (workstation.is(home)) {
       throw new InvalidRegistrationException(
           "workstation",
-          "An Alias is only for a Remote Service. "
-              + service
-              + " of this Workstation already has the short hostname "
-              + workstation.hostname(service)
-              + ".");
+          "An Alias is only for a Remote Service, and " + home + " is this Workstation.");
     }
-    AliasKeys.Target target = new AliasKeys.Target(home, service);
-    Optional.ofNullable(keys.targets().get(name))
-        .ifPresent(old -> records.removeSource(name, old.id()));
-    keys.put(name, target);
-    records.addSource(name, target.id());
-    return of(yard.routableYard()).stream()
-        .filter(alias -> alias.name().equals(name))
-        .findFirst()
-        .orElseThrow();
   }
 
-  /** A target name goes into a hostname and a Consul KV value, so it must be one DNS label. */
+  /** A target name goes into a Consul KV value and a page link, so it must be one DNS label. */
   public static void checkTarget(String field, String kind, String name) {
     if (name == null || !Registrations.isDnsLabel(name)) {
       throw new InvalidRegistrationException(
@@ -68,83 +103,80 @@ public class Aliases {
     }
   }
 
-  public void remove(String name) {
-    AliasKeys.Target target = keys.targets().get(name);
-    if (target == null) {
-      throw new UnknownAliasException(name);
-    }
-    keys.delete(name);
-    records.removeSource(name, target.id());
+  /**
+   * @throws UnknownServiceException when you have not created {@code service}
+   * @throws UnknownAliasException when {@code service} has no Alias to this Remote Service
+   */
+  public void remove(String service, String home, String remoteService) {
+    Registrations.checkName(service);
+    records.removeAlias(service, Alias.id(home, remoteService));
   }
 
   /**
-   * An Alias to a Workstation whose Services fail to read is unreachable, because it has no Route.
+   * The Aliases of this Workstation's {@code service}, in the order of its Instance Priority.
+   *
+   * @throws UnknownServiceException when you have not created {@code service}
    */
-  public List<Alias> all() {
-    return of(yard.routableYard());
-  }
-
-  /** The target of each Alias, by the Alias's name. It reads no other Workstation. */
-  public Map<String, AliasRequest> targets() {
-    Map<String, AliasRequest> targets = new TreeMap<>();
-    keys.targets()
-        .forEach((name, target) ->
-            targets.put(name, new AliasRequest(target.workstation(), target.service())));
-    return targets;
-  }
-
-  public List<Alias> of(Yard yard) {
-    return keys.targets().entrySet().stream()
-        .map(entry ->
-            alias(entry.getKey(), entry.getValue().workstation(), entry.getValue().service(), yard))
+  public List<Alias> of(String service) {
+    Registrations.checkName(service);
+    ServiceRecords.ServiceRecord record =
+        records.get(service).orElseThrow(() -> new UnknownServiceException(service));
+    return InstanceSource.order(record.order(), record.aliases()).stream()
+        .map(id -> {
+          String[] target = id.split("/", 2);
+          return alias(target[0], target.length < 2 ? "" : target[1]);
+        })
         .toList();
   }
 
   /**
-   * A published Service of this Workstation with the same name takes the hostname. The Alias is
-   * then one of its Instance Sources. Otherwise the Alias is active by the same rules that give the
-   * Service its own Route here.
+   * Any fault reading the other Workstation makes the Alias unreachable, so it never breaks this
+   * Workstation's own pages.
    */
-  private Alias alias(String name, String home, String service, Yard yard) {
-    Alias.State state;
-    String reason;
-    Optional<YardWorkstation> remote =
-        yard.remotes().stream().filter(candidate -> candidate.name().equals(home)).findFirst();
-    Optional<Service> target = yard.remoteService(home, service);
-    Optional<Service> own =
-        yard.home().services().stream()
-            .filter(candidate -> candidate.name().equals(name) && candidate.published())
-            .findFirst();
-    if (remote.isEmpty()) {
-      state = Alias.State.MISSING;
-      reason = "The Yard has no Workstation " + home + ".";
-    } else if (remote.get().unreachable()) {
-      state = Alias.State.UNREACHABLE;
-      reason = "Workstation " + home + " is unreachable: its Consul does not answer.";
-    } else if (target.isEmpty()) {
-      state = Alias.State.MISSING;
-      reason = "Workstation " + home + " has no Service " + service + ".";
-    } else if (!target.get().published()) {
-      state = Alias.State.NOT_SHARED;
-      reason = home + " has not published " + service + ".";
-    } else if (!target.get().sharedWithYard()) {
-      state = Alias.State.NOT_SHARED;
-      reason = home + " publishes " + service + " with Local Scope only.";
-    } else if (target.get().instances().stream().allMatch(Instance::outOfRange)) {
-      state = Alias.State.UNAVAILABLE;
-      reason = service + " has no Instance this Workstation can reach.";
-    } else if (own.isPresent()) {
-      state = Alias.State.FALLBACK;
-      reason =
-          own.get().routing() != null && own.get().routing().kind() == SourceKind.ALIAS
-              ? "In use now by this Workstation's Service " + name + "."
-              : "An Instance Source of this Workstation's Service "
-                  + name
-                  + ": its Instance Priority says when the Route uses it.";
-    } else {
-      state = Alias.State.ACTIVE;
-      reason = null;
+  private Alias alias(String home, String service) {
+    String id = Alias.id(home, service);
+    Optional<Service> target;
+    try {
+      target = yard.service(home, service);
+    } catch (UnknownWorkstationException e) {
+      return new Alias(id, home, service, Alias.State.MISSING, NO_WORKSTATION + home + ".");
+    } catch (RuntimeException fault) {
+      LOG.debug("The Alias to {} cannot read its Remote Service", id, fault);
+      return new Alias(
+          id,
+          home,
+          service,
+          Alias.State.UNREACHABLE,
+          "Workstation " + home + " is unreachable: its Consul does not answer.");
     }
-    return new Alias(name, home, service, workstation.hostname(name), state, reason);
+    if (target.isEmpty()) {
+      return new Alias(
+          id,
+          home,
+          service,
+          Alias.State.MISSING,
+          "Workstation " + home + " has no Service " + service + ".");
+    }
+    if (!target.get().published()) {
+      return new Alias(
+          id, home, service, Alias.State.NOT_SHARED, home + " has not published " + service + ".");
+    }
+    if (!target.get().sharedWithYard()) {
+      return new Alias(
+          id,
+          home,
+          service,
+          Alias.State.NOT_SHARED,
+          home + " publishes " + service + " with Local Scope only.");
+    }
+    if (target.get().instances().stream().allMatch(Instance::outOfRange)) {
+      return new Alias(
+          id,
+          home,
+          service,
+          Alias.State.UNAVAILABLE,
+          service + " has no Instance this Workstation can reach.");
+    }
+    return new Alias(id, home, service, Alias.State.ACTIVE, null);
   }
 }

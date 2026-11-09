@@ -40,6 +40,8 @@ class WorkstationServicesController {
 
   private final Services services;
 
+  private final Aliases aliases;
+
   private final ReachabilityTester reachability;
 
   WorkstationServicesController(
@@ -49,7 +51,9 @@ class WorkstationServicesController {
       Publications publications,
       ContainerBindings containerBindings,
       Services services,
+      Aliases aliases,
       ReachabilityTester reachability) {
+    this.aliases = aliases;
     this.workstation = workstation;
     this.yard = yard;
     this.registrations = registrations;
@@ -220,6 +224,63 @@ class WorkstationServicesController {
       description = "The Service has no Container Binding with this ID")
   void unbind(@PathVariable String service, @PathVariable String id) {
     containerBindings.remove(workstation.name(), service, id);
+  }
+
+  @GetMapping("/{service}/aliases")
+  @Operation(
+      operationId = "aliases",
+      summary = "Lists the Aliases of a Service",
+      description = "In the order of its Instance Priority, each with its state.")
+  @ApiResponse(responseCode = "200", description = "OK", useReturnTypeSchema = true)
+  @ApiResponse(responseCode = "404", description = "This Workstation has no Service you created")
+  List<Alias> aliases(@PathVariable String service) {
+    return aliases.of(service);
+  }
+
+  @PostMapping(path = "/{service}/aliases", consumes = MediaType.APPLICATION_JSON_VALUE)
+  @ResponseStatus(HttpStatus.CREATED)
+  @Operation(
+      operationId = "addAlias",
+      summary = "Adds an Alias to a Remote Service",
+      description =
+          "The Alias goes to the end of the order, and gives the Instances of the Remote Service."
+              + " The Remote Service must have Yard Scope now. Later, the Alias stays when the"
+              + " Remote Service loses Yard Scope or its Workstation stops answering, and it then"
+              + " gives no Instances. Only this Workstation's Route uses its Aliases.")
+  @ApiResponse(
+      responseCode = "201",
+      description = "Added, with its state",
+      useReturnTypeSchema = true)
+  @ApiResponse(
+      responseCode = "400",
+      description =
+          Registrations.INVALID_NAME
+              + ", the Workstation or Service name is not a DNS label, the Workstation is this"
+              + " one, or the Remote Service is not there with Yard Scope. The answer names the"
+              + " field")
+  @ApiResponse(responseCode = "404", description = "This Workstation has no Service you created")
+  @ApiResponse(
+      responseCode = "409",
+      description = "The Service already has an Alias to this Remote Service")
+  Alias addAlias(@PathVariable String service, @RequestBody AliasRequest request) {
+    return aliases.add(service, request.workstation(), request.service());
+  }
+
+  @DeleteMapping("/{service}/aliases/{workstation}/{remoteService}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Operation(
+      operationId = "removeAlias",
+      summary = "Removes an Alias",
+      description = "The Service stays, even with nothing left.")
+  @ApiResponse(responseCode = "204", description = "Removed")
+  @ApiResponse(
+      responseCode = "404",
+      description = "This Workstation has no such Service, or the Service has no such Alias")
+  void removeAlias(
+      @PathVariable String service,
+      @PathVariable("workstation") String home,
+      @PathVariable String remoteService) {
+    aliases.remove(service, home, remoteService);
   }
 
   @PutMapping("/{service}/publication")

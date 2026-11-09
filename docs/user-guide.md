@@ -14,8 +14,8 @@ Each Workstation runs three things:
   ([ADR-0002](adr/0002-traefik-reads-routes-from-lvh-yard.md))
 
 Each page of the dashboard has a navigation bar at the top. It links to the
-Catalog, Aliases, Route Profiles and Backups pages, and it
-highlights the current page.
+Catalog, Route Profiles, Backups and Status pages, and it highlights the
+current page.
 
 The Catalog shows one row for each Service, grouped by Workstation. Its columns
 are Service, State, Hostname and Instances. The Instances count says "2 of 3
@@ -262,10 +262,9 @@ lvh-yard unpublish web
 lvh-yard priority web                       # the Instance Sources in order, with their IDs
 lvh-yard priority web <id> <id>             # put these sources first (Instance Priority)
 lvh-yard priority web --off                 # every passing Instance shares the Route
-lvh-yard alias add grafana --workstation ws-b                 # http://grafana.<base-domain> for grafana of ws-b
-lvh-yard alias add db --workstation ws-b --service postgres   # a name that differs from the Service
-lvh-yard alias list
-lvh-yard alias remove grafana
+lvh-yard alias add web --workstation ws-b --service web      # web also uses the Instances of web on ws-b
+lvh-yard alias list web                                       # the Aliases of web, with their state
+lvh-yard alias remove web --workstation ws-b --service web
 lvh-yard profiles                           # the Route Profiles, with their types and the Services that use them
 lvh-yard profiles show basic-auth           # one Route Profile, in Traefik's file format
 lvh-yard profiles set profiles.yaml        # add or replace each Route Profile of the file
@@ -339,9 +338,9 @@ as `lvh-yard status`.
 
 A Backup is one YAML file that holds what you set up on one Workstation:
 
-- each Service of this Workstation, with its Publication, Static Instances and
-  Container Bindings. LVH Yard's own Services, such as `yard`, are in it too.
-- the Aliases of this Workstation
+- each Service of this Workstation, with its Publication, Static Instances,
+  Container Bindings and Aliases. LVH Yard's own Services, such as `yard`, are
+  in it too.
 - the Route Profiles of this Workstation
 
 A Backup never holds Bound Instances, Health or Remote Services. A Container
@@ -392,10 +391,9 @@ services:
           project: shop
           service: worker
         port: 9000
-aliases:
-  db:
-    workstation: ws-b
-    service: postgres
+    aliases:
+      - workstation: ws-b
+        service: shop
 ```
 
 - `publication: none` means that the Service is Unpublished.
@@ -441,7 +439,8 @@ With `--dry-run`, the import prints the same plan and changes nothing.
 
 The import finds what exists in this way:
 
-- a Service, an Alias and a Route Profile by their names
+- a Service and a Route Profile by their names
+- an Alias by its Remote Service, inside its Service only
 - a Static Instance by its host and port, inside its Service only
 - a Container Binding by its ID, such as `shop-web-1:80` or
   `compose:shop:worker:9000`
@@ -451,10 +450,10 @@ With `--update`, the import overwrites what it finds:
 - the Publication of a Service: its Scope and Route Profiles
 - the health check, tags and meta of a Static Instance. The Instance keeps its
   ID.
-- the target of an Alias
 - the definition of a Route Profile
 
-A Container Binding has nothing more to change, so the import always skips it.
+A Container Binding and an Alias have nothing more to change, so the import
+always skips one that exists.
 An entry with the same values is a skip in both modes.
 
 A Static Instance without a host is at the LAN address of this Workstation. A
@@ -476,8 +475,9 @@ The import refuses a key that a Backup does not have, a version other than 1,
 and an unknown Route Profile. It also refuses an Alias to this Workstation, and
 a Container Binding to a container that another Service follows already.
 
-The import writes Route Profiles first, then Static Instances and Container
-Bindings, then Publications, then Aliases. Consul cannot write them all at
+The import writes Route Profiles first, then Services, then Static Instances
+and Container Bindings, then Publications, then Aliases. It adds an Alias even
+when its Remote Service has no Yard Scope now. Consul cannot write them all at
 once. So if a write fails halfway, the import stops. It lists each entry that
 it wrote before, and it gives the name of the safety Backup:
 
@@ -619,8 +619,8 @@ show this risk.
 Traefik does not log the requests to a new Publication. To see them in the
 Traefik access log, turn the access log on. Use the Service page or
 `lvh-yard publish <service> --access-log on`. Then Traefik writes one line for
-each request to the Route. An Alias follows the Service it names. If you publish
-again without `--access-log`, the setting does not change.
+each request to the Route. If you publish again without `--access-log`, the
+setting does not change.
 
 You can see a Remote Service, but only its Home Workstation can change it. Its
 page has no forms, and the API answers 405 to a change under `/api/services`.
@@ -633,7 +633,8 @@ one of two levels:
 - **error**: the hostname does not work. An unknown Route Profile is an error.
 - **risk**: the hostname works, but other Workstations or users can meet a
   problem. An Instance on loopback, a container port that is not published, a
-  Route Profile that asks who the user is, and a Foreign Instance are risks.
+  Route Profile that asks who the user is, a Foreign Instance, and an Alias
+  above another Instance Source of a Service with Yard Scope are risks.
 
 A Foreign Instance is an Instance that another tool registered straight in
 Consul, for example with `curl` or the `consul` command. LVH Yard shows it and
@@ -681,7 +682,8 @@ Under the alerts, a row of cards shows the Service at a glance:
 - Routes to: the Instance Source that the Route uses now. See
   [Instance Priority](#instance-priority).
 
-Under them are the Publication, Instance Sources and Route Profiles cards.
+Under them are the Publication, Instance Sources and Route Profiles cards, then
+the Reachability test and the Delete Service button, in this order.
 Each card holds the buttons that change it. On a wide screen the Publication
 and Route Profiles cards sit in two columns, and on a phone in one. The
 Instance Sources card and the Reachability test are at full width. The page of a Remote Service
@@ -713,6 +715,9 @@ every source. Out-of-range Instances never count.
 An Alias source works only on your own Workstation. Other Workstations skip
 it, and use the next source in the order. Apart from that, every Workstation
 that routes a Service with Yard Scope uses the order of its Home Workstation.
+So if an Alias is above another source of a Service with Yard Scope, the
+Service has a risk: your Route and your teammates' Routes can reach different
+copies.
 
 To see the order with the ID of each source:
 
@@ -781,15 +786,15 @@ A Reachability test tells whether this Workstation reaches a Service. To run
 one, press Test on the page of the Service, run `lvh-yard test`, or send
 `GET /api/services/<workstation>/<service>/reachability`.
 
-The test connects to each Instance directly. It also sends a request for each
-hostname of the Service, and of its active Aliases, through the local Traefik.
+The test connects to each Instance directly. It also sends a request for the
+hostname of the Service through the local Traefik.
 If the Service has no Route here, only the Instances are tested, and the result
 says why. An Out-of-range Instance is skipped, and that is not a failure.
 
 The result also says which Instances the Route uses now, under the Instance
 Priority. So an Instance that is reached but not in the Route is left out by
-the order, not broken. When the Route falls back to an Alias, the result names
-the Remote Service that gets the requests. While the Instance Priority is off, the result
+the order, not broken. When the Route uses an Alias, the result names the
+Remote Service that gets the requests. While the Instance Priority is off, the result
 says so.
 
 If Traefik has no Route for the hostname, or answers 502, 503 or 504, the
@@ -799,32 +804,56 @@ with 1.
 
 ### Aliases
 
-An Alias gives a Remote Service a short hostname on this Workstation only, for
-example `grafana.<base-domain>` for `grafana.ws-b.<base-domain>`. Add and
-remove Aliases on the Aliases page or with `lvh-yard alias`. The Aliases are in
-the Consul KV of this Workstation, under `lvh-yard/aliases/`.
+An Alias is an Instance Source of a Service. It gives the Service the
+Instances of a Remote Service, for example `web` of your teammate's Workstation
+`ws-b`. An Alias has no hostname of its own: the Route of your Service uses its
+Instances, under the Instance Priority. Only your Workstation uses your
+Aliases. Other Workstations skip them.
 
-To add an Alias on the Aliases page, click "Add an Alias". The form opens on
-its own page, `/aliases/new`. Cancel goes back to the Aliases page. If a value
-is wrong, the form shows your input again with the error under its field.
-If no Remote Service has Yard Scope, the page shows no link.
+A Service can have many Aliases, for example one to `ws-b` and one to `ws-c`.
+Put them in order: while the first one has no passing Instance, the Route uses
+the next one. A new Alias goes to the end of the order. The Aliases are in the
+record of the Service, in the Consul KV of this Workstation.
 
-The name of an Alias follows the rules for a Service name, so it cannot be
-`consul`. The Workstation and the Service that it names must each be a DNS
-label. LVH Yard does not ask the other Workstation when you add an Alias. So
-you can add an Alias while that Workstation is off, or before it has the
-Service. The Alias gets a Route only when its Workstation answers and has the
-Service with Yard Scope.
-These are the states of an Alias:
+To add an Alias on the Service page, click "Add Alias" in the Instance Sources
+card. The form opens on its own page and lists the Remote Services with Yard
+Scope. Cancel goes back to the Service page. If the dashboard refuses the
+Alias, the form shows the reason under its field. You can also run:
 
-- `active`: routed to the Instances of the Remote Service
+```sh
+lvh-yard alias add web --workstation ws-b --service web
+lvh-yard alias list web
+lvh-yard alias remove web --workstation ws-b --service web
+```
+
+The dashboard refuses a new Alias in these cases:
+
+- The Service does not exist. Create it first.
+- The Service already has an Alias to this Remote Service.
+- The Remote Service is on this Workstation.
+- The Remote Service is not there with Yard Scope now, or its Workstation does
+  not answer.
+
+An Alias stays when its Remote Service loses Yard Scope or its Workstation
+stops answering. It then gives no Instances, and the Service page says why.
+When the Remote Service has Yard Scope again, the Alias gives its Instances
+again. Each Alias on the Service page links to the page of its Remote Service,
+and shows its Instances.
+
+These are the states of an Alias, which `lvh-yard alias list` and
+`GET /api/workstation/services/{service}/aliases` show:
+
+- `active`: it gives the Instances of the Remote Service
 - `unavailable`: the Remote Service has no Instance in range here
-- `fallback`: a published Service of this Workstation has the same name. The
-  Alias is one of its Instance Sources, and its Instance Priority says when the
-  Route uses it. The reason says if the Alias is in use now.
 - `not-shared`: the Remote Service is unpublished or has Local Scope
 - `unreachable`: its Workstation does not answer
 - `missing`: the Remote Service or its Workstation is gone
+
+`POST /api/workstation/services/{service}/aliases` with `workstation` and
+`service` adds an Alias. `DELETE
+/api/workstation/services/{service}/aliases/{workstation}/{remoteService}` removes
+one. The ID of an Alias source is `<workstation>/<service>` of its Remote
+Service.
 
 ### Route Profiles
 
@@ -921,7 +950,8 @@ the Yard runs a version of LVH Yard with Route Profiles. An older version does
 not read the profiles of a Publication, so it routes the Service without them.
 
 A Service with Yard Scope gets its profiles on every Workstation. A teammate's
-Route to it, and a teammate's Alias to it, apply the same profiles. Their
+Route to it applies the same profiles. An Alias gives only Instances, so the
+Route of the Service that has the Alias applies its own profiles. Their
 dashboard reads the profiles from your Consul KV, so nobody copies a file. When
 you change a profile, their Routes change within a few seconds. The Service's
 page on their dashboard shows the profile names.

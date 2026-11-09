@@ -11,82 +11,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import tools.jackson.databind.JsonNode;
 
-/** Aliases: short hostnames this Workstation gives to Remote Services, for its own use only. */
+/** Aliases: Instance Sources of a Service that give the Instances of a Remote Service. */
 class AliasesComponentTest extends DashboardComponentTest {
 
-  /** The Alias called {@code name}, as the list of this Workstation's Aliases has it. */
-  private JsonNode alias(String name) {
-    return get(aliasesPath())
-        .getBody()
-        .valueStream()
-        .filter(alias -> alias.get("name").asString().equals(name))
-        .findFirst()
-        .orElseThrow(() -> new AssertionError("No Alias " + name));
+  static String aliasesPath(String service) {
+    return servicePath(service) + "/aliases";
   }
 
-  static String aliasesPath() {
-    return "/api/workstation/aliases";
-  }
-
-  static String aliasPath(String alias) {
-    return "/api/workstation/aliases/" + alias;
-  }
-
-  static List<String> routedHostnames(JsonNode http) {
-    return TraefikConfigurationComponentTest.routedHostnames(http);
-  }
-
-  @Test
-  void aliasNamesARemoteWorkstationAndAServiceByTheirDnsLabels() {
-    String web = newServiceName("web");
-    register(web, Map.of("host", "10.1.2.3", "port", 8080));
-    String alias = newServiceName("alias");
-
-    ResponseEntity<JsonNode> own =
-        put(aliasPath(alias), Map.of("workstation", WORKSTATION, "service", web));
-    ResponseEntity<JsonNode> badWorkstation =
-        put(aliasPath(alias), Map.of("workstation", "WS_B", "service", web));
-    ResponseEntity<JsonNode> badService =
-        put(aliasPath(alias), Map.of("workstation", RemoteWorkstation.NAME, "service", "-web"));
-
-    assertThat(own.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(own.getBody().get("detail").asString()).contains("Remote Service");
-    assertThat(badWorkstation.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(badWorkstation.getBody().get("detail").asString()).contains("WS_B");
-    assertThat(badService.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(badService.getBody().get("detail").asString()).contains("-web");
-    assertThat(
-            get(aliasesPath()).getBody().valueStream().map(found -> found.get("name").asString()))
-        .doesNotContain(alias);
-  }
-
-  @Test
-  void aliasOfAWorkstationOrServiceNotInTheYardIsKeptWithoutARoute() {
-    String nowhere = newServiceName("nowhere");
-    String nothing = newServiceName("nothing");
-
-    ResponseEntity<JsonNode> noWorkstation =
-        put(aliasPath(nowhere), Map.of("workstation", "ws-nowhere", "service", nowhere));
-    ResponseEntity<JsonNode> noService =
-        put(aliasPath(nothing), Map.of("workstation", RemoteWorkstation.NAME, "service", nothing));
-
-    assertThat(noWorkstation.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(noWorkstation.getBody().get("state").asString()).isEqualTo("missing");
-    assertThat(noWorkstation.getBody().get("reason").asString()).contains("ws-nowhere");
-    assertThat(noService.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(noService.getBody().get("state").asString()).isEqualTo("missing");
-    assertThat(routedHostnames(get("/traefik/configuration").getBody().get("http")))
-        .doesNotContain(nowhere + ".lvh.test", nothing + ".lvh.test");
-  }
-
-  @Test
-  void removingAnUnknownAliasIsNotFound() {
-    String alias = newServiceName("nothing");
-
-    ResponseEntity<JsonNode> response = delete(aliasPath(alias));
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-    assertThat(response.getBody().get("detail").asString()).contains(alias);
+  static String aliasPath(String service, String workstation, String remoteService) {
+    return aliasesPath(service) + "/" + workstation + "/" + remoteService;
   }
 
   /**
@@ -100,223 +33,257 @@ class AliasesComponentTest extends DashboardComponentTest {
     return service;
   }
 
+  private ResponseEntity<JsonNode> addAlias(String service, String remoteService) {
+    return post(
+        aliasesPath(service),
+        Map.of("workstation", RemoteWorkstation.NAME, "service", remoteService));
+  }
+
+  private JsonNode source(String service, String id) {
+    return get(servicePath(service))
+        .getBody()
+        .get("sources")
+        .valueStream()
+        .filter(source -> source.get("id").asString().equals(id))
+        .findFirst()
+        .orElseThrow(() -> new AssertionError(service + " has no source " + id));
+  }
+
   @Test
-  void aliasOfAYardScopedRemoteServiceIsRoutedToItsInstances() {
-    String grafana = newServiceName("grafana");
-    remote.register(grafana, Map.of("host", "10.9.8.7", "port", 3000));
-    remote.publish(grafana, "yard");
+  void aliasIsAnInstanceSourceThatGivesTheInstancesOfItsRemoteService() {
+    String grafana = sharedRemoteService("grafana");
+    String web = newServiceName("web");
+    create(web);
+
+    ResponseEntity<JsonNode> response = addAlias(web, grafana);
+
+    String id = RemoteWorkstation.NAME + "/" + grafana;
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getBody().get("id").asString()).isEqualTo(id);
+    assertThat(response.getBody().get("state").asString()).isEqualTo("active");
+    JsonNode source = source(web, id);
+    assertThat(source.get("kind").asString()).isEqualTo("alias");
+    assertThat(source.get("instances").size()).isEqualTo(1);
+  }
+
+  @Test
+  void serviceCanHaveManyAliasesAndEachGoesToTheEndOfTheOrder() {
+    String first = sharedRemoteService("first");
+    String second = sharedRemoteService("second");
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+
+    addAlias(web, first);
+    addAlias(web, second);
+
+    List<String> ids =
+        InstancePriorityComponentTest.ids(get(servicePath(web)).getBody().get("sources"));
+    assertThat(ids).hasSize(3);
+    assertThat(ids.subList(1, 3))
+        .containsExactly(
+            RemoteWorkstation.NAME + "/" + first, RemoteWorkstation.NAME + "/" + second);
+    assertThat(
+            get(aliasesPath(web))
+                .getBody()
+                .valueStream()
+                .map(alias -> alias.get("service").asString()))
+        .containsExactly(first, second);
+  }
+
+  @Test
+  void secondAliasToTheSameRemoteServiceIsRefused() {
+    String grafana = sharedRemoteService("grafana");
+    String web = newServiceName("web");
+    create(web);
+    addAlias(web, grafana);
+
+    ResponseEntity<JsonNode> again = addAlias(web, grafana);
+
+    assertThat(again.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(again.getBody().get("detail").asString()).contains(grafana);
+    assertThat(get(aliasesPath(web)).getBody().size()).isEqualTo(1);
+  }
+
+  @Test
+  void aliasToAServiceOfThisWorkstationIsRefused() {
+    String own = newServiceName("own");
+    register(own, Map.of("host", "10.1.2.3", "port", 8080));
+    put(publicationPath(own), Map.of("scope", "yard"));
+    String web = newServiceName("web");
+    create(web);
 
     ResponseEntity<JsonNode> response =
-        put(aliasPath(grafana), Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
+        post(aliasesPath(web), Map.of("workstation", WORKSTATION, "service", own));
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(response.getBody().get("name").asString()).isEqualTo(grafana);
-    assertThat(response.getBody().get("hostname").asString()).isEqualTo(grafana + ".lvh.test");
-    assertThat(response.getBody().get("state").asString()).isEqualTo("active");
-    assertThat(
-            TraefikConfigurationComponentTest.serverUrlsAt(
-                get("/traefik/configuration").getBody().get("http"), grafana + ".lvh.test"))
-        .containsExactly("http://10.9.8.7:3000");
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getBody().get("field").asString()).isEqualTo("workstation");
+    assertThat(response.getBody().get("detail").asString()).contains("Remote Service");
+    assertThat(get(aliasesPath(web)).getBody().size()).isZero();
   }
 
   @Test
-  void aliasNameFollowsTheServiceNameRules() {
-    String grafana = sharedRemoteService("grafana");
+  void namesThatAreNotOneDnsLabelAreRefusedAtTheirField() {
+    String web = newServiceName("web");
+    create(web);
 
-    for (String name : List.of("Grafana", "-grafana", "graf.ana", "consul")) {
-      ResponseEntity<JsonNode> response =
-          put(aliasPath(name), Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
+    ResponseEntity<JsonNode> badWorkstation =
+        post(aliasesPath(web), Map.of("workstation", "WS_B", "service", "grafana"));
+    ResponseEntity<JsonNode> badService =
+        post(aliasesPath(web), Map.of("workstation", RemoteWorkstation.NAME, "service", "-web"));
 
-      assertThat(response.getStatusCode()).as(name).isEqualTo(HttpStatus.BAD_REQUEST);
-      assertThat(response.getBody().get("detail").asString()).as(name).contains(name);
-    }
-    assertThat(
-            get(aliasesPath()).getBody().valueStream().map(alias -> alias.get("name").asString()))
-        .doesNotContain("consul", "Grafana");
+    assertThat(badWorkstation.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(badWorkstation.getBody().get("field").asString()).isEqualTo("workstation");
+    assertThat(badService.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(badService.getBody().get("field").asString()).isEqualTo("service");
   }
 
   @Test
-  void aliasAddedWhileItsWorkstationIsUnreachableGetsItsRouteWhenItAnswers() {
-    String grafana = sharedRemoteService("grafana");
+  void onlyARemoteServiceWithYardScopeCanBeTheTargetOfANewAlias() {
+    String local = newServiceName("local");
+    remote.register(local, Map.of("host", "10.9.8.7", "port", 3000));
+    remote.publish(local, "local");
+    String unpublished = newServiceName("unpublished");
+    remote.register(unpublished, Map.of("host", "10.9.8.7", "port", 3000));
+    String web = newServiceName("web");
+    create(web);
 
-    remote.stopAnswering();
-    try {
-      ResponseEntity<JsonNode> response =
-          put(
-              aliasPath(grafana),
-              Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
+    ResponseEntity<JsonNode> toLocal = addAlias(web, local);
+    ResponseEntity<JsonNode> toUnpublished = addAlias(web, unpublished);
+    ResponseEntity<JsonNode> toNothing = addAlias(web, newServiceName("nothing"));
+    ResponseEntity<JsonNode> toNowhere =
+        post(aliasesPath(web), Map.of("workstation", "ws-nowhere", "service", "grafana"));
 
-      assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-      assertThat(response.getBody().get("state").asString()).isEqualTo("unreachable");
-    } finally {
-      remote.answerAgain();
-    }
-
-    await()
-        .atMost(Duration.ofSeconds(60))
-        .until(
-            () -> routedHostnames(get("/traefik/configuration").getBody().get("http")),
-            hostnames -> hostnames.contains(grafana + ".lvh.test"));
+    assertThat(toLocal.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(toLocal.getBody().get("detail").asString()).contains("Local Scope");
+    assertThat(toUnpublished.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(toUnpublished.getBody().get("field").asString()).isEqualTo("service");
+    assertThat(toNothing.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(toNothing.getBody().get("field").asString()).isEqualTo("service");
+    assertThat(toNowhere.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(toNowhere.getBody().get("field").asString()).isEqualTo("workstation");
+    assertThat(get(aliasesPath(web)).getBody().size()).isZero();
   }
 
   @Test
-  void ownPublishedServiceWithTheSameNameTakesTheHostnameAndTheAliasIsItsFallback() {
+  void aliasOfAServiceYouHaveNotCreatedIsNotFound() {
     String grafana = sharedRemoteService("grafana");
-    put(aliasPath(grafana), Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
-    register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
+    String web = newServiceName("web");
 
-    publish(grafana);
+    ResponseEntity<JsonNode> response = addAlias(web, grafana);
 
-    JsonNode alias = alias(grafana);
-    assertThat(alias.get("state").asString()).isEqualTo("fallback");
-    assertThat(alias.get("reason").asString())
-        .contains("An Instance Source of this Workstation's Service " + grafana);
-    assertThat(routedHostnames(get("/traefik/configuration").getBody().get("http")))
-        .containsOnlyOnce(grafana + ".lvh.test");
-    // Neither Instance passes, as nothing listens at either address, so no source wins and the
-    // Route uses every Instance in range, the Alias's included.
-    assertThat(
-            TraefikConfigurationComponentTest.serverUrlsAt(
-                get("/traefik/configuration").getBody().get("http"), grafana + ".lvh.test"))
-        .containsExactlyInAnyOrder("http://10.1.2.3:3000", "http://10.9.8.7:3000");
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    assertThat(get(servicePath(web)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
   }
 
   @Test
-  void aliasStaysAnInstanceSourceWhileTheInstancePriorityIsOff() {
+  void aliasStaysAfterItsTargetLosesYardScopeAndThenGivesNoInstancesAndSaysWhy() {
     String grafana = sharedRemoteService("grafana");
-    put(aliasPath(grafana), Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
-    register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
-    publish(grafana);
-
-    put(instancePriorityPath(grafana), Map.of("on", false));
-
-    assertThat(alias(grafana).get("state").asString()).isEqualTo("fallback");
-    assertThat(get(servicePath(grafana)).getBody().get("sources").valueStream())
-        .map(source -> source.get("kind").asString())
-        .containsExactlyInAnyOrder("static", "alias");
-  }
-
-  @Test
-  void ownUnpublishedServiceWithTheSameNameLeavesTheAliasActive() {
-    String grafana = sharedRemoteService("grafana");
-    register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
-
-    put(aliasPath(grafana), Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
-
-    assertThat(alias(grafana).get("state").asString()).isEqualTo("active");
-    assertThat(
-            TraefikConfigurationComponentTest.serverUrlsAt(
-                get("/traefik/configuration").getBody().get("http"), grafana + ".lvh.test"))
-        .containsExactly("http://10.9.8.7:3000");
-  }
-
-  @Test
-  void aliasOfARemoteServiceWithLocalScopeHasNoRouteAndSaysWhy() {
-    String grafana = sharedRemoteService("grafana");
-    put(aliasPath(grafana), Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
+    String web = newServiceName("web");
+    create(web);
+    addAlias(web, grafana);
 
     remote.publish(grafana, "local");
 
-    JsonNode alias = alias(grafana);
+    JsonNode alias = get(aliasesPath(web)).getBody().get(0);
     assertThat(alias.get("state").asString()).isEqualTo("not-shared");
     assertThat(alias.get("reason").asString()).contains("Local Scope");
-    assertThat(routedHostnames(get("/traefik/configuration").getBody().get("http")))
-        .doesNotContain(grafana + ".lvh.test");
+    assertThat(source(web, RemoteWorkstation.NAME + "/" + grafana).get("instances").size())
+        .isZero();
   }
 
   @Test
-  void aliasOfAnUnpublishedRemoteServiceHasNoRouteAndSaysWhy() {
+  void aliasStaysWhileItsWorkstationIsUnreachableAndGivesInstancesWhenItAnswersAgain() {
     String grafana = sharedRemoteService("grafana");
-    put(aliasPath(grafana), Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
-
-    remote.unpublish(grafana);
-
-    JsonNode alias = alias(grafana);
-    assertThat(alias.get("state").asString()).isEqualTo("not-shared");
-    assertThat(alias.get("reason").asString()).contains("not published");
-    assertThat(routedHostnames(get("/traefik/configuration").getBody().get("http")))
-        .doesNotContain(grafana + ".lvh.test");
-  }
-
-  @Test
-  void aliasOfARemoteServiceThatIsGoneSaysWhy() {
-    String grafana = newServiceName("grafana");
-    remote.register(grafana, Map.of("host", "10.9.8.7", "port", 3000));
-    put(aliasPath(grafana), Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
-
-    remote.delete(grafana);
-
-    JsonNode alias = alias(grafana);
-    assertThat(alias.get("state").asString()).isEqualTo("missing");
-    assertThat(alias.get("reason").asString()).contains("has no Service " + grafana);
-  }
-
-  @Test
-  void aliasOfAnUnreachableWorkstationsServiceHasNoRouteAndComesBack() {
-    String grafana = sharedRemoteService("grafana");
-    put(aliasPath(grafana), Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
+    String web = newServiceName("web");
+    create(web);
+    addAlias(web, grafana);
+    String id = RemoteWorkstation.NAME + "/" + grafana;
 
     remote.stopAnswering();
     try {
       await()
           .atMost(Duration.ofSeconds(60))
-          .until(
-              () -> routedHostnames(get("/traefik/configuration").getBody().get("http")),
-              hostnames -> !hostnames.contains(grafana + ".lvh.test"));
-      JsonNode alias = alias(grafana);
-      assertThat(alias.get("state").asString()).isEqualTo("unreachable");
-      assertThat(alias.get("reason").asString()).contains("unreachable");
+          .untilAsserted(() -> {
+            JsonNode alias = get(aliasesPath(web)).getBody().get(0);
+            assertThat(alias.get("state").asString()).isEqualTo("unreachable");
+            assertThat(alias.get("reason").asString()).contains("unreachable");
+          });
+      assertThat(source(web, id).get("instances").size()).isZero();
     } finally {
       remote.answerAgain();
     }
 
     await()
         .atMost(Duration.ofSeconds(60))
-        .until(
-            () -> routedHostnames(get("/traefik/configuration").getBody().get("http")),
-            hostnames -> hostnames.contains(grafana + ".lvh.test"));
+        .until(() -> source(web, id).get("instances").size() == 1);
   }
 
   @Test
-  void noOtherWorkstationGetsARouteForTheAlias() {
+  void removedAliasLeavesTheOrderAndTheListAndAnUnknownOneIsNotFound() {
     String grafana = sharedRemoteService("grafana");
-    String alias = newServiceName("short");
+    String web = newServiceName("web");
+    create(web);
+    addAlias(web, grafana);
 
-    put(aliasPath(alias), Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
+    ResponseEntity<JsonNode> removed = delete(aliasPath(web, RemoteWorkstation.NAME, grafana));
+    ResponseEntity<JsonNode> again = delete(aliasPath(web, RemoteWorkstation.NAME, grafana));
 
-    assertThat(routedHostnames(get("/traefik/configuration").getBody().get("http")))
-        .contains(alias + ".lvh.test");
-    assertThat(routedHostnames(remote.traefikConfiguration().get("http")))
-        .doesNotContain(alias + ".lvh.test");
+    assertThat(removed.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    assertThat(again.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    assertThat(again.getBody().get("detail").asString()).contains(grafana);
+    assertThat(get(aliasesPath(web)).getBody().size()).isZero();
+    assertThat(get(servicePath(web)).getBody().get("sources").size()).isZero();
   }
 
   @Test
-  void aliasOfARemoteServiceWithNoInstanceInRangeHasNoRouteAndSaysWhy() {
-    String grafana = newServiceName("grafana");
-    remote.register(grafana, Map.of("host", "127.0.0.1", "port", 3000));
-    remote.publish(grafana, "yard");
-
-    put(aliasPath(grafana), Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
-
-    JsonNode alias = alias(grafana);
-    assertThat(alias.get("state").asString()).isEqualTo("unavailable");
-    assertThat(alias.get("reason").asString()).contains("no Instance");
-    assertThat(routedHostnames(get("/traefik/configuration").getBody().get("http")))
-        .doesNotContain(grafana + ".lvh.test");
-  }
-
-  @Test
-  void removedAliasLosesItsRoute() {
+  void yardServiceWithAnAliasAboveAnotherSourceHasARiskWarning() {
     String grafana = sharedRemoteService("grafana");
-    put(aliasPath(grafana), Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+    addAlias(web, grafana);
+    put(publicationPath(web), Map.of("scope", "yard"));
+    assertThat(warningKinds(web)).doesNotContain("alias-above-source");
 
-    ResponseEntity<JsonNode> response = delete(aliasPath(grafana));
+    put(
+        instancePriorityPath(web),
+        Map.of("order", List.of(RemoteWorkstation.NAME + "/" + grafana)));
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    assertThat(warningKinds(web)).contains("alias-above-source");
+    JsonNode warning =
+        get(servicePath(web))
+            .getBody()
+            .get("warnings")
+            .valueStream()
+            .filter(found -> found.get("kind").asString().equals("alias-above-source"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(warning.get("severity").asString()).isEqualTo("risk");
+
+    put(publicationPath(web), Map.of("scope", "local"));
+
+    assertThat(warningKinds(web)).doesNotContain("alias-above-source");
+  }
+
+  private List<String> warningKinds(String service) {
+    return get(servicePath(service))
+        .getBody()
+        .get("warnings")
+        .valueStream()
+        .map(warning -> warning.get("kind").asString())
+        .toList();
+  }
+
+  @Test
+  void workstationLevelAliasesAndTheirShortHostnamesAreGone() {
+    String grafana = sharedRemoteService("grafana");
+    String web = newServiceName("web");
+    create(web);
+    addAlias(web, grafana);
+
+    assertThat(get("/api/workstation/aliases").getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     assertThat(
-            get(aliasesPath()).getBody().valueStream().map(alias -> alias.get("name").asString()))
-        .doesNotContain(grafana);
-    assertThat(routedHostnames(get("/traefik/configuration").getBody().get("http")))
-        .doesNotContain(grafana + ".lvh.test");
+            TraefikConfigurationComponentTest.routedHostnames(
+                get("/traefik/configuration").getBody().get("http")))
+        .doesNotContain(grafana + ".lvh.test", web + ".lvh.test");
   }
 }

@@ -3,6 +3,7 @@ package dev.palazon.lvhyard.cli;
 import java.io.PrintWriter;
 import java.util.List;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -13,7 +14,7 @@ import picocli.CommandLine.Spec;
     name = "alias",
     mixinStandardHelpOptions = true,
     subcommands = {Alias.Add.class, Alias.ListAliases.class, Alias.Remove.class},
-    description = "Manages Aliases for Remote Services.")
+    description = "Manages the Aliases of a Service, which give it a Remote Service's Instances.")
 class Alias implements Runnable {
 
   @ParentCommand Yard yard;
@@ -25,54 +26,46 @@ class Alias implements Runnable {
     spec.commandLine().usage(spec.commandLine().getOut());
   }
 
-  @Command(
-      name = "add",
-      mixinStandardHelpOptions = true,
-      description = "Adds an Alias for a Remote Service.")
-  static class Add implements Runnable {
-
-    @ParentCommand Alias alias;
-
-    @Parameters(paramLabel = "<alias>", description = "The Alias's name.")
-    String name;
+  /** The Remote Service that an Alias names. */
+  static class Target {
 
     @Option(
         names = "--workstation",
         paramLabel = "<name>",
         required = true,
-        description = "The Remote Service's Home Workstation.")
+        description = "The Home Workstation of the Remote Service.")
     String workstation;
 
     @Option(
         names = "--service",
         paramLabel = "<service>",
-        description = "The Remote Service's name (default: <alias>).")
+        required = true,
+        description = "The name of the Remote Service.")
     String service;
+  }
+
+  @Command(
+      name = "add",
+      mixinStandardHelpOptions = true,
+      description = "Adds an Alias to a Remote Service with Yard Scope, at the end of the order.")
+  static class Add implements Runnable {
+
+    @ParentCommand Alias alias;
+
+    @Parameters(paramLabel = "<service>", description = "The Service of this Workstation.")
+    String service;
+
+    @Mixin Target target;
 
     @Spec CommandSpec spec;
 
     @Override
     public void run() {
       Dashboard.Alias added =
-          alias.yard.dashboard().addAlias(name, workstation, service == null ? name : service);
+          alias.yard.dashboard().addAlias(service, target.workstation, target.service);
       PrintWriter out = spec.commandLine().getOut();
-      if (added.active()) {
-        out.println(
-            added.hostname()
-                + " now reaches "
-                + added.service()
-                + " on "
-                + added.workstation()
-                + ".");
-      } else {
-        out.println(
-            added.hostname()
-                + " names "
-                + added.service()
-                + " on "
-                + added.workstation()
-                + ", but has no Route for now.");
-      }
+      out.println(
+          service + " now has an Alias to " + added.service() + " on " + added.workstation() + ".");
       out.flush();
       if (added.reason() != null) {
         spec.commandLine().getErr().println("Warning: " + added.reason());
@@ -81,29 +74,28 @@ class Alias implements Runnable {
     }
   }
 
-  @Command(name = "list", mixinStandardHelpOptions = true, description = "Lists the Aliases.")
+  @Command(
+      name = "list",
+      mixinStandardHelpOptions = true,
+      description = "Lists the Aliases of a Service in order, with their state.")
   static class ListAliases implements Runnable {
 
     @ParentCommand Alias alias;
+
+    @Parameters(paramLabel = "<service>", description = "The Service of this Workstation.")
+    String service;
 
     @Spec CommandSpec spec;
 
     @Override
     public void run() {
-      List<Dashboard.Alias> aliases = alias.yard.dashboard().aliases();
+      List<Dashboard.Alias> aliases = alias.yard.dashboard().aliases(service);
       PrintWriter out = spec.commandLine().getOut();
       if (aliases.isEmpty()) {
-        out.println("No Aliases.");
+        out.println(service + " has no Aliases.");
       }
       for (Dashboard.Alias found : aliases) {
-        out.println(
-            found.hostname()
-                + ": "
-                + found.service()
-                + " on "
-                + found.workstation()
-                + ", "
-                + found.state());
+        out.println(found.service() + " on " + found.workstation() + ": " + found.state());
         if (found.reason() != null) {
           out.println("  " + found.reason());
         }
@@ -112,20 +104,34 @@ class Alias implements Runnable {
     }
   }
 
-  @Command(name = "remove", mixinStandardHelpOptions = true, description = "Removes an Alias.")
+  @Command(
+      name = "remove",
+      mixinStandardHelpOptions = true,
+      description = "Removes one Alias of a Service.")
   static class Remove implements Runnable {
 
     @ParentCommand Alias alias;
 
-    @Parameters(paramLabel = "<alias>", description = "The Alias's name.")
-    String name;
+    @Parameters(paramLabel = "<service>", description = "The Service of this Workstation.")
+    String service;
+
+    @Mixin Target target;
 
     @Spec CommandSpec spec;
 
     @Override
     public void run() {
-      alias.yard.dashboard().removeAlias(name);
-      spec.commandLine().getOut().println("Removed the Alias " + name + ".");
+      alias.yard.dashboard().removeAlias(service, target.workstation, target.service);
+      spec.commandLine()
+          .getOut()
+          .println(
+              "Removed the Alias to "
+                  + target.service
+                  + " on "
+                  + target.workstation
+                  + " from "
+                  + service
+                  + ".");
       spec.commandLine().getOut().flush();
     }
   }

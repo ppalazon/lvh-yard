@@ -64,8 +64,6 @@ public class YardReader {
 
   private final OutOfRange outOfRange;
 
-  private final AliasKeys aliasKeys;
-
   private final RouteProfiles routeProfiles;
 
   /**
@@ -83,7 +81,6 @@ public class YardReader {
       Publications publications,
       ContainerBindings containerBindings,
       OutOfRange outOfRange,
-      AliasKeys aliasKeys,
       RouteProfiles routeProfiles,
       ConsulSettings consulSettings) {
     this.workstation = workstation;
@@ -92,7 +89,6 @@ public class YardReader {
     this.publications = publications;
     this.containerBindings = containerBindings;
     this.outOfRange = outOfRange;
-    this.aliasKeys = aliasKeys;
     this.routeProfiles = routeProfiles;
     this.breakers =
         CircuitBreakerRegistry.of(
@@ -174,7 +170,6 @@ public class YardReader {
                     datacenter,
                     name,
                     records.all(datacenter).get(name),
-                    this.workstation.is(workstation) ? aliasKeys.targets().get(name) : null,
                     publications.all(datacenter).get(name),
                     containerBindings.all(datacenter).getOrDefault(name, Map.of()),
                     routeProfiles.stored(datacenter)));
@@ -184,9 +179,9 @@ public class YardReader {
   }
 
   /**
-   * Gives the Alias source of each of this Workstation's published {@code services} the Instances
-   * of its Remote Service, while that one has Yard Scope. Only this Workstation's own Aliases
-   * count, so no other Workstation's Route depends on them.
+   * Gives each Alias source of this Workstation's {@code services} the Instances of its Remote
+   * Service, while that one has Yard Scope. Only this Workstation's own Aliases count, so no other
+   * Workstation's Route depends on them.
    *
    * @param remoteService finds a Remote Service by its Workstation and name
    */
@@ -194,19 +189,17 @@ public class YardReader {
       List<Service> services, BiFunction<String, String, Optional<Service>> remoteService) {
     return services.stream()
         .map(service -> {
-          if (service.hostname() == null) {
-            return service;
-          }
-          return service.sources().stream()
+          Map<String, List<Instance>> aliased = new TreeMap<>();
+          service.sources().stream()
               .filter(source -> source.kind() == SourceKind.ALIAS)
-              .findFirst()
-              .flatMap(alias -> {
+              .forEach(alias -> {
                 String[] target = alias.id().split("/", 2);
-                return remoteService.apply(target[0], target.length < 2 ? "" : target[1]);
-              })
-              .filter(Service::sharedWithYard)
-              .map(target -> service.withAlias(target.instances()))
-              .orElse(service);
+                remoteService
+                    .apply(target[0], target.length < 2 ? "" : target[1])
+                    .filter(Service::sharedWithYard)
+                    .ifPresent(found -> aliased.put(alias.id(), found.instances()));
+              });
+          return aliased.isEmpty() ? service : service.withAliases(aliased);
         })
         .toList();
   }
@@ -247,8 +240,6 @@ public class YardReader {
         workstation,
         datacenter -> {
           Map<String, ServiceRecords.ServiceRecord> created = records.all(datacenter);
-          Map<String, AliasKeys.Target> aliases =
-              this.workstation.is(workstation) ? aliasKeys.targets() : Map.of();
           Map<String, Publication> published = publications.all(datacenter);
           Map<String, Map<String, ContainerBindingRequest>> bindings =
               containerBindings.all(datacenter);
@@ -262,7 +253,6 @@ public class YardReader {
                       datacenter,
                       name,
                       created.get(name),
-                      aliases.get(name),
                       published.get(name),
                       bindings.getOrDefault(name, Map.of()),
                       profiles)
@@ -293,7 +283,6 @@ public class YardReader {
       String datacenter,
       String name,
       ServiceRecords.ServiceRecord record,
-      AliasKeys.Target alias,
       Publication publication,
       Map<String, ContainerBindingRequest> bindings,
       Map<String, RouteProfileDefinition> profiles) {
@@ -334,8 +323,11 @@ public class YardReader {
                 instances.stream()
                     .filter(instance -> binding.id().equals(instance.containerBinding()))
                     .toList())));
-    if (alias != null && record != null) {
-      sources.add(new InstanceSource(alias.id(), SourceKind.ALIAS, List.of()));
+    // Only this Workstation reads its own Aliases.
+    if (record != null && workstation.is(home)) {
+      record
+          .aliases()
+          .forEach(alias -> sources.add(new InstanceSource(alias, SourceKind.ALIAS, List.of())));
     }
     return Optional.of(
         new Service(

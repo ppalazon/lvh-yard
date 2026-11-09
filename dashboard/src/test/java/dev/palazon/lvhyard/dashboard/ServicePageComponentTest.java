@@ -57,6 +57,29 @@ class ServicePageComponentTest extends DashboardComponentTest {
   }
 
   @Test
+  void partsFollowTheOrderSummaryPublicationSourcesRouteProfilesReachabilityAndDelete() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+    publish(web);
+
+    String page = getPage("/services/ws-test/" + web).getBody();
+
+    int at = -1;
+    for (String part :
+        List.of(
+            "data-summary=\"state\"",
+            "id=\"publication\"",
+            "id=\"sources\"",
+            "id=\"route-profiles\"",
+            "id=\"reachability\"",
+            "id=\"delete\"")) {
+      int next = page.indexOf(part);
+      assertThat(next).as(part).isGreaterThan(at);
+      at = next;
+    }
+  }
+
+  @Test
   void unpublishedServiceSaysSoInItsSummaryCards() {
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));

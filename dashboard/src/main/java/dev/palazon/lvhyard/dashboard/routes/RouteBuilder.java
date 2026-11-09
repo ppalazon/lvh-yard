@@ -7,35 +7,24 @@ import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.LoadBalancer;
 import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.Observability;
 import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.Router;
 import dev.palazon.lvhyard.dashboard.routes.TraefikConfiguration.Server;
-import dev.palazon.lvhyard.dashboard.services.Alias;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Turns the Services and Aliases into Traefik's configuration. It reads nothing itself. */
+/** Turns the Services into Traefik's configuration. It reads nothing itself. */
 final class RouteBuilder {
 
   /** The entry point compose.yaml gives Traefik for plain HTTP. */
   private static final String HTTP_ENTRY_POINT = "web";
 
-  /**
-   * What an Alias's Route is named after: {@code alias_<alias>}. A Service name or a Workstation
-   * name never has an _, so it never takes the name of a Service's Route.
-   */
-  private static final String ALIAS_PREFIX = "alias_";
-
   private RouteBuilder() {}
 
   /** Unreachable Workstations are not among {@code services}, so their Services get no Route. */
-  static TraefikConfiguration build(
-      Workstation workstation, List<Service> services, List<Alias> aliases) {
+  static TraefikConfiguration build(Workstation workstation, List<Service> services) {
     Map<String, Router> routers = new LinkedHashMap<>();
     Map<String, TraefikConfiguration.Service> backends = new LinkedHashMap<>();
     Map<String, Map<String, Object>> middlewares = new LinkedHashMap<>();
-    // An Alias's Route applies the middlewares and the access log of its Remote Service's Route.
-    Map<String, List<String>> applied = new LinkedHashMap<>();
-    Map<String, Boolean> logged = new LinkedHashMap<>();
     services.stream()
         .filter(Service::routed)
         .forEach(service -> {
@@ -44,20 +33,14 @@ final class RouteBuilder {
                   .map(instance -> new Server("http://" + instance.address()))
                   .toList();
           String name = name(workstation, service);
-          applied.put(name, profiles(service, middlewares));
-          logged.put(name, service.publication().accessLog());
-          routers.put(name, router(service.hostname(), name, applied.get(name), logged.get(name)));
+          routers.put(
+              name,
+              router(
+                  service.hostname(),
+                  name,
+                  profiles(service, middlewares),
+                  service.publication().accessLog()));
           backends.put(name, new TraefikConfiguration.Service(new LoadBalancer(servers)));
-        });
-    aliases.stream()
-        .filter(Alias::active)
-        .forEach(alias -> {
-          String target = name(workstation, alias.workstation(), alias.service());
-          if (backends.containsKey(target)) {
-            routers.put(
-                ALIAS_PREFIX + alias.name(),
-                router(alias.hostname(), target, applied.get(target), logged.get(target)));
-          }
         });
     return new TraefikConfiguration(new Http(routers, backends, middlewares));
   }

@@ -9,9 +9,9 @@ import dev.palazon.lvhyard.dashboard.backups.Backup.Service;
 import dev.palazon.lvhyard.dashboard.backups.Backup.StaticInstance;
 import dev.palazon.lvhyard.dashboard.backups.Backup.Unpublished;
 import dev.palazon.lvhyard.dashboard.profiles.RouteProfiles;
-import dev.palazon.lvhyard.dashboard.services.Aliases;
 import dev.palazon.lvhyard.dashboard.services.Instance;
 import dev.palazon.lvhyard.dashboard.services.Registrations;
+import dev.palazon.lvhyard.dashboard.services.SourceKind;
 import dev.palazon.lvhyard.dashboard.services.YardReader;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
@@ -35,19 +35,15 @@ public class BackupExport {
 
   private final RouteProfiles routeProfiles;
 
-  private final Aliases aliases;
-
   BackupExport(
       Workstation workstation,
       YardReader yard,
       Registrations registrations,
-      RouteProfiles routeProfiles,
-      Aliases aliases) {
+      RouteProfiles routeProfiles) {
     this.workstation = workstation;
     this.yard = yard;
     this.registrations = registrations;
     this.routeProfiles = routeProfiles;
-    this.aliases = aliases;
   }
 
   public Backup backup() {
@@ -57,16 +53,10 @@ public class BackupExport {
     Map<String, Service> services = new LinkedHashMap<>();
     yard.services(workstation.name())
         .forEach(service -> services.put(service.name(), service(service, lanAddress)));
-    Map<String, Alias> aliasTargets = new LinkedHashMap<>();
-    aliases
-        .targets()
-        .forEach((name, target) ->
-            aliasTargets.put(name, new Alias(target.workstation(), target.service())));
     return new Backup(
         new ExportedFrom(workstation.name(), OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS)),
         profiles,
-        services,
-        aliasTargets);
+        services);
   }
 
   private static Service service(
@@ -96,6 +86,13 @@ public class BackupExport {
                     binding.composeProject(),
                     binding.composeService(),
                     binding.port()))
+            .toList(),
+        service.sources().stream()
+            .filter(source -> source.kind() == SourceKind.ALIAS)
+            .map(source -> {
+              String[] target = source.id().split("/", 2);
+              return new Alias(target[0], target.length < 2 ? "" : target[1]);
+            })
             .toList());
   }
 }

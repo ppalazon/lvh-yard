@@ -5,29 +5,27 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
- * For this Workstation's own use only. {@code reason} is left out of the JSON while it is active.
+ * An Alias of a Service. {@code reason} is left out of the JSON while it is active.
+ *
+ * @param id its Instance Source ID: {@code <workstation>/<service>} of its Remote Service
+ * @param workstation the Home Workstation of its Remote Service
+ * @param service the name of its Remote Service
+ * @param reason why it gives no Instances now
  */
 public record Alias(
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String id,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String workstation,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String service,
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String hostname,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) State state,
     @JsonInclude(JsonInclude.Include.NON_NULL) String reason) {
 
   public enum State {
 
-    /** Routed to the Remote Service's Instances. */
+    /** It gives the Instances of its Remote Service. */
     ACTIVE,
 
     /** Yard Scope, but no Instance this Workstation can reach. */
     UNAVAILABLE,
-
-    /**
-     * A published Service of this Workstation has the same name. The Alias is one of its Instance
-     * Sources, and its Instance Priority says when the Route uses it.
-     */
-    FALLBACK,
 
     /** The Remote Service has no Yard Scope. */
     NOT_SHARED,
@@ -41,6 +39,10 @@ public record Alias(
     public String value() {
       return name().toLowerCase().replace('_', '-');
     }
+  }
+
+  static String id(String workstation, String service) {
+    return workstation + "/" + service;
   }
 
   public boolean active() {

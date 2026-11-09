@@ -51,13 +51,14 @@ class BackupFormatTest {
                 project: shop
                 service: web
               port: 8080
+          aliases:
+            - workstation: ws-b
+              service: grafana
+            - workstation: ws-c
+              service: grafana
         notes:
           publication: none
         db: {}
-      aliases:
-        pg:
-          workstation: ws-b
-          service: postgres
       """;
 
   @Test

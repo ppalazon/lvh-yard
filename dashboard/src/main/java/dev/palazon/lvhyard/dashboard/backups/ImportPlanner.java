@@ -136,7 +136,6 @@ class ImportPlanner {
     ImportPlan plan() {
       routeProfiles();
       backup.services().forEach(this::service);
-      backup.aliases().forEach(this::alias);
       if (!problems.isEmpty()) {
         throw new RefusedBackupException(problems);
       }
@@ -202,7 +201,7 @@ class ImportPlanner {
               : PlanEntry.add(Kind.SERVICE, name, null);
       int at = entries.size();
       entries.add(serviceEntry);
-      int steps = instanceSteps.size() + publicationSteps.size();
+      int steps = instanceSteps.size() + publicationSteps.size() + aliasSteps.size();
       Set<String> addresses = new HashSet<>();
       for (int index = 0; index < service.staticInstances().size(); index++) {
         staticInstance(
@@ -220,14 +219,18 @@ class ImportPlanner {
             place + ".container-bindings[" + index + "]");
       }
       publication(name, service.publication(), existing, place + ".publication");
-      if (existing == null && instanceSteps.size() + publicationSteps.size() == steps) {
+      for (int index = 0; index < service.aliases().size(); index++) {
+        alias(name, service.aliases().get(index), existing, place + ".aliases[" + index + "]");
+      }
+      if (existing == null
+          && instanceSteps.size() + publicationSteps.size() + aliasSteps.size() == steps) {
         entries.set(
             at,
             PlanEntry.skip(
                 Kind.SERVICE,
                 name,
                 null,
-                "It has no Static Instance, Container Binding or Publication to add."));
+                "It has no Static Instance, Container Binding, Publication or Alias to add."));
       } else if (existing == null) {
         serviceSteps.add(
             new Step(List.of(serviceEntry), () -> services.create(workstation.name(), name)));
@@ -418,14 +421,8 @@ class ImportPlanner {
               List.of(entry), () -> publications.publish(workstation.name(), service, request)));
     }
 
-    private void alias(String name, Alias alias) {
-      String place = "aliases." + name;
-      try {
-        Registrations.checkName("Alias", name);
-      } catch (InvalidRegistrationException e) {
-        problem(place, e.getMessage());
-        return;
-      }
+    /** An Alias of the file is restored even while its Remote Service has no Yard Scope. */
+    private void alias(String service, Alias alias, Service existing, String place) {
       try {
         Aliases.checkTarget("workstation", "Workstation", alias.workstation());
         Aliases.checkTarget("service", "Service", alias.service());
@@ -441,13 +438,14 @@ class ImportPlanner {
                 + " is this Workstation.");
         return;
       }
-      Alias now = current.aliases().get(name);
-      PlanEntry entry = entry(Kind.ALIAS, name, null, now != null, alias.equals(now));
+      boolean there = existing != null && existing.aliases().contains(alias);
+      PlanEntry entry = entry(Kind.ALIAS, alias.id(), service, there, there);
       entries.add(entry);
       if (entry.action() != Action.SKIP) {
         aliasSteps.add(
             new Step(
-                List.of(entry), () -> aliases.add(name, alias.workstation(), alias.service())));
+                List.of(entry),
+                () -> aliases.restore(service, alias.workstation(), alias.service())));
       }
     }
 

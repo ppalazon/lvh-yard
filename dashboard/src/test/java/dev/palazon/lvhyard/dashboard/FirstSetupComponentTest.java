@@ -89,21 +89,12 @@ class FirstSetupComponentTest extends DashboardComponentTest {
   @Test
   void yardAndTraefikAreFreeNames() {
     create("traefik");
-    String id =
-        post(instancesPath("traefik"), Map.of("host", "10.1.2.3", "port", 8080))
-            .getBody()
-            .get("id")
-            .asString();
+    ResponseEntity<JsonNode> added =
+        post(instancesPath("traefik"), Map.of("host", "10.1.2.3", "port", 8080));
     try {
-      ResponseEntity<JsonNode> alias =
-          put(
-              "/api/workstation/aliases/yard",
-              Map.of("workstation", RemoteWorkstation.NAME, "service", "traefik-admin"));
-
-      assertThat(alias.getStatusCode().is2xxSuccessful()).isTrue();
+      assertThat(added.getStatusCode().is2xxSuccessful()).isTrue();
     } finally {
-      delete("/api/workstation/aliases/yard");
-      delete(instancesPath("traefik") + "/" + id);
+      delete(instancesPath("traefik") + "/" + added.getBody().get("id").asString());
     }
   }
 

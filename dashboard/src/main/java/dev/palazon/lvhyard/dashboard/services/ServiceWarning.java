@@ -51,7 +51,13 @@ public record ServiceWarning(
     UNKNOWN_ROUTE_PROFILE(Severity.ERROR),
 
     /** Another tool registered it in Consul, so LVH Yard cannot change or remove it. */
-    FOREIGN_INSTANCE(Severity.RISK);
+    FOREIGN_INSTANCE(Severity.RISK),
+
+    /**
+     * Other Workstations skip Alias sources, so an Alias above another source can send their
+     * requests to a different copy than this Workstation's.
+     */
+    ALIAS_ABOVE_SOURCE(Severity.RISK);
 
     private final Severity severity;
 
@@ -70,17 +76,22 @@ public record ServiceWarning(
   }
 
   /**
+   * @param sources the Instance Sources in order
+   * @param instancePriority whether the order is on
    * @param profiles the definitions of the Publication's Route Profiles, by name
    */
   static List<ServiceWarning> of(
       Publication publication,
       List<Instance> instances,
+      List<InstanceSource> sources,
+      boolean instancePriority,
       Map<String, RouteProfileDefinition> profiles) {
     if (publication == null) {
       return foreign(instances).toList();
     }
     return Stream.of(
             yardScope(publication, instances),
+            aliasAbove(publication, sources, instancePriority),
             unknown(publication, profiles),
             auth(publication, instances, profiles),
             foreign(instances))
@@ -136,6 +147,31 @@ public record ServiceWarning(
                         + " cannot reach it. Publish port "
                         + instance.port()
                         + " with docker run -p or a ports: entry, and restart the container.")));
+  }
+
+  /**
+   * Only for Yard Scope and while the order is on: then the Route here uses the Alias, while other
+   * Workstations skip it and use the next source.
+   */
+  private static Stream<ServiceWarning> aliasAbove(
+      Publication publication, List<InstanceSource> sources, boolean instancePriority) {
+    if (publication.scope() != Scope.YARD || !instancePriority) {
+      return Stream.empty();
+    }
+    int below = sources.size();
+    while (below > 0 && sources.get(below - 1).kind() == SourceKind.ALIAS) {
+      below--;
+    }
+    return sources.subList(0, below).stream()
+        .filter(source -> source.kind() == SourceKind.ALIAS)
+        .map(source ->
+            new ServiceWarning(
+                Kind.ALIAS_ABOVE_SOURCE,
+                "The Alias to "
+                    + source.id()
+                    + " is above another Instance Source. Other Workstations skip Aliases, so"
+                    + " their Route can use another copy than this Workstation's. To avoid this,"
+                    + " move the Alias below the other sources."));
   }
 
   private static Stream<ServiceWarning> unknown(

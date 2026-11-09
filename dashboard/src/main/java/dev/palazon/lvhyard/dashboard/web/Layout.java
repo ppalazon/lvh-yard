@@ -32,9 +32,9 @@ public final class Layout {
   /** A link of the navigation bar in the header. */
   enum Section {
     CATALOG("Catalog", "/"),
-    ALIASES("Aliases", AliasesPage.PATH),
     ROUTE_PROFILES("Route Profiles", RouteProfilesPage.PATH),
-    BACKUPS("Backups", BackupsPage.PATH);
+    BACKUPS("Backups", BackupsPage.PATH),
+    STATUS("Status", StatusPage.PATH);
 
     final String label;
     final String path;

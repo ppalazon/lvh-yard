@@ -152,73 +152,6 @@ paths:
       summary: Gets whether LVH Yard works on this Workstation
       tags:
       - status-controller
-  /api/workstation/aliases:
-    get:
-      operationId: aliases
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Alias"
-          description: OK
-      summary: Lists this Workstation's Aliases
-      tags:
-      - aliases-controller
-  /api/workstation/aliases/{alias}:
-    delete:
-      operationId: removeAlias
-      parameters:
-      - in: path
-        name: alias
-        required: true
-        schema:
-          type: string
-      responses:
-        "204":
-          description: Removed
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-          description: This Workstation has no Alias of this name
-      summary: Removes an Alias
-      tags:
-      - aliases-controller
-    put:
-      operationId: addAlias
-      parameters:
-      - in: path
-        name: alias
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AliasRequest"
-        required: true
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Alias"
-          description: "The Alias, with its state"
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-          description: "The name is not a single DNS label or is consul, the Workstation\
-            \ or Service name is not a DNS label, or the Workstation is this one"
-      summary: Adds an Alias for a Remote Service
-      tags:
-      - aliases-controller
   /api/workstation/backup:
     get:
       description: "The Backup holds this Workstation's Services with their Publications,\
@@ -543,6 +476,117 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
           description: This Workstation has no Service of this name
       summary: Gets one of this Workstation's Services
+      tags:
+      - workstation-services-controller
+  /api/workstation/services/{service}/aliases:
+    get:
+      description: "In the order of its Instance Priority, each with its state."
+      operationId: aliases
+      parameters:
+      - in: path
+        name: service
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Alias"
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: This Workstation has no Service you created
+      summary: Lists the Aliases of a Service
+      tags:
+      - workstation-services-controller
+    post:
+      description: "The Alias goes to the end of the order, and gives the Instances\
+        \ of the Remote Service. The Remote Service must have Yard Scope now. Later,\
+        \ the Alias stays when the Remote Service loses Yard Scope or its Workstation\
+        \ stops answering, and it then gives no Instances. Only this Workstation's\
+        \ Route uses its Aliases."
+      operationId: addAlias
+      parameters:
+      - in: path
+        name: service
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AliasRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alias"
+          description: "Added, with its state"
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "The name is not a single DNS label or is consul, the Workstation\
+            \ or Service name is not a DNS label, the Workstation is this one, or\
+            \ the Remote Service is not there with Yard Scope. The answer names the\
+            \ field"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: This Workstation has no Service you created
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: The Service already has an Alias to this Remote Service
+      summary: Adds an Alias to a Remote Service
+      tags:
+      - workstation-services-controller
+  /api/workstation/services/{service}/aliases/{workstation}/{remoteService}:
+    delete:
+      description: "The Service stays, even with nothing left."
+      operationId: removeAlias
+      parameters:
+      - in: path
+        name: service
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: workstation
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: remoteService
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: Removed
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "This Workstation has no such Service, or the Service has no\
+            \ such Alias"
+      summary: Removes an Alias
       tags:
       - workstation-services-controller
   /api/workstation/services/{service}/container-bindings:
@@ -917,9 +961,7 @@ components:
     Alias:
       type: object
       properties:
-        hostname:
-          type: string
-        name:
+        id:
           type: string
         reason:
           type: string
@@ -930,15 +972,13 @@ components:
           enum:
           - active
           - unavailable
-          - fallback
           - not-shared
           - unreachable
           - missing
         workstation:
           type: string
       required:
-      - hostname
-      - name
+      - id
       - service
       - state
       - workstation
@@ -1504,6 +1544,7 @@ components:
           - route-profile-auth
           - unknown-route-profile
           - foreign-instance
+          - alias-above-source
         message:
           type: string
         severity:
