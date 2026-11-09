@@ -20,6 +20,9 @@ import org.xmlet.htmlapifaster.Tr;
  */
 final class InstanceSourcesCard {
 
+  /** The ID of the card, so that a link can open the Service page at it. */
+  static final String ID = "sources";
+
   private InstanceSourcesCard() {}
 
   /** {@code own} false leaves out the actions, such as for the Instances of an Alias. */
@@ -105,7 +108,7 @@ final class InstanceSourcesCard {
     Routing routing = service.routing();
     Div<?> card =
         grid.div()
-            .attrId("sources")
+            .attrId(ID)
             .attrClass(ServicePage.CARD + " lg:col-span-2")
             .h2()
             .attrClass("text-lg font-semibold")

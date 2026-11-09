@@ -2365,19 +2365,21 @@ class YardTest extends YardTestSupport {
   }
 
   @Test
-  void aliasAddAddsAnAliasToTheService() {
+  void aliasAddToAnExistingServiceSaysTheAliasJoinedIt() {
     dashboard.answer(
         "POST",
         "/api/workstation/services/web/aliases",
         201,
         """
-        {"id": "ws-b/grafana", "workstation": "ws-b", "service": "grafana", "state": "active"}
+        {"id": "ws-b/grafana", "workstation": "ws-b", "service": "grafana", "state": "active",
+         "serviceCreated": false}
         """);
 
     Run run = yard("alias", "add", "web", "--workstation", "ws-b", "--service", "grafana");
 
     assertThat(run.exitCode()).isZero();
-    assertThat(run.out()).isEqualTo("web now has an Alias to grafana on ws-b.\n");
+    assertThat(run.out())
+        .isEqualTo("Added the Alias to grafana on ws-b to the existing Service web.\n");
     assertThat(run.err()).isEmpty();
     dashboard.verifyCalled(
         "POST",
@@ -2395,13 +2397,15 @@ class YardTest extends YardTestSupport {
         201,
         """
         {"id": "ws-b/grafana", "workstation": "ws-b", "service": "grafana",
-         "state": "unavailable", "reason": "grafana has no Instance this Workstation can reach."}
+         "state": "unavailable", "reason": "grafana has no Instance this Workstation can reach.",
+         "serviceCreated": false}
         """);
 
     Run run = yard("alias", "add", "web", "--workstation", "ws-b", "--service", "grafana");
 
     assertThat(run.exitCode()).isZero();
-    assertThat(run.out()).isEqualTo("web now has an Alias to grafana on ws-b.\n");
+    assertThat(run.out())
+        .isEqualTo("Added the Alias to grafana on ws-b to the existing Service web.\n");
     assertThat(run.err())
         .isEqualTo("Warning: grafana has no Instance this Workstation can reach.\n");
   }
@@ -2435,19 +2439,22 @@ class YardTest extends YardTestSupport {
   }
 
   @Test
-  void aliasAddWithANewServiceNameAsksTheDashboardToCreateAndPublishIt() {
+  void aliasAddWithANewServiceNameSaysTheServiceWasCreatedWithLocalScope() {
     dashboard.answer(
         "POST",
         "/api/workstation/services/dash/aliases",
         201,
         """
-        {"id": "ws-b/grafana", "workstation": "ws-b", "service": "grafana", "state": "active"}
+        {"id": "ws-b/grafana", "workstation": "ws-b", "service": "grafana", "state": "active",
+         "serviceCreated": true}
         """);
 
     Run run = yard("alias", "add", "dash", "--workstation", "ws-b", "--service", "grafana");
 
     assertThat(run.exitCode()).isZero();
-    assertThat(run.out()).isEqualTo("dash now has an Alias to grafana on ws-b.\n");
+    assertThat(run.out())
+        .isEqualTo(
+            "Created Service dash with Local Scope and added the Alias to grafana on ws-b.\n");
     dashboard.verifyCalled(
         "POST",
         "/api/workstation/services/dash/aliases",

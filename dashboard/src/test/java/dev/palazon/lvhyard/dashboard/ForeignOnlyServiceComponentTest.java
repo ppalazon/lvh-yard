@@ -121,6 +121,16 @@ class ForeignOnlyServiceComponentTest extends DashboardComponentTest {
 
     assertThat(added.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     assertThat(withCreate.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(added.getBody().get("serviceCreated").asBoolean()).isFalse();
+    assertThat(withCreate.getBody().get("serviceCreated").asBoolean()).isFalse();
+    assertThat(
+            get(SERVICES_PATH)
+                .getBody()
+                .valueStream()
+                .filter(found -> found.get("name").asString().equals(web))
+                .count())
+        .as("one Service %s, never a second one", web)
+        .isEqualTo(1);
     JsonNode service = get(servicePath(web)).getBody();
     assertThat(InstancePriorityComponentTest.ids(service.get("sources")))
         .containsExactly(

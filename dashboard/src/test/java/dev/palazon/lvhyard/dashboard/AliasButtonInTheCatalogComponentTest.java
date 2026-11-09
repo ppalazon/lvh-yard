@@ -81,7 +81,8 @@ class AliasButtonInTheCatalogComponentTest extends DashboardComponentTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
     assertThat(response.getHeaders().getLocation())
-        .hasPath("/services/" + WORKSTATION + "/" + name);
+        .hasPath("/services/" + WORKSTATION + "/" + name)
+        .hasNoFragment();
     JsonNode service = get(servicePath(name)).getBody();
     assertThat(service.get("created").asBoolean()).isTrue();
     assertThat(service.get("publication").get("scope").asString()).isEqualTo("local");
@@ -90,7 +91,7 @@ class AliasButtonInTheCatalogComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void existingServiceKeepsItsPublicationAndTheAliasGoesToTheEnd() {
+  void existingServiceKeepsItsPublicationAndTheAliasJoinsTheEndOfItsSources() {
     String grafana = remoteService("grafana", "yard");
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
@@ -99,6 +100,10 @@ class AliasButtonInTheCatalogComponentTest extends DashboardComponentTest {
     ResponseEntity<String> response = postForm(action(grafana), Map.of("name", web));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    assertThat(response.getHeaders().getLocation())
+        .as("the Service page opens at the Instance Sources card, where the Alias joined")
+        .hasPath("/services/" + WORKSTATION + "/" + web)
+        .hasFragment("sources");
     JsonNode service = get(servicePath(web)).getBody();
     assertThat(service.get("publication").get("scope").asString()).isEqualTo("yard");
     List<String> ids = InstancePriorityComponentTest.ids(service.get("sources"));

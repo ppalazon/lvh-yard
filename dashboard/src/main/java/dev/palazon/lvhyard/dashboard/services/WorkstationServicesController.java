@@ -253,7 +253,9 @@ class WorkstationServicesController {
               + " a missing Service is created and published with Local Scope.")
   @ApiResponse(
       responseCode = "201",
-      description = "Added, with its state",
+      description =
+          "Added, with its state. serviceCreated says whether the Service was missing and so"
+              + " was created, or the Alias joined an existing Service",
       useReturnTypeSchema = true)
   @ApiResponse(
       responseCode = "400",
@@ -268,7 +270,7 @@ class WorkstationServicesController {
   @ApiResponse(
       responseCode = "409",
       description = "The Service already has an Alias to this Remote Service")
-  Alias addAlias(@PathVariable String service, @RequestBody AliasRequest request) {
+  AddedAlias addAlias(@PathVariable String service, @RequestBody AliasRequest request) {
     return aliases.add(
         service, request.workstation(), request.service(), Boolean.TRUE.equals(request.create()));
   }

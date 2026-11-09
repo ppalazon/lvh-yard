@@ -64,11 +64,18 @@ class Alias implements Runnable {
 
     @Override
     public void run() {
-      Dashboard.Alias added =
+      Dashboard.AddedAlias added =
           alias.yard.dashboard().addAlias(service, target.workstation, target.service);
+      String remote = added.service() + " on " + added.workstation();
       PrintWriter out = spec.commandLine().getOut();
       out.println(
-          service + " now has an Alias to " + added.service() + " on " + added.workstation() + ".");
+          added.serviceCreated()
+              ? "Created Service "
+                  + service
+                  + " with Local Scope and added the Alias to "
+                  + remote
+                  + "."
+              : "Added the Alias to " + remote + " to the existing Service " + service + ".");
       out.flush();
       if (added.reason() != null) {
         spec.commandLine().getErr().println("Warning: " + added.reason());

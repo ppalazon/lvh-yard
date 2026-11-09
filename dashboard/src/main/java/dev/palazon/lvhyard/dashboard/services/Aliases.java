@@ -48,7 +48,7 @@ public class Aliases {
    *     create} is false
    * @throws AliasExistsException when {@code service} already has an Alias to this Remote Service
    */
-  public Alias add(String service, String home, String remoteService, boolean create) {
+  public AddedAlias add(String service, String home, String remoteService, boolean create) {
     Registrations.checkName(service);
     checkTarget("workstation", "Workstation", home);
     checkTarget("service", "Service", remoteService);
@@ -79,7 +79,7 @@ public class Aliases {
       records.ensure(service);
     }
     records.addAlias(service, id);
-    return target;
+    return new AddedAlias(target, missing);
   }
 
   /**

@@ -453,7 +453,8 @@ class PagesController {
 
   /**
    * A new name creates the Service and publishes it with Local Scope, as {@code lvh-yard alias add}
-   * does.
+   * does. For an existing Service, the page opens at its Instance Sources, so you see the Alias
+   * join them.
    *
    * @param name the Service of this Workstation that gets the Alias
    */
@@ -468,8 +469,9 @@ class PagesController {
     String chosen = name == null ? "" : name.strip();
     InvalidRegistrationException error;
     try {
-      aliases.add(chosen, home, service, true);
-      return seeOther(ServicePage.path(workstation.name(), chosen));
+      boolean created = aliases.add(chosen, home, service, true).serviceCreated();
+      String page = ServicePage.path(workstation.name(), chosen);
+      return seeOther(created ? page : page + "#" + InstanceSourcesCard.ID);
     } catch (InvalidRegistrationException e) {
       error =
           e.field().equals("name")

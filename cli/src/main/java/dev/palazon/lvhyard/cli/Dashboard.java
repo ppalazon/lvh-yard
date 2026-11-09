@@ -171,6 +171,15 @@ final class Dashboard {
    */
   record Alias(String id, String workstation, String service, String state, String reason) {}
 
+  /** {@code serviceCreated} is false when the Alias joined an existing Service. */
+  record AddedAlias(
+      String id,
+      String workstation,
+      String service,
+      String state,
+      String reason,
+      boolean serviceCreated) {}
+
   record Publication(String scope, boolean accessLog) {}
 
   /** {@code health} is passing, warning or critical. */
@@ -556,7 +565,7 @@ final class Dashboard {
     return read(send(HttpRequest.newBuilder(aliasesUrl(service)).GET()), new TypeReference<>() {});
   }
 
-  Alias addAlias(String service, String workstation, String remoteService) {
+  AddedAlias addAlias(String service, String workstation, String remoteService) {
     HttpRequest.Builder request =
         HttpRequest.newBuilder(aliasesUrl(service))
             .header("Content-Type", "application/json")

@@ -532,8 +532,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Alias"
-          description: "Added, with its state"
+                $ref: "#/components/schemas/AddedAlias"
+          description: "Added, with its state. serviceCreated says whether the Service\
+            \ was missing and so was created, or the Alias joined an existing Service"
         "400":
           content:
             application/problem+json:
@@ -961,6 +962,33 @@ paths:
       - yard-controller
 components:
   schemas:
+    AddedAlias:
+      type: object
+      properties:
+        id:
+          type: string
+        reason:
+          type: string
+        service:
+          type: string
+        serviceCreated:
+          type: boolean
+        state:
+          type: string
+          enum:
+          - active
+          - unavailable
+          - not-shared
+          - unreachable
+          - missing
+        workstation:
+          type: string
+      required:
+      - id
+      - service
+      - serviceCreated
+      - state
+      - workstation
     Alias:
       type: object
       properties:

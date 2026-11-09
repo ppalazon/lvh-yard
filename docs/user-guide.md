@@ -847,7 +847,7 @@ name of the Remote Service. Then click "Add":
 - If the Service does not exist, the dashboard creates it and publishes it with
   Local Scope. So its hostname works at once.
 - If the Service exists, it keeps its Publication. The Alias goes to the end of
-  its order.
+  its order, and the Service page opens at its Instance Sources card.
 
 If the dashboard refuses the Alias, the form shows the reason under its field.
 Cancel goes back to the catalog.
@@ -863,6 +863,13 @@ it with Local Scope:
 lvh-yard alias add web --workstation ws-b --service web
 lvh-yard alias list web
 lvh-yard alias remove web --workstation ws-b --service web
+```
+
+`lvh-yard alias add` says which case happened:
+
+```text
+Added the Alias to web on ws-b to the existing Service web.
+Created Service web with Local Scope and added the Alias to web on ws-b.
 ```
 
 The dashboard refuses a new Alias in these cases:
@@ -891,7 +898,9 @@ These are the states of an Alias, which `lvh-yard alias list` and
 
 `POST /api/workstation/services/{service}/aliases` with `workstation` and
 `service` adds an Alias. With `"create": true`, a missing Service is created
-and published with Local Scope. `DELETE
+and published with Local Scope. The answer is the Alias, and its
+`serviceCreated` field is `true` when the Service was created, or `false` when
+the Alias joined an existing Service. `DELETE
 /api/workstation/services/{service}/aliases/{workstation}/{remoteService}` removes
 one. The ID of an Alias source is `<workstation>/<service>` of its Remote
 Service.

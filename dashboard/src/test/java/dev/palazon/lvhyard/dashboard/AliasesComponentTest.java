@@ -204,6 +204,10 @@ class AliasesComponentTest extends DashboardComponentTest {
             Map.of("workstation", RemoteWorkstation.NAME, "service", grafana, "create", true));
 
     assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(created.getBody().get("serviceCreated").asBoolean()).isTrue();
+    assertThat(created.getBody().get("id").asString())
+        .isEqualTo(RemoteWorkstation.NAME + "/" + grafana);
+    assertThat(existing.getBody().get("serviceCreated").asBoolean()).isFalse();
     JsonNode service = get(servicePath(fresh)).getBody();
     assertThat(service.get("publication").get("scope").asString()).isEqualTo("local");
     assertThat(InstancePriorityComponentTest.ids(service.get("sources")))
