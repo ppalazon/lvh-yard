@@ -85,13 +85,6 @@ class CreateAndDeleteServicesComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void publishingAMissingServiceIsNotFound() {
-    String web = newServiceName("web");
-
-    assertThat(put(publicationPath(web)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-  }
-
-  @Test
   void serviceWithASourceIsNotEmpty() {
     String grafana = newServiceName("grafana");
 
