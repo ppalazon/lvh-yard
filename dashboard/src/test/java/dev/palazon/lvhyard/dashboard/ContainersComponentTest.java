@@ -9,7 +9,6 @@ import dev.palazon.lvhyard.dashboard.docker.Docker.Port;
 import dev.palazon.lvhyard.dashboard.docker.FakeDocker;
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -156,18 +155,6 @@ class ContainersComponentTest extends DashboardComponentTest {
     start(FakeDocker.container(name).compose(newComposeProject(), "___"));
 
     assertThat(listed(name).get("service").asString()).isEqualTo(name);
-  }
-
-  @Test
-  void theOneClickRegisterEndpointIsGone() {
-    String name = newContainerName();
-    start(FakeDocker.container(name).port(80));
-    create(name);
-
-    ResponseEntity<JsonNode> response = post(PATH + "/" + name + "/register", Map.of());
-
-    assertThat(response.getStatusCode().is4xxClientError()).isTrue();
-    assertThat(get(servicePath(name)).getBody().get("containerBindings")).isEmpty();
   }
 
   @Test

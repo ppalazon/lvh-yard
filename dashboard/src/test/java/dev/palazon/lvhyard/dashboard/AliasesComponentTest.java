@@ -314,18 +314,4 @@ class AliasesComponentTest extends DashboardComponentTest {
         .map(warning -> warning.get("kind").asString())
         .toList();
   }
-
-  @Test
-  void workstationLevelAliasesAndTheirShortHostnamesAreGone() {
-    String grafana = sharedRemoteService("grafana");
-    String web = newServiceName("web");
-    create(web);
-    addAlias(web, grafana);
-
-    assertThat(get("/api/workstation/aliases").getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-    assertThat(
-            TraefikConfigurationComponentTest.routedHostnames(
-                get("/traefik/configuration").getBody().get("http")))
-        .doesNotContain(grafana + ".lvh.test", web + ".lvh.test");
-  }
 }

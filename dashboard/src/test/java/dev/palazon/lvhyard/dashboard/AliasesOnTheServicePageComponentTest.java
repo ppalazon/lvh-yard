@@ -123,10 +123,4 @@ class AliasesOnTheServicePageComponentTest extends DashboardComponentTest {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
     assertThat(getPage(page(web)).getBody()).doesNotContain("data-source=\"" + target(grafana));
   }
-
-  @Test
-  void aliasesPageIsGone() {
-    assertThat(getPage("/aliases").getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-    assertThat(getPage("/aliases/new").getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-  }
 }

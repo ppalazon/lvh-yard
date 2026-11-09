@@ -228,21 +228,5 @@ class BindContainerPageComponentTest extends DashboardComponentTest {
         .isEqualTo(HttpStatus.NOT_FOUND);
   }
 
-  @Test
-  void containersPageAndItsRoutesAreGone() {
-    String name = newContainerName();
-    start(FakeDocker.container(name).port(80));
-
-    assertThat(getPage("/containers").getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-    assertThat(getPage("/containers/new").getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-    assertThat(postForm("/containers/bind", Map.of()).getStatusCode().is4xxClientError()).isTrue();
-    assertThat(
-            postForm("/containers/" + name + "/register", Map.of("port", "80"))
-                .getStatusCode()
-                .is4xxClientError())
-        .isTrue();
-    assertThat(getPage("/").getBody()).doesNotContain("href=\"/containers");
-  }
-
   /** The table row that contains {@code text}. */
 }

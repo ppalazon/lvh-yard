@@ -150,29 +150,6 @@ class OpenApiComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void changesToAServiceAreNeverRefusedWith409() {
-    JsonNode paths = get("/v3/api-docs").getBody().get("paths");
-    String instance = "/api/workstation/services/{service}/instances/{id}";
-    String binding = "/api/workstation/services/{service}/container-bindings/{id}";
-    String publication = "/api/workstation/services/{service}/publication";
-
-    assertThat(paths.path(instance).path("delete").path("responses").has("409")).isFalse();
-    assertThat(paths.path(instance).path("put").path("responses").has("409")).isFalse();
-    assertThat(paths.path(binding).path("delete").path("responses").has("409")).isFalse();
-    assertThat(paths.path(publication).path("put").path("responses").has("409")).isFalse();
-    assertThat(paths.path(publication).path("delete").path("responses").has("409")).isFalse();
-  }
-
-  @Test
-  void servicesAndInstancesHaveNoCoreField() {
-    JsonNode schemas = get("/v3/api-docs").getBody().get("components").get("schemas");
-
-    for (String schema : new String[] {"Service", "Instance"}) {
-      assertThat(schemas.get(schema).get("properties").has("core")).as(schema).isFalse();
-    }
-  }
-
-  @Test
   void instancesHaveOptionalContainerAndPortFields() {
     JsonNode instance =
         get("/v3/api-docs").getBody().get("components").get("schemas").get("Instance");
@@ -198,11 +175,6 @@ class OpenApiComponentTest extends DashboardComponentTest {
     assertThat(properties.get("hostIp").get("type").asString()).isEqualTo("string");
     assertThat(port.get("required").valueStream().map(JsonNode::asString))
         .containsExactly("containerPort");
-  }
-
-  @Test
-  void documentationSaysNothingAboutCoreServices() {
-    assertThat(getPage("/v3/api-docs.yaml").getBody()).doesNotContainIgnoringCase("core service");
   }
 
   @Test

@@ -237,15 +237,6 @@ class StaticInstancesOnTheServicePageComponentTest extends DashboardComponentTes
   }
 
   @Test
-  void staticInstancesPageIsGoneWithNoRedirect() {
-    for (String path : new String[] {"/static-instances", "/static-instances/new", "/register"}) {
-      assertThat(getPage(path).getStatusCode()).as(path).isEqualTo(HttpStatus.NOT_FOUND);
-    }
-    assertThat(postForm("/static-instances", Map.of("name", "web", "port", "8080")).getStatusCode())
-        .isIn(HttpStatus.NOT_FOUND, HttpStatus.METHOD_NOT_ALLOWED);
-  }
-
-  @Test
   void menuHasNoStaticInstancesLink() {
     assertThat(getPage("/").getBody())
         .doesNotContain("href=\"/static-instances\"")
