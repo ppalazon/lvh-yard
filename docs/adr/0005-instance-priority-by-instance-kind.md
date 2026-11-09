@@ -1,3 +1,7 @@
+---
+status: superseded by ADR-0009
+---
+
 # Instance Priority is chosen by Instance kind, from Consul Health
 
 A Route prefers Instances by kind: by default Static, then Bound, then the Remote Service of an Alias with the same name. It uses only the first kind with a passing Health. The dashboard makes this choice from Consul Health each time it builds Traefik's configuration. This lets one hostname go to a copy started in a terminal while it runs, and back to the Docker one when it stops. The order is stored with the Publication in the Home Workstation's Consul KV, so every Workstation uses it. Each Workstation drops its Out-of-range Instances before it picks a kind.

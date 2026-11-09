@@ -15,7 +15,7 @@ A computer in the Yard that hosts Instances and opens hostnames for Services. It
 _Avoid_: Machine, host, node, server, client
 
 **Service**:
-A named, logical thing you want to reach, such as `grafana`. It has no address of its own.
+A named, logical thing you want to reach, such as `grafana`. It has no address of its own. You create it with a name, and it stays, even with no Instances, until you delete it. A Service that only Foreign Instances give exists while they are registered.
 _Avoid_: App, application, endpoint
 
 **Home Workstation**:
@@ -43,8 +43,12 @@ An Instance created and removed by a Container Binding, at the matching containe
 _Avoid_: Dynamic instance, container instance
 
 **Foreign Instance**:
-An Instance that another tool registered straight in Consul, not LVH Yard. LVH Yard shows and routes it as a Static Instance, but cannot change or remove it, and a Backup does not hold it.
+An Instance that another tool registered straight in Consul, not LVH Yard. LVH Yard shows and routes it as an Instance Source of its own, but cannot change or remove it, and a Backup does not hold it.
 _Avoid_: External instance, unmanaged instance
+
+**Instance Source**:
+One thing that gives a Service Instances: a Static Instance, a Container Binding, an Alias or a Foreign Instance. It can give none, one or many Instances.
+_Avoid_: Backend, attachment, upstream
 
 **Container Port**:
 The port a process listens on inside a container. A Container Binding names one.
@@ -55,7 +59,7 @@ The port on a Workstation where a Container Port is open. It is the port that Do
 _Avoid_: Exposed port, public port, mapped port
 
 **Unfollowed Container**:
-A running container on this Workstation that no Container Binding matches, whatever the Binding's port. The Containers page and `lvh-yard containers` list them.
+A running container on this Workstation that no Container Binding matches, whatever the Binding's port. `lvh-yard containers` lists them.
 _Avoid_: Unbound container, new container, orphan container
 
 ### Setting up a Workstation
@@ -65,7 +69,7 @@ The folder that holds one Workstation's setup files. There is one per Workstatio
 _Avoid_: Config folder, config dir, install dir
 
 **Backup**:
-A YAML file that holds what you set up for the Services of one Workstation: their Publications, Static Instances and Container Bindings, and the Workstation's Aliases and Route Profiles. You export a Backup from one Workstation and import it into the same Workstation or another one. It never holds Bound Instances, Health or Remote Services, because those come from what runs now.
+A YAML file that holds what you set up on one Workstation: its Services with their Publications, Instance Sources and Instance Priority, and its Route Profiles. You export a Backup from one Workstation and import it into the same Workstation or another one. It never holds Bound Instances, Health or Remote Services, because those come from what runs now.
 _Avoid_: Snapshot, dump, export file, setup file
 
 **Peer**:
@@ -119,12 +123,12 @@ Who gets a Route for a Publication: **Local** (only the Home Workstation) or **Y
 _Avoid_: Visibility, access, permission
 
 **Alias**:
-A short hostname one Workstation gives to a Remote Service, for its own use only. When a Service of that Workstation has the same name, the Alias becomes that Service's last fallback under its Instance Priority.
-_Avoid_: Rename, nickname, CNAME
+A link from a Service to a Remote Service, whose Instances the Service can use. It has no hostname of its own. A Service can have many Aliases, and only the Home Workstation's Route uses them.
+_Avoid_: Rename, nickname, CNAME, short hostname
 
 **Instance Priority**:
-The order of Instance kinds a Route prefers: by default Static Instances, then Bound Instances, then the Remote Service of an Alias with the same name. The Route uses only the first kind that has a passing Health. An empty order turns it off: the passing Static and Bound Instances then share the Route, and an Alias is never used.
-_Avoid_: Alias priority, weight, preference
+The order of a Service's Instance Sources. Its Route uses only the first Instance Source that has an Instance with passing Health. When it is off, every passing Instance of every Instance Source shares the Route.
+_Avoid_: Alias priority, weight, preference, kind order
 
 **Route Profile**:
 A named, reusable set of Route options, such as authentication or added headers, that a Publication can use. It is written on the Home Workstation, and every Workstation that routes the Publication applies it, Aliases included.
