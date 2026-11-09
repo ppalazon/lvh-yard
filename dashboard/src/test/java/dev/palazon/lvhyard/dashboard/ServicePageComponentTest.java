@@ -272,7 +272,7 @@ class ServicePageComponentTest extends DashboardComponentTest {
         .contains("name=\"priority\" value=\"static,bound,alias\"")
         .contains(">Use an order</button>")
         .doesNotContain("Turn off")
-        .doesNotContain("Add Static");
+        .doesNotContain(">Add Static</button>");
 
     postForm(page + "/publish", Map.of("priority", "static,bound,alias"));
 

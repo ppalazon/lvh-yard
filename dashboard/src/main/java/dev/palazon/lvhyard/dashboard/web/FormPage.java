@@ -8,13 +8,14 @@ import org.xmlet.htmlapifaster.FlowContent;
 import org.xmlet.htmlapifaster.Form;
 
 /**
- * A create form on a page of its own, such as {@code /static-instances/new}. The list page links to
- * it with {@link #openLink}. Cancel is a link back to the list page, so it needs no script, and it
- * also works after a post with an input error, when the browser history holds the form itself.
+ * A create form on a page of its own, such as {@code /services/new}. The list page links to it with
+ * {@link #openLink}. Cancel is a link back to the list page, so it needs no script, and it also
+ * works after a post with an input error, when the browser history holds the form itself.
  */
 final class FormPage {
 
   /**
+   * @param section the link of the navigation bar that is current, or {@code null} for none
    * @param title the page heading, and also the label of the link that opens the page
    * @param description one line under the title, or {@code null}
    * @param path where the page is
@@ -51,6 +52,18 @@ final class FormPage {
       Spec spec,
       Consumer<Form<?>> form,
       Consumer<FlowContent<?, ?>> fields) {
+    return render(workstation, spec, spec.section().path, form, fields);
+  }
+
+  /**
+   * @param cancel where Cancel goes, for a form page that the Section's page does not open
+   */
+  static String render(
+      Workstation workstation,
+      Spec spec,
+      String cancel,
+      Consumer<Form<?>> form,
+      Consumer<FlowContent<?, ?>> fields) {
     return Layout.page(
         spec.title(),
         workstation.name(),
@@ -80,7 +93,7 @@ final class FormPage {
                 .a()
                 .attrClass("btn")
                 .addAttr("data-variant", "outline")
-                .attrHref(Layout.attr(spec.section().path))
+                .attrHref(Layout.attr(cancel))
                 .text("Cancel")
                 .__()
                 .__()

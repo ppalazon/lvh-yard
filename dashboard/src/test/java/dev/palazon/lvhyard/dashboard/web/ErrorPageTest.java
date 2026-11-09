@@ -35,7 +35,7 @@ class ErrorPageTest {
   @Test
   void consulThatDoesNotAnswerShowsHowToStartIt() throws Exception {
     MockHttpServletRequest request =
-        failed("GET", "/static-instances", "Consul does not answer at http://127.0.0.1:8500.");
+        failed("GET", "/route-profiles", "Consul does not answer at http://127.0.0.1:8500.");
     request.setAttribute(ErrorPage.CONSUL_URL, "http://127.0.0.1:8500");
 
     String page = page(request, HttpStatus.SERVICE_UNAVAILABLE);
@@ -46,7 +46,7 @@ class ErrorPageTest {
         .contains("http://127.0.0.1:8500")
         .contains("curl http://127.0.0.1:8500/v1/status/leader")
         .contains("YARD_CONSUL_HTTP_PORT")
-        .contains("href=\"/static-instances\"")
+        .contains("href=\"/route-profiles\"")
         .contains("href=\"/status\"")
         .doesNotContain("Whitelabel");
   }

@@ -11,7 +11,7 @@ import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeInputType;
 import org.xmlet.htmlapifaster.FlowContent;
 
-/** Fields shared by the Static Instances form, the edit form and the binding form. */
+/** Fields shared by the form that adds a Static Instance, the edit form and the binding form. */
 final class InstanceForm {
 
   private InstanceForm() {}

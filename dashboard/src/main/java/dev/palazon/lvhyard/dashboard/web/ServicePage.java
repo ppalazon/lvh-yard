@@ -182,6 +182,9 @@ final class ServicePage {
 
   private static void instances(Div<?> content, Service service, boolean own) {
     Div<?> card = card(content, "instances", "Instances");
+    if (own && service.created()) {
+      AddStaticInstancePage.openLink(card, service);
+    }
     if (service.instances().isEmpty()) {
       card.p().text("No Instances are registered.").__().__();
       return;

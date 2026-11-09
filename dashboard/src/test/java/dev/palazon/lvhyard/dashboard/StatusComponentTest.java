@@ -123,7 +123,7 @@ class StatusComponentTest extends DashboardComponentTest {
 
   @Test
   void everyPageHeaderLoadsTheDotsWithSseAndKeepsThemOnAnError() {
-    for (String path : new String[] {"/", "/status", "/static-instances"}) {
+    for (String path : new String[] {"/", "/status", "/route-profiles"}) {
       assertThat(openingTag(getPage(path).getBody(), "id=\"status-dots\""))
           .as(path)
           .contains("hx-get=\"/status/summary\"")

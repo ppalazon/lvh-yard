@@ -32,10 +32,7 @@ class CatalogPageComponentTest extends DashboardComponentTest {
     String page = getPage("/").getBody();
     String main = page.substring(page.indexOf("<main"));
 
-    assertThat(main)
-        .doesNotContain("href=\"/containers\"")
-        .doesNotContain("href=\"/aliases\"")
-        .doesNotContain("href=\"/static-instances\"");
+    assertThat(main).doesNotContain("href=\"/containers\"").doesNotContain("href=\"/aliases\"");
   }
 
   @Test
