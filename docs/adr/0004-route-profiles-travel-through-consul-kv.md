@@ -1,3 +1,7 @@
+---
+status: accepted
+---
+
 # Route Profiles live in Consul KV and travel through it
 
 A Route Profile is a Traefik middleware in Traefik's own format. Its Home Workstation keeps it in its own Consul KV, under `lvh-yard/route-profiles/<name>`, and that is its only copy. You add, change and remove a Route Profile through the dashboard of its Home Workstation: from the Route Profiles page, from the CLI, or with a Backup import. The dashboard refuses a Route Profile that does not work on every Workstation, so Consul KV holds only valid ones. Every Workstation that routes a Publication naming it reads it from there, as it reads Publications. It gives the profile to its Traefik through the HTTP provider as `<workstation>_<profile>`. So a Service is protected the same way on every Workstation, and nobody copies Traefik configuration by hand.

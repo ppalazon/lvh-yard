@@ -1,3 +1,7 @@
+---
+status: accepted
+---
+
 # One Consul datacenter per Workstation, linked by WAN federation
 
 Every Workstation runs its own Consul server as a separate datacenter, and the datacenters join through WAN federation. Workstations are equal and come and go, so none of them may depend on another being on.

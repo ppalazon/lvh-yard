@@ -1,3 +1,7 @@
+---
+status: accepted
+---
+
 # Unit, component and integration tests
 
 The tests had one seam: the running dashboard, with a test Yard of real Consul, Docker containers and Traefik behind it. Each edge case paid for Consul, containers and waits, so the test time grew with each new case. Now the tests have three kinds:

@@ -1,3 +1,7 @@
+---
+status: accepted
+---
+
 # Reactive dashboard with Server-Sent Events and HTMX
 
 The dashboard uses Server-Sent Events (SSE) to notify open pages when LVH Yard Status, Instance Health, Services, or Containers change. Instead of polling every 5 seconds, each page opens a single SSE connection to `/events`, receives signal events, and re-reads only its refreshed region with HTMX. A slow 30-second poll runs alongside the SSE trigger so the page recovers if a connection drops.

@@ -1,6 +1,6 @@
 # Navigation bar, and two kinds of register
 
-Status: ready-for-agent
+Status: done
 
 Words follow `GLOSSARY.md`. This spec replaces the Import of `.scratch/docker-import/spec.md`.
 

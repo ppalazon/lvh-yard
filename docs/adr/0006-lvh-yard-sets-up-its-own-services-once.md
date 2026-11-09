@@ -1,3 +1,7 @@
+---
+status: accepted
+---
+
 # LVH Yard sets up its own Services once, and then they are ordinary Services
 
 On its first start against a Consul with no setup marker, the dashboard registers three Services with Local Scope: `yard`, `consul-ui` and `traefik-admin`. It writes the marker in Consul KV and never sets them up again. After that, you can remove, unpublish or change them as any other Service. Status reads Consul and Traefik at the addresses from the environment variables, so it does not depend on these Services.
