@@ -55,13 +55,24 @@ public class Yard implements Runnable {
 
   @Spec CommandSpec spec;
 
+  /** What lvh-yard takes from its process: the real one, unless a test gives its own. */
+  private final Shell shell;
+
+  private Yard(Shell shell) {
+    this.shell = shell;
+  }
+
+  Shell shell() {
+    return shell;
+  }
+
   @Override
   public void run() {
     spec.commandLine().usage(spec.commandLine().getOut());
   }
 
   Dashboard dashboard() {
-    return new Dashboard(dashboard != null ? dashboard : defaultDashboard(System.getenv()));
+    return new Dashboard(dashboard != null ? dashboard : defaultDashboard(shell.environment()));
   }
 
   /**
@@ -83,8 +94,13 @@ public class Yard implements Runnable {
 
   /** A failure to talk to the dashboard is printed, and exits with 1. */
   static CommandLine commandLine() {
+    return commandLine(Shell.system());
+  }
+
+  /** As {@link #commandLine()}, with {@code shell} in place of this process. */
+  static CommandLine commandLine(Shell shell) {
     CommandLine yard =
-        new CommandLine(new Yard())
+        new CommandLine(new Yard(shell))
             .setExecutionExceptionHandler((exception, command, parseResult) -> {
               if (!(exception instanceof YardException)) {
                 throw exception;

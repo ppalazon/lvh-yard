@@ -116,7 +116,7 @@ class Profiles implements Runnable {
     private String text() {
       try {
         return file.equals("-")
-            ? new String(System.in.readAllBytes(), StandardCharsets.UTF_8)
+            ? new String(profiles.yard.shell().input().readAllBytes(), StandardCharsets.UTF_8)
             : read(Path.of(file));
       } catch (IOException e) {
         throw new YardException("Cannot read the standard input: " + e.getMessage());
@@ -199,7 +199,9 @@ class Profiles implements Runnable {
       err.flush();
       try {
         if (answers == null) {
-          answers = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
+          answers =
+              new BufferedReader(
+                  new InputStreamReader(profiles.yard.shell().input(), StandardCharsets.UTF_8));
         }
         String answer = answers.readLine();
         if (answer == null) {
@@ -214,17 +216,12 @@ class Profiles implements Runnable {
     }
 
     private void edit(Path file) {
-      String editor = System.getenv("EDITOR");
+      String editor = profiles.yard.shell().environment().get("EDITOR");
       if (editor == null || editor.isBlank()) {
         editor = "vi";
       }
       try {
-        // Through sh, as $EDITOR can hold arguments, such as "code --wait".
-        Process process =
-            new ProcessBuilder("sh", "-c", editor + " \"$1\"", "sh", file.toString())
-                .inheritIO()
-                .start();
-        int exitCode = process.waitFor();
+        int exitCode = profiles.yard.shell().edit(editor, file);
         if (exitCode != 0) {
           throw new YardException(
               "The editor ended with exit code " + exitCode + ", so nothing was saved.");

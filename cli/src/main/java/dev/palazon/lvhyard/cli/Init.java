@@ -1,7 +1,6 @@
 package dev.palazon.lvhyard.cli;
 
 import java.io.BufferedReader;
-import java.io.Console;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -25,6 +24,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ParameterException;
+import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
 /** Writes the files from {@link Templates} and never talks to the dashboard. */
@@ -33,6 +33,8 @@ import picocli.CommandLine.Spec;
     mixinStandardHelpOptions = true,
     description = "Writes the configuration files for this Workstation.")
 class Init implements Runnable {
+
+  @ParentCommand Yard yard;
 
   /** The dashboard's rule for a Workstation name: one DNS label, lowercase. */
   private static final Pattern WORKSTATION = Pattern.compile("[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?");
@@ -122,7 +124,7 @@ class Init implements Runnable {
 
   @Override
   public void run() {
-    Path folder = dir != null ? dir : ConfigFolder.standard(System.getenv());
+    Path folder = dir != null ? dir : ConfigFolder.standard(yard.shell().environment());
     PrintWriter out = spec.commandLine().getOut();
     PrintWriter err = spec.commandLine().getErr();
     if (mode.upgrade) {
@@ -161,8 +163,8 @@ class Init implements Runnable {
     EnvFile env = Templates.env();
     reinit.ifPresent(old -> old.carryOver(env));
     fillIfEmpty(env, Settings.COMPOSE_PROFILES, Optional.of("dashboard"));
-    fillIfEmpty(env, Settings.UID, id("-u"));
-    fillIfEmpty(env, Settings.GID, id("-g"));
+    fillIfEmpty(env, Settings.UID, yard.shell().id("-u"));
+    fillIfEmpty(env, Settings.GID, yard.shell().id("-g"));
     fillIfEmpty(env, Settings.DOCKER_GID, dockerGid());
     env.set(Settings.WORKSTATION, name).set(Settings.GOSSIP_KEY, key);
     if (peerAddresses != null) {
@@ -303,7 +305,8 @@ class Init implements Runnable {
     out.flush();
     try {
       if (answers == null) {
-        answers = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
+        answers =
+            new BufferedReader(new InputStreamReader(yard.shell().input(), StandardCharsets.UTF_8));
       }
       String line = answers.readLine();
       if (line == null) {
@@ -318,8 +321,7 @@ class Init implements Runnable {
 
   /** A terminal, or a test that types for one. */
   private boolean atTerminal() {
-    Console console = System.console();
-    return terminal || (console != null && console.isTerminal());
+    return terminal || yard.shell().terminal();
   }
 
   private ParameterException usage(String message) {
@@ -352,19 +354,6 @@ class Init implements Runnable {
     try {
       return Optional.of(String.valueOf(Files.getAttribute(dockerSocket, "unix:gid")));
     } catch (IOException | UnsupportedOperationException noSocket) {
-      return Optional.empty();
-    }
-  }
-
-  private static Optional<String> id(String flag) {
-    try {
-      Process id = new ProcessBuilder("id", flag).redirectErrorStream(true).start();
-      String printed = new String(id.getInputStream().readAllBytes()).strip();
-      return id.waitFor() == 0 && printed.matches("\\d+") ? Optional.of(printed) : Optional.empty();
-    } catch (IOException e) {
-      return Optional.empty();
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
       return Optional.empty();
     }
   }

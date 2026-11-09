@@ -74,7 +74,7 @@ class Import implements Runnable {
   private String text() {
     if (file.equals("-")) {
       try {
-        return new String(System.in.readAllBytes(), StandardCharsets.UTF_8);
+        return new String(yard.shell().input().readAllBytes(), StandardCharsets.UTF_8);
       } catch (IOException e) {
         throw new YardException("Cannot read the standard input: " + e.getMessage());
       }

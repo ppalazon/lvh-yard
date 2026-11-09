@@ -1,5 +1,7 @@
 package dev.palazon.lvhyard.cli;
 
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -9,8 +11,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.UnaryOperator;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
@@ -279,11 +283,22 @@ abstract class YardTestSupport {
   }
 
   /**
+   * Runs {@code lvh-yard} with {@code environment} as its environment, and {@link #home} as HOME
+   * unless {@code environment} names another. With the native executable, in a process of its own.
+   */
+  Run yardProcess(Map<String, String> environment, String... args) throws Exception {
+    if (NATIVE_YARD != null) {
+      return realProcess(environment, args);
+    }
+    return inMemory(new FakeShell(withHome(environment)), args);
+  }
+
+  /**
    * Runs {@code lvh-yard} in a process of its own, as a shell does, with {@code environment} in
    * place of any {@code YARD_*} variables of this one, and {@link #home} as HOME unless {@code
    * environment} names another.
    */
-  Run yardProcess(Map<String, String> environment, String... args) throws Exception {
+  Run realProcess(Map<String, String> environment, String... args) throws Exception {
     ProcessBuilder builder = new ProcessBuilder(command(args));
     builder
         .environment()
@@ -295,53 +310,46 @@ abstract class YardTestSupport {
   }
 
   /**
-   * Runs {@code lvh-yard} against the stub dashboard in a process of its own, with {@code editor},
-   * a shell script that gets the file as $1, as $EDITOR, and {@code input} on its standard input.
+   * Runs {@code lvh-yard} against the stub dashboard with {@code editor}, which changes the text of
+   * the file, as $EDITOR, and {@code input} on its standard input. Only in this JVM: the native
+   * executable cannot run a Java editor.
    */
-  Run yardWithEditor(String editor, String input, String... args) throws Exception {
-    Path script = Files.createTempFile(home, "editor", ".sh");
-    Files.writeString(script, "#!/bin/sh\n" + editor);
-    script.toFile().setExecutable(true);
+  Run yardWithEditor(UnaryOperator<String> editor, String input, String... args) {
+    assumeTrue(NATIVE_YARD == null, "A Java editor runs only in this JVM");
     List<String> withDashboard =
         new ArrayList<>(List.of("--dashboard", dashboard.url().toString()));
     withDashboard.addAll(List.of(args));
-    ProcessBuilder builder = new ProcessBuilder(command(withDashboard.toArray(String[]::new)));
-    builder.environment().put("HOME", home.toString());
-    builder.environment().put("EDITOR", script.toString());
-    Process process = builder.start();
-    try (var in = process.getOutputStream()) {
-      in.write(input.getBytes(StandardCharsets.UTF_8));
-    }
-    String out = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-    String err = new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
-    return new Run(process.waitFor(), out, err);
+    return inMemory(
+        new FakeShell(withHome(Map.of("EDITOR", "test-editor")), input, editor),
+        withDashboard.toArray(String[]::new));
   }
 
-  /** Runs {@code lvh-yard} in a process of its own, with {@code input} on its standard input. */
-  static Run yardWithInput(String input, String... args) throws Exception {
-    Process process = new ProcessBuilder(command(args)).start();
-    try (var in = process.getOutputStream()) {
-      in.write(input.getBytes(StandardCharsets.UTF_8));
+  /** Runs {@code lvh-yard} with {@code input} on its standard input. */
+  Run yardWithInput(String input, String... args) throws Exception {
+    if (NATIVE_YARD != null) {
+      Process process = new ProcessBuilder(command(args)).start();
+      try (var in = process.getOutputStream()) {
+        in.write(input.getBytes(StandardCharsets.UTF_8));
+      }
+      String out = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+      String err = new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
+      return new Run(process.waitFor(), out, err);
     }
-    String out = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-    String err = new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
-    return new Run(process.waitFor(), out, err);
+    return inMemory(new FakeShell(withHome(Map.of()), input, text -> text), args);
   }
 
-  /**
-   * Runs {@code lvh-yard} in a process of its own as if at a terminal, with {@code answers} typed
-   * in.
-   */
-  static Run yardAtTerminal(String answers, String... args) throws Exception {
+  /** Runs {@code lvh-yard} as if at a terminal, with {@code answers} typed in. */
+  Run yardAtTerminal(String answers, String... args) throws Exception {
     List<String> withTerminal = new ArrayList<>(List.of(args));
     withTerminal.add("--terminal");
-    Process process = new ProcessBuilder(command(withTerminal.toArray(String[]::new))).start();
-    try (var in = process.getOutputStream()) {
-      in.write(answers.getBytes(StandardCharsets.UTF_8));
-    }
-    String out = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-    String err = new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
-    return new Run(process.waitFor(), out, err);
+    return yardWithInput(answers, withTerminal.toArray(String[]::new));
+  }
+
+  private Map<String, String> withHome(Map<String, String> environment) {
+    Map<String, String> all = new HashMap<>();
+    all.put("HOME", home.toString());
+    all.putAll(environment);
+    return all;
   }
 
   /**
@@ -375,8 +383,8 @@ abstract class YardTestSupport {
     }
   }
 
-  /** Runs {@code lvh-yard} with exactly {@code args}. */
-  static Run yardAsTyped(String... args) {
+  /** Runs {@code lvh-yard} with exactly {@code args}, and {@link #home} as HOME. */
+  Run yardAsTyped(String... args) {
     if (NATIVE_YARD != null) {
       try {
         return run(new ProcessBuilder(command(args)));
@@ -384,9 +392,14 @@ abstract class YardTestSupport {
         throw new IllegalStateException("Could not run " + NATIVE_YARD, e);
       }
     }
+    return inMemory(new FakeShell(withHome(Map.of())), args);
+  }
+
+  /** Runs {@code lvh-yard} in this JVM, with {@code shell} as its process. */
+  static Run inMemory(FakeShell shell, String... args) {
     StringWriter out = new StringWriter();
     StringWriter err = new StringWriter();
-    CommandLine command = Yard.commandLine();
+    CommandLine command = Yard.commandLine(shell);
     command.setOut(new PrintWriter(out));
     command.setErr(new PrintWriter(err));
     int exitCode = command.execute(args);
