@@ -27,6 +27,7 @@ import picocli.CommandLine.Spec;
       Containers.class,
       Remove.class,
       Publish.class,
+      Priority.class,
       Unpublish.class,
       Alias.class,
       Profiles.class,

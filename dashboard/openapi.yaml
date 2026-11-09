@@ -622,6 +622,75 @@ paths:
       summary: Removes a Container Binding and its Bound Instances
       tags:
       - workstation-services-controller
+  /api/workstation/services/{service}/instance-priority:
+    get:
+      description: "Its Instance Sources in order, whether the order is on, and the\
+        \ source that the Route uses now."
+      operationId: instancePriority
+      parameters:
+      - in: path
+        name: service
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstancePriority"
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: This Workstation has no Service of this name
+      summary: Gets the Instance Priority of a Service
+      tags:
+      - workstation-services-controller
+    put:
+      description: "The IDs in order go first, and the other sources follow in their\
+        \ order. With on true, the Route uses the passing Instances of the first source\
+        \ that has one. With on false, every passing Instance of every source shares\
+        \ the Route, and the order stays. Unpublishing keeps both."
+      operationId: setInstancePriority
+      parameters:
+      - in: path
+        name: service
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InstancePriorityRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstancePriority"
+          description: Set
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "The order names an ID twice, or an ID that is not one of its\
+            \ Instance Sources"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: This Workstation has no Service you created
+      summary: "Sets the order of the Instance Sources of a Service, or turns the\
+        \ order on or off"
+      tags:
+      - workstation-services-controller
   /api/workstation/services/{service}/instances:
     post:
       description: "With no host, the Instance is at this Workstation's LAN address.\
@@ -759,14 +828,11 @@ paths:
     put:
       description: "With Yard Scope, the other Workstations also route it, at <service>.<workstation>.<base-domain>.\
         \ With no Scope, a new Publication gets Local Scope and an existing one keeps\
-        \ its own. With no priority, a new Publication gets static, bound, alias and\
-        \ an existing one keeps its own. An empty priority turns the Instance Priority\
-        \ off: the passing Static and Bound Instances share the Route. The Route applies\
-        \ the Route Profiles in order, as Traefik middlewares named <workstation>_<profile>.\
-        \ With no profiles, a Publication keeps its own. Empty profiles remove them\
-        \ all. With accessLog true, Traefik logs the requests to the Route. With no\
-        \ accessLog, a new Publication does not log them and an existing one keeps\
-        \ its own."
+        \ its own. The Route applies the Route Profiles in order, as Traefik middlewares\
+        \ named <workstation>_<profile>. With no profiles, a Publication keeps its\
+        \ own. Empty profiles remove them all. With accessLog true, Traefik logs the\
+        \ requests to the Route. With no accessLog, a new Publication does not log\
+        \ them and an existing one keeps its own."
       operationId: publish
       parameters:
       - in: path
@@ -792,16 +858,16 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: "The name is not a single DNS label or is consul, the Scope\
-            \ is not local or yard, the priority repeats a kind or names an unknown\
-            \ one, or a Route Profile is not among this Workstation's valid profiles"
+            \ is not local or yard, or a Route Profile is not among this Workstation's\
+            \ valid profiles"
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: This Workstation has no Service of this name
-      summary: "Publishes a Service, or changes its Scope, Instance Priority, Route\
-        \ Profiles or access log"
+      summary: "Publishes a Service, or changes its Scope, Route Profiles or access\
+        \ log"
       tags:
       - workstation-services-controller
   /api/workstation/services/{service}/reachability:
@@ -865,7 +931,6 @@ components:
           - active
           - unavailable
           - fallback
-          - hidden
           - not-shared
           - unreachable
           - missing
@@ -1065,6 +1130,35 @@ components:
       - outOfRange
       - port
       - tags
+    InstancePriority:
+      type: object
+      properties:
+        "on":
+          type: boolean
+          description: Whether the Route uses only the first Instance Source in the
+            order with a passing Instance
+        routing:
+          $ref: "#/components/schemas/Routing"
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/InstanceSource"
+      required:
+      - "on"
+      - sources
+    InstancePriorityRequest:
+      type: object
+      properties:
+        "on":
+          type: boolean
+          description: "false makes every passing Instance of every source share the\
+            \ Route. When left out, the toggle stays."
+        order:
+          type: array
+          description: "Instance Source IDs. They go first, in this order, and the\
+            \ other sources follow in their order. When left out, the order stays."
+          items:
+            type: string
     InstanceReachability:
       type: object
       properties:
@@ -1084,6 +1178,26 @@ components:
       - address
       - id
       - reached
+    InstanceSource:
+      type: object
+      properties:
+        id:
+          type: string
+        instances:
+          type: array
+          items:
+            type: string
+        kind:
+          type: string
+          enum:
+          - static
+          - bound
+          - alias
+          - foreign
+      required:
+      - id
+      - instances
+      - kind
     ListedContainer:
       type: object
       properties:
@@ -1188,14 +1302,6 @@ components:
           description: "true makes Traefik log the requests to its Route. When left\
             \ out, a new Publication does not log them and an existing one keeps its\
             \ own."
-        priority:
-          type: array
-          items:
-            type: string
-            enum:
-            - static
-            - bound
-            - alias
         profiles:
           type: array
           description: "Names of this Workstation's Route Profiles, in the order the\
@@ -1301,14 +1407,26 @@ components:
             type: string
         kind:
           type: string
+          description: The kind of the Instance Source that the Route uses now
           enum:
           - static
           - bound
           - alias
+          - foreign
         "off":
           type: boolean
+        source:
+          type: string
+          description: The ID of the Instance Source that the Route uses now
+        waiting:
+          type: array
+          description: "The IDs of the other Instance Sources that have an Instance\
+            \ in range, in order"
+          items:
+            type: string
       required:
       - instances
+      - waiting
     Service:
       type: object
       properties:
@@ -1325,20 +1443,17 @@ components:
           description: Whether it has no Instances and no Container Bindings
         hostname:
           type: string
+        instancePriority:
+          type: boolean
+          description: "Whether its Route uses only the first Instance Source in the\
+            \ order with a passing Instance. When false, every passing Instance of\
+            \ every source shares the Route"
         instances:
           type: array
           items:
             $ref: "#/components/schemas/Instance"
         name:
           type: string
-        priority:
-          type: array
-          items:
-            type: string
-            enum:
-            - static
-            - bound
-            - alias
         profiles:
           type: array
           description: "The names of its Route Profiles, in the order its Route applies\
@@ -1349,6 +1464,10 @@ components:
           $ref: "#/components/schemas/Publication"
         routing:
           $ref: "#/components/schemas/Routing"
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/InstanceSource"
         state:
           type: string
           enum:
@@ -1367,8 +1486,10 @@ components:
       - containerBindings
       - created
       - empty
+      - instancePriority
       - instances
       - name
+      - sources
       - state
       - warnings
       - workstation

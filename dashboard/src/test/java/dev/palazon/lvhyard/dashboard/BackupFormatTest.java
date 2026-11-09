@@ -28,9 +28,6 @@ class BackupFormatTest {
         grafana:
           publication:
             scope: yard
-            priority:
-              - static
-              - bound
             route-profiles:
               - auth
             access-log: true

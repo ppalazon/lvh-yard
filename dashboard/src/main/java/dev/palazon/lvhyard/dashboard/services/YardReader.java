@@ -12,11 +12,11 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
@@ -173,7 +173,8 @@ public class YardReader {
                     workstation,
                     datacenter,
                     name,
-                    records.all(datacenter).containsKey(name),
+                    records.all(datacenter).get(name),
+                    this.workstation.is(workstation) ? aliasKeys.targets().get(name) : null,
                     publications.all(datacenter).get(name),
                     containerBindings.all(datacenter).getOrDefault(name, Map.of()),
                     routeProfiles.stored(datacenter)));
@@ -183,26 +184,26 @@ public class YardReader {
   }
 
   /**
-   * Gives each of this Workstation's {@code services} the Instances of an active Alias with its
-   * name, as the {@code alias} kind of its Instance Priority. Only this Workstation's own Aliases
+   * Gives the Alias source of each of this Workstation's published {@code services} the Instances
+   * of its Remote Service, while that one has Yard Scope. Only this Workstation's own Aliases
    * count, so no other Workstation's Route depends on them.
    *
    * @param remoteService finds a Remote Service by its Workstation and name
    */
   private List<Service> withAliases(
       List<Service> services, BiFunction<String, String, Optional<Service>> remoteService) {
-    if (services.stream().noneMatch(Service::published)) {
-      return services;
-    }
-    Map<String, AliasKeys.Target> aliases = aliasKeys.targets();
     return services.stream()
         .map(service -> {
-          AliasKeys.Target alias = aliases.get(service.name());
-          if (alias == null || service.hostname() == null) {
+          if (service.hostname() == null) {
             return service;
           }
-          return remoteService
-              .apply(alias.workstation(), alias.service())
+          return service.sources().stream()
+              .filter(source -> source.kind() == SourceKind.ALIAS)
+              .findFirst()
+              .flatMap(alias -> {
+                String[] target = alias.id().split("/", 2);
+                return remoteService.apply(target[0], target.length < 2 ? "" : target[1]);
+              })
               .filter(Service::sharedWithYard)
               .map(target -> service.withAlias(target.instances()))
               .orElse(service);
@@ -245,20 +246,23 @@ public class YardReader {
     return reading(
         workstation,
         datacenter -> {
-          Set<String> created = records.all(datacenter).keySet();
+          Map<String, ServiceRecords.ServiceRecord> created = records.all(datacenter);
+          Map<String, AliasKeys.Target> aliases =
+              this.workstation.is(workstation) ? aliasKeys.targets() : Map.of();
           Map<String, Publication> published = publications.all(datacenter);
           Map<String, Map<String, ContainerBindingRequest>> bindings =
               containerBindings.all(datacenter);
           Map<String, RouteProfileDefinition> profiles = routeProfiles.stored(datacenter);
           TreeSet<String> names = new TreeSet<>(consul.serviceNames(datacenter));
-          names.addAll(created);
+          names.addAll(created.keySet());
           return names.stream()
               .flatMap(name ->
                   service(
                       workstation,
                       datacenter,
                       name,
-                      created.contains(name),
+                      created.get(name),
+                      aliases.get(name),
                       published.get(name),
                       bindings.getOrDefault(name, Map.of()),
                       profiles)
@@ -288,7 +292,8 @@ public class YardReader {
       String home,
       String datacenter,
       String name,
-      boolean created,
+      ServiceRecords.ServiceRecord record,
+      AliasKeys.Target alias,
       Publication publication,
       Map<String, ContainerBindingRequest> bindings,
       Map<String, RouteProfileDefinition> profiles) {
@@ -298,7 +303,7 @@ public class YardReader {
             .map(entry -> instance(entry, !workstation.is(home)))
             .sorted(BY_ADDRESS)
             .toList();
-    if (instances.isEmpty() && !created) {
+    if (instances.isEmpty() && record == null) {
       return Optional.empty();
     }
     List<ContainerBinding> containerBindings =
@@ -312,15 +317,38 @@ public class YardReader {
                         .map(Instance::id)
                         .toList()))
             .toList();
+    List<InstanceSource> sources = new ArrayList<>();
+    instances.stream()
+        .filter(instance -> !instance.bound())
+        .forEach(instance ->
+            sources.add(
+                new InstanceSource(
+                    instance.id(),
+                    instance.foreign() ? SourceKind.FOREIGN : SourceKind.STATIC,
+                    List.of(instance))));
+    containerBindings.forEach(binding ->
+        sources.add(
+            new InstanceSource(
+                binding.id(),
+                SourceKind.BOUND,
+                instances.stream()
+                    .filter(instance -> binding.id().equals(instance.containerBinding()))
+                    .toList())));
+    if (alias != null && record != null) {
+      sources.add(new InstanceSource(alias.id(), SourceKind.ALIAS, List.of()));
+    }
     return Optional.of(
         new Service(
             home,
             name,
-            created,
+            record != null,
             publication,
             hostname(home, name, publication),
             instances,
             containerBindings,
+            InstanceSource.ordered(record == null ? List.of() : record.order(), sources),
+            record == null || record.instancePriority(),
+            workstation.is(home),
             profiles));
   }
 

@@ -170,52 +170,30 @@ class AliasesComponentTest extends DashboardComponentTest {
     JsonNode alias = alias(grafana);
     assertThat(alias.get("state").asString()).isEqualTo("fallback");
     assertThat(alias.get("reason").asString())
-        .contains("The last fallback for this Workstation's Service " + grafana);
+        .contains("An Instance Source of this Workstation's Service " + grafana);
     assertThat(routedHostnames(get("/traefik/configuration").getBody().get("http")))
         .containsOnlyOnce(grafana + ".lvh.test");
-    // Neither Instance passes, as nothing listens at either address, so no kind wins.
+    // Neither Instance passes, as nothing listens at either address, so no source wins and the
+    // Route uses every Instance in range, the Alias's included.
     assertThat(
             TraefikConfigurationComponentTest.serverUrlsAt(
                 get("/traefik/configuration").getBody().get("http"), grafana + ".lvh.test"))
-        .containsExactly("http://10.1.2.3:3000");
+        .containsExactlyInAnyOrder("http://10.1.2.3:3000", "http://10.9.8.7:3000");
   }
 
   @Test
-  void aliasIsHiddenWhenTheSameNamedServicesOrderLeavesOutAlias() {
+  void aliasStaysAnInstanceSourceWhileTheInstancePriorityIsOff() {
     String grafana = sharedRemoteService("grafana");
     put(aliasPath(grafana), Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
     register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
+    publish(grafana);
 
-    put(publicationPath(grafana), Map.of("priority", List.of("static", "bound")));
-
-    JsonNode alias = alias(grafana);
-    assertThat(alias.get("state").asString()).isEqualTo("hidden");
-    assertThat(alias.get("reason").asString()).contains("leaves out the Alias");
-
-    put(publicationPath(grafana), Map.of("priority", List.of("static", "alias")));
+    put(instancePriorityPath(grafana), Map.of("on", false));
 
     assertThat(alias(grafana).get("state").asString()).isEqualTo("fallback");
-  }
-
-  @Test
-  void aliasIsHiddenWhileTheSameNamedServicesInstancePriorityIsOff() {
-    String grafana = sharedRemoteService("grafana");
-    put(aliasPath(grafana), Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
-    register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
-
-    put(publicationPath(grafana), Map.of("priority", List.of()));
-
-    JsonNode alias = alias(grafana);
-    assertThat(alias.get("state").asString()).isEqualTo("hidden");
-    assertThat(alias.get("reason").asString())
-        .isEqualTo(
-            "Hidden by this Workstation's published Service "
-                + grafana
-                + ", whose Instance Priority is off.");
-    assertThat(
-            TraefikConfigurationComponentTest.serverUrlsAt(
-                get("/traefik/configuration").getBody().get("http"), grafana + ".lvh.test"))
-        .containsExactly("http://10.1.2.3:3000");
+    assertThat(get(servicePath(grafana)).getBody().get("sources").valueStream())
+        .map(source -> source.get("kind").asString())
+        .containsExactlyInAnyOrder("static", "alias");
   }
 
   @Test

@@ -71,7 +71,6 @@ public final class BackupFormat {
       case Published published -> {
         Map<String, Object> publication = new LinkedHashMap<>();
         putIfPresent(publication, "scope", published.scope());
-        putIfPresent(publication, "priority", published.priority());
         if (!published.routeProfiles().isEmpty()) {
           publication.put("route-profiles", published.routeProfiles());
         }
@@ -259,15 +258,13 @@ public final class BackupFormat {
       if (!(value instanceof Map<?, ?>)) {
         problem(
             place,
-            "A publication is none, or a mapping with scope, priority, route-profiles and"
-                + " access-log.");
+            "A publication is none, or a mapping with scope, route-profiles and access-log.");
         return null;
       }
       Map<String, Object> entry =
-          keys(value, place, Set.of("scope", "priority", "route-profiles", "access-log"));
+          keys(value, place, Set.of("scope", "route-profiles", "access-log"));
       return new Published(
           text(entry.get("scope"), place + ".scope"),
-          texts(entry.get("priority"), place + ".priority"),
           texts(entry.get("route-profiles"), place + ".route-profiles"),
           flag(entry.get("access-log"), place + ".access-log", false));
     }

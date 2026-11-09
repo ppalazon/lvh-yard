@@ -138,6 +138,6 @@ class AliasesPageComponentTest extends DashboardComponentTest {
 
     assertThat(getPage("/aliases").getBody())
         .contains(badge("outline", "Fallback"))
-        .contains("The last fallback for this Workstation");
+        .contains("An Instance Source of this Workstation");
   }
 }

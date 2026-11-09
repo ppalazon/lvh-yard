@@ -26,15 +26,14 @@ class BoundInstancesComponentTest extends DashboardComponentTest {
     String firstName = newContainerName();
     String secondName = newContainerName();
     String failingName = newContainerName();
-    Container first = startComposeOnYard(firstName, project, 80);
+    startComposeOnYard(firstName, project, 80);
     startComposeOnYard(secondName, project, 80);
     startComposeOnYard(failingName, project, 81);
     bindCompose(web, project, "web", 80);
     await()
         .atMost(Duration.ofSeconds(15))
         .untilAsserted(() ->
-            assertThat(
-                    div(getPage("/services/ws-test/" + web).getBody(), "id=\"container-bindings\""))
+            assertThat(div(getPage("/services/ws-test/" + web).getBody(), "id=\"sources\""))
                 .contains("3 containers, 2 passing"));
 
     String page = getPage("/services/ws-test/" + web).getBody();
@@ -42,10 +41,8 @@ class BoundInstancesComponentTest extends DashboardComponentTest {
     assertThat(page)
         .contains("Compose service web of project " + project)
         .contains("Bound to Compose service web of project " + project + ", port 80.");
-    assertThat(div(page, "id=\"container-bindings\""))
+    assertThat(div(page, "id=\"sources\""))
         .contains("3 containers, 2 passing")
-        .doesNotContain(containerAddress(first) + ":80");
-    assertThat(div(page, "id=\"instances\""))
         .contains("<td>" + firstName + "</td><td>80</td><td>Not published</td>")
         .contains("<td>" + secondName + "</td><td>80</td><td>Not published</td>")
         .contains("<td>" + failingName + "</td><td>80</td><td>Not published</td>");
@@ -109,10 +106,10 @@ class BoundInstancesComponentTest extends DashboardComponentTest {
     await()
         .atMost(FOLLOW_TIMEOUT)
         .untilAsserted(() -> {
-          String instances = div(getPage(path).getBody(), "id=\"instances\"");
+          String instances = div(getPage(path).getBody(), "id=\"sources\"");
           assertThat(instances)
               .contains("<th>Container</th><th>Container Port</th><th>Host Port</th>");
-          assertThat(instanceRow(instances, name))
+          assertThat(instanceRow(instances, "<td>" + name + "</td>"))
               .contains("<td>" + name + "</td><td>80</td><td>" + hostPort(container, 80) + "</td>");
         });
     JsonNode instance =

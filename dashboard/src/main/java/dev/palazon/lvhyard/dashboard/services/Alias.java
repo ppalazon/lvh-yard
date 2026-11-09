@@ -24,16 +24,10 @@ public record Alias(
     UNAVAILABLE,
 
     /**
-     * A published Service of this Workstation has the same name. Its Route uses the Remote Service
-     * only when none of its own Instances passes.
+     * A published Service of this Workstation has the same name. The Alias is one of its Instance
+     * Sources, and its Instance Priority says when the Route uses it.
      */
     FALLBACK,
-
-    /**
-     * A published Service of this Workstation has the same name, and its Instance Priority leaves
-     * out the Alias.
-     */
-    HIDDEN,
 
     /** The Remote Service has no Yard Scope. */
     NOT_SHARED,

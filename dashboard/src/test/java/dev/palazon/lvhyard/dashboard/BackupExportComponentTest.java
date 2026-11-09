@@ -54,29 +54,17 @@ class BackupExportComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void publishedServiceHoldsItsScopePriorityAndRouteProfiles() {
+  void publishedServiceHoldsItsScopeAndRouteProfiles() {
     String compress = newServiceName("compress");
     putRouteProfiles(Map.of(compress, Map.of("compress", Map.of())));
     String grafana = newServiceName("grafana");
     register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
-    put(
-        publicationPath(grafana),
-        Map.of(
-            "scope",
-            "yard",
-            "priority",
-            List.of("bound", "static"),
-            "profiles",
-            List.of(compress)));
+    put(publicationPath(grafana), Map.of("scope", "yard", "profiles", List.of(compress)));
 
     Map<String, Object> backup = exported();
 
     assertThat(map(map(backup.get("services")).get(grafana)).get("publication"))
-        .isEqualTo(
-            Map.of(
-                "scope", "yard",
-                "priority", List.of("bound", "static"),
-                "route-profiles", List.of(compress)));
+        .isEqualTo(Map.of("scope", "yard", "route-profiles", List.of(compress)));
     assertThat(map(backup.get("route-profiles")).get(compress))
         .isEqualTo(Map.of("compress", Map.of()));
   }

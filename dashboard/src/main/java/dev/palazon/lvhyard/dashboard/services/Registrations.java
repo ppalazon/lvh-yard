@@ -129,7 +129,9 @@ public class Registrations {
     String id =
         staticInstanceAt(service, checked.host(), checked.port())
             .orElseGet(() -> UUID.randomUUID().toString());
-    return put(id, service, checked);
+    Instance registered = put(id, service, checked);
+    records.addSource(service, id);
+    return registered;
   }
 
   /**
@@ -349,6 +351,7 @@ public class Registrations {
     checkHome(workstation);
     requireStaticInstance(service, id);
     consul.deregister(id);
+    records.removeSource(service, id);
   }
 
   private void requireStaticInstance(String service, String id) {

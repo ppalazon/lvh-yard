@@ -201,10 +201,12 @@ class BindContainerPageComponentTest extends DashboardComponentTest {
         .atMost(Duration.ofSeconds(15))
         .until(() -> get(servicePath(web)).getBody().get("instances").size() == 2);
 
-    String bindings = div(getPage(servicePage(web)).getBody(), "id=\"container-bindings\"");
+    String page = getPage(servicePage(web)).getBody();
 
-    assertThat(row(bindings, "container " + first)).contains("<li>" + first);
-    assertThat(row(bindings, "container " + second)).contains("<li>" + second);
+    assertThat(InstancePriorityComponentTest.sourceItem(page, first + ":80"))
+        .contains("<li>" + first);
+    assertThat(InstancePriorityComponentTest.sourceItem(page, second + ":80"))
+        .contains("<li>" + second);
   }
 
   @Test
@@ -243,9 +245,4 @@ class BindContainerPageComponentTest extends DashboardComponentTest {
   }
 
   /** The table row that contains {@code text}. */
-  private static String row(String table, String text) {
-    int at = table.indexOf(text);
-    assertThat(at).as("a row with " + text).isNotNegative();
-    return table.substring(table.lastIndexOf("<tr", at), table.indexOf("</tr>", at));
-  }
 }

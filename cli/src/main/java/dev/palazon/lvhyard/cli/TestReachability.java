@@ -100,10 +100,7 @@ class TestReachability implements Callable<Integer> {
       return "The Route sends requests to the Alias's Remote Service"
           + (alias == null ? "." : ": " + alias.service() + " on " + alias.workstation() + ".");
     }
-    return "The Route uses the passing "
-        + Character.toUpperCase(kind.charAt(0))
-        + kind.substring(1)
-        + " Instances now.";
+    return "The Route uses the " + kind + " Instance Source " + tested.routing().source() + " now.";
   }
 
   private static String line(boolean reached, String what, String detail) {

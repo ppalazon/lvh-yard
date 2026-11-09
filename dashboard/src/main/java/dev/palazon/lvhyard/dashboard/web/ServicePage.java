@@ -9,12 +9,13 @@ import dev.palazon.lvhyard.dashboard.reachability.RouteReachability;
 import dev.palazon.lvhyard.dashboard.services.ContainerBinding;
 import dev.palazon.lvhyard.dashboard.services.Health;
 import dev.palazon.lvhyard.dashboard.services.Instance;
-import dev.palazon.lvhyard.dashboard.services.InstanceKind;
+import dev.palazon.lvhyard.dashboard.services.InstanceSource;
 import dev.palazon.lvhyard.dashboard.services.Routing;
 import dev.palazon.lvhyard.dashboard.services.Scope;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import dev.palazon.lvhyard.dashboard.services.ServiceState;
 import dev.palazon.lvhyard.dashboard.services.ServiceWarning;
+import dev.palazon.lvhyard.dashboard.services.SourceKind;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,7 @@ import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.Element;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
 import org.xmlet.htmlapifaster.EnumTypeInputType;
+import org.xmlet.htmlapifaster.Li;
 import org.xmlet.htmlapifaster.Td;
 import org.xmlet.htmlapifaster.Tr;
 
@@ -54,6 +56,10 @@ final class ServicePage {
 
   static String removePath(Service service, ContainerBinding binding) {
     return path(service) + "/container-bindings/" + binding.id() + "/remove";
+  }
+
+  static String instancePriorityPath(Service service) {
+    return path(service) + "/instance-priority";
   }
 
   static String reachabilityPath(Service service) {
@@ -119,20 +125,13 @@ final class ServicePage {
                                           }
                                         })
                                         .__())
-                                .of(grid -> {
-                                  if (own && service.published()) {
-                                    instancePriority(grid, service);
-                                  }
-                                })
+                                .of(grid -> instanceSources(grid, service, own))
                                 .of(grid -> {
                                   if (own ? service.published() : !service.profiles().isEmpty()) {
                                     routeProfiles(grid, service, own, profileNames);
                                   }
                                 })
-                                .__()
-                                .of(content -> instances(content, service, own))
-                                .of(content ->
-                                    ContainerBindingsCard.render(content, service, own))))
+                                .__()))
                 .div()
                 .attrId("reachability")
                 .attrClass(CARD)
@@ -177,16 +176,10 @@ final class ServicePage {
     return card.attrClass(CARD).h2().attrClass("text-lg font-semibold").text(heading).__();
   }
 
-  private static void instances(Div<?> content, Service service, boolean own) {
-    Div<?> card = card(content, "instances", "Instances");
-    if (own && service.created()) {
-      AddStaticInstancePage.openLink(card, service);
-    }
-    if (service.instances().isEmpty()) {
-      card.p().text("No Instances are registered.").__().__();
-      return;
-    }
-    card.div()
+  /** {@code own} false leaves out the actions, such as for the Instances of an Alias. */
+  private static void instanceTable(
+      Li<?> item, Service service, List<Instance> instances, boolean own) {
+    item.div()
         .attrClass("table-container")
         .table()
         .attrClass("table")
@@ -216,45 +209,40 @@ final class ServicePage {
         .__()
         .tbody()
         .of(body ->
-            service
-                .instances()
-                .forEach(instance ->
-                    body.tr()
-                        .td()
-                        .attrClass("align-top")
-                        .of(cell -> InstanceViews.description(cell, service, instance))
-                        .__()
-                        .td()
-                        .text(instance.container() == null ? "" : instance.container())
-                        .__()
-                        .td()
-                        .text(
-                            instance.containerPort() == null
-                                ? ""
-                                : instance.containerPort().toString())
-                        .__()
-                        .td()
-                        .text(
-                            !instance.bound()
-                                ? ""
-                                : instance.hostPort() == null
-                                    ? "Not published"
-                                    : instance.hostPort().toString())
-                        .__()
-                        .td()
-                        .attrClass("align-top")
-                        .of(cell -> InstanceViews.health(cell, instance.health()))
-                        .of(cell -> InstanceViews.checks(cell, instance))
-                        .__()
-                        .of(row -> {
-                          if (own && !instance.staticInstance()) {
-                            row.td().__();
-                          } else if (own) {
-                            actions(row, service, instance);
-                          }
-                        })
-                        .__()))
-        .__()
+            instances.forEach(instance ->
+                body.tr()
+                    .td()
+                    .attrClass("align-top")
+                    .of(cell -> InstanceViews.description(cell, service, instance))
+                    .__()
+                    .td()
+                    .text(instance.container() == null ? "" : instance.container())
+                    .__()
+                    .td()
+                    .text(
+                        instance.containerPort() == null ? "" : instance.containerPort().toString())
+                    .__()
+                    .td()
+                    .text(
+                        !instance.bound()
+                            ? ""
+                            : instance.hostPort() == null
+                                ? "Not published"
+                                : instance.hostPort().toString())
+                    .__()
+                    .td()
+                    .attrClass("align-top")
+                    .of(cell -> InstanceViews.health(cell, instance.health()))
+                    .of(cell -> InstanceViews.checks(cell, instance))
+                    .__()
+                    .of(row -> {
+                      if (own && !instance.staticInstance()) {
+                        row.td().__();
+                      } else if (own) {
+                        actions(row, service, instance);
+                      }
+                    })
+                    .__()))
         .__()
         .__()
         .__();
@@ -292,7 +280,7 @@ final class ServicePage {
       content.p().text(reachability.noRoute()).__();
     }
     if (reachability.routing() != null) {
-      content.p().text(routingNow(reachability)).__();
+      content.p().text(routingNow(service, reachability)).__();
     }
     content
         .div()
@@ -379,15 +367,15 @@ final class ServicePage {
     return result + (instance.routed() ? " In the Route." : " Not in the Route now.");
   }
 
-  private static String routingNow(Reachability reachability) {
-    InstanceKind kind = reachability.routing().kind();
-    if (reachability.routing().offWithPassingInstances()) {
+  private static String routingNow(Service service, Reachability reachability) {
+    Routing routing = reachability.routing();
+    if (routing.offWithPassingInstances()) {
       return "The Route uses every passing Instance, as the Instance Priority is off.";
     }
-    if (kind == null) {
+    if (routing.used() == null) {
       return "No Instance passes, so the Route uses every Instance in range.";
     }
-    if (kind == InstanceKind.ALIAS) {
+    if (routing.kind() == SourceKind.ALIAS) {
       return "The Route sends requests to the Alias's Remote Service"
           + (reachability.alias() == null
               ? "."
@@ -397,11 +385,230 @@ final class ServicePage {
                   + reachability.alias().workstation()
                   + ".");
     }
-    return "The Route uses the passing " + kindLabel(kind) + " Instances now.";
+    return "The Route uses the passing Instances of " + sourceLabel(service, routing.used()) + ".";
   }
 
   private static String routeDetails(RouteReachability route) {
     return route.reached() ? "Answered " + route.status() + " through Traefik." : route.error();
+  }
+
+  /**
+   * One ordered list of the Instance Sources, each with its Instances. Each up or down button posts
+   * the whole new order, so the page needs no script. The buttons hide while the Instance Priority
+   * is off, but the order stays. Each kind of source has its own method below.
+   */
+  private static void instanceSources(Div<?> grid, Service service, boolean own) {
+    List<InstanceSource> sources = service.sources();
+    boolean movable = own && service.instancePriority() && sources.size() > 1;
+    Routing routing = service.routing();
+    Div<?> card =
+        grid.div()
+            .attrId("sources")
+            .attrClass(CARD + " lg:col-span-2")
+            .h2()
+            .attrClass("text-lg font-semibold")
+            .text("Instance Sources")
+            .__();
+    card.div()
+        .attrClass("flex flex-wrap items-center justify-between gap-2")
+        .p()
+        .attrClass("text-muted-foreground")
+        .addAttr("data-instance-priority", service.instancePriority() ? "on" : "off")
+        .text(
+            service.instancePriority()
+                ? "Instance Priority on: the Route uses the first source with a passing Instance."
+                : "Instance Priority off: every passing Instance of every source shares the"
+                    + " Route.")
+        .__()
+        .of(row -> {
+          if (own) {
+            instancePriorityForm(row, service);
+          }
+        })
+        .__();
+    if (own && service.created()) {
+      // Each kind of source adds its link or form to this row.
+      card.div()
+          .attrId("add-sources")
+          .attrClass("flex flex-wrap gap-2")
+          .of(row -> AddStaticInstancePage.openLink(row, service))
+          .of(row -> ContainerBindingsCard.openLink(row, service))
+          .__();
+    }
+    if (sources.isEmpty()) {
+      card.p().text("No Instance Sources yet.").__().__();
+      return;
+    }
+    card.ol()
+        .attrClass("flex flex-col gap-4")
+        .of(list -> {
+          for (int i = 0; i < sources.size(); i++) {
+            InstanceSource source = sources.get(i);
+            int at = i;
+            String label = sourceLabel(service, source);
+            boolean inUse = routing != null && source.equals(routing.used());
+            list.li()
+                .addAttr("data-source", Layout.attr(source.id()))
+                .attrClass("flex flex-col gap-2")
+                .div()
+                .attrClass("flex flex-wrap items-center gap-2")
+                .span()
+                .attrClass("font-medium")
+                .text((at + 1) + ". " + label)
+                .__()
+                .of(header -> {
+                  if (inUse) {
+                    header
+                        .span()
+                        .attrClass("badge")
+                        .addAttr("data-variant", "success")
+                        .addAttr("data-in-use", "")
+                        .text("In use")
+                        .__();
+                  }
+                  if (movable && at > 0) {
+                    orderForm(
+                        header, service, moved(sources, at, at - 1), "Up", "Move " + label + " up");
+                  }
+                  if (movable && at < sources.size() - 1) {
+                    orderForm(
+                        header,
+                        service,
+                        moved(sources, at, at + 1),
+                        "Down",
+                        "Move " + label + " down");
+                  }
+                })
+                .__()
+                .of(item -> {
+                  switch (source.kind()) {
+                    case STATIC -> staticSource(item, service, source, own);
+                    case BOUND -> boundSource(item, service, source, own);
+                    case ALIAS -> aliasSource(item, service, source);
+                    case FOREIGN -> foreignSource(item, service, source, own);
+                  }
+                })
+                .__();
+          }
+        })
+        .__()
+        .__();
+  }
+
+  private static void staticSource(
+      Li<?> item, Service service, InstanceSource source, boolean own) {
+    instanceTable(item, service, source.givenInstances(), own);
+  }
+
+  private static void foreignSource(
+      Li<?> item, Service service, InstanceSource source, boolean own) {
+    item.p()
+        .attrClass("text-muted-foreground text-sm")
+        .text("Another tool registered it in Consul, so LVH Yard cannot change it.")
+        .__();
+    instanceTable(item, service, source.givenInstances(), own);
+  }
+
+  private static void boundSource(Li<?> item, Service service, InstanceSource source, boolean own) {
+    service.containerBindings().stream()
+        .filter(binding -> binding.id().equals(source.id()))
+        .findFirst()
+        .ifPresent(binding -> {
+          ContainerBindingsCard.source(item, service, binding, source.givenInstances(), own);
+          if (!source.givenInstances().isEmpty()) {
+            instanceTable(item, service, source.givenInstances(), own);
+          }
+        });
+  }
+
+  /** The Instances of an Alias belong to its Remote Service, so they have no actions here. */
+  private static void aliasSource(Li<?> item, Service service, InstanceSource source) {
+    if (source.givenInstances().isEmpty()) {
+      item.p()
+          .attrClass("text-muted-foreground")
+          .text(
+              service.published()
+                  ? "It gives no Instances now: its Remote Service has no Yard Scope, or its"
+                      + " Workstation does not answer."
+                  : "It gives Instances once this Service is published.")
+          .__();
+      return;
+    }
+    instanceTable(item, service, source.givenInstances(), false);
+  }
+
+  /** How the page and the summary name a source, such as {@code Static Instance 10.0.0.5:80}. */
+  private static String sourceLabel(Service service, InstanceSource source) {
+    return switch (source.kind()) {
+      case STATIC -> "Static Instance " + address(source);
+      case FOREIGN -> "Foreign Instance " + address(source);
+      case BOUND ->
+          service.containerBindings().stream()
+              .filter(binding -> binding.id().equals(source.id()))
+              .findFirst()
+              .map(binding ->
+                  "Container Binding to " + binding.follows() + ", port " + binding.port())
+              .orElse("Container Binding " + source.id());
+      case ALIAS -> {
+        String[] target = source.id().split("/", 2);
+        yield "Alias to " + (target.length < 2 ? "" : target[1]) + " on " + target[0];
+      }
+    };
+  }
+
+  private static String address(InstanceSource source) {
+    return source.givenInstances().isEmpty()
+        ? source.id()
+        : source.givenInstances().getFirst().address();
+  }
+
+  private static void instancePriorityForm(Div<?> row, Service service) {
+    boolean on = service.instancePriority();
+    row.form()
+        .addAttr("method", "post")
+        .addAttr("action", Layout.attr(instancePriorityPath(service)))
+        .input()
+        .attrType(EnumTypeInputType.HIDDEN)
+        .attrName("on")
+        .attrValue(String.valueOf(!on))
+        .__()
+        .button()
+        .attrType(EnumTypeButtonType.SUBMIT)
+        .attrClass("btn")
+        .addAttr("data-variant", "outline")
+        .addAttr("data-size", "sm")
+        .text(on ? "Turn off Instance Priority" : "Turn on Instance Priority")
+        .__()
+        .__();
+  }
+
+  /** {@code label} is the button's accessible name, as several buttons share a short text. */
+  private static void orderForm(
+      Div<?> buttons, Service service, List<InstanceSource> order, String text, String label) {
+    buttons
+        .form()
+        .addAttr("method", "post")
+        .addAttr("action", Layout.attr(instancePriorityPath(service)))
+        .input()
+        .attrType(EnumTypeInputType.HIDDEN)
+        .attrName("order")
+        .attrValue(Layout.attr(String.join(",", order.stream().map(InstanceSource::id).toList())))
+        .__()
+        .button()
+        .attrType(EnumTypeButtonType.SUBMIT)
+        .attrClass("btn")
+        .addAttr("data-variant", "outline")
+        .addAttr("data-size", "sm")
+        .addAttr("aria-label", Layout.attr(label))
+        .text(text)
+        .__()
+        .__();
+  }
+
+  private static <T> List<T> moved(List<T> order, int from, int to) {
+    List<T> moved = new ArrayList<>(order);
+    moved.add(to, moved.remove(from));
+    return moved;
   }
 
   private static void publicationForms(Div<?> div, Service service) {
@@ -463,116 +670,7 @@ final class ServicePage {
   }
 
   /**
-   * Each button posts the whole new order, so the page needs no script. The last kind has no Remove
-   * button, as the empty order means off, which has its own button.
-   */
-  private static void instancePriority(Div<?> content, Service service) {
-    List<InstanceKind> order = service.priority();
-    if (order.isEmpty()) {
-      card(content, null, "Instance Priority")
-          .p()
-          .attrClass("text-muted-foreground")
-          .text("Off: the passing Static and Bound Instances share the Route.")
-          .__()
-          .div()
-          .attrClass("flex flex-wrap gap-2")
-          .of(buttons ->
-              priorityForm(
-                  buttons, service, InstanceKind.DEFAULT_PRIORITY, "Use an order", "Use an order"))
-          .__()
-          .__();
-      return;
-    }
-    card(content, null, "Instance Priority")
-        .p()
-        .attrClass("text-muted-foreground")
-        .text("The Route uses the first kind that has a passing Instance.")
-        .__()
-        .ol()
-        .attrClass("flex flex-col gap-2")
-        .of(list -> {
-          for (int i = 0; i < order.size(); i++) {
-            InstanceKind kind = order.get(i);
-            String label = kindLabel(kind);
-            int at = i;
-            list.li()
-                .div()
-                .attrClass("flex flex-wrap items-center gap-2")
-                .span()
-                .attrClass("min-w-16")
-                .text((at + 1) + ". " + label)
-                .__()
-                .of(buttons -> {
-                  if (at > 0) {
-                    priorityForm(
-                        buttons, service, moved(order, at, at - 1), "Up", "Move " + label + " up");
-                  }
-                  if (at < order.size() - 1) {
-                    priorityForm(
-                        buttons,
-                        service,
-                        moved(order, at, at + 1),
-                        "Down",
-                        "Move " + label + " down");
-                  }
-                  if (order.size() > 1) {
-                    List<InstanceKind> without =
-                        order.stream().filter(other -> other != kind).toList();
-                    priorityForm(buttons, service, without, "Remove", "Remove " + label);
-                  }
-                })
-                .__()
-                .__();
-          }
-        })
-        .__()
-        .div()
-        .attrClass("flex flex-wrap gap-2")
-        .of(buttons -> {
-          for (InstanceKind kind : InstanceKind.values()) {
-            if (!order.contains(kind)) {
-              List<InstanceKind> with = Stream.concat(order.stream(), Stream.of(kind)).toList();
-              String add = "Add " + kindLabel(kind);
-              priorityForm(buttons, service, with, add, add);
-            }
-          }
-          priorityForm(buttons, service, List.of(), "Turn off", "Turn off");
-        })
-        .__()
-        .__();
-  }
-
-  /** {@code label} is the button's accessible name, as several buttons share a short text. */
-  private static void priorityForm(
-      Div<?> buttons, Service service, List<InstanceKind> order, String text, String label) {
-    buttons
-        .form()
-        .addAttr("method", "post")
-        .addAttr("action", Layout.attr(path(service) + "/publish"))
-        .input()
-        .attrType(EnumTypeInputType.HIDDEN)
-        .attrName("priority")
-        .attrValue(String.join(",", order.stream().map(InstanceKind::value).toList()))
-        .__()
-        .button()
-        .attrType(EnumTypeButtonType.SUBMIT)
-        .attrClass("btn")
-        .addAttr("data-variant", "outline")
-        .addAttr("data-size", "sm")
-        .addAttr("aria-label", Layout.attr(label))
-        .text(text)
-        .__()
-        .__();
-  }
-
-  private static <T> List<T> moved(List<T> order, int from, int to) {
-    List<T> moved = new ArrayList<>(order);
-    moved.add(to, moved.remove(from));
-    return moved;
-  }
-
-  /**
-   * Like the Instance Priority, each button posts the whole new list, so the page needs no script.
+   * Like the Instance Sources, each button posts the whole new list, so the page needs no script.
    * Only this Workstation's Route Profiles can be added, and each name links to its row on the
    * Route Profiles page. A Remote Service shows its names only: they are chosen on its Home
    * Workstation, and its profiles are on that Workstation's page.
@@ -862,7 +960,7 @@ final class ServicePage {
         .__();
   }
 
-  /** The kind that wins under the Instance Priority, such as Static, with the kinds waiting. */
+  /** The source that wins under the Instance Priority, with the number of sources waiting. */
   private static void routingSummary(Div<?> card, Service service) {
     Routing routing = service.routing();
     if (routing == null) {
@@ -880,29 +978,21 @@ final class ServicePage {
     String routed;
     if (routing.offWithPassingInstances()) {
       routed = "Every passing Instance";
-    } else if (routing.kind() == null) {
+    } else if (routing.used() == null) {
       routed = "Every Instance, as none is passing";
     } else {
-      routed = kindLabel(routing.kind());
+      routed = sourceLabel(service, routing.used());
     }
     card.p().attrClass("font-semibold").text(routed).__();
-    List<String> waiting = service.waitingKinds().stream().map(ServicePage::kindLabel).toList();
+    int waiting = service.waitingSources().size();
     if (routing.off()) {
       card.p().attrClass("text-muted-foreground").text("Instance Priority off").__();
-    } else if (!waiting.isEmpty()) {
+    } else if (waiting > 0) {
       card.p()
           .attrClass("text-muted-foreground")
-          .text(String.join(", ", waiting) + " waiting")
+          .text(waiting + (waiting == 1 ? " source waiting" : " sources waiting"))
           .__();
     }
-  }
-
-  private static String kindLabel(InstanceKind kind) {
-    return switch (kind) {
-      case STATIC -> "Static";
-      case BOUND -> "Bound";
-      case ALIAS -> "Alias";
-    };
   }
 
   private static String scopeLabel(Service service) {

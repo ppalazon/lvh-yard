@@ -48,5 +48,11 @@ class AliasKeys {
     consul.deleteValue(PREFIX + name);
   }
 
-  record Target(String workstation, String service) {}
+  record Target(String workstation, String service) {
+
+    /** The Instance Source ID of the Alias. */
+    String id() {
+      return workstation + "/" + service;
+    }
+  }
 }

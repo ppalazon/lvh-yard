@@ -225,20 +225,15 @@ class WorkstationServicesController {
   @PutMapping("/{service}/publication")
   @Operation(
       operationId = "publish",
-      summary =
-          "Publishes a Service, or changes its Scope, Instance Priority, Route Profiles or access"
-              + " log",
+      summary = "Publishes a Service, or changes its Scope, Route Profiles or access log",
       description =
           "With Yard Scope, the other Workstations also route it, at"
               + " <service>.<workstation>.<base-domain>. With no Scope, a new Publication gets"
-              + " Local Scope and an existing one keeps its own. With no priority, a new"
-              + " Publication gets static, bound, alias and an existing one keeps its own. An empty"
-              + " priority turns the Instance Priority off: the passing Static and Bound Instances"
-              + " share the Route. The Route applies the Route Profiles in order, as Traefik"
-              + " middlewares named <workstation>_<profile>. With no profiles, a Publication keeps"
-              + " its own. Empty profiles remove them all. With accessLog true, Traefik logs the"
-              + " requests to the Route. With no accessLog, a new Publication does not log them"
-              + " and an existing one keeps its own.")
+              + " Local Scope and an existing one keeps its own. The Route applies the Route"
+              + " Profiles in order, as Traefik middlewares named <workstation>_<profile>. With no"
+              + " profiles, a Publication keeps its own. Empty profiles remove them all. With"
+              + " accessLog true, Traefik logs the requests to the Route. With no accessLog, a new"
+              + " Publication does not log them and an existing one keeps its own.")
   @ApiResponse(
       responseCode = "200",
       description = "The Service, published",
@@ -247,14 +242,47 @@ class WorkstationServicesController {
       responseCode = "400",
       description =
           Registrations.INVALID_NAME
-              + ", the Scope is not local or yard, the priority repeats a kind or names an unknown"
-              + " one, or a Route Profile is not among this Workstation's valid profiles")
+              + ", the Scope is not local or yard, or a Route Profile is not among this"
+              + " Workstation's valid profiles")
   @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
   Service publish(
       @PathVariable String service, @RequestBody(required = false) PublicationRequest request) {
     publications.publish(
         workstation.name(), service, request == null ? PublicationRequest.KEEP_ALL : request);
     return service(service);
+  }
+
+  @GetMapping("/{service}/instance-priority")
+  @Operation(
+      operationId = "instancePriority",
+      summary = "Gets the Instance Priority of a Service",
+      description =
+          "Its Instance Sources in order, whether the order is on, and the source that the Route"
+              + " uses now.")
+  @ApiResponse(responseCode = "200", description = "OK", useReturnTypeSchema = true)
+  @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
+  InstancePriority instancePriority(@PathVariable String service) {
+    return InstancePriority.of(service(service));
+  }
+
+  @PutMapping(path = "/{service}/instance-priority", consumes = MediaType.APPLICATION_JSON_VALUE)
+  @Operation(
+      operationId = "setInstancePriority",
+      summary = "Sets the order of the Instance Sources of a Service, or turns the order on or off",
+      description =
+          "The IDs in order go first, and the other sources follow in their order. With on true,"
+              + " the Route uses the passing Instances of the first source that has one. With on"
+              + " false, every passing Instance of every source shares the Route, and the order"
+              + " stays. Unpublishing keeps both.")
+  @ApiResponse(responseCode = "200", description = "Set", useReturnTypeSchema = true)
+  @ApiResponse(
+      responseCode = "400",
+      description = "The order names an ID twice, or an ID that is not one of its Instance Sources")
+  @ApiResponse(responseCode = "404", description = "This Workstation has no Service you created")
+  InstancePriority setInstancePriority(
+      @PathVariable String service, @RequestBody InstancePriorityRequest request) {
+    services.setInstancePriority(workstation.name(), service, request);
+    return InstancePriority.of(service(service));
   }
 
   @DeleteMapping("/{service}/publication")

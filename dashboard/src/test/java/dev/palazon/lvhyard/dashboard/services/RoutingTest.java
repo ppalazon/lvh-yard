@@ -2,174 +2,185 @@ package dev.palazon.lvhyard.dashboard.services;
 
 import static dev.palazon.lvhyard.dashboard.services.Health.CRITICAL;
 import static dev.palazon.lvhyard.dashboard.services.Health.PASSING;
-import static dev.palazon.lvhyard.dashboard.services.InstanceKind.ALIAS;
-import static dev.palazon.lvhyard.dashboard.services.InstanceKind.BOUND;
-import static dev.palazon.lvhyard.dashboard.services.InstanceKind.DEFAULT_PRIORITY;
-import static dev.palazon.lvhyard.dashboard.services.InstanceKind.STATIC;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-/** The Route choice under the Instance Priority, for every case of its rule. */
+/** The Route choice over the ordered Instance Sources, for every case of its rule. */
 class RoutingTest {
+
+  private static final boolean ON = true;
+
+  private static final boolean OFF = false;
+
+  private static final boolean HOME = true;
 
   private static int next;
 
   @Test
-  void firstKindInTheOrderWithAPassingInstanceGetsTheRoute() {
-    Instance web = staticInstance(PASSING);
-    Instance bound = boundInstance(PASSING);
+  void firstSourceWithAPassingInstanceGetsTheRoute() {
+    Instance first = instance(PASSING);
+    Instance second = instance(PASSING);
+    InstanceSource a = source(SourceKind.STATIC, first);
+    InstanceSource b = source(SourceKind.STATIC, second);
 
-    Routing routing = Routing.of(DEFAULT_PRIORITY, List.of(web, bound), List.of()).orElseThrow();
+    Routing routing = Routing.of(List.of(a, b), ON, HOME).orElseThrow();
 
-    assertThat(routing.kind()).isEqualTo(STATIC);
-    assertThat(routing.routedInstances()).containsExactly(web);
-    assertThat(routing.waiting()).containsExactly(BOUND);
+    assertThat(routing.source()).isEqualTo(a.id());
+    assertThat(routing.kind()).isEqualTo(SourceKind.STATIC);
+    assertThat(routing.routedInstances()).containsExactly(first);
+    assertThat(routing.waiting()).containsExactly(b.id());
     assertThat(routing.off()).isFalse();
   }
 
   @Test
-  void boundBeforeStaticRoutesToTheBoundInstance() {
-    Instance bound = boundInstance(PASSING);
+  void theOrderDecidesAndNotTheKind() {
+    Instance web = instance(PASSING);
+    InstanceSource binding = source(SourceKind.BOUND, instance(PASSING));
+    InstanceSource staticSource = source(SourceKind.STATIC, web);
 
-    Routing routing =
-        Routing.of(List.of(BOUND, STATIC), List.of(staticInstance(PASSING), bound), List.of())
-            .orElseThrow();
+    Routing routing = Routing.of(List.of(binding, staticSource), ON, HOME).orElseThrow();
 
-    assertThat(routing.kind()).isEqualTo(BOUND);
-    assertThat(routing.routedInstances()).containsExactly(bound);
-    assertThat(routing.waiting()).containsExactly(STATIC);
+    assertThat(routing.source()).isEqualTo(binding.id());
+    assertThat(routing.waiting()).containsExactly(staticSource.id());
   }
 
   @Test
-  void everyPassingInstanceOfTheChosenKindSharesTheRouteAndACriticalOneDoesNot() {
-    Instance first = staticInstance(PASSING);
-    Instance second = staticInstance(PASSING);
+  void everyPassingInstanceOfTheChosenSourceSharesTheRouteAndACriticalOneDoesNot() {
+    Instance first = instance(PASSING);
+    Instance second = instance(PASSING);
+    InstanceSource binding = source(SourceKind.BOUND, first, second, instance(CRITICAL));
 
-    Routing routing =
-        Routing.of(DEFAULT_PRIORITY, List.of(first, second, staticInstance(CRITICAL)), List.of())
-            .orElseThrow();
+    Routing routing = Routing.of(List.of(binding), ON, HOME).orElseThrow();
 
     assertThat(routing.routedInstances()).containsExactly(first, second);
   }
 
   @Test
-  void kindWithNoPassingInstanceGivesTheRouteToTheNextKind() {
-    Instance first = boundInstance(PASSING);
-    Instance second = boundInstance(PASSING);
+  void sourceWithNoPassingInstanceGivesTheRouteToTheNextSource() {
+    Instance passing = instance(PASSING);
+    InstanceSource failing = source(SourceKind.STATIC, instance(CRITICAL));
+    InstanceSource next = source(SourceKind.BOUND, passing);
 
-    Routing routing =
-        Routing.of(
-                DEFAULT_PRIORITY,
-                List.of(staticInstance(CRITICAL), staticInstance(CRITICAL), first, second),
-                List.of())
-            .orElseThrow();
+    Routing routing = Routing.of(List.of(failing, next), ON, HOME).orElseThrow();
 
-    assertThat(routing.kind()).isEqualTo(BOUND);
-    assertThat(routing.routedInstances()).containsExactly(first, second);
-    assertThat(routing.waiting()).containsExactly(STATIC);
+    assertThat(routing.source()).isEqualTo(next.id());
+    assertThat(routing.routedInstances()).containsExactly(passing);
+    assertThat(routing.waiting()).containsExactly(failing.id());
   }
 
   @Test
-  void kindLeftOutOfTheOrderIsNeverRoutedNorWaiting() {
-    Instance bound = boundInstance(PASSING);
+  void sourceWithNoInstancesIsSkippedAndNeverWaits() {
+    Instance web = instance(PASSING);
+    InstanceSource empty = source(SourceKind.BOUND);
+    InstanceSource staticSource = source(SourceKind.STATIC, web);
 
-    Routing routing =
-        Routing.of(List.of(BOUND), List.of(staticInstance(PASSING), bound), List.of())
-            .orElseThrow();
+    Routing routing = Routing.of(List.of(empty, staticSource), ON, HOME).orElseThrow();
 
-    assertThat(routing.routedInstances()).containsExactly(bound);
+    assertThat(routing.source()).isEqualTo(staticSource.id());
+    assertThat(routing.waiting()).isEmpty();
+  }
+
+  @Test
+  void outOfRangeInstanceNeverMakesItsSourceWinNorWait() {
+    Instance web = instance(PASSING);
+    InstanceSource far = source(SourceKind.STATIC, outOfRange(PASSING));
+    InstanceSource near = source(SourceKind.STATIC, web);
+
+    Routing routing = Routing.of(List.of(far, near), ON, HOME).orElseThrow();
+
+    assertThat(routing.source()).isEqualTo(near.id());
+    assertThat(routing.routedInstances()).containsExactly(web);
     assertThat(routing.waiting()).isEmpty();
   }
 
   @Test
   void withNoPassingInstanceTheRouteUsesEveryInstanceInRange() {
-    Instance web = staticInstance(CRITICAL);
-    Instance bound = boundInstance(CRITICAL);
+    Instance web = instance(CRITICAL);
+    Instance bound = instance(CRITICAL);
+    Instance remote = instance(CRITICAL);
 
     Routing routing =
-        Routing.of(DEFAULT_PRIORITY, List.of(web, bound, outOfRange(CRITICAL)), List.of())
+        Routing.of(
+                List.of(
+                    source(SourceKind.STATIC, web),
+                    source(SourceKind.BOUND, bound, outOfRange(CRITICAL)),
+                    source(SourceKind.ALIAS, remote)),
+                ON,
+                HOME)
             .orElseThrow();
 
+    assertThat(routing.source()).isNull();
     assertThat(routing.kind()).isNull();
-    assertThat(routing.routedInstances()).containsExactly(web, bound);
-  }
-
-  @Test
-  void outOfRangeInstanceNeverMakesItsKindWin() {
-    Instance bound = boundInstance(PASSING);
-
-    Routing routing =
-        Routing.of(DEFAULT_PRIORITY, List.of(outOfRange(PASSING), bound), List.of()).orElseThrow();
-
-    assertThat(routing.kind()).isEqualTo(BOUND);
-    assertThat(routing.routedInstances()).containsExactly(bound);
+    assertThat(routing.routedInstances()).containsExactly(web, bound, remote);
     assertThat(routing.waiting()).isEmpty();
   }
 
   @Test
-  void aliasGetsTheRouteWhenNoOwnInstancePasses() {
-    Instance remote = staticInstance(PASSING);
+  void aliasGetsTheRouteInItsPlaceOfTheOrder() {
+    Instance remote = instance(PASSING);
+    InstanceSource alias = source(SourceKind.ALIAS, remote);
+    InstanceSource staticSource = source(SourceKind.STATIC, instance(PASSING));
 
-    Routing routing =
-        Routing.of(DEFAULT_PRIORITY, List.of(staticInstance(CRITICAL)), List.of(remote))
-            .orElseThrow();
+    Routing routing = Routing.of(List.of(alias, staticSource), ON, HOME).orElseThrow();
 
-    assertThat(routing.kind()).isEqualTo(ALIAS);
-    assertThat(routing.routedInstances()).containsExactly(remote);
-    assertThat(routing.waiting()).containsExactly(STATIC);
-  }
-
-  @Test
-  void aliasGetsTheRouteWhenTheServiceHasNoInstanceLeft() {
-    Instance remote = staticInstance(PASSING);
-
-    Routing routing = Routing.of(DEFAULT_PRIORITY, List.of(), List.of(remote)).orElseThrow();
-
-    assertThat(routing.kind()).isEqualTo(ALIAS);
+    assertThat(routing.source()).isEqualTo(alias.id());
+    assertThat(routing.kind()).isEqualTo(SourceKind.ALIAS);
     assertThat(routing.routedInstances()).containsExactly(remote);
   }
 
   @Test
-  void aliasWithNoPassingInstanceIsNeverUsed() {
-    Instance web = staticInstance(CRITICAL);
+  void anotherWorkstationSkipsAliasSources() {
+    Instance web = instance(PASSING);
+    InstanceSource alias = source(SourceKind.ALIAS, instance(PASSING));
+    InstanceSource staticSource = source(SourceKind.STATIC, web);
 
-    assertThat(
-            Routing.of(DEFAULT_PRIORITY, List.of(web), List.of(staticInstance(CRITICAL)))
-                .orElseThrow()
-                .routedInstances())
-        .containsExactly(web);
-    assertThat(Routing.of(DEFAULT_PRIORITY, List.of(), List.of(staticInstance(CRITICAL))))
-        .isEmpty();
+    Routing routing = Routing.of(List.of(alias, staticSource), ON, !HOME).orElseThrow();
+
+    assertThat(routing.source()).isEqualTo(staticSource.id());
+    assertThat(routing.waiting()).isEmpty();
+    assertThat(Routing.of(List.of(alias), ON, !HOME)).isEmpty();
+    assertThat(Routing.of(List.of(alias), OFF, !HOME)).isEmpty();
   }
 
   @Test
-  void offSharesTheRouteAmongPassingStaticAndBoundInstancesAndNeverUsesTheAlias() {
-    Instance web = staticInstance(PASSING);
-    Instance bound = boundInstance(PASSING);
+  void offSharesTheRouteAmongThePassingInstancesOfEverySourceAliasesIncluded() {
+    Instance web = instance(PASSING);
+    Instance bound = instance(PASSING);
+    Instance remote = instance(PASSING);
 
     Routing routing =
         Routing.of(
-                List.of(),
-                List.of(web, bound, staticInstance(CRITICAL), outOfRange(PASSING)),
-                List.of(staticInstance(PASSING)))
+                List.of(
+                    source(SourceKind.STATIC, web, instance(CRITICAL), outOfRange(PASSING)),
+                    source(SourceKind.BOUND, bound),
+                    source(SourceKind.ALIAS, remote)),
+                OFF,
+                HOME)
             .orElseThrow();
 
     assertThat(routing.off()).isTrue();
-    assertThat(routing.kind()).isNull();
-    assertThat(routing.routedInstances()).containsExactly(web, bound);
+    assertThat(routing.source()).isNull();
+    assertThat(routing.routedInstances()).containsExactly(web, bound, remote);
+    assertThat(routing.waiting()).isEmpty();
     assertThat(routing.offWithPassingInstances()).isTrue();
   }
 
   @Test
   void offWithNoPassingInstanceUsesEveryInstanceInRange() {
-    Instance web = staticInstance(CRITICAL);
-    Instance bound = boundInstance(CRITICAL);
+    Instance web = instance(CRITICAL);
+    Instance bound = instance(CRITICAL);
 
     Routing routing =
-        Routing.of(List.of(), List.of(web, bound, outOfRange(CRITICAL)), List.of()).orElseThrow();
+        Routing.of(
+                List.of(
+                    source(SourceKind.STATIC, web, outOfRange(CRITICAL)),
+                    source(SourceKind.BOUND, bound)),
+                OFF,
+                HOME)
+            .orElseThrow();
 
     assertThat(routing.routedInstances()).containsExactly(web, bound);
     assertThat(routing.offWithPassingInstances()).isFalse();
@@ -177,24 +188,28 @@ class RoutingTest {
 
   @Test
   void nothingInRangeHasNoRoute() {
-    assertThat(Routing.of(DEFAULT_PRIORITY, List.of(outOfRange(PASSING)), List.of())).isEmpty();
-    assertThat(Routing.of(List.of(), List.of(outOfRange(PASSING)), List.of())).isEmpty();
+    InstanceSource far = source(SourceKind.STATIC, outOfRange(PASSING));
+
+    assertThat(Routing.of(List.of(far, source(SourceKind.BOUND)), ON, HOME)).isEmpty();
+    assertThat(Routing.of(List.of(far), OFF, HOME)).isEmpty();
+    assertThat(Routing.of(List.of(), ON, HOME)).isEmpty();
   }
 
-  private static Instance staticInstance(Health health) {
-    return instance(health, false, null);
+  private static InstanceSource source(SourceKind kind, Instance... instances) {
+    next++;
+    return new InstanceSource("source-" + next, kind, List.of(instances));
   }
 
-  private static Instance boundInstance(Health health) {
-    return instance(health, false, "binding-" + (next + 1));
+  private static Instance instance(Health health) {
+    return instance(health, false);
   }
 
-  /** A Static Instance that only its own Workstation reaches. */
+  /** An Instance that only its own Workstation reaches. */
   private static Instance outOfRange(Health health) {
-    return instance(health, true, null);
+    return instance(health, true);
   }
 
-  private static Instance instance(Health health, boolean outOfRange, String binding) {
+  private static Instance instance(Health health, boolean outOfRange) {
     next++;
     return new Instance(
         "instance-" + next,
@@ -206,9 +221,9 @@ class RoutingTest {
         Map.of(),
         List.of(),
         outOfRange,
-        binding,
-        binding == null ? null : "container-" + next,
-        binding == null ? null : 80,
+        null,
+        null,
+        null,
         null,
         false,
         false);

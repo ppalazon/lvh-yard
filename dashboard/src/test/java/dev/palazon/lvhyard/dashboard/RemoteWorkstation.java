@@ -403,6 +403,26 @@ final class RemoteWorkstation implements AutoCloseable {
     return http.get().uri("/traefik/configuration").retrieve().body(JsonNode.class);
   }
 
+  /** Adds an Alias on this Workstation, through its dashboard. */
+  void addAlias(String alias, String workstation, String service) {
+    http.put()
+        .uri(AliasesComponentTest.aliasPath(alias))
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(Map.of("workstation", workstation, "service", service))
+        .retrieve()
+        .toBodilessEntity();
+  }
+
+  /** Sets the order or the toggle of {@code service}'s Instance Priority, through its dashboard. */
+  void setInstancePriority(String service, Map<String, Object> change) {
+    http.put()
+        .uri(DashboardIT.instancePriorityPath(service))
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(change)
+        .retrieve()
+        .toBodilessEntity();
+  }
+
   /** One of this Workstation's Services, as its own dashboard sees it. */
   ResponseEntity<JsonNode> service(String service) {
     return http.get().uri(DashboardIT.servicePath(service)).retrieve().toEntity(JsonNode.class);

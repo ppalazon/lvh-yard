@@ -48,7 +48,7 @@ abstract class YardTestSupport {
         200,
         """
         {"home": {"name": "ws-a", "services": [
-          {"workstation": "ws-a", "name": "web", "state": "degraded", "created": true, "empty": false,
+          {"workstation": "ws-a", "name": "web", "state": "degraded", "created": true, "empty": false, "sources": [], "instancePriority": true,
            "hostname": "web.lvh.me", "containerBindings": [],
            "warnings": [
              {"kind": "loopback-instance", "severity": "risk", "message": "Hidden warning."},
@@ -60,7 +60,7 @@ abstract class YardTestSupport {
               "tags": [], "meta": {}, "checks": [], "outOfRange": false},
              {"id": "hidden-warning", "host": "10.1.2.3", "port": 8082, "health": "warning",
               "tags": [], "meta": {}, "checks": [], "outOfRange": false}]},
-          {"workstation": "ws-a", "name": "worker", "state": "unpublished", "created": true, "empty": false,
+          {"workstation": "ws-a", "name": "worker", "state": "unpublished", "created": true, "empty": false, "sources": [], "instancePriority": true,
            "containerBindings": [], "warnings": [], "instances": [
              {"id": "worker-critical", "host": "10.1.2.3", "port": 8083, "health": "critical",
               "tags": [], "meta": {}, "checks": [], "outOfRange": false},
@@ -68,13 +68,13 @@ abstract class YardTestSupport {
               "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}]},
          "remotes": [
           {"name": "ws-b", "unreachable": false, "services": [
-            {"workstation": "ws-b", "name": "database", "state": "healthy", "created": true, "empty": false,
+            {"workstation": "ws-b", "name": "database", "state": "healthy", "created": true, "empty": false, "sources": [], "instancePriority": true,
              "hostname": "db.lvh.me", "containerBindings": [], "warnings": [], "instances": [
                {"id": "db-first", "host": "10.1.2.4", "port": 5432, "health": "passing",
                 "tags": [], "meta": {}, "checks": [], "outOfRange": false},
                {"id": "db-second", "host": "10.1.2.4", "port": 5433, "health": "passing",
                 "tags": [], "meta": {}, "checks": [], "outOfRange": false}]},
-            {"workstation": "ws-b", "name": "cache", "state": "unavailable", "created": true, "empty": true,
+            {"workstation": "ws-b", "name": "cache", "state": "unavailable", "created": true, "empty": true, "sources": [], "instancePriority": true,
              "containerBindings": [], "warnings": [], "instances": []}]},
           {"name": "ws-c", "unreachable": true, "services": []},
           {"name": "ws-d", "unreachable": false, "services": []}]}
@@ -202,7 +202,8 @@ abstract class YardTestSupport {
         "/api/workstation/services/web",
         200,
         "{\"workstation\": \"ws-a\", \"name\": \"web\", \"state\": \"unpublished\", \"created\":"
-            + " true, \"empty\": false, \"warnings\": [], \"instances\": [], \"containerBindings\":"
+            + " true, \"empty\": false, \"sources\": [], \"instancePriority\": true,"
+            + " \"warnings\": [], \"instances\": [], \"containerBindings\":"
             + " ["
             + bindings
             + "]}");
@@ -214,7 +215,8 @@ abstract class YardTestSupport {
         "/api/workstation/services/web",
         200,
         "{\"workstation\": \"ws-a\", \"name\": \"web\", \"state\": \"unpublished\", \"created\":"
-            + " true, \"empty\": false, \"warnings\": [], \"containerBindings\": [], \"instances\":"
+            + " true, \"empty\": false, \"sources\": [], \"instancePriority\": true,"
+            + " \"warnings\": [], \"containerBindings\": [], \"instances\":"
             + " ["
             + instances
             + "]}");

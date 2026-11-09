@@ -62,6 +62,8 @@ final class Dashboard {
       List<ContainerBinding> containerBindings,
       List<Warning> warnings,
       List<String> profiles,
+      List<Source> sources,
+      boolean instancePriority,
       Routing routing) {
 
     boolean routes(Instance instance) {
@@ -69,14 +71,24 @@ final class Dashboard {
     }
   }
 
-  /** {@code kind} is left out when no Instance passes, and the Route then uses every one. */
-  /** The API leaves {@code off} out when it is false. */
-  record Routing(String kind, Boolean off, List<String> instances) {
+  /**
+   * {@code source} and {@code kind} are left out when the Instance Priority is off, or when no
+   * Instance passes and the Route uses every one. The API leaves {@code off} out when it is false.
+   */
+  record Routing(
+      String source, String kind, Boolean off, List<String> waiting, List<String> instances) {
 
     boolean isOff() {
       return Boolean.TRUE.equals(off);
     }
   }
+
+  /**
+   * One Instance Source of a Service, in the order of its Instance Priority.
+   *
+   * @param kind static, bound, alias or foreign
+   */
+  record Source(String id, String kind, List<String> instances) {}
 
   record ContainerBinding(
       String id,
@@ -503,23 +515,14 @@ final class Dashboard {
   }
 
   /**
-   * With no Scope or no priority, a new Publication gets Local Scope or the default order, and an
-   * existing one keeps its own.
+   * Sends only what is not {@code null}, so the Publication keeps the rest. With no Scope, a new
+   * Publication gets Local Scope.
    */
-  /** Sends only what is not {@code null}, so the Publication keeps the rest. */
-  Service publish(
-      String service,
-      String scope,
-      List<String> priority,
-      List<String> profiles,
-      Boolean accessLog) {
+  Service publish(String service, String scope, List<String> profiles, Boolean accessLog) {
     HttpRequest.Builder request = HttpRequest.newBuilder(publicationUrl(service));
     Map<String, Object> body = new LinkedHashMap<>();
     if (scope != null) {
       body.put("scope", scope);
-    }
-    if (priority != null) {
-      body.put("priority", priority);
     }
     if (profiles != null) {
       body.put("profiles", profiles);
@@ -535,6 +538,22 @@ final class Dashboard {
           .PUT(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body)));
     }
     return read(send(request), new TypeReference<>() {});
+  }
+
+  /** Sends only what is not {@code null}, so the Instance Priority keeps the rest. */
+  void setInstancePriority(String service, List<String> order, Boolean on) {
+    Map<String, Object> body = new LinkedHashMap<>();
+    if (order != null) {
+      body.put("order", order);
+    }
+    if (on != null) {
+      body.put("on", on);
+    }
+    send(
+        HttpRequest.newBuilder(
+                url.resolve("api/workstation/services/" + segment(service) + "/instance-priority"))
+            .header("Content-Type", "application/json")
+            .PUT(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body))));
   }
 
   void unpublish(String service) {

@@ -50,7 +50,10 @@ class ServicePageComponentTest extends DashboardComponentTest {
         .contains("href=\"http://" + web + ".lvh.test\"")
         .contains("Local Scope")
         .contains("Access log: off");
-    assertThat(summaryCard(body, "routing")).contains("Static").doesNotContain("waiting");
+    assertThat(summaryCard(body, "routing"))
+        .as("the critical Instance waits in the second source")
+        .contains("Static Instance " + lanAddress() + ":" + port)
+        .contains("1 source waiting");
   }
 
   @Test
@@ -70,7 +73,8 @@ class ServicePageComponentTest extends DashboardComponentTest {
   void routingCardSaysWhenTheInstancePriorityIsOff() {
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
-    put(publicationPath(web), Map.of("priority", List.of()));
+    publish(web);
+    put(instancePriorityPath(web), Map.of("on", false));
 
     assertThat(summaryCard(getPage("/services/ws-test/" + web).getBody(), "routing"))
         .contains("Instance Priority off");
@@ -212,73 +216,88 @@ class ServicePageComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void instancePriorityIsEditedByMovingAKindUpOrDownOrRemovingIt() {
+  void instanceSourcesAreListedInOrderAndMovedWithUpAndDownButtons() {
     String web = newServiceName("web");
-    register(web, Map.of("host", "10.1.2.3", "port", 8080));
-    publish(web);
+    String first = register(web, Map.of("host", "10.1.2.3", "port", 8080)).get("id").asString();
+    String second = register(web, Map.of("host", "10.1.2.3", "port", 8081)).get("id").asString();
     String page = "/services/ws-test/" + web;
-    assertThat(getPage(page).getBody())
-        .contains("Instance Priority")
-        .contains("aria-label=\"Move Bound up\"")
-        .contains("name=\"priority\" value=\"bound,static,alias\"")
-        .contains("aria-label=\"Move Bound down\"")
-        .contains("name=\"priority\" value=\"static,alias,bound\"")
-        .contains("aria-label=\"Remove Bound\"")
-        .contains("name=\"priority\" value=\"static,alias\"")
-        .doesNotContain("Move Static up")
-        .doesNotContain("Move Alias down");
 
-    ResponseEntity<String> response = postForm(page + "/publish", Map.of("priority", "bound"));
+    String sources = div(getPage(page).getBody(), "id=\"sources\"");
+
+    assertThat(sources.indexOf("10.1.2.3:8080")).isLessThan(sources.indexOf("10.1.2.3:8081"));
+    assertThat(sources).contains("name=\"order\" value=\"" + second + "," + first + "\"");
+    assertThat(sources).contains("aria-label=\"Move Static Instance 10.1.2.3:8080 down\"");
+
+    ResponseEntity<String> response =
+        postForm(page + "/instance-priority", Map.of("order", second + "," + first));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
     assertThat(response.getHeaders().getLocation()).hasPath(page);
-    assertThat(get(servicePath(web)).getBody().get("priority").valueStream())
-        .extracting(JsonNode::asString)
-        .containsExactly("bound");
-    assertThat(getPage(page).getBody())
-        .as("the last kind cannot be removed, and a removed one can be added back")
-        .doesNotContain("aria-label=\"Remove Bound\"")
-        .contains("aria-label=\"Add Static\"")
-        .contains("name=\"priority\" value=\"bound,static\"");
+    assertThat(get(servicePath(web)).getBody().get("sources").valueStream())
+        .map(source -> source.get("id").asString())
+        .containsExactly(second, first);
   }
 
   @Test
-  void instancePriorityWithAnUnknownKindIsRefused() {
+  void toggleOffHidesTheUpAndDownButtonsAndKeepsTheOrder() {
+    String web = newServiceName("web");
+    String first = register(web, Map.of("host", "10.1.2.3", "port", 8080)).get("id").asString();
+    String second = register(web, Map.of("host", "10.1.2.3", "port", 8081)).get("id").asString();
+    String page = "/services/ws-test/" + web;
+
+    ResponseEntity<String> response = postForm(page + "/instance-priority", Map.of("on", "false"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    String sources = div(getPage(page).getBody(), "id=\"sources\"");
+    assertThat(sources)
+        .contains("data-instance-priority=\"off\"")
+        .contains("name=\"on\" value=\"true\"")
+        .doesNotContain("name=\"order\"");
+    assertThat(sources.indexOf("10.1.2.3:8080")).isLessThan(sources.indexOf("10.1.2.3:8081"));
+
+    postForm(page + "/instance-priority", Map.of("on", "true"));
+
+    assertThat(div(getPage(page).getBody(), "id=\"sources\""))
+        .contains("data-instance-priority=\"on\"")
+        .contains("name=\"order\" value=\"" + second + "," + first + "\"");
+  }
+
+  @Test
+  void orderWithAnUnknownSourceIsRefused() {
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
 
     ResponseEntity<String> response =
-        postForm("/services/ws-test/" + web + "/publish", Map.of("priority", "static,docker"));
+        postForm("/services/ws-test/" + web + "/instance-priority", Map.of("order", "nothing"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
   }
 
   @Test
-  void instancePriorityIsTurnedOffAndBackToTheDefaultOrder() {
+  void addStaticInstanceLinkIsInTheInstanceSourcesCard() {
     String web = newServiceName("web");
-    register(web, Map.of("host", "10.1.2.3", "port", 8080));
-    publish(web);
-    String page = "/services/ws-test/" + web;
-    assertThat(getPage(page).getBody())
-        .contains(">Turn off</button>")
-        .doesNotContain("Use an order");
+    create(web);
 
-    ResponseEntity<String> response = postForm(page + "/publish", Map.of("priority", ""));
+    assertThat(div(getPage("/services/ws-test/" + web).getBody(), "id=\"sources\""))
+        .contains("href=\"/services/ws-test/" + web + "/instances/new\"");
+  }
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
-    assertThat(get(servicePath(web)).getBody().get("priority").valueStream()).isEmpty();
-    assertThat(getPage(page).getBody())
-        .contains("Off: the passing Static and Bound Instances share the Route.")
-        .contains("name=\"priority\" value=\"static,bound,alias\"")
-        .contains(">Use an order</button>")
-        .doesNotContain("Turn off")
-        .doesNotContain(">Add Static</button>");
+  @Test
+  void remoteServiceShowsItsOrderedSourcesWithoutButtons() {
+    String api = newServiceName("api");
+    String first =
+        remote.register(api, Map.of("host", "10.9.8.7", "port", 9090)).get("id").asString();
+    String second =
+        remote.register(api, Map.of("host", "10.9.8.7", "port", 9091)).get("id").asString();
+    remote.setInstancePriority(api, Map.of("order", List.of(second)));
 
-    postForm(page + "/publish", Map.of("priority", "static,bound,alias"));
+    String sources =
+        div(getPage("/services/" + RemoteWorkstation.NAME + "/" + api).getBody(), "id=\"sources\"");
 
-    assertThat(get(servicePath(web)).getBody().get("priority").valueStream())
-        .extracting(JsonNode::asString)
-        .containsExactly("static", "bound", "alias");
+    assertThat(sources.indexOf("data-source=\"" + second + "\""))
+        .isNotNegative()
+        .isLessThan(sources.indexOf("data-source=\"" + first + "\""));
+    assertThat(sources).doesNotContain("<form").doesNotContain("<button");
   }
 
   @Test
@@ -371,15 +390,15 @@ class ServicePageComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void instancesCardOfAServiceWithoutInstancesSaysSoInsteadOfAnEmptyTable() {
+  void sourcesCardOfAServiceWithoutSourcesSaysSoInsteadOfAnEmptyList() {
     String web = newServiceName("web");
     String id = register(web, Map.of("host", "10.1.2.3", "port", 8080)).get("id").asString();
     publish(web);
     delete(instancesPath(web) + "/" + id);
 
-    String instances = div(getPage("/services/ws-test/" + web).getBody(), "id=\"instances\"");
+    String sources = div(getPage("/services/ws-test/" + web).getBody(), "id=\"sources\"");
 
-    assertThat(instances).contains("No Instances are registered.").doesNotContain("<table");
+    assertThat(sources).contains("No Instance Sources yet.").doesNotContain("<table");
   }
 
   @Test
@@ -570,8 +589,7 @@ class ServicePageComponentTest extends DashboardComponentTest {
     String page = getPage("/services/ws-test/" + web).getBody();
 
     assertThat(page)
-        .contains("Container Bindings")
-        .contains(name)
+        .contains("Container Binding to container " + name)
         .contains("8080")
         .contains("No container of this name runs");
   }
@@ -590,19 +608,20 @@ class ServicePageComponentTest extends DashboardComponentTest {
         .atMost(Duration.ofSeconds(15))
         .until(() -> get(servicePath(web)).getBody().get("instances").size() == 3);
 
-    String instances = div(getPage("/services/ws-test/" + web).getBody(), "id=\"instances\"");
+    String instances = div(getPage("/services/ws-test/" + web).getBody(), "id=\"sources\"");
 
     assertThat(instances)
         .contains(
             "<th>Instance</th><th>Container</th><th>Container Port</th><th>Host Port</th>"
                 + "<th>Health</th>")
         .doesNotContain("<th>Checks</th>");
-    assertThat(instanceRow(instances, publishedName))
+    assertThat(instanceRow(instances, "<td>" + publishedName + "</td>"))
         .contains(
             "<td>" + publishedName + "</td><td>80</td><td>" + hostPort(published, 80) + "</td>");
-    assertThat(instanceRow(instances, unpublishedName))
+    assertThat(instanceRow(instances, "<td>" + unpublishedName + "</td>"))
         .contains("<td>" + unpublishedName + "</td><td>8080</td><td>Not published</td>");
-    assertThat(instanceRow(instances, "10.1.2.3:9090")).contains("<td></td><td></td><td></td>");
+    assertThat(instanceRow(instances, "<div>10.1.2.3:9090</div>"))
+        .contains("<td></td><td></td><td></td>");
   }
 
   @Test

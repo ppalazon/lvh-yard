@@ -7,126 +7,56 @@ import dev.palazon.lvhyard.dashboard.services.Service;
 import java.util.List;
 import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
-import org.xmlet.htmlapifaster.Td;
+import org.xmlet.htmlapifaster.Li;
 
-/** The Service page's card of Container Bindings, each with its Bound Instances. */
+/**
+ * The Container Bindings of the Service page. Each Binding is one Instance Source in the ordered
+ * list of the Instance Sources card.
+ */
 final class ContainerBindingsCard {
 
   private ContainerBindingsCard() {}
 
-  /**
-   * Your own Service that you created always has the card, so you can bind its first container. A
-   * Remote Service has it only when it has Bindings.
-   */
-  static void render(Div<?> content, Service service, boolean own) {
-    boolean bindable = own && service.created();
-    if (!bindable && service.containerBindings().isEmpty()) {
-      return;
-    }
-    content
+  /** Only your own Service that you created gets it. */
+  static void openLink(Div<?> row, Service service) {
+    row.a()
+        .attrClass("btn w-fit")
+        .addAttr("data-variant", "outline")
+        .attrHref(Layout.attr(BindContainerPage.path(service)))
+        .text("Bind container")
+        .__();
+  }
+
+  /** The body of one Binding's item in the ordered list. */
+  static void source(
+      Li<?> item, Service service, ContainerBinding binding, List<Instance> bound, boolean own) {
+    item.div()
+        .attrId(Layout.attr("container-binding-" + binding.id()))
+        .attrClass("flex flex-wrap items-start justify-between gap-2")
         .div()
-        .attrId("container-bindings")
-        .attrClass("card flex flex-col gap-3 p-4")
-        .h2()
-        .attrClass("text-lg font-semibold")
-        .text("Container Bindings")
+        .of(div -> boundInstances(div, binding, bound))
         .__()
-        .of(card -> {
-          if (service.containerBindings().isEmpty()) {
-            card.p().text("No container is bound.").__();
-          } else {
-            table(card, service, own);
-          }
-          if (bindable) {
-            card.a()
-                .attrClass("btn w-fit")
+        .of(div -> {
+          if (own) {
+            div.form()
+                .addAttr("method", "post")
+                .addAttr("action", Layout.attr(ServicePage.removePath(service, binding)))
+                .button()
+                .attrType(EnumTypeButtonType.SUBMIT)
+                .attrClass("btn")
                 .addAttr("data-variant", "outline")
-                .attrHref(Layout.attr(BindContainerPage.path(service)))
-                .text("Bind container")
+                .addAttr("data-size", "sm")
+                .addAttr("aria-label", Layout.attr("Remove the Binding to " + binding.follows()))
+                .text("Remove")
+                .__()
                 .__();
           }
         })
         .__();
   }
 
-  private static void table(Div<?> card, Service service, boolean own) {
-    card.div()
-        .attrClass("table-container")
-        .table()
-        .attrClass("table")
-        .thead()
-        .tr()
-        .th()
-        .text("Follows")
-        .__()
-        .th()
-        .text("Container port")
-        .__()
-        .th()
-        .text("Bound Instances")
-        .__()
-        .of(row -> {
-          if (own) {
-            row.th().of(cell -> cell.span().attrClass("sr-only").text("Actions").__()).__();
-          }
-        })
-        .__()
-        .__()
-        .tbody()
-        .of(body ->
-            service
-                .containerBindings()
-                .forEach(binding ->
-                    body.tr()
-                        .td()
-                        .attrClass("align-top")
-                        .text(binding.follows())
-                        .__()
-                        .td()
-                        .attrClass("align-top")
-                        .text(String.valueOf(binding.port()))
-                        .__()
-                        .td()
-                        .attrClass("align-top")
-                        .of(cell -> boundInstances(cell, service, binding))
-                        .__()
-                        .of(row -> {
-                          if (own) {
-                            row.td()
-                                .attrClass("align-top")
-                                .div()
-                                .attrClass("flex justify-end")
-                                .form()
-                                .addAttr("method", "post")
-                                .addAttr(
-                                    "action", Layout.attr(ServicePage.removePath(service, binding)))
-                                .button()
-                                .attrType(EnumTypeButtonType.SUBMIT)
-                                .attrClass("btn")
-                                .addAttr("data-variant", "outline")
-                                .addAttr("data-size", "sm")
-                                .text("Remove")
-                                .__()
-                                .__()
-                                .__()
-                                .__();
-                          }
-                        })
-                        .__()))
-        .__()
-        .__()
-        .__();
-  }
-
-  /**
-   * A count, then each container that the Binding follows now. The Instances card has the
-   * addresses.
-   */
-  private static void boundInstances(Td<?> cell, Service service, ContainerBinding binding) {
-    List<Instance> bound =
-        service.instances().stream()
-            .filter(instance -> binding.instances().contains(instance.id()))
-            .toList();
+  /** A count, then each container that the Binding follows now. */
+  private static void boundInstances(Div<?> cell, ContainerBinding binding, List<Instance> bound) {
     if (bound.isEmpty()) {
       cell.span()
           .attrClass("text-muted-foreground")

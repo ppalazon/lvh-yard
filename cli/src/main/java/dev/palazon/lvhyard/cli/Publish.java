@@ -14,9 +14,7 @@ import picocli.CommandLine.Spec;
 @Command(
     name = "publish",
     mixinStandardHelpOptions = true,
-    description =
-        "Publishes a Service, or changes its Scope, Instance Priority, Route Profiles or access"
-            + " log.")
+    description = "Publishes a Service, or changes its Scope, Route Profiles or access log.")
 class Publish implements Runnable {
 
   private static final List<String> SCOPES = List.of("local", "yard");
@@ -37,17 +35,6 @@ class Publish implements Runnable {
         "Default: local for a new Publication. An existing one keeps its Scope."
       })
   String scope;
-
-  @Option(
-      names = "--priority",
-      paramLabel = "<kinds>",
-      split = ",",
-      description = {
-        "The Instance kinds the Route prefers, in order: static, bound, alias. Or off.",
-        "off: the passing Static and Bound Instances share the Route.",
-        "Default: static,bound,alias for a new Publication. An existing one keeps its order."
-      })
-  List<String> priority;
 
   @ArgGroup(exclusive = true, multiplicity = "0..1")
   ProfileChoice profiles;
@@ -92,17 +79,12 @@ class Publish implements Runnable {
           spec.commandLine(),
           "Invalid value for option '--access-log': " + accessLog + " is not on or off.");
     }
-    List<String> kinds = List.of("off").equals(priority) ? List.of() : priority;
     List<String> chosenProfiles =
         profiles == null ? null : profiles.none ? List.of() : profiles.names;
     Dashboard.Service published =
         yard.dashboard()
             .publish(
-                service,
-                scope,
-                kinds,
-                chosenProfiles,
-                accessLog == null ? null : accessLog.equals("on"));
+                service, scope, chosenProfiles, accessLog == null ? null : accessLog.equals("on"));
     String chosen = published.publication().scope();
     PrintWriter out = spec.commandLine().getOut();
     out.println(

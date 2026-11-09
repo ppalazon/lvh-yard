@@ -19,8 +19,6 @@ import dev.palazon.lvhyard.dashboard.services.Aliases;
 import dev.palazon.lvhyard.dashboard.services.ContainerBindingRequest;
 import dev.palazon.lvhyard.dashboard.services.ContainerBindings;
 import dev.palazon.lvhyard.dashboard.services.Instance;
-import dev.palazon.lvhyard.dashboard.services.InstanceKind;
-import dev.palazon.lvhyard.dashboard.services.InvalidPriorityException;
 import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
 import dev.palazon.lvhyard.dashboard.services.PublicationRequest;
 import dev.palazon.lvhyard.dashboard.services.Publications;
@@ -391,16 +389,6 @@ class ImportPlanner {
               "The Scope " + published.scope() + " is not one LVH Yard has. Use local or yard.");
         }
       }
-      List<String> priority =
-          InstanceKind.DEFAULT_PRIORITY.stream().map(InstanceKind::value).toList();
-      if (published.priority() != null) {
-        try {
-          InstanceKind.priority(published.priority());
-          priority = published.priority();
-        } catch (InvalidPriorityException e) {
-          problem(place + ".priority", e.getMessage());
-        }
-      }
       for (int index = 0; index < published.routeProfiles().size(); index++) {
         String profile = published.routeProfiles().get(index);
         if (!backup.routeProfiles().containsKey(profile) && !storedProfiles.containsKey(profile)) {
@@ -414,7 +402,6 @@ class ImportPlanner {
       Published wanted =
           new Published(
               scope == null ? null : scope.value(),
-              priority,
               published.routeProfiles(),
               published.accessLog());
       PlanEntry entry =
@@ -425,7 +412,7 @@ class ImportPlanner {
       }
       // Every part is set, so an overwrite keeps nothing of the Publication it replaces.
       PublicationRequest request =
-          new PublicationRequest(scope, priority, published.routeProfiles(), published.accessLog());
+          new PublicationRequest(scope, published.routeProfiles(), published.accessLog());
       publicationSteps.add(
           new Step(
               List.of(entry), () -> publications.publish(workstation.name(), service, request)));

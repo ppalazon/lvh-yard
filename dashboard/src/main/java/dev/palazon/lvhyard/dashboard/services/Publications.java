@@ -14,8 +14,8 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * One Consul KV key per published Service, holding its Scope, Instance Priority, Route Profiles and
- * whether Traefik logs its requests. Publishing never touches an Instance.
+ * One Consul KV key per published Service, holding its Scope, Route Profiles and whether Traefik
+ * logs its requests. Publishing never touches an Instance.
  */
 @Component
 public class Publications {
@@ -49,19 +49,16 @@ public class Publications {
   public void publish(String workstation, String service, PublicationRequest change) {
     checkHome(workstation);
     Scope scope = change.scope();
-    List<String> priority = change.priority();
     List<String> profiles = change.profiles();
     if (profiles != null) {
       checkProfiles(profiles);
     }
     Registrations.checkName(service);
-    List<InstanceKind> kinds = priority == null ? null : InstanceKind.priority(priority);
     checkExists(service);
     Publication existing = all().get(service);
     Publication chosen =
         new Publication(
             given(scope, existing, Publication::scope, Scope.LOCAL),
-            given(kinds, existing, Publication::priority, InstanceKind.DEFAULT_PRIORITY),
             given(profiles, existing, Publication::profiles, List.of()),
             given(change.accessLog(), existing, Publication::accessLog, false));
     consul.putValue(PREFIX + service, value(chosen));
@@ -87,15 +84,12 @@ public class Publications {
 
   /** The Scope alone while every other part is the default, so most values stay short. */
   private static String value(Publication publication) {
-    if (publication.priority().equals(InstanceKind.DEFAULT_PRIORITY)
-        && publication.profiles().isEmpty()
-        && !publication.accessLog()) {
+    if (publication.profiles().isEmpty() && !publication.accessLog()) {
       return publication.scope().value();
     }
     return JSON.writeValueAsString(
         new StoredPublication(
             publication.scope().value(),
-            publication.priority().stream().map(InstanceKind::value).toList(),
             publication.profiles().isEmpty() ? null : publication.profiles(),
             publication.accessLog() ? true : null));
   }
@@ -105,21 +99,14 @@ public class Publications {
       return new Publication(Scope.of(value));
     }
     StoredPublication stored = JSON.readValue(value, StoredPublication.class);
-    try {
-      return new Publication(
-          Scope.of(stored.scope()),
-          InstanceKind.priority(stored.priority()),
-          stored.profiles() == null ? List.of() : stored.profiles(),
-          Boolean.TRUE.equals(stored.accessLog()));
-    } catch (InvalidPriorityException e) {
-      // A fault in the stored data, not a refusal of what someone asked.
-      throw new IllegalStateException(e.getMessage(), e);
-    }
+    return new Publication(
+        Scope.of(stored.scope()),
+        stored.profiles() == null ? List.of() : stored.profiles(),
+        Boolean.TRUE.equals(stored.accessLog()));
   }
 
   @JsonInclude(JsonInclude.Include.NON_NULL)
-  private record StoredPublication(
-      String scope, List<String> priority, List<String> profiles, Boolean accessLog) {}
+  private record StoredPublication(String scope, List<String> profiles, Boolean accessLog) {}
 
   /** {@code workstation} must be this one. */
   public void unpublish(String workstation, String service) {

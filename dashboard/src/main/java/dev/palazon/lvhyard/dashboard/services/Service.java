@@ -10,14 +10,16 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * {@code publication}, {@code hostname}, {@code priority}, {@code profiles} and {@code routing} are
- * left out of the JSON when null or empty. {@code containerBindings} include those that match no
- * running container.
+ * {@code publication}, {@code hostname}, {@code profiles} and {@code routing} are left out of the
+ * JSON when null or empty. {@code containerBindings} include those that match no running container.
  *
  * @param created whether you created it on its Home Workstation. If not, only Foreign Instances
  *     give it, and it leaves once they do
  * @param empty whether it has no Instances and no Container Bindings
- * @param priority the Instance Priority of its Publication
+ * @param sources its Instance Sources, in the order of its Instance Priority. Only its Home
+ *     Workstation lists its Aliases.
+ * @param instancePriority whether its Route uses only the first source in the order with a passing
+ *     Instance. When false, every passing Instance of every source shares the Route.
  * @param profiles the Route Profiles of its Publication, in the order its Route applies them
  * @param profileDefinitions the definitions of {@code profiles} that its Home Workstation's Consul
  *     KV holds, by name
@@ -42,7 +44,14 @@ public record Service(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<Instance> instances,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ContainerBinding> containerBindings,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ServiceWarning> warnings,
-    @JsonInclude(JsonInclude.Include.NON_NULL) List<InstanceKind> priority,
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<InstanceSource> sources,
+    @Schema(
+            requiredMode = Schema.RequiredMode.REQUIRED,
+            description =
+                "Whether its Route uses only the first Instance Source in the order with a passing"
+                    + " Instance. When false, every passing Instance of every source shares the"
+                    + " Route")
+        boolean instancePriority,
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
         @ArraySchema(
             arraySchema =
@@ -54,6 +63,8 @@ public record Service(
     @JsonInclude(JsonInclude.Include.NON_NULL) Routing routing) {
 
   /**
+   * @param home whether this Workstation is its Home Workstation, as only that one routes to
+   *     Aliases
    * @param stored the Route Profiles its Home Workstation's Consul KV holds, by name
    */
   Service(
@@ -64,6 +75,9 @@ public record Service(
       String hostname,
       List<Instance> instances,
       List<ContainerBinding> containerBindings,
+      List<InstanceSource> sources,
+      boolean instancePriority,
+      boolean home,
       Map<String, RouteProfileDefinition> stored) {
     this(
         workstation,
@@ -76,10 +90,11 @@ public record Service(
         instances,
         containerBindings,
         ServiceWarning.of(publication, instances, stored),
-        publication == null ? null : publication.priority(),
+        sources,
+        instancePriority,
         publication == null ? List.of() : publication.profiles(),
         publication == null ? Map.of() : definitions(publication.profiles(), stored),
-        routing(publication, hostname, instances, List.of()));
+        routing(hostname, sources, instancePriority, home));
   }
 
   private static Map<String, RouteProfileDefinition> definitions(
@@ -90,10 +105,17 @@ public record Service(
   }
 
   /**
-   * This Service with {@code aliased}, the Instances of the Remote Service of an active Alias with
-   * its name, as the {@code alias} kind of its Instance Priority.
+   * This Service of the Home Workstation with {@code aliased}, the Instances of the Remote Service
+   * of its Alias.
    */
   Service withAlias(List<Instance> aliased) {
+    List<InstanceSource> filled =
+        sources.stream()
+            .map(source ->
+                source.kind() == SourceKind.ALIAS
+                    ? new InstanceSource(source.id(), source.kind(), aliased)
+                    : source)
+            .toList();
     return new Service(
         workstation,
         name,
@@ -105,18 +127,19 @@ public record Service(
         instances,
         containerBindings,
         warnings,
-        priority,
+        filled,
+        instancePriority,
         profiles,
         profileDefinitions,
-        routing(publication, hostname, instances, aliased));
+        routing(hostname, filled, instancePriority, true));
   }
 
   private static Routing routing(
-      Publication publication, String hostname, List<Instance> instances, List<Instance> aliased) {
+      String hostname, List<InstanceSource> sources, boolean instancePriority, boolean home) {
     if (hostname == null) {
       return null;
     }
-    return Routing.of(publication.priority(), instances, aliased).orElse(null);
+    return Routing.of(sources, instancePriority, home).orElse(null);
   }
 
   public boolean sharedWithYard() {
@@ -125,8 +148,7 @@ public record Service(
 
   /**
    * It needs a hostname here, and an Instance in range: a Route to an Out-of-range Instance would
-   * reach this Workstation's own loopback or containers. The passing Instances of an Alias with its
-   * name count too.
+   * reach this Workstation's own loopback or containers. The Instances of its Aliases count too.
    */
   public boolean routed() {
     return routing != null;
@@ -138,10 +160,10 @@ public record Service(
   }
 
   /**
-   * The kinds of its Instance Priority, in order, that have an Instance in range but are not the
-   * kind its Route uses now.
+   * The sources, in order, that have an Instance in range but are not the source its Route uses
+   * now.
    */
-  public List<InstanceKind> waitingKinds() {
-    return routing == null ? List.of() : routing.waiting();
+  public List<InstanceSource> waitingSources() {
+    return routing == null ? List.of() : routing.waitingSources();
   }
 }

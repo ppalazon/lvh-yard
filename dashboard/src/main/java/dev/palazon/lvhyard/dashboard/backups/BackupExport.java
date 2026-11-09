@@ -11,7 +11,6 @@ import dev.palazon.lvhyard.dashboard.backups.Backup.Unpublished;
 import dev.palazon.lvhyard.dashboard.profiles.RouteProfiles;
 import dev.palazon.lvhyard.dashboard.services.Aliases;
 import dev.palazon.lvhyard.dashboard.services.Instance;
-import dev.palazon.lvhyard.dashboard.services.InstanceKind;
 import dev.palazon.lvhyard.dashboard.services.Registrations;
 import dev.palazon.lvhyard.dashboard.services.YardReader;
 import java.time.OffsetDateTime;
@@ -76,7 +75,6 @@ public class BackupExport {
         service.published()
             ? new Published(
                 service.publication().scope().value(),
-                service.priority().stream().map(InstanceKind::value).toList(),
                 service.profiles(),
                 service.publication().accessLog())
             : new Unpublished(),

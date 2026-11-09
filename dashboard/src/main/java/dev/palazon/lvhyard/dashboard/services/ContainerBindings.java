@@ -30,7 +30,7 @@ public class ContainerBindings {
 
   private static final Logger LOG = LoggerFactory.getLogger(ContainerBindings.class);
 
-  private static final String PREFIX = "lvh-yard/container-bindings/";
+  static final String PREFIX = "lvh-yard/container-bindings/";
 
   /** A container name, as Docker allows them. */
   private static final Pattern CONTAINER_NAME = Pattern.compile("[a-zA-Z0-9][a-zA-Z0-9_.-]{1,254}");
@@ -57,8 +57,15 @@ public class ContainerBindings {
 
   private final Registrations registrations;
 
+  private final ServiceRecords records;
+
   ContainerBindings(
-      Workstation workstation, Consul consul, Docker docker, Registrations registrations) {
+      Workstation workstation,
+      Consul consul,
+      Docker docker,
+      Registrations registrations,
+      ServiceRecords records) {
+    this.records = records;
     this.workstation = workstation;
     this.consul = consul;
     this.docker = docker;
@@ -88,6 +95,7 @@ public class ContainerBindings {
         });
     String id = ContainerBinding.id(binding);
     consul.putValue(PREFIX + service + "/" + id, JSON.writeValueAsString(binding));
+    records.addSource(service, id);
     syncIfDockerAnswers();
     return id;
   }
@@ -191,6 +199,7 @@ public class ContainerBindings {
     }
     consul.deleteValue(key);
     registrations.removeBoundInstances(service, id);
+    records.removeSource(service, id);
   }
 
   /** Removes every Binding of {@code service} on this Workstation, with its Bound Instances. */

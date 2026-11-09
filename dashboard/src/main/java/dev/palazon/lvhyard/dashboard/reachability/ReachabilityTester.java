@@ -3,9 +3,9 @@ package dev.palazon.lvhyard.dashboard.reachability;
 import dev.palazon.lvhyard.dashboard.services.Alias;
 import dev.palazon.lvhyard.dashboard.services.Aliases;
 import dev.palazon.lvhyard.dashboard.services.Instance;
-import dev.palazon.lvhyard.dashboard.services.InstanceKind;
 import dev.palazon.lvhyard.dashboard.services.Routing;
 import dev.palazon.lvhyard.dashboard.services.Service;
+import dev.palazon.lvhyard.dashboard.services.SourceKind;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -67,7 +67,7 @@ public class ReachabilityTester {
           results(routes),
           hostnames.isEmpty() ? noRoute(service) : null,
           routing,
-          routing != null && routing.kind() == InstanceKind.ALIAS ? fallback(service) : null);
+          routing != null && routing.kind() == SourceKind.ALIAS ? fallback(service) : null);
     }
   }
 

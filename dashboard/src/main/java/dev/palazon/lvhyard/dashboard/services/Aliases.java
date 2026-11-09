@@ -15,9 +15,12 @@ public class Aliases {
 
   private final AliasKeys keys;
 
+  private final ServiceRecords records;
+
   private final YardReader yard;
 
-  Aliases(Workstation workstation, AliasKeys keys, YardReader yard) {
+  Aliases(Workstation workstation, AliasKeys keys, ServiceRecords records, YardReader yard) {
+    this.records = records;
     this.workstation = workstation;
     this.keys = keys;
     this.yard = yard;
@@ -40,7 +43,11 @@ public class Aliases {
               + workstation.hostname(service)
               + ".");
     }
-    keys.put(name, new AliasKeys.Target(home, service));
+    AliasKeys.Target target = new AliasKeys.Target(home, service);
+    Optional.ofNullable(keys.targets().get(name))
+        .ifPresent(old -> records.removeSource(name, old.id()));
+    keys.put(name, target);
+    records.addSource(name, target.id());
     return of(yard.routableYard()).stream()
         .filter(alias -> alias.name().equals(name))
         .findFirst()
@@ -62,10 +69,12 @@ public class Aliases {
   }
 
   public void remove(String name) {
-    if (!keys.contains(name)) {
+    AliasKeys.Target target = keys.targets().get(name);
+    if (target == null) {
       throw new UnknownAliasException(name);
     }
     keys.delete(name);
+    records.removeSource(name, target.id());
   }
 
   /**
@@ -93,8 +102,8 @@ public class Aliases {
 
   /**
    * A published Service of this Workstation with the same name takes the hostname. The Alias is
-   * then its last fallback, unless its Instance Priority leaves out the {@code alias} kind.
-   * Otherwise the Alias is active by the same rules that give the Service its own Route here.
+   * then one of its Instance Sources. Otherwise the Alias is active by the same rules that give the
+   * Service its own Route here.
    */
   private Alias alias(String name, String home, String service, Yard yard) {
     Alias.State state;
@@ -106,15 +115,7 @@ public class Aliases {
         yard.home().services().stream()
             .filter(candidate -> candidate.name().equals(name) && candidate.published())
             .findFirst();
-    if (own.isPresent() && !own.get().priority().contains(InstanceKind.ALIAS)) {
-      state = Alias.State.HIDDEN;
-      reason =
-          "Hidden by this Workstation's published Service "
-              + name
-              + (own.get().priority().isEmpty()
-                  ? ", whose Instance Priority is off."
-                  : ", whose Instance Priority leaves out the Alias.");
-    } else if (remote.isEmpty()) {
+    if (remote.isEmpty()) {
       state = Alias.State.MISSING;
       reason = "The Yard has no Workstation " + home + ".";
     } else if (remote.get().unreachable()) {
@@ -135,11 +136,11 @@ public class Aliases {
     } else if (own.isPresent()) {
       state = Alias.State.FALLBACK;
       reason =
-          own.get().routing() != null && own.get().routing().kind() == InstanceKind.ALIAS
-              ? "In use now, as no Instance of this Workstation's Service " + name + " passes."
-              : "The last fallback for this Workstation's Service "
+          own.get().routing() != null && own.get().routing().kind() == SourceKind.ALIAS
+              ? "In use now by this Workstation's Service " + name + "."
+              : "An Instance Source of this Workstation's Service "
                   + name
-                  + ": used when none of its Instances passes.";
+                  + ": its Instance Priority says when the Route uses it.";
     } else {
       state = Alias.State.ACTIVE;
       reason = null;

@@ -3,27 +3,51 @@ package dev.palazon.lvhyard.dashboard.services;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 /**
  * Where the Route on this Workstation sends requests now, under the Instance Priority.
  *
- * @param kind the first kind in the order with a passing Instance. It is left out when no kind has
- *     one: the Route then sends requests to every Instance in range.
- * @param routedInstances the Instances the Route sends requests to. For the {@code alias} kind,
- *     they are Instances of the Alias's Remote Service.
- * @param waiting the other kinds of the order that have an Instance in range
- * @param off whether the Instance Priority is off. Then the Static and Bound Instances form one
- *     group, with no kind. It is left out when false.
+ * @param used the first Instance Source in the order with a passing Instance. It is {@code null}
+ *     when the Instance Priority is off, or when no source has one: the Route then sends requests
+ *     to every Instance in range.
+ * @param routedInstances the Instances the Route sends requests to
+ * @param waitingSources the other sources that have an Instance in range, in order
+ * @param off whether the Instance Priority is off. It is left out of the JSON when false.
  */
 public record Routing(
-    @JsonInclude(JsonInclude.Include.NON_NULL) InstanceKind kind,
+    @JsonIgnore @Schema(hidden = true) InstanceSource used,
     @JsonIgnore @Schema(hidden = true) List<Instance> routedInstances,
-    @JsonIgnore @Schema(hidden = true) List<InstanceKind> waiting,
+    @JsonIgnore @Schema(hidden = true) List<InstanceSource> waitingSources,
     @JsonInclude(JsonInclude.Include.NON_DEFAULT) boolean off) {
+
+  @JsonProperty("source")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @Schema(description = "The ID of the Instance Source that the Route uses now")
+  public String source() {
+    return used == null ? null : used.id();
+  }
+
+  @JsonProperty("kind")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @Schema(description = "The kind of the Instance Source that the Route uses now")
+  public SourceKind kind() {
+    return used == null ? null : used.kind();
+  }
+
+  @JsonProperty("waiting")
+  @ArraySchema(
+      arraySchema =
+          @Schema(
+              requiredMode = Schema.RequiredMode.REQUIRED,
+              description =
+                  "The IDs of the other Instance Sources that have an Instance in range, in order"))
+  public List<String> waiting() {
+    return waitingSources.stream().map(InstanceSource::id).toList();
+  }
 
   /** The IDs of {@link #routedInstances}. */
   @JsonProperty("instances")
@@ -33,45 +57,41 @@ public record Routing(
   }
 
   /**
-   * Out-of-range Instances are never routed, so they never make a kind win. The {@code alias} kind
-   * counts only passing Instances, so an Alias is never used when no kind passes. An empty {@code
-   * priority} means off: the passing Static and Bound Instances share the Route, and the Alias is
-   * never used.
+   * The one Route-choice rule (ADR-0009). Out-of-range Instances never count. On any Workstation
+   * but the Home Workstation, Alias sources are left out, so no Route depends on a third
+   * Workstation.
    *
-   * @param aliased the Instances of the Remote Service of an active Alias with the same name, or
-   *     none
-   * @return empty when there is nothing to route to
+   * @param sources in the order of the Instance Priority
+   * @param priority whether the Instance Priority is on
+   * @param home whether this Workstation is the Service's Home Workstation
+   * @return empty when there is nothing in range to route to
    */
-  static Optional<Routing> of(
-      List<InstanceKind> priority, List<Instance> instances, List<Instance> aliased) {
-    List<Instance> own = instances.stream().filter(instance -> !instance.outOfRange()).toList();
-    if (priority.isEmpty()) {
-      if (own.isEmpty()) {
-        return Optional.empty();
-      }
-      List<Instance> passing = passing(own);
-      return Optional.of(new Routing(null, passing.isEmpty() ? own : passing, List.of(), true));
-    }
-    Map<InstanceKind, List<Instance>> byKind =
-        Map.of(
-            InstanceKind.STATIC, ofKind(own, InstanceKind.STATIC),
-            InstanceKind.BOUND, ofKind(own, InstanceKind.BOUND),
-            InstanceKind.ALIAS,
-                aliased.stream().filter(instance -> !instance.outOfRange()).toList());
-    for (InstanceKind kind : priority) {
-      List<Instance> passing = passing(byKind.get(kind));
-      if (!passing.isEmpty()) {
-        List<InstanceKind> waiting =
-            priority.stream()
-                .filter(other -> other != kind && !byKind.get(other).isEmpty())
-                .toList();
-        return Optional.of(new Routing(kind, passing, waiting, false));
-      }
-    }
-    if (own.isEmpty()) {
+  static Optional<Routing> of(List<InstanceSource> sources, boolean priority, boolean home) {
+    List<InstanceSource> inRange =
+        sources.stream()
+            .filter(source -> home || source.kind() != SourceKind.ALIAS)
+            .filter(source -> !inRange(source).isEmpty())
+            .toList();
+    List<Instance> all = inRange.stream().flatMap(source -> inRange(source).stream()).toList();
+    if (all.isEmpty()) {
       return Optional.empty();
     }
-    return Optional.of(new Routing(null, own, List.of(), false));
+    if (!priority) {
+      List<Instance> passing = passing(all);
+      return Optional.of(new Routing(null, passing.isEmpty() ? all : passing, List.of(), true));
+    }
+    for (InstanceSource source : inRange) {
+      List<Instance> passing = passing(inRange(source));
+      if (!passing.isEmpty()) {
+        List<InstanceSource> waiting = inRange.stream().filter(other -> other != source).toList();
+        return Optional.of(new Routing(source, passing, waiting, false));
+      }
+    }
+    return Optional.of(new Routing(null, all, List.of(), false));
+  }
+
+  private static List<Instance> inRange(InstanceSource source) {
+    return source.givenInstances().stream().filter(instance -> !instance.outOfRange()).toList();
   }
 
   private static List<Instance> passing(List<Instance> instances) {
@@ -84,10 +104,6 @@ public record Routing(
    */
   public boolean offWithPassingInstances() {
     return off && !passing(routedInstances).isEmpty();
-  }
-
-  private static List<Instance> ofKind(List<Instance> instances, InstanceKind kind) {
-    return instances.stream().filter(instance -> InstanceKind.of(instance) == kind).toList();
   }
 
   public boolean routes(Instance instance) {

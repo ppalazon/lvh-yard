@@ -227,7 +227,6 @@ class BackupImportComponentTest extends DashboardComponentTest {
               %s:
                 publication:
                   scope: yard
-                  priority: [bound, static]
                   route-profiles: [%s]
                 static-instances:
                   - host: 10.1.2.3
@@ -243,8 +242,6 @@ class BackupImportComponentTest extends DashboardComponentTest {
             "add publication " + grafana);
     JsonNode service = get(servicePath(grafana)).getBody();
     assertThat(service.get("publication").get("scope").asString()).isEqualTo("yard");
-    assertThat(service.get("priority").valueStream().map(JsonNode::asString))
-        .containsExactly("bound", "static");
     assertThat(service.get("profiles").valueStream().map(JsonNode::asString))
         .containsExactly(compress);
   }

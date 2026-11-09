@@ -6,6 +6,7 @@ import dev.palazon.lvhyard.dashboard.reachability.ReachabilityTester;
 import dev.palazon.lvhyard.dashboard.services.Aliases;
 import dev.palazon.lvhyard.dashboard.services.ContainerBindings;
 import dev.palazon.lvhyard.dashboard.services.Instance;
+import dev.palazon.lvhyard.dashboard.services.InstancePriorityRequest;
 import dev.palazon.lvhyard.dashboard.services.InvalidPriorityException;
 import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
 import dev.palazon.lvhyard.dashboard.services.PublicationRequest;
@@ -315,10 +316,8 @@ class PagesController {
   }
 
   /**
-   * With no Scope or no priority, a new Publication gets Local Scope or the default order, and an
-   * existing one keeps its own.
+   * With no Scope, a new Publication gets Local Scope, and an existing one keeps its own.
    *
-   * @param priority the kinds in order, separated by commas. Blank turns the Instance Priority off.
    * @param profiles the Route Profiles in order, separated by commas. Blank removes them all.
    * @param accessLog true makes Traefik log the requests to the Route
    */
@@ -327,7 +326,6 @@ class PagesController {
       @PathVariable("workstation") String home,
       @PathVariable String service,
       @RequestParam(required = false) String scope,
-      @RequestParam(required = false) String priority,
       @RequestParam(required = false) String profiles,
       @RequestParam(required = false) Boolean accessLog) {
     Scope chosen =
@@ -339,24 +337,40 @@ class PagesController {
                         HttpStatus.BAD_REQUEST, "The Scope is local or yard, not " + scope + "."));
     try {
       publications.publish(
-          home,
-          service,
-          new PublicationRequest(
-              chosen, commaSeparated(priority), commaSeparated(profiles), accessLog));
+          home, service, new PublicationRequest(chosen, commaSeparated(profiles), accessLog));
     } catch (UnknownServiceException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
-    } catch (InvalidRegistrationException
-        | InvalidPriorityException
-        | UnknownRouteProfileException e) {
+    } catch (InvalidRegistrationException | UnknownRouteProfileException e) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
     }
     return seeOther(ServicePage.path(home, service));
   }
 
   /**
-   * Blank text names nothing, so it empties the list, such as turning the Instance Priority off. It
-   * is not an unknown name.
+   * @param order the Instance Source IDs in order, separated by commas. Left out, it keeps the
+   *     order.
+   * @param on left out, it keeps the toggle
    */
+  @PostMapping("/services/{workstation}/{service}/instance-priority")
+  ResponseEntity<String> instancePriority(
+      @PathVariable("workstation") String home,
+      @PathVariable String service,
+      @RequestParam(required = false) String order,
+      @RequestParam(required = false) Boolean on) {
+    try {
+      services.setInstancePriority(
+          home,
+          service,
+          new InstancePriorityRequest(order == null ? null : commaSeparated(order), on));
+    } catch (UnknownServiceException e) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+    } catch (InvalidPriorityException e) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+    }
+    return seeOther(ServicePage.path(home, service));
+  }
+
+  /** Blank text names nothing, so it empties the list. It is not an unknown name. */
   private static List<String> commaSeparated(String text) {
     if (text == null) {
       return null;

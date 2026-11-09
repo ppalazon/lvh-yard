@@ -114,13 +114,13 @@ class YardTest extends YardTestSupport {
         200,
         """
         {"home": {"name": "ws-a", "services": [
-           {"workstation": "ws-a", "name": "api", "state": "unavailable", "created": true, "empty": false, "publication": {"scope": "local", "accessLog": false},
+           {"workstation": "ws-a", "name": "api", "state": "unavailable", "created": true, "empty": false, "sources": [], "instancePriority": true, "publication": {"scope": "local", "accessLog": false},
             "hostname": "api.lvh.me", "containerBindings": [], "warnings": [], "instances": []},
-           {"workstation": "ws-a", "name": "grafana", "state": "healthy", "created": true, "empty": false, "publication": {"scope": "local", "accessLog": false},
+           {"workstation": "ws-a", "name": "grafana", "state": "healthy", "created": true, "empty": false, "sources": [], "instancePriority": true, "publication": {"scope": "local", "accessLog": false},
             "hostname": "grafana.lvh.me", "containerBindings": [], "warnings": [], "instances": [
               {"id": "3f2a", "host": "10.1.2.3", "port": 3000, "health": "passing",
                "tags": [], "meta": {}, "checks": [], "outOfRange": false}]},
-           {"workstation": "ws-a", "name": "web", "state": "unpublished", "created": true, "empty": false, "containerBindings": [],
+           {"workstation": "ws-a", "name": "web", "state": "unpublished", "created": true, "empty": false, "sources": [], "instancePriority": true, "containerBindings": [],
             "warnings": [], "instances": [
               {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical",
                "tags": [], "meta": {}, "checks": [], "outOfRange": false},
@@ -128,7 +128,7 @@ class YardTest extends YardTestSupport {
                "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}]},
          "remotes": [
            {"name": "ws-b", "unreachable": false, "services": [
-             {"workstation": "ws-b", "name": "postgres", "state": "unhealthy", "created": true, "empty": false,
+             {"workstation": "ws-b", "name": "postgres", "state": "unhealthy", "created": true, "empty": false, "sources": [], "instancePriority": true,
               "publication": {"scope": "local", "accessLog": false}, "containerBindings": [], "warnings": [], "instances": [
                 {"id": "5e6f", "host": "10.1.2.4", "port": 5432, "health": "critical",
                  "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}]},
@@ -181,9 +181,9 @@ class YardTest extends YardTestSupport {
         200,
         """
         {"home": {"name": "ws-a", "services": [
-          {"workstation": "ws-a", "name": "web", "state": "healthy", "created": true, "empty": false,
+          {"workstation": "ws-a", "name": "web", "state": "healthy", "created": true, "empty": false, "sources": [], "instancePriority": true,
            "hostname": "web.lvh.me", "containerBindings": [], "warnings": [],
-           "routing": {"kind": "static", "instances": ["1a2b"]},
+           "routing": {"waiting": [], "kind": "static", "instances": ["1a2b"]},
            "instances": [
              {"id": "1a2b", "host": "10.1.2.3", "port": 3000, "health": "passing",
               "tags": [], "meta": {}, "checks": [], "outOfRange": false},
@@ -379,7 +379,7 @@ class YardTest extends YardTestSupport {
         201,
         """
         {"workstation": "ws-a", "name": "web", "state": "unpublished", "created": true,
-         "empty": true, "instances": [], "containerBindings": [], "warnings": []}
+         "empty": true, "sources": [], "instancePriority": true, "instances": [], "containerBindings": [], "warnings": []}
         """);
 
     Run run = yard("service", "create", "web");
@@ -1208,7 +1208,7 @@ class YardTest extends YardTestSupport {
         "/api/workstation/services/grafana",
         200,
         """
-        {"workstation": "ws-a", "name": "grafana", "state": "healthy", "created": true, "empty": false,
+        {"workstation": "ws-a", "name": "grafana", "state": "healthy", "created": true, "empty": false, "sources": [], "instancePriority": true,
          "publication": {"scope": "local", "accessLog": false}, "hostname": "grafana.lvh.me",
          "containerBindings": [], "warnings": [],
          "instances": [{"id": "grafana:grafana:3000", "host": "172.17.0.2", "port": 3000,
@@ -1237,7 +1237,7 @@ class YardTest extends YardTestSupport {
         "/api/workstation/services/shop",
         200,
         """
-        {"workstation": "ws-a", "name": "shop", "state": "healthy", "created": true, "empty": false,
+        {"workstation": "ws-a", "name": "shop", "state": "healthy", "created": true, "empty": false, "sources": [], "instancePriority": true,
          "containerBindings": [], "warnings": [],
          "instances": [{"id": "shop:storefront:9000", "host": "172.17.0.2", "port": 9000,
                         "health": "passing", "outOfRange": false,
@@ -1265,7 +1265,7 @@ class YardTest extends YardTestSupport {
         200,
         """
         {"workstation": "ws-a", "name": "my-web", "state": "unpublished", "created": true,
-         "empty": false, "containerBindings": [], "warnings": [], "instances": []}
+         "empty": false, "sources": [], "instancePriority": true, "containerBindings": [], "warnings": [], "instances": []}
         """);
 
     Run run = yard("register", "container", "My_Web", "--port", "80");
@@ -1287,7 +1287,7 @@ class YardTest extends YardTestSupport {
         "/api/workstation/services/catalog",
         200,
         """
-        {"workstation": "ws-a", "name": "catalog", "state": "unavailable", "created": true, "empty": false,
+        {"workstation": "ws-a", "name": "catalog", "state": "unavailable", "created": true, "empty": false, "sources": [], "instancePriority": true,
          "publication": {"scope": "local", "accessLog": false}, "hostname": "catalog.lvh.me",
          "containerBindings": [], "warnings": [], "instances": []}
         """);
@@ -1348,7 +1348,7 @@ class YardTest extends YardTestSupport {
         "/api/workstation/services/web",
         200,
         """
-        {"workstation": "ws-a", "name": "web", "state": "healthy", "created": true, "empty": false,
+        {"workstation": "ws-a", "name": "web", "state": "healthy", "created": true, "empty": false, "sources": [], "instancePriority": true,
          "publication": {"scope": "yard", "accessLog": false}, "hostname": "web.lvh.me",
          "containerBindings": [], "warnings": [
             {"kind": "unpublished-container-port", "severity": "risk",
@@ -1720,7 +1720,7 @@ class YardTest extends YardTestSupport {
         "/api/workstation/services/web/publication",
         200,
         """
-        {"workstation": "ws-a", "name": "web", "state": "unhealthy", "created": true, "empty": false, "publication": {"scope": "local", "accessLog": false},
+        {"workstation": "ws-a", "name": "web", "state": "unhealthy", "created": true, "empty": false, "sources": [], "instancePriority": true, "publication": {"scope": "local", "accessLog": false},
          "hostname": "web.lvh.me", "containerBindings": [], "warnings": [], "instances": [
             {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical",
              "tags": [], "meta": {}, "checks": [], "outOfRange": false}]}
@@ -1741,7 +1741,7 @@ class YardTest extends YardTestSupport {
         "/api/workstation/services/web/publication",
         200,
         """
-        {"workstation": "ws-a", "name": "web", "state": "healthy", "created": true, "empty": false, "publication": {"scope": "yard", "accessLog": false},
+        {"workstation": "ws-a", "name": "web", "state": "healthy", "created": true, "empty": false, "sources": [], "instancePriority": true, "publication": {"scope": "yard", "accessLog": false},
          "hostname": "web.lvh.me", "containerBindings": [],
           "warnings": [], "instances": [
             {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "passing",
@@ -1764,60 +1764,13 @@ class YardTest extends YardTestSupport {
   }
 
   @Test
-  void publishWithPrioritySendsTheOrder() {
-    dashboard.answer(
-        "PUT",
-        "/api/workstation/services/web/publication",
-        200,
-        """
-        {"workstation": "ws-a", "name": "web", "state": "healthy", "created": true, "empty": false, "publication": {"scope": "local", "accessLog": false},
-         "hostname": "web.lvh.me", "containerBindings": [], "warnings": [],
-         "priority": ["bound", "static"], "instances": []}
-        """);
-
-    Run run = yard("publish", "web", "--priority", "bound,static");
-
-    assertThat(run.exitCode()).isZero();
-    dashboard.verifyCalled(
-        "PUT",
-        "/api/workstation/services/web/publication",
-        """
-        {"priority": ["bound", "static"]}
-        """);
-  }
-
-  @Test
-  void publishWithPriorityOffSendsAnEmptyOrder() {
-    dashboard.answer(
-        "PUT",
-        "/api/workstation/services/web/publication",
-        200,
-        """
-        {"workstation": "ws-a", "name": "web", "state": "healthy", "created": true, "empty": false, "publication": {"scope": "local", "accessLog": false},
-         "hostname": "web.lvh.me", "containerBindings": [], "warnings": [],
-         "priority": [], "instances": []}
-        """);
-
-    Run run = yard("publish", "web", "--priority", "off");
-
-    assertThat(run.exitCode()).isZero();
-    dashboard.verifyCalled(
-        "PUT",
-        "/api/workstation/services/web/publication",
-        """
-        {"priority": []}
-        """);
-    assertThat(yard("publish", "--help").out()).contains("off:");
-  }
-
-  @Test
   void publishWithProfilesSendsThemInOrderAndPrintsTheAuthWarning() {
     dashboard.answer(
         "PUT",
         "/api/workstation/services/admin/publication",
         200,
         """
-        {"workstation": "ws-a", "name": "admin", "state": "healthy", "created": true, "empty": false,
+        {"workstation": "ws-a", "name": "admin", "state": "healthy", "created": true, "empty": false, "sources": [], "instancePriority": true,
          "publication": {"scope": "local", "accessLog": false}, "hostname": "admin.lvh.me", "containerBindings": [],
          "profiles": ["basic-auth", "cors"],
          "warnings": [
@@ -1848,7 +1801,7 @@ class YardTest extends YardTestSupport {
         "/api/workstation/services/admin/publication",
         200,
         """
-        {"workstation": "ws-a", "name": "admin", "state": "healthy", "created": true, "empty": false,
+        {"workstation": "ws-a", "name": "admin", "state": "healthy", "created": true, "empty": false, "sources": [], "instancePriority": true,
          "publication": {"scope": "local", "accessLog": false}, "hostname": "admin.lvh.me", "containerBindings": [],
          "warnings": [], "instances": []}
         """);
@@ -1873,21 +1826,130 @@ class YardTest extends YardTestSupport {
     assertThat(run.err()).contains("--profile").contains("--no-profiles");
   }
 
+  private static final String WEB_WITH_TWO_SOURCES =
+      """
+      {"workstation": "ws-a", "name": "web", "state": "healthy", "created": true, "empty": false,
+       "publication": {"scope": "local", "accessLog": false}, "hostname": "web.lvh.me",
+       "warnings": [], "instancePriority": %s,
+       "sources": [%s],
+       "routing": {"source": "1a2b", "kind": "static", "waiting": ["web-1:80"],
+                   "instances": ["1a2b"]},
+       "containerBindings": [
+         {"id": "web-1:80", "container": "web-1", "port": 80, "instances": ["web:web-1:80"]}],
+       "instances": [
+         {"id": "1a2b", "host": "10.1.2.3", "port": 3000, "health": "passing",
+          "tags": [], "meta": {}, "checks": [], "outOfRange": false},
+         {"id": "web:web-1:80", "host": "172.17.0.2", "port": 80, "health": "passing",
+          "tags": [], "meta": {}, "checks": [], "outOfRange": false,
+          "containerBinding": "web-1:80"}]}
+      """;
+
+  private static final String STATIC_SOURCE =
+      """
+      {"id": "1a2b", "kind": "static", "instances": ["1a2b"]}\
+      """;
+
+  private static final String BOUND_SOURCE =
+      """
+      {"id": "web-1:80", "kind": "bound", "instances": ["web:web-1:80"]}\
+      """;
+
+  private static final String SET_ANSWER =
+      """
+      {"on": true, "sources": []}
+      """;
+
   @Test
-  void publishWithARefusedPriorityShowsWhyAndExitsWithOne() {
+  void priorityPrintsTheSourcesInOrderWithTheirIds() {
+    dashboard.answer(
+        "GET",
+        "/api/workstation/services/web",
+        200,
+        WEB_WITH_TWO_SOURCES.formatted("true", STATIC_SOURCE + ", " + BOUND_SOURCE));
+
+    Run run = yard("priority", "web");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.lines())
+        .containsExactly(
+            "Instance Priority of web: on. The Route uses the first source with a passing"
+                + " Instance.",
+            "  1. 1a2b  Static Instance 10.1.2.3:3000  (in use)",
+            "  2. web-1:80  Container Binding to container web-1, port 80");
+  }
+
+  @Test
+  void prioritySetsTheOrderAndPrintsIt() {
+    dashboard.answer("PUT", "/api/workstation/services/web/instance-priority", 200, SET_ANSWER);
+    dashboard.answer(
+        "GET",
+        "/api/workstation/services/web",
+        200,
+        WEB_WITH_TWO_SOURCES.formatted("true", BOUND_SOURCE + ", " + STATIC_SOURCE));
+
+    Run run = yard("priority", "web", "web-1:80", "1a2b");
+
+    assertThat(run.exitCode()).isZero();
+    dashboard.verifyCalled(
+        "PUT",
+        "/api/workstation/services/web/instance-priority",
+        """
+        {"order": ["web-1:80", "1a2b"]}
+        """);
+    assertThat(run.lines())
+        .element(1)
+        .isEqualTo("  1. web-1:80  Container Binding to container web-1, port 80");
+  }
+
+  @Test
+  void priorityOffAndOnSwitchTheToggle() {
+    dashboard.answer("PUT", "/api/workstation/services/web/instance-priority", 200, SET_ANSWER);
+    dashboard.answer(
+        "GET",
+        "/api/workstation/services/web",
+        200,
+        WEB_WITH_TWO_SOURCES.formatted("false", STATIC_SOURCE + ", " + BOUND_SOURCE));
+
+    Run run = yard("priority", "web", "--off");
+
+    assertThat(run.exitCode()).isZero();
+    dashboard.verifyCalled(
+        "PUT",
+        "/api/workstation/services/web/instance-priority",
+        """
+        {"on": false}
+        """);
+    assertThat(run.lines())
+        .first()
+        .isEqualTo(
+            "Instance Priority of web: off. Every passing Instance of every source shares the"
+                + " Route.");
+    assertThat(yard("priority", "web", "--on", "--off").exitCode())
+        .isEqualTo(CommandLine.ExitCode.USAGE);
+  }
+
+  @Test
+  void priorityWithAnUnknownIdShowsWhyAndExitsWithOne() {
     dashboard.answer(
         "PUT",
-        "/api/workstation/services/web/publication",
+        "/api/workstation/services/web/instance-priority",
         400,
         """
         {"status": 400,
-         "detail": "The Instance Priority has the kind bound more than once."}
+         "detail": "web has no Instance Source nothing. Its Instance Sources are: 1a2b."}
         """);
 
-    Run run = yard("publish", "web", "--priority", "bound,static,bound");
+    Run run = yard("priority", "web", "nothing");
 
     assertThat(run.exitCode()).isEqualTo(1);
-    assertThat(run.err()).contains("The Instance Priority has the kind bound more than once.");
+    assertThat(run.err()).contains("web has no Instance Source nothing.");
+  }
+
+  @Test
+  void publishHasNoPriorityOption() {
+    Run run = yard("publish", "web", "--priority", "bound,static");
+
+    assertThat(run.exitCode()).isEqualTo(CommandLine.ExitCode.USAGE);
   }
 
   @Test
@@ -1897,7 +1959,7 @@ class YardTest extends YardTestSupport {
         "/api/workstation/services/web/publication",
         200,
         """
-        {"workstation": "ws-a", "name": "web", "state": "healthy", "created": true, "empty": false, "publication": {"scope": "yard", "accessLog": false},
+        {"workstation": "ws-a", "name": "web", "state": "healthy", "created": true, "empty": false, "sources": [], "instancePriority": true, "publication": {"scope": "yard", "accessLog": false},
          "hostname": "web.lvh.me", "containerBindings": [], "warnings": [
             {"kind": "unknown-route-profile", "severity": "error",
              "message": "The Route Profile team-login does not exist."},
@@ -1924,7 +1986,7 @@ class YardTest extends YardTestSupport {
         "/api/workstation/services/web/publication",
         200,
         """
-        {"workstation": "ws-a", "name": "web", "state": "healthy", "created": true, "empty": false, "publication": {"scope": "local", "accessLog": true},
+        {"workstation": "ws-a", "name": "web", "state": "healthy", "created": true, "empty": false, "sources": [], "instancePriority": true, "publication": {"scope": "local", "accessLog": true},
          "hostname": "web.lvh.me", "containerBindings": [], "warnings": [], "instances": []}
         """);
 
@@ -2210,7 +2272,8 @@ class YardTest extends YardTestSupport {
          "instances": [{"id": "7b1c", "address": "10.1.2.3:8080", "reached": true, "routed": true},
                        {"id": "8c2d", "address": "172.18.0.5:80", "reached": true}],
          "routes": [{"hostname": "web.lvh.me", "reached": true, "status": 200}],
-         "routing": {"kind": "static", "instances": ["7b1c"]}}
+         "routing": {"waiting": ["8c2d"], "source": "7b1c", "kind": "static",
+                     "instances": ["7b1c"]}}
         """);
 
     Run run = yard("test", "web");
@@ -2222,7 +2285,7 @@ class YardTest extends YardTestSupport {
             "  ok    Instance 10.1.2.3:8080 (in the Route)",
             "  ok    Instance 172.18.0.5:80 (not in the Route now)",
             "  ok    Route web.lvh.me: answered 200",
-            "The Route uses the passing Static Instances now.",
+            "The Route uses the static Instance Source 7b1c now.",
             "Every check passed.");
   }
 
@@ -2237,7 +2300,7 @@ class YardTest extends YardTestSupport {
          "instances": [{"id": "7b1c", "address": "10.1.2.3:8080", "reached": true, "routed": true},
                        {"id": "8c2d", "address": "172.18.0.5:80", "reached": true, "routed": true}],
          "routes": [{"hostname": "web.lvh.me", "reached": true, "status": 200}],
-         "routing": {"off": true, "instances": ["7b1c", "8c2d"]}}
+         "routing": {"waiting": [], "off": true, "instances": ["7b1c", "8c2d"]}}
         """);
 
     Run run = yard("test", "web");
@@ -2265,7 +2328,7 @@ class YardTest extends YardTestSupport {
          "instances": [{"id": "7b1c", "address": "10.1.2.3:8080", "reached": false,
                         "error": "Connection refused"}],
          "routes": [{"hostname": "web.lvh.me", "reached": true, "status": 200}],
-         "routing": {"kind": "alias", "instances": ["9e3f"]},
+         "routing": {"waiting": [], "kind": "alias", "instances": ["9e3f"]},
          "alias": {"name": "web", "workstation": "ws-b", "service": "web",
                    "hostname": "web.lvh.me", "state": "fallback"}}
         """);

@@ -163,15 +163,15 @@ class FirstSetupComponentTest extends DashboardComponentTest {
   @Test
   void theThreeServicesTakeYardScopeAndAnInstancePriority() {
     try {
-      remote.publish("traefik-admin", Map.of("scope", "yard", "priority", List.of("static")));
+      remote.publish("traefik-admin", Map.of("scope", "yard"));
+      remote.setInstancePriority("traefik-admin", Map.of("on", false));
 
       JsonNode service = remote.service("traefik-admin").getBody();
       assertThat(service.get("publication").get("scope").asString()).isEqualTo("yard");
-      assertThat(service.get("priority").get(0).asString()).isEqualTo("static");
+      assertThat(service.get("instancePriority").asBoolean()).isFalse();
     } finally {
-      remote.publish(
-          "traefik-admin",
-          Map.of("scope", "local", "priority", List.of("static", "bound", "alias")));
+      remote.publish("traefik-admin", Map.of("scope", "local"));
+      remote.setInstancePriority("traefik-admin", Map.of("on", true));
     }
   }
 

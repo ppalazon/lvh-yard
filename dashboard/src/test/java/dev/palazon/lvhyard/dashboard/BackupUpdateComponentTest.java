@@ -86,8 +86,6 @@ class BackupUpdateComponentTest extends DashboardComponentTest {
             "update publication " + grafana);
     JsonNode service = get(servicePath(grafana)).getBody();
     assertThat(service.get("publication").get("scope").asString()).isEqualTo("yard");
-    assertThat(service.get("priority").valueStream().map(JsonNode::asString))
-        .containsExactly("static", "bound", "alias");
     assertThat(service.get("profiles").valueStream().map(JsonNode::asString))
         .containsExactly(compress);
   }

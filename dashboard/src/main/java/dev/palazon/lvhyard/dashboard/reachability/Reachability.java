@@ -11,8 +11,8 @@ import java.util.List;
  * null. {@code passed} does not count a skipped Out-of-range Instance.
  *
  * @param routing where the Route on this Workstation sends requests now, or null without a Route
- * @param alias the Alias whose Remote Service gets the requests, while {@code routing} uses the
- *     {@code alias} kind
+ * @param alias the Alias whose Remote Service gets the requests, while {@code routing} uses an
+ *     Alias source
  */
 public record Reachability(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String workstation,

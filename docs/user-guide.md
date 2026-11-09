@@ -255,12 +255,13 @@ lvh-yard remove web --container web-1       # add --port if web-1 is bound on se
 lvh-yard remove web --compose-project shop --compose-service web
 lvh-yard publish web                        # http://web.<base-domain> (Local Scope)
 lvh-yard publish web --scope yard           # also on every other Workstation (Yard Scope)
-lvh-yard publish web --priority bound,static  # prefer Bound Instances (Instance Priority)
-lvh-yard publish web --priority off           # Static and Bound Instances share the Route
 lvh-yard publish web --profile basic-auth     # apply a Route Profile; repeat for more
 lvh-yard publish web --no-profiles            # remove all Route Profiles
 lvh-yard publish web --access-log on          # Traefik logs the requests to web
 lvh-yard unpublish web
+lvh-yard priority web                       # the Instance Sources in order, with their IDs
+lvh-yard priority web <id> <id>             # put these sources first (Instance Priority)
+lvh-yard priority web --off                 # every passing Instance shares the Route
 lvh-yard alias add grafana --workstation ws-b                 # http://grafana.<base-domain> for grafana of ws-b
 lvh-yard alias add db --workstation ws-b --service postgres   # a name that differs from the Service
 lvh-yard alias list
@@ -370,10 +371,6 @@ services:
   grafana:
     publication:
       scope: yard
-      priority:
-        - static
-        - bound
-        - alias
       route-profiles:
         - team-login
       access-log: true
@@ -451,7 +448,7 @@ The import finds what exists in this way:
 
 With `--update`, the import overwrites what it finds:
 
-- the Publication of a Service: its Scope, Instance Priority and Route Profiles
+- the Publication of a Service: its Scope and Route Profiles
 - the health check, tags and meta of a Static Instance. The Instance keeps its
   ID.
 - the target of an Alias
@@ -597,8 +594,8 @@ To publish it, create a Service of the same name.
 A Service is `unpublished`, `unavailable` (published, no Instances), `unhealthy`
 (published, no passing Instance), `degraded` (published, some Instances pass and
 some do not) or `healthy` (published, every Instance passes). Warning and critical
-Health both count as not passing. The state counts every Instance, whatever its
-Instance Priority or Out-of-range mark. Degraded and warning Health have orange
+Health both count as not passing. The state counts every Instance, whatever the
+Instance Priority or its Out-of-range mark. Degraded and warning Health have orange
 badges. A Degraded Service still routes to its passing Instances.
 
 A Publication covers every Instance of the Service, also the ones that you
@@ -681,78 +678,88 @@ Under the alerts, a row of cards shows the Service at a glance:
 - Publication: the hostname, the Scope and the access log, or "Not published".
 - Passing Instances: the Instances that pass their checks, out of all
   Instances, for example "1 of 2".
-- Routes to: the Instance kind that the Route uses now. See
+- Routes to: the Instance Source that the Route uses now. See
   [Instance Priority](#instance-priority).
 
-Under them are the Publication, Instance Priority and Route Profiles cards.
-Each card holds the buttons that change it. On a wide screen they sit in two
-columns, and on a phone in one. Then come the Instances table, the Container
-Bindings and the Reachability test, at full width. The page of a Remote Service
+Under them are the Publication, Instance Sources and Route Profiles cards.
+Each card holds the buttons that change it. On a wide screen the Publication
+and Route Profiles cards sit in two columns, and on a phone in one. The
+Instance Sources card and the Reachability test are at full width. The page of a Remote Service
 shows the same cards and alerts, without the buttons that change it.
 
 ### Instance Priority
 
-A Route prefers some Instances over others, by their kind. A Static Instance
-comes first, then a Bound Instance. The Route uses only the first kind that has
-an Instance with a passing check, and only those passing Instances. For
-example, `web` runs in Docker and you also start it in a terminal as a Static
-Instance. While the terminal copy passes its check, `web.<base-domain>` reaches
-only that copy. When you stop it, its check turns critical, and the Route moves
-to the Docker copy. This takes up to about 15 seconds.
+An Instance Source is one thing that gives a Service Instances: a Static
+Instance, a Container Binding, an Alias or a Foreign Instance. A Service keeps
+its Instance Sources in one order. The Route uses only the first source in the
+order that has an Instance with a passing check. All passing Instances of that
+source share the requests, for example the containers of a scaled Compose
+service.
 
-An Alias with the same name as the Service comes last. For example, you have an
-Alias `web` to the `web` of a teammate. If none of your own `web` Instances
-passes its check, `web.<base-domain>` reaches your teammate's `web`. Only the
-passing Instances of your teammate's Service are used. This works only on your
-own Workstation, for your short hostname. Other Workstations never use your
-Aliases.
+For example, `web` has two Static Instances: one in a terminal on port 3000 and
+one on port 3001. While the first one passes its check, `web.<base-domain>`
+reaches only that one. When you stop it, its check turns critical, and the
+Route moves to the second one. When you start it again, the Route moves back.
+Each move takes up to about 15 seconds.
 
-If no Instance passes its check, the Route uses every one of your own
-Instances. Every Workstation makes the same choice for a Service
-with Yard Scope. Each one leaves out its Out-of-range Instances first.
+A new Instance Source goes to the end of the order, so it never takes over the
+Route. A new Foreign Instance goes to the end too. An edited Static Instance
+keeps its place. A removed source leaves the order. If you add it again, it
+goes to the end.
 
-To change the order for one Service, give the kinds in the order you want:
+If no Instance passes its check, the Route uses every Instance in range of
+every source. Out-of-range Instances never count.
 
-```sh
-lvh-yard publish web --priority bound,static   # prefer the Docker copy
-```
+An Alias source works only on your own Workstation. Other Workstations skip
+it, and use the next source in the order. Apart from that, every Workstation
+that routes a Service with Yard Scope uses the order of its Home Workstation.
 
-The kinds are `static`, `bound` and `alias`. Each kind can appear only once.
-You can leave a kind out, and the Route never prefers it. For example,
-`--priority static,bound` never falls back to an Alias, and the Alias shows as
-`hidden`. If you publish again without `--priority`, the order does not change.
-The order stays with the Publication, so it is kept when the last Instance of a
-kind goes away. Every Workstation that routes the Service uses the order of its
-Home Workstation. A Publication with no order of its own uses the default
-order, `static,bound,alias`.
-
-You can also turn the Instance Priority off for one Service:
+To see the order with the ID of each source:
 
 ```sh
-lvh-yard publish web --priority off
+lvh-yard priority web
 ```
 
-While it is off, the passing Static and Bound Instances share the Route. An
-Instance whose check turns critical leaves the Route. If no Instance passes,
-the Route uses every Instance in range. An Alias with the same name is never
-used, and it shows as `hidden`. If you publish again without `--priority`, it
-stays off. To turn it on again, give an order with `--priority`.
+To change the order, give the IDs. They go first, in this order, and the other
+sources follow in their order:
 
-On the page of the Service, the Instance Priority section changes the order
-with the Up, Down, Remove and Add buttons. The Turn off button turns it off,
-and the Use an order button turns it on again with the default order. The API
-takes the order as `priority` in the body of
-`PUT /api/workstation/services/{service}/publication`. An empty `priority`,
-`[]`, turns it off.
+```sh
+lvh-yard priority web <id> <id>
+```
 
-The "Routes to" card of the Service page shows the kind in use, for example
-"Static", and the kinds that wait, for example "Bound waiting". While the
-Instance Priority is off, it shows "Every passing Instance" and "Instance
-Priority off".
-`lvh-yard catalog --details` marks each Instance that the Route uses with `routed`.
-The API shows the order in `priority` and the
-Instances in use in `routing`. While the Instance Priority is off, `routing`
-has `"off": true`.
+You can also turn the Instance Priority off. Then every passing Instance of
+every source shares the Route, Aliases included. If no Instance passes, the
+Route uses every Instance in range. The order stays. When you turn the
+Instance Priority on again, the order is back:
+
+```sh
+lvh-yard priority web --off
+lvh-yard priority web --on
+```
+
+The order and the toggle are in the record of the Service, not in its
+Publication. When you unpublish and publish again, they stay.
+
+On the page of the Service, the Instance Sources card lists the sources in
+order, each with its Instances. The Up and Down buttons change the order. They
+hide while the Instance Priority is off. The toggle button turns it off and
+on. The source that the Route uses now has an "In use" mark. The page of a
+Remote Service shows its sources in order, without the buttons.
+
+The "Routes to" card of the Service page names the source in use, for example
+"Static Instance 10.1.2.3:3000", and how many sources wait. While the Instance
+Priority is off, it shows "Every passing Instance" and "Instance Priority off".
+`lvh-yard catalog --details` marks each Instance that the Route uses with
+`routed`.
+
+In the API, `sources` lists the sources of a Service in order. Each source has
+an `id`, a `kind` and its `instances`. The kinds are `static`, `bound`, `alias`
+and `foreign`.
+`instancePriority` says whether the order is on. `routing.source` is the ID of
+the source in use, and `routing.waiting` lists the IDs of the sources that
+wait. While the Instance Priority is off, `routing` has `"off": true`.
+`GET /api/workstation/services/{service}/instance-priority` reads the order and
+the toggle, and `PUT` on the same path sets them with `order` and `on`.
 
 ### Out-of-range Instances
 
@@ -812,11 +819,9 @@ These are the states of an Alias:
 
 - `active`: routed to the Instances of the Remote Service
 - `unavailable`: the Remote Service has no Instance in range here
-- `fallback`: a published Service of this Workstation has the same name. Its
-  Route uses the Alias only when none of its own Instances passes. The reason
-  says if the Alias is in use now.
-- `hidden`: a published Service of this Workstation has the same name, and its
-  Instance Priority leaves out the Alias or is off
+- `fallback`: a published Service of this Workstation has the same name. The
+  Alias is one of its Instance Sources, and its Instance Priority says when the
+  Route uses it. The reason says if the Alias is in use now.
 - `not-shared`: the Remote Service is unpublished or has Local Scope
 - `unreachable`: its Workstation does not answer
 - `missing`: the Remote Service or its Workstation is gone

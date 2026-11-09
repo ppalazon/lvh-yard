@@ -6,7 +6,6 @@ import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.profiles.RouteProfileDefinition;
 import dev.palazon.lvhyard.dashboard.services.Health;
 import dev.palazon.lvhyard.dashboard.services.Instance;
-import dev.palazon.lvhyard.dashboard.services.InstanceKind;
 import dev.palazon.lvhyard.dashboard.services.Publication;
 import dev.palazon.lvhyard.dashboard.services.Routing;
 import dev.palazon.lvhyard.dashboard.services.Scope;
@@ -63,12 +62,13 @@ class RouteBuilderTest {
         ServiceState.HEALTHY,
         true,
         false,
-        new Publication(Scope.YARD, InstanceKind.DEFAULT_PRIORITY, List.of(profile), true),
+        new Publication(Scope.YARD, List.of(profile), true),
         name + "." + workstation + ".lvh.me",
         List.of(instance),
         List.of(),
         List.of(),
-        null,
+        List.of(),
+        true,
         List.of(profile),
         Map.of(profile, new RouteProfileDefinition(profile, middlewares)),
         new Routing(null, List.of(instance), List.of(), true));

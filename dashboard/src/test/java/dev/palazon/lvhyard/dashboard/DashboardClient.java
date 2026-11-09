@@ -342,6 +342,10 @@ abstract class DashboardClient {
     return servicePath(service) + "/instances";
   }
 
+  static String instancePriorityPath(String service) {
+    return servicePath(service) + "/instance-priority";
+  }
+
   static String containerBindingsPath(String service) {
     return servicePath(service) + "/container-bindings";
   }

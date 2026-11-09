@@ -73,6 +73,7 @@ class OpenApiComponentTest extends DashboardComponentTest {
             "/api/workstation/services/{service}/container-bindings",
             "/api/workstation/services/{service}/container-bindings/{id}",
             "/api/workstation/services/{service}/instances",
+            "/api/workstation/services/{service}/instance-priority",
             "/api/workstation/services/{service}/instances/{id}",
             "/api/workstation/services/{service}/publication",
             "/api/workstation/services/{service}/reachability");
@@ -202,18 +203,23 @@ class OpenApiComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void servicesHaveTheirInstancePriorityAndRouting() {
+  void servicesHaveTheirOrderedSourcesTheToggleAndRouting() {
     JsonNode schemas = get("/v3/api-docs").getBody().get("components").get("schemas");
 
     JsonNode service = schemas.get("Service").get("properties");
-    assertThat(service.get("priority").get("type").asString()).isEqualTo("array");
-    assertThat(service.get("priority").get("items").get("enum").valueStream())
+    assertThat(service.has("priority")).isFalse();
+    assertThat(service.get("instancePriority").get("type").asString()).isEqualTo("boolean");
+    assertThat(service.get("sources").get("items").get("$ref").asString())
+        .isEqualTo("#/components/schemas/InstanceSource");
+    assertThat(
+            schemas.get("InstanceSource").get("properties").get("kind").get("enum").valueStream())
         .map(JsonNode::asString)
-        .containsExactly("static", "bound", "alias");
+        .containsExactly("static", "bound", "alias", "foreign");
     assertThat(service.get("routing").get("$ref").asString())
         .isEqualTo("#/components/schemas/Routing");
     JsonNode routing = schemas.get("Routing").get("properties");
-    assertThat(routing.has("kind")).isTrue();
+    assertThat(routing.has("source")).isTrue();
+    assertThat(routing.get("waiting").get("type").asString()).isEqualTo("array");
     assertThat(routing.get("instances").get("type").asString()).isEqualTo("array");
     assertThat(schemas.get("Publication").get("properties").has("priority")).isFalse();
   }
@@ -333,28 +339,26 @@ class OpenApiComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void publishingTakesAnInstancePriority() {
-    JsonNode request =
-        get("/v3/api-docs")
-            .getBody()
-            .get("components")
-            .get("schemas")
-            .get("PublicationRequest")
-            .get("properties");
+  void instancePriorityIsReadAndSetApartFromThePublication() {
+    JsonNode docs = get("/v3/api-docs").getBody();
 
-    assertThat(request.get("priority").get("type").asString()).isEqualTo("array");
-    assertThat(request.get("priority").get("items").get("enum").valueStream())
-        .map(JsonNode::asString)
-        .containsExactly("static", "bound", "alias");
     assertThat(
-            get("/v3/api-docs")
-                .getBody()
-                .get("paths")
-                .get("/api/workstation/services/{service}/publication")
-                .get("put")
-                .get("description")
-                .asString())
-        .contains("An empty priority turns the Instance Priority off");
+            docs.get("components")
+                .get("schemas")
+                .get("PublicationRequest")
+                .get("properties")
+                .has("priority"))
+        .isFalse();
+    JsonNode path = docs.get("paths").get("/api/workstation/services/{service}/instance-priority");
+    assertThat(path.has("get")).isTrue();
+    assertThat(path.get("put").get("responses").propertyNames()).contains("200", "400", "404");
+    assertThat(
+            docs.get("components")
+                .get("schemas")
+                .get("InstancePriorityRequest")
+                .get("properties")
+                .propertyNames())
+        .containsExactlyInAnyOrder("order", "on");
   }
 
   @Test

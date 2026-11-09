@@ -68,6 +68,21 @@ public class Services {
     records.delete(service);
   }
 
+  /**
+   * The order and the toggle stay over unpublish and publish, as they are not part of the
+   * Publication.
+   *
+   * @throws UnknownServiceException when you have not created the Service
+   * @throws InvalidPriorityException when the order names an ID twice, or an ID that is not one of
+   *     the Service's Instance Sources
+   */
+  public void setInstancePriority(
+      String workstation, String service, InstancePriorityRequest request) {
+    checkHome(workstation);
+    Registrations.checkName(service);
+    records.setPriority(service, request.order(), request.on());
+  }
+
   private void checkHome(String workstation) {
     if (!this.workstation.is(workstation)) {
       throw new RemoteServiceException(workstation);
