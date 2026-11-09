@@ -100,6 +100,14 @@
             <!-- Unit and component tests (*Test) run with surefire. Integration tests (*IT) run with failsafe: docs/adr/0008. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- Each JVM has its own dashboards and fakes, so test classes run side by side. -->
+                    <forkCount>4</forkCount>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <configuration>
                     <!-- Each JVM starts its own test Yard of containers. More than four was not faster. -->
