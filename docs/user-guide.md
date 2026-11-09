@@ -122,32 +122,6 @@ install a new `lvh-yard`, use one of these flags:
   `<file>.<yyyyMMdd-HHmmss>.bak`. If the `backups/` folder is missing, it
   creates it. The new `compose.yaml` lets the dashboard write to this folder.
 
-#### An old `route-profiles.yaml`
-
-Older versions read the Route Profiles from `route-profiles.yaml` in the
-folder of the Workstation. The new dashboard does not read this file. It reads
-the profiles only from Consul KV.
-
-The old dashboard copied each valid profile into Consul KV. So your valid
-profiles stay after the upgrade, and their Routes keep their auth. A profile
-that the old dashboard refused never reached Consul KV, so it is missing now.
-
-To get back a refused profile, fix it in the old file. Then apply the file
-once:
-
-```sh
-lvh-yard profiles set route-profiles.yaml
-```
-
-`lvh-yard profiles set` adds or replaces each profile under
-`http.middlewares.<name>` in the file. It keeps the profiles that the file
-does not name. If the dashboard refuses one profile, it saves none of them and
-shows the reason. To read the file from standard input, give `-` as the file.
-
-After the profiles are back, `lvh-yard profiles` lists them. Then you can
-delete `route-profiles.yaml`. An old `YARD_ROUTE_PROFILES` line in `.env` does
-nothing now, so you can delete it too.
-
 ### Addresses and ports
 
 Traefik and the dashboard listen on `127.0.0.1`, so only this computer reaches
@@ -494,7 +468,7 @@ services.grafana.publication.route-profiles[0]: The Route Profile login is not i
 ```
 
 The import refuses a key that a Backup does not have, a version other than 2,
-and an unknown Route Profile. Version 1 is the format of older dashboards. It also refuses an Alias to this Workstation, and
+and an unknown Route Profile. It also refuses an Alias to this Workstation, and
 a Container Binding to a container that another Service follows already.
 
 The import writes Route Profiles first, then Services, then Static Instances
@@ -995,10 +969,6 @@ The Route gets each profile as a Traefik middleware named
 `<workstation>_<profile>`, such as `ws-a_basic-auth`, in the order of the
 Publication. A chain's members get the same name in front. So the profiles of
 two Workstations never clash.
-
-Before you protect a Service with Yard Scope, check that every Workstation in
-the Yard runs a version of LVH Yard with Route Profiles. An older version does
-not read the profiles of a Publication, so it routes the Service without them.
 
 A Service with Yard Scope gets its profiles on every Workstation. A teammate's
 Route to it applies the same profiles. An Alias gives only Instances, so the
