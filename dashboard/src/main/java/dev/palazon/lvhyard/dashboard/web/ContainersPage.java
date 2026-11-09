@@ -463,8 +463,8 @@ final class ContainersPage {
                 .__()
                 .p()
                 .text(
-                    "Binds the container to a Service. A new Service is published with Local"
-                        + " Scope.")
+                    "Binds the container to a Service that exists. The Service keeps its"
+                        + " Publication.")
                 .__()
                 .form()
                 .attrClass("form flex max-w-md flex-col gap-6")

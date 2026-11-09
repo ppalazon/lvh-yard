@@ -11,7 +11,7 @@ import picocli.CommandLine.Spec;
 @Command(
     name = "container",
     mixinStandardHelpOptions = true,
-    description = "Binds a named container to a Service.")
+    description = "Binds a named container to an existing Service.")
 class RegisterContainer implements Runnable {
 
   @ParentCommand Register register;
@@ -34,17 +34,11 @@ class RegisterContainer implements Runnable {
       description = "The Service's name (default: the container name).")
   String service;
 
-  @Option(names = "--no-publish", description = "Binds a new Service without publishing it.")
-  boolean noPublish;
-
   @Spec CommandSpec spec;
 
   @Override
   public void run() {
-    Dashboard.Service registered =
-        register
-            .dashboard()
-            .registerContainer(container, port, service, Register.publish(noPublish));
+    Dashboard.Service registered = register.dashboard().registerContainer(container, port, service);
     PrintWriter out = spec.commandLine().getOut();
     out.println(
         "Registered "

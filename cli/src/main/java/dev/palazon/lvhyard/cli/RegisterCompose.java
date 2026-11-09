@@ -12,7 +12,7 @@ import picocli.CommandLine.Spec;
 @Command(
     name = "compose",
     mixinStandardHelpOptions = true,
-    description = "Binds a Compose service to a Service.")
+    description = "Binds a Compose service to an existing Service.")
 class RegisterCompose implements Runnable {
 
   /** The longest DNS label, as the dashboard's Service name rule allows. */
@@ -38,9 +38,6 @@ class RegisterCompose implements Runnable {
       description = "The Service's name (default: the Compose service name).")
   String service;
 
-  @Option(names = "--no-publish", description = "Binds a new Service without publishing it.")
-  boolean noPublish;
-
   @Spec CommandSpec spec;
 
   @Override
@@ -54,10 +51,7 @@ class RegisterCompose implements Runnable {
     String composeService = projectAndService[1];
     String name = service != null ? service : cleaned(composeService);
     Dashboard.ContainerBinding binding =
-        register
-            .dashboard()
-            .bindCompose(
-                name, projectAndService[0], composeService, port, Register.publish(noPublish));
+        register.dashboard().bindCompose(name, projectAndService[0], composeService, port);
     PrintWriter out = spec.commandLine().getOut();
     out.println(
         "Bound "

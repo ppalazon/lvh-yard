@@ -25,8 +25,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Client for the dashboard's REST API ({@code openapi.yaml}). Every failure is a {@link
- * YardException} with a message ready to print. A {@code publish} argument of {@code false} leaves
- * a new Service Unpublished, and {@code null} lets the dashboard publish it.
+ * YardException} with a message ready to print.
  */
 final class Dashboard {
 
@@ -47,11 +46,16 @@ final class Dashboard {
     this.url = url.toString().endsWith("/") ? url : URI.create(url + "/");
   }
 
-  /** The API leaves {@code routing} out when this Workstation does not route the Service. */
+  /**
+   * The API leaves {@code routing} out when this Workstation does not route the Service.
+   *
+   * @param empty it has no Instances and no Container Bindings
+   */
   record Service(
       String workstation,
       String name,
       String state,
+      boolean empty,
       Publication publication,
       String hostname,
       List<Instance> instances,
@@ -262,8 +266,7 @@ final class Dashboard {
       int port,
       Check check,
       List<String> tags,
-      Map<String, String> meta,
-      Boolean publish) {
+      Map<String, String> meta) {
     Map<String, Object> instance = new LinkedHashMap<>();
     if (host != null) {
       instance.put("host", host);
@@ -278,30 +281,67 @@ final class Dashboard {
     if (!meta.isEmpty()) {
       instance.put("meta", meta);
     }
-    if (publish != null) {
-      instance.put("publish", publish);
-    }
     HttpRequest.Builder request =
         HttpRequest.newBuilder(instancesUrl(service))
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(instance)));
-    return read(send(request), new TypeReference<>() {});
+    return read(attach(request), new TypeReference<>() {});
   }
 
-  ContainerBinding bindCompose(
-      String service, String project, String composeService, int port, Boolean publish) {
+  ContainerBinding bindCompose(String service, String project, String composeService, int port) {
     Map<String, Object> binding = new LinkedHashMap<>();
     binding.put("composeProject", project);
     binding.put("composeService", composeService);
     binding.put("port", port);
-    if (publish != null) {
-      binding.put("publish", publish);
-    }
     HttpRequest.Builder request =
         HttpRequest.newBuilder(containerBindingsUrl(service))
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(binding)));
+    return read(attach(request), new TypeReference<>() {});
+  }
+
+  /** An empty, Unpublished Service. */
+  Service createService(String service) {
+    HttpRequest.Builder request =
+        HttpRequest.newBuilder(url.resolve("api/workstation/services"))
+            .header("Content-Type", "application/json")
+            .POST(
+                HttpRequest.BodyPublishers.ofString(
+                    JSON.writeValueAsString(Map.of("name", service))));
     return read(send(request), new TypeReference<>() {});
+  }
+
+  void deleteService(String service) {
+    send(HttpRequest.newBuilder(serviceUrl(service)).DELETE());
+  }
+
+  /**
+   * Sends a request that attaches something to a Service. When the Service does not exist, the
+   * error names the command that creates it.
+   */
+  private HttpResponse<String> attach(HttpRequest.Builder request) {
+    HttpResponse<String> response = exchange(request, "application/json");
+    if (response.statusCode() == 404) {
+      String service = missingService(response);
+      if (service != null) {
+        throw new YardException(
+            reason(response) + " Create it first: lvh-yard service create " + service);
+      }
+    }
+    if (response.statusCode() >= 400) {
+      throw new YardException(reason(response));
+    }
+    return response;
+  }
+
+  /** The Service that a 404 problem names, or {@code null}. */
+  private static String missingService(HttpResponse<String> response) {
+    try {
+      JsonNode service = JSON.readTree(response.body()).path("service");
+      return service.isString() ? service.asString() : null;
+    } catch (JacksonException e) {
+      return null;
+    }
   }
 
   /** Compose projects first, then the other containers. */
@@ -428,7 +468,7 @@ final class Dashboard {
   }
 
   /** A {@code null} argument gets the dashboard's default. */
-  Service registerContainer(String container, Integer port, String service, Boolean publish) {
+  Service registerContainer(String container, Integer port, String service) {
     Map<String, Object> body = new LinkedHashMap<>();
     if (port != null) {
       body.put("port", port);
@@ -436,15 +476,12 @@ final class Dashboard {
     if (service != null) {
       body.put("service", service);
     }
-    if (publish != null) {
-      body.put("publish", publish);
-    }
     HttpRequest.Builder request =
         HttpRequest.newBuilder(
                 url.resolve("api/workstation/containers/" + segment(container) + "/register"))
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body)));
-    return read(send(request), new TypeReference<>() {});
+    return read(attach(request), new TypeReference<>() {});
   }
 
   void unbind(String service, String id) {
@@ -529,6 +566,10 @@ final class Dashboard {
 
   private URI instancesUrl(String service) {
     return url.resolve("api/workstation/services/" + segment(service) + "/instances");
+  }
+
+  private URI serviceUrl(String service) {
+    return url.resolve("api/workstation/services/" + segment(service));
   }
 
   private HttpRequest.Builder get(String path) {

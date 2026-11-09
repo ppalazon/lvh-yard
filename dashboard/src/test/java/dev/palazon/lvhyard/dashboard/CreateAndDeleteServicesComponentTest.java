@@ -69,6 +69,7 @@ class CreateAndDeleteServicesComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response = post(instancesPath(grafana), Map.of("port", 3000));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    assertThat(response.getBody().get("service").asString()).isEqualTo(grafana);
     assertThat(get(servicePath(grafana)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
   }
 

@@ -11,7 +11,7 @@ import picocli.CommandLine.Spec;
 @Command(
     name = "static",
     mixinStandardHelpOptions = true,
-    description = "Registers a Static Instance, and publishes a new Service.")
+    description = "Registers a Static Instance of an existing Service.")
 class RegisterStatic implements Runnable {
 
   @ParentCommand Register register;
@@ -28,9 +28,6 @@ class RegisterStatic implements Runnable {
 
   @Mixin StaticInstanceOptions options;
 
-  @Option(names = "--no-publish", description = "Registers a new Service without publishing it.")
-  boolean noPublish;
-
   @Spec CommandSpec spec;
 
   @Override
@@ -39,13 +36,7 @@ class RegisterStatic implements Runnable {
         register
             .dashboard()
             .register(
-                service,
-                options.host,
-                port,
-                options.healthCheck(),
-                options.tags,
-                options.meta,
-                Register.publish(noPublish));
+                service, options.host, port, options.healthCheck(), options.tags, options.meta);
     spec.commandLine()
         .getOut()
         .println(

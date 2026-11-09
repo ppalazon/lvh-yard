@@ -95,14 +95,16 @@ class Catalog implements Runnable {
             continue;
           }
           String instances =
-              service.instances().isEmpty()
-                  ? "No Instances"
-                  : service.instances().stream()
-                          .filter(instance -> "passing".equals(instance.health()))
-                          .count()
-                      + " of "
-                      + service.instances().size()
-                      + " passing";
+              service.empty()
+                  ? "Empty"
+                  : service.instances().isEmpty()
+                      ? "No Instances"
+                      : service.instances().stream()
+                              .filter(instance -> "passing".equals(instance.health()))
+                              .count()
+                          + " of "
+                          + service.instances().size()
+                          + " passing";
           out.printf(format, service.name(), service.state(), hostname(service), instances);
         }
       }

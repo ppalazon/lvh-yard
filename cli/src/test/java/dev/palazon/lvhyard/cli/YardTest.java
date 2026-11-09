@@ -55,7 +55,7 @@ class YardTest extends YardTestSupport {
             "  worker    unpublished              0 of 2 passing",
             "ws-b",
             "  database  healthy      db.lvh.me   2 of 2 passing",
-            "  cache     unavailable              No Instances",
+            "  cache     unavailable              Empty",
             "ws-c: Workstation unreachable",
             "ws-d: no Services");
   }
@@ -372,25 +372,147 @@ class YardTest extends YardTestSupport {
   }
 
   @Test
-  void registerStaticWithNoPublishAsksToLeaveANewServiceUnpublished() {
+  void serviceCreateCreatesAnEmptyUnpublishedService() {
     dashboard.answer(
         "POST",
-        "/api/workstation/services/web/instances",
+        "/api/workstation/services",
         201,
         """
-        {"id": "7b1c", "host": "10.1.2.3", "port": 8080, "health": "critical",
-         "tags": [], "meta": {}, "checks": [], "outOfRange": false}
+        {"workstation": "ws-a", "name": "web", "state": "unpublished", "created": true,
+         "empty": true, "instances": [], "containerBindings": [], "warnings": []}
         """);
 
-    Run run = yard("register", "static", "web", "--port", "8080", "--no-publish");
+    Run run = yard("service", "create", "web");
 
     assertThat(run.exitCode()).isZero();
+    assertThat(run.out())
+        .isEqualTo(
+            "Created web. It is empty and Unpublished: attach Instances with lvh-yard register.\n");
     dashboard.verifyCalled(
         "POST",
-        "/api/workstation/services/web/instances",
+        "/api/workstation/services",
         """
-        {"port": 8080, "publish": false}
+        {"name": "web"}
         """);
+  }
+
+  @Test
+  void serviceCreateOfANameInUseSaysSo() {
+    dashboard.answer(
+        "POST",
+        "/api/workstation/services",
+        409,
+        """
+        {"type": "about:blank", "title": "Conflict", "status": 409,
+         "detail": "This Workstation already has a Service web."}
+        """);
+
+    Run run = yard("service", "create", "web");
+
+    assertThat(run.exitCode()).isNotZero();
+    assertThat(run.err()).isEqualTo("This Workstation already has a Service web.\n");
+  }
+
+  @Test
+  void serviceDeleteDeletesTheService() {
+    dashboard.answer("DELETE", "/api/workstation/services/web", 204, null);
+
+    Run run = yard("service", "delete", "web");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out())
+        .isEqualTo(
+            "Deleted web with its Publication, Static Instances and Container Bindings. Its"
+                + " containers keep running.\n");
+    dashboard.verifyCalled("DELETE", "/api/workstation/services/web");
+  }
+
+  @Test
+  void serviceDeleteOfAMissingServiceSaysSo() {
+    dashboard.answer(
+        "DELETE",
+        "/api/workstation/services/wbe",
+        404,
+        """
+        {"type": "about:blank", "title": "Not Found", "status": 404,
+         "detail": "This Workstation has no Service wbe."}
+        """);
+
+    Run run = yard("service", "delete", "wbe");
+
+    assertThat(run.exitCode()).isNotZero();
+    assertThat(run.err()).isEqualTo("This Workstation has no Service wbe.\n");
+  }
+
+  @Test
+  void serviceWithoutASubcommandPrintsItsUsage() {
+    Run run = yard("service");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).contains("create").contains("delete");
+  }
+
+  @Test
+  void registerStaticOnAMissingServiceNamesServiceCreate() {
+    answerNoService("POST", "/api/workstation/services/web/instances", "web");
+
+    Run run = yard("register", "static", "web", "--port", "8080");
+
+    assertThat(run.exitCode()).isNotZero();
+    assertThat(run.err())
+        .isEqualTo(
+            "This Workstation has no Service web. Create it first: lvh-yard service create"
+                + " web\n");
+  }
+
+  @Test
+  void registerContainerOnAMissingServiceNamesServiceCreate() {
+    answerNoService("POST", "/api/workstation/containers/grafana/register", "web");
+
+    Run run = yard("register", "container", "grafana", "--service", "web");
+
+    assertThat(run.exitCode()).isNotZero();
+    assertThat(run.err()).contains("lvh-yard service create web");
+  }
+
+  @Test
+  void registerContainerOnAMissingServiceOfTheContainerNameNamesServiceCreate() {
+    answerNoService("POST", "/api/workstation/containers/grafana/register", "grafana");
+
+    Run run = yard("register", "container", "grafana");
+
+    assertThat(run.exitCode()).isNotZero();
+    assertThat(run.err()).contains("lvh-yard service create grafana");
+  }
+
+  @Test
+  void registerComposeOnAMissingServiceNamesServiceCreate() {
+    answerNoService("POST", "/api/workstation/services/web/container-bindings", "web");
+
+    Run run = yard("register", "compose", "shop/web", "--port", "80");
+
+    assertThat(run.exitCode()).isNotZero();
+    assertThat(run.err()).contains("lvh-yard service create web");
+  }
+
+  @Test
+  void registerHasNoPublishOption() {
+    Run run = yard("register", "static", "web", "--port", "8080", "--no-publish");
+
+    assertThat(run.exitCode()).isEqualTo(2);
+    assertThat(run.err()).contains("--no-publish");
+  }
+
+  private void answerNoService(String method, String path, String service) {
+    dashboard.answer(
+        method,
+        path,
+        404,
+        """
+        {"type": "about:blank", "title": "Not Found", "status": 404,
+         "detail": "This Workstation has no Service %s.", "service": "%s"}
+        """
+            .formatted(service, service));
   }
 
   @Test
@@ -1053,7 +1175,7 @@ class YardTest extends YardTestSupport {
   }
 
   @Test
-  void registerContainerSendsThePortTheServiceAndNoPublish() {
+  void registerContainerSendsThePortAndTheService() {
     dashboard.answer(
         "POST",
         "/api/workstation/containers/storefront/register",
@@ -1066,16 +1188,7 @@ class YardTest extends YardTestSupport {
                         "checks": [], "tags": [], "meta": {}}]}
         """);
 
-    Run run =
-        yard(
-            "register",
-            "container",
-            "storefront",
-            "--port",
-            "9000",
-            "--service",
-            "shop",
-            "--no-publish");
+    Run run = yard("register", "container", "storefront", "--port", "9000", "--service", "shop");
 
     assertThat(run.exitCode()).isZero();
     assertThat(run.out()).isEqualTo("Registered storefront as shop. shop is not published.\n");
@@ -1083,7 +1196,7 @@ class YardTest extends YardTestSupport {
         "POST",
         "/api/workstation/containers/storefront/register",
         """
-        {"port": 9000, "service": "shop", "publish": false}
+        {"port": 9000, "service": "shop"}
         """);
   }
 
@@ -1215,7 +1328,7 @@ class YardTest extends YardTestSupport {
   }
 
   @Test
-  void registerComposeSendsTheServiceAndNoPublish() {
+  void registerComposeSendsTheService() {
     dashboard.answer(
         "POST",
         "/api/workstation/services/shop/container-bindings",
@@ -1225,9 +1338,7 @@ class YardTest extends YardTestSupport {
          "instances": []}
         """);
 
-    Run run =
-        yard(
-            "register", "compose", "shop/web", "--port", "80", "--service", "shop", "--no-publish");
+    Run run = yard("register", "compose", "shop/web", "--port", "80", "--service", "shop");
 
     assertThat(run.exitCode()).isZero();
     assertThat(run.out())
@@ -1238,7 +1349,7 @@ class YardTest extends YardTestSupport {
         "POST",
         "/api/workstation/services/shop/container-bindings",
         """
-        {"composeProject": "shop", "composeService": "web", "port": 80, "publish": false}
+        {"composeProject": "shop", "composeService": "web", "port": 80}
         """);
   }
 

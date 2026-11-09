@@ -22,6 +22,7 @@ import picocli.CommandLine.Spec;
     subcommands = {
       Init.class,
       Catalog.class,
+      ServiceCommand.class,
       Register.class,
       Containers.class,
       Remove.class,
@@ -35,7 +36,7 @@ import picocli.CommandLine.Spec;
       Status.class,
       Completions.class
     },
-    description = "Registers, publishes and tests Services on this Workstation.")
+    description = "Creates, registers, publishes and tests Services on this Workstation.")
 public class Yard implements Runnable {
 
   /** Where the dashboard listens when no .env gives its address. */

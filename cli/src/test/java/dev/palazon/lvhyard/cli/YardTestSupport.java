@@ -74,7 +74,7 @@ abstract class YardTestSupport {
                 "tags": [], "meta": {}, "checks": [], "outOfRange": false},
                {"id": "db-second", "host": "10.1.2.4", "port": 5433, "health": "passing",
                 "tags": [], "meta": {}, "checks": [], "outOfRange": false}]},
-            {"workstation": "ws-b", "name": "cache", "state": "unavailable", "created": true, "empty": false,
+            {"workstation": "ws-b", "name": "cache", "state": "unavailable", "created": true, "empty": true,
              "containerBindings": [], "warnings": [], "instances": []}]},
           {"name": "ws-c", "unreachable": true, "services": []},
           {"name": "ws-d", "unreachable": false, "services": []}]}

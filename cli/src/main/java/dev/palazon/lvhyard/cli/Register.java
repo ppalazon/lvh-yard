@@ -9,7 +9,9 @@ import picocli.CommandLine.Spec;
     name = "register",
     mixinStandardHelpOptions = true,
     subcommands = {RegisterStatic.class, RegisterContainer.class, RegisterCompose.class},
-    description = "Registers a Static Instance, or binds a container or Compose service.")
+    description =
+        "Registers a Static Instance, or binds a container or Compose service, in an existing"
+            + " Service.")
 class Register implements Runnable {
 
   @ParentCommand Yard yard;
@@ -23,12 +25,5 @@ class Register implements Runnable {
 
   Dashboard dashboard() {
     return yard.dashboard();
-  }
-
-  /**
-   * What {@code --no-publish} asks of the dashboard: {@code null} lets it publish a new Service.
-   */
-  static Boolean publish(boolean noPublish) {
-    return noPublish ? false : null;
   }
 }

@@ -317,9 +317,8 @@ paths:
       description: "Binds only the named container, even when it has Compose labels.\
         \ The Service is named after the container, cleaned to follow the Service\
         \ name rule, unless service is given. The port is needed when the container\
-        \ does not run, or does not have exactly one TCP port. A new Service is published\
-        \ with Local Scope, unless publish is false. A Service that exists keeps its\
-        \ Publication, or stays Unpublished. The body can be left out."
+        \ does not run, or does not have exactly one TCP port. The Service must exist,\
+        \ and it keeps its Publication. The body can be left out."
       operationId: registerContainer
       parameters:
       - in: path
@@ -346,6 +345,13 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
           description: "The name is not a single DNS label or is consul, or the port\
             \ is missing or not a TCP port"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: This Workstation has no Service of this name. The problem names
+            it as service
         "409":
           content:
             application/problem+json:

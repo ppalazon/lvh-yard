@@ -45,9 +45,8 @@ class ContainersController {
           "Binds only the named container, even when it has Compose labels. The Service is"
               + " named after the container, cleaned to follow the Service name rule, unless"
               + " service is given. The port is needed when the container does not run, or does"
-              + " not have exactly one TCP port. A new Service is published with Local Scope,"
-              + " unless publish is false. A Service that exists keeps its Publication, or stays"
-              + " Unpublished. The body can be left out.")
+              + " not have exactly one TCP port. The Service must exist, and it keeps its"
+              + " Publication. The body can be left out.")
   @ApiResponse(
       responseCode = "200",
       description = "The Service, with the container bound",
@@ -55,6 +54,9 @@ class ContainersController {
   @ApiResponse(
       responseCode = "400",
       description = Registrations.INVALID_NAME + ", or the port is missing or not a TCP port")
+  @ApiResponse(
+      responseCode = "404",
+      description = "This Workstation has no Service of this name. The problem names it as service")
   @ApiResponse(
       responseCode = "409",
       description = "A Container Binding already follows the container")

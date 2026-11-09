@@ -64,7 +64,7 @@ On its first start, the dashboard sets up three Services with Local Scope:
   [traefik-admin.lvh.me](http://traefik-admin.lvh.me)
 
 The dashboard does this setup only once. After that, they are ordinary
-Services. You can change, unpublish or remove them, and they do not come back.
+Services. You can change, unpublish or delete them, and they do not come back.
 The dashboard is always at `127.0.0.1:7780` too, also when Traefik is down or
 `yard` is unpublished.
 
@@ -238,15 +238,16 @@ lvh-yard catalog --workstation ws-b          # one Workstation
 lvh-yard catalog --state degraded            # one Service state
 lvh-yard catalog --details                  # Instance addresses, Health, IDs and Service Warnings
 lvh-yard catalog --details --workstation ws-b --state degraded
-lvh-yard register static web --port 8080    # at this Workstation's LAN address, and publish a new Service
+lvh-yard service create web                 # an empty, Unpublished Service
+lvh-yard service delete web                 # with its Publication, Static Instances and Container Bindings
+lvh-yard register static web --port 8080    # at this Workstation's LAN address
 lvh-yard register static web --host 127.0.0.1 --port 8080
 lvh-yard register static web --port 8080 --path /health --interval 5s --timeout 1s   # an HTTP check (default: TCP, 10s, 2s)
 lvh-yard register static web --port 8080 --tag backend --meta owner=pablo           # repeat --tag and --meta for more
-lvh-yard register static web --port 8080 --no-publish                               # a new Service stays Unpublished
 lvh-yard containers                         # Compose service counts and Container Ports
 lvh-yard containers --details               # each container and its Host Port mappings
 lvh-yard register container shop-web-1     # bind only this named container
-lvh-yard register container shop-web-1 --port 9000 --service shop --no-publish
+lvh-yard register container shop-web-1 --port 9000 --service shop
 lvh-yard register compose shop/web --port 80 # bind the Compose service web of project shop
 lvh-yard remove web --port 8080             # add --host if several Instances share the port
 lvh-yard remove web --id <id>               # the ID that lvh-yard catalog --details shows
@@ -282,7 +283,9 @@ lvh-yard status --strict                    # also exits with 1 on a warning
 ```
 
 `lvh-yard catalog` shows aligned columns for the Service name, state, hostname
-and Instance count. The count says "N of M passing", or "No Instances" when empty.
+and Instance count. The count says "N of M passing". It says "Empty" for a
+Service with no Instances and no Container Bindings, and "No Instances" for a
+Service whose Container Bindings follow no running container.
 Unpublished Services show the count too, but have no hostname. By default,
 the command prints no Instance IDs or Service Warnings. Add `--details` to
 show each Instance's address, Health and ID, followed by the Service Warnings.
@@ -292,6 +295,10 @@ The states are `unpublished`,
 shows `Workstation unreachable` instead of its Services.
 
 If a command fails, it prints the reason and exits with a code that is not 0.
+
+`lvh-yard register` attaches an Instance to a Service that exists. If the
+Service does not exist, the command fails and names the command that creates
+it, such as `lvh-yard service create web`.
 
 `lvh-yard profiles show` and `lvh-yard profiles set` use Traefik's file format:
 a YAML document with `http.middlewares.<name>`. So the output of `show` works as
@@ -564,6 +571,28 @@ what the import applied and gives the name of the safety Backup.
 ## How it works
 
 ### Services and Publications
+
+You create a Service with a name, and it stays until you delete it. A new
+Service is empty and Unpublished, so nothing gets a hostname by mistake. To
+create one, click "New Service" in the catalog, give the name and click
+Create. The page of the new Service opens. You can also run
+`lvh-yard service create <name>`. A name that this Workstation already uses is
+refused. The catalog marks a Service with no Instances and no Container
+Bindings as Empty.
+
+Static Instances and Container Bindings attach to a Service that exists. A
+Static Instance or a Container Binding for a missing Service is refused, and
+so is a Publication. The Services are in the Consul KV of this Workstation,
+under `lvh-yard/services/`.
+
+To delete a Service, click "Delete Service" at the bottom of its page. A
+confirmation page names what goes: the Publication, the Static Instances, and
+the Container Bindings with their Bound Instances. Click Delete. The containers
+keep running. You can also run `lvh-yard service delete <name>`.
+
+A Service that only Foreign Instances give shows without being created. It
+stays while they are registered, also after a delete, and its page says why.
+To publish it, create a Service of the same name.
 
 A Service is `unpublished`, `unavailable` (published, no Instances), `unhealthy`
 (published, no passing Instance), `degraded` (published, some Instances pass and
@@ -916,10 +945,9 @@ To register a Static Instance on that page, click "Register a Static
 Instance". The form opens on its own page, `/static-instances/new`. Cancel
 goes back to the Static Instances page. If a value is wrong, the form shows
 your input again with the error under its field. You can also run
-`lvh-yard register static`. If the Service is new, it gets a Publication with
-Local Scope. To keep a new Service Unpublished, clear "Publish a new Service" in
-the form, or add `--no-publish`. A Service that exists keeps its Publication, or
-stays Unpublished.
+`lvh-yard register static`. The Service must exist, and it keeps its
+Publication, or stays Unpublished. For a missing Service, the form shows the
+error under the Service name.
 
 ### Container Bindings
 
@@ -992,10 +1020,9 @@ bound by its name.
 The Service gets the name of the Compose service, or of the container.
 If that name is not a single DNS label, LVH Yard uses a cleaned name: lower
 case, with `_`, `.` and other characters changed to `-`. If the cleaned
-Compose service name is empty, LVH Yard uses the cleaned container name. If
-the Service is new, LVH Yard publishes it with Local Scope. If the Service
-already exists on this Workstation, it keeps its Publication and Scope, or
-stays Unpublished. After the registration, the list says which Service got
+Compose service name is empty, LVH Yard uses the cleaned container name.
+The Service must exist on this Workstation. It keeps its Publication and
+Scope, or stays Unpublished. After the registration, the list says which Service got
 the container, with a link to the page of the Service. If the registration
 fails, for example because the name is `consul`, the page shows why next to the
 container.
@@ -1013,12 +1040,12 @@ Instance.
 `POST /api/workstation/containers/<container>/register` binds only that named
 container, even when it has Compose labels. The Service gets the cleaned
 container name unless the body gives `service`.
-The body can give `port`, `service` (another Service name) and
-`publish: false` (to bind without publishing a new Service). Give `port` when
+The body can give `port` and `service` (another Service name). Give `port` when
 the container does not have exactly one TCP port. If you do not, the error
 lists the ports of the container. If a Container Binding already follows the
 container, the registration is refused with 409, and names the Service of that
-Container Binding.
+Container Binding. If the Service does not exist, the registration is refused
+with 404, and the `service` of the error names it.
 
 If no container of that name runs, LVH Yard binds the name, so you can set up
 the Container Binding before the container starts. Then `port` is needed:
@@ -1032,14 +1059,13 @@ to the Containers page. The container or Compose service does not need to run.
 Choose "Container name" or
 "Compose service", and fill in its names and the container port. If you leave
 the Service name empty, LVH Yard uses the cleaned container name or the cleaned
-Compose service name. If the Service is new, LVH Yard
-publishes it with Local Scope. To keep it Unpublished, clear "Publish a new
-Service". Then click Bind. The page of the Service opens. If the binding
+Compose service name. The Service must exist. Then click Bind. The page of the Service opens. If the binding
 fails, the form shows your input again with the error under its field.
 
 `POST /api/workstation/services/<service>/container-bindings` does the same.
 The body gives `container`, or `composeProject` and `composeService`, and
-`port`. It can give `publish: false`. If a Container Binding of this
+`port`. If the Service does not exist, the binding is refused with 404. If a
+Container Binding of this
 Workstation already follows the same container name, or the same Compose
 project and service, the binding is refused with 409, and names the Service of
 that Container Binding. This is also true for the same target and port again.
@@ -1051,7 +1077,6 @@ lvh-yard containers                                      # the running container
 lvh-yard register container shop-web-1                   # a running container with one port
 lvh-yard register container shop-web-1 --port 9000       # choose the port of a container with several or none
 lvh-yard register container shop-web-1 --service shop    # choose the Service name
-lvh-yard register container shop-web-1 --no-publish      # bind without publishing a new Service
 lvh-yard register container shop-web-1 --port 80         # a container that does not run yet
 lvh-yard register compose shop/web --port 80                # a Compose service, running or not
 lvh-yard register compose shop/web --port 80 --service shop # choose the Service name
@@ -1065,7 +1090,7 @@ can be left out.
 `lvh-yard register compose <project>/<service>` follows every container of
 that Compose service. The default Service name is the cleaned Compose
 service name. This command needs `--port`, whether its containers run or not.
-Both commands accept `--service` and `--no-publish`.
+Both commands accept `--service`. The Service must exist.
 `lvh-yard register` alone lists `static`, `container` and `compose`.
 
 ### Health checks
