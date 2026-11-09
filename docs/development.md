@@ -1,8 +1,8 @@
 # Development
 
 This page is for people who work on LVH Yard itself. To install and use LVH
-Yard, read the [user guide](user-guide.md). [.scratch/mvp/spec.md](../.scratch/mvp/spec.md)
-describes the MVP.
+Yard, read the [user guide](user-guide.md). [GLOSSARY.md](../GLOSSARY.md)
+defines the words, and [docs/adr/](adr/) records the design decisions.
 
 ## Requirements
 
