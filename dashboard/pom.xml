@@ -104,6 +104,9 @@
                 <configuration>
                     <!-- Each JVM has its own dashboards and fakes, so test classes run side by side. -->
                     <forkCount>4</forkCount>
+                    <systemPropertyVariables>
+                        <spring.main.banner-mode>off</spring.main.banner-mode>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
             <plugin>
@@ -112,6 +115,9 @@
                 <configuration>
                     <!-- Each JVM starts its own test Yard of containers. More than four was not faster. -->
                     <forkCount>4</forkCount>
+                    <systemPropertyVariables>
+                        <spring.main.banner-mode>off</spring.main.banner-mode>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
         </plugins>

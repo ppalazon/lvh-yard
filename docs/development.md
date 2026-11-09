@@ -134,6 +134,9 @@ passing health check, the other Workstation's own dashboard, and Traefik.
 While you work, run `mise run test:unit` or `mise run test:component`. Both
 run in seconds, without Docker. Before you commit, run `mise run check`. It
 builds the stylesheet, builds both modules from scratch and runs every test.
+The dashboard tests log only warnings and errors. The full output of each test
+class is in `dashboard/target/surefire-reports/` and
+`dashboard/target/failsafe-reports/`.
 
 The dashboard integration tests start a Yard of two federated Consul
 datacenters with Testcontainers, so they need Docker. The second Workstation,

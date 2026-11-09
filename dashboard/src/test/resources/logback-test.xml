@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Only WARN and ERROR in tests, so a passing run prints a few lines. The reports in
+     target/surefire-reports and target/failsafe-reports keep the output of each test class. -->
+<configuration>
+  <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+  <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+  <!-- Each test JVM repeats these: the api-docs endpoint is on, and a test class has no @Configuration of its own. -->
+  <logger name="org.springdoc.core.events.SpringDocAppInitializer" level="ERROR"/>
+  <logger name="org.springframework.boot.test.context.SpringBootTestContextBootstrapper" level="ERROR"/>
+  <root level="WARN">
+    <appender-ref ref="CONSOLE"/>
+  </root>
+</configuration>
