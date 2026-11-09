@@ -213,6 +213,22 @@ class RouteProfilesPageComponentTest extends DashboardComponentTest {
         .contains("href=\"/route-profiles#profile-page-linked\"");
   }
 
+  @Test
+  void unpublishedServicePageOffersTheProfilesAndAddingOnePublishesTheService() {
+    putRouteProfiles(JSON.readTree("{\"page-offered\": {\"compress\": {}}}"));
+    String web = newServiceName("web");
+    create(web);
+
+    assertThat(getPage("/services/ws-test/" + web).getBody())
+        .contains("id=\"route-profiles\"")
+        .contains("aria-label=\"Add page-offered\"");
+
+    postForm("/services/ws-test/" + web + "/publish", Map.of("profiles", "page-offered"));
+
+    assertThat(get(servicePath(web)).getBody().get("profiles").get(0).asString())
+        .isEqualTo("page-offered");
+  }
+
   private static String valueOf(String tag) {
     int start = tag.indexOf("value=\"") + "value=\"".length();
     return HtmlUtils.htmlUnescape(tag.substring(start, tag.indexOf('"', start)));

@@ -131,7 +131,7 @@ The order of a Service's Instance Sources. Its Route uses only the first Instanc
 _Avoid_: Alias priority, weight, preference, kind order
 
 **Route Profile**:
-A named, reusable set of Route options, such as authentication or added headers, that a Publication can use. It is written on the Home Workstation, and every Workstation that routes the Publication applies it, Aliases included.
+A named, reusable set of Route options, such as authentication or added headers, that a Publication can use. It is written on the Home Workstation, and every Workstation that routes the Publication applies it. A Route that uses the Instances of an Alias applies the Route Profiles of its own Service, not those of the Remote Service.
 _Avoid_: Middleware, Traefik profile, policy
 
 **Route**:

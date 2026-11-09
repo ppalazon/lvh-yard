@@ -340,6 +340,7 @@ public class YardReader {
             containerBindings,
             InstanceSource.ordered(record == null ? List.of() : record.order(), sources),
             record == null || record.instancePriority(),
+            record != null && !record.aliases().isEmpty(),
             workstation.is(home),
             profiles));
   }

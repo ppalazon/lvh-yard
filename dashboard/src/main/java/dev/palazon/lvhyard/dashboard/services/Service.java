@@ -15,7 +15,8 @@ import java.util.stream.Collectors;
  *
  * @param created whether you created it on its Home Workstation. If not, only Foreign Instances
  *     give it, and it leaves once they do
- * @param empty whether it has no Instances and no Container Bindings
+ * @param empty whether it has no Instance Sources. Its Aliases count, also where it does not list
+ *     them.
  * @param sources its Instance Sources, in the order of its Instance Priority. Only its Home
  *     Workstation lists its Aliases.
  * @param instancePriority whether its Route uses only the first source in the order with a passing
@@ -37,7 +38,7 @@ public record Service(
         boolean created,
     @Schema(
             requiredMode = Schema.RequiredMode.REQUIRED,
-            description = "Whether it has no Instances and no Container Bindings")
+            description = "Whether it has no Instance Sources. Its Aliases count")
         boolean empty,
     @JsonInclude(JsonInclude.Include.NON_NULL) Publication publication,
     @JsonInclude(JsonInclude.Include.NON_NULL) String hostname,
@@ -65,6 +66,8 @@ public record Service(
   /**
    * @param home whether this Workstation is its Home Workstation, as only that one routes to
    *     Aliases
+   * @param aliased whether it has an Alias. {@code sources} lists Aliases only on the Home
+   *     Workstation.
    * @param stored the Route Profiles its Home Workstation's Consul KV holds, by name
    */
   Service(
@@ -77,6 +80,7 @@ public record Service(
       List<ContainerBinding> containerBindings,
       List<InstanceSource> sources,
       boolean instancePriority,
+      boolean aliased,
       boolean home,
       Map<String, RouteProfileDefinition> stored) {
     this(
@@ -84,7 +88,7 @@ public record Service(
         name,
         ServiceState.of(publication, instances),
         created,
-        instances.isEmpty() && containerBindings.isEmpty(),
+        instances.isEmpty() && containerBindings.isEmpty() && !aliased,
         publication,
         hostname,
         instances,

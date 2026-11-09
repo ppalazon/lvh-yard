@@ -67,6 +67,17 @@ class AliasesComponentTest extends DashboardComponentTest {
   }
 
   @Test
+  void serviceWhoseOnlySourceIsAnAliasIsNotEmpty() {
+    String grafana = sharedRemoteService("grafana");
+    String web = newServiceName("web");
+    create(web);
+
+    addAlias(web, grafana);
+
+    assertThat(get(servicePath(web)).getBody().get("empty").asBoolean()).isFalse();
+  }
+
+  @Test
   void serviceCanHaveManyAliasesAndEachGoesToTheEndOfTheOrder() {
     String first = sharedRemoteService("first");
     String second = sharedRemoteService("second");

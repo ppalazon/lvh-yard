@@ -166,8 +166,10 @@ example a new Java version. To run every test anyway, use
 `mise run --force check`.
 
 `dashboard/openapi.yaml` describes the REST API that the CLI uses. If it
-differs from the API that the dashboard serves, a test fails. After you change
-the API, run `mise run openapi` to write it again.
+differs from the API that the dashboard serves, `OpenApiComponentTest` fails.
+After you change the API, run `mise run openapi` to write it again. The task
+runs that test with `-Dopenapi.update=true`, so it writes the file instead of
+comparing it.
 
 ## Releasing
 

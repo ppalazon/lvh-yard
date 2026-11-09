@@ -130,7 +130,7 @@ final class ServicePage {
                                         .__())
                                 .of(grid -> instanceSources(grid, service, aliases, own))
                                 .of(grid -> {
-                                  if (own ? service.published() : !service.profiles().isEmpty()) {
+                                  if (own || !service.profiles().isEmpty()) {
                                     routeProfiles(grid, service, own, profileNames);
                                   }
                                 })
@@ -283,7 +283,16 @@ final class ServicePage {
       content.p().text(reachability.noRoute()).__();
     }
     if (reachability.routing() != null) {
-      content.p().text(routingNow(service, reachability)).__();
+      Routing routing = reachability.routing();
+      content
+          .p()
+          .of(paragraph -> {
+            if (routing.used() != null) {
+              paragraph.addAttr("data-routing-source", Layout.attr(routing.used().id()));
+            }
+          })
+          .text(routingNow(service, reachability))
+          .__();
     }
     content
         .div()
@@ -309,6 +318,12 @@ final class ServicePage {
                 .instances()
                 .forEach(instance ->
                     body.tr()
+                        .addAttr("data-instance", Layout.attr(instance.id()))
+                        .of(row -> {
+                          if (reachability.routing() != null && !instance.outOfRange()) {
+                            row.addAttr("data-routed", String.valueOf(instance.routed()));
+                          }
+                        })
                         .td()
                         .text("Instance " + instance.address())
                         .__()
@@ -706,8 +721,9 @@ final class ServicePage {
   /**
    * Like the Instance Sources, each button posts the whole new list, so the page needs no script.
    * Only this Workstation's Route Profiles can be added, and each name links to its row on the
-   * Route Profiles page. A Remote Service shows its names only: they are chosen on its Home
-   * Workstation, and its profiles are on that Workstation's page.
+   * Route Profiles page. On an Unpublished Service, adding one publishes it. A Remote Service shows
+   * its names only: they are chosen on its Home Workstation, and its profiles are on that
+   * Workstation's page.
    */
   private static void routeProfiles(
       Div<?> content, Service service, boolean own, List<String> profileNames) {
@@ -717,9 +733,11 @@ final class ServicePage {
         .p()
         .attrClass("text-muted-foreground")
         .text(
-            chosen.isEmpty()
-                ? "None: the Route sends requests as they come."
-                : "The Route applies them in this order.")
+            !service.published()
+                ? "Not published. Adding one publishes the Service with Local Scope."
+                : chosen.isEmpty()
+                    ? "None: the Route sends requests as they come."
+                    : "The Route applies them in this order.")
         .__()
         .ol()
         .attrClass("flex flex-col gap-2")

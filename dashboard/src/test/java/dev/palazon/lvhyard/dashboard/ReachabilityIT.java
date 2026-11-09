@@ -260,9 +260,9 @@ class ReachabilityIT extends DashboardIT {
     assertThat(notRouted.has("routed")).isFalse();
     assertThat(instanceOf(result, used).get("routed").asBoolean()).isTrue();
     assertThat(getPage("/services/ws-test/" + web + "/reachability").getBody())
-        .contains("The Route uses the passing Instances of Static Instance ")
-        .contains("In the Route")
-        .contains("Not in the Route now");
+        .contains("data-routing-source=\"" + used + "\"")
+        .contains("data-instance=\"" + used + "\" data-routed=\"true\"")
+        .contains("data-instance=\"" + skipped + "\" data-routed=\"false\"");
   }
 
   private static JsonNode instanceOf(JsonNode result, String id) {

@@ -1487,7 +1487,7 @@ components:
             \ Foreign Instances give it"
         empty:
           type: boolean
-          description: Whether it has no Instances and no Container Bindings
+          description: Whether it has no Instance Sources. Its Aliases count
         hostname:
           type: string
         instancePriority:

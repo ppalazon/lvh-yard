@@ -1,7 +1,7 @@
 # Formats and checks files before each commit. Run by prek (or pre-commit).
 # Set up once: `mise run hooks`. Format everything: `mise run fmt`.
 
-# dashboard/openapi.yaml is written by `mise run openapi`, and OpenApiTest compares it byte for byte.
+# dashboard/openapi.yaml is written by `mise run openapi`, and OpenApiComponentTest compares it byte for byte.
 # .trail/ is written by trail. package-lock.json is written by npm.
 exclude: ^(dashboard/openapi\.yaml|\.trail/.*|package-lock\.json)$
 

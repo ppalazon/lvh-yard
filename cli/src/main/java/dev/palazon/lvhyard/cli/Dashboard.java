@@ -49,7 +49,7 @@ final class Dashboard {
   /**
    * The API leaves {@code routing} out when this Workstation does not route the Service.
    *
-   * @param empty it has no Instances and no Container Bindings
+   * @param empty it has no Instance Sources
    */
   record Service(
       String workstation,

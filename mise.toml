@@ -97,8 +97,8 @@ run = [{ task = "dashboard:image" }, { task = "native" }, { task = "native:insta
 
 [tasks.openapi]
 description = "Rewrite dashboard/openapi.yaml from the running dashboard's OpenAPI document"
-# -Dtest=none skips the unit tests: OpenApiIT is an integration test, which failsafe runs.
-run = "./mvnw -q -pl dashboard verify -Dtest=none -Dsurefire.failIfNoSpecifiedTests=false -Dit.test=OpenApiIT#committedCopyIsCurrent -Dopenapi.update=true"
+# OpenApiComponentTest is a component test, so surefire runs it without Docker.
+run = "./mvnw -q -pl dashboard test -Dtest=OpenApiComponentTest#committedCopyIsCurrent -Dopenapi.update=true"
 
 [tasks.up]
 description = "Start this Workstation's Consul and Traefik, as .env sets them up"
