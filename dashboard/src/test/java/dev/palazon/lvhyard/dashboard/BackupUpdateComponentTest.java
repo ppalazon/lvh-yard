@@ -21,6 +21,65 @@ class BackupUpdateComponentTest extends DashboardComponentTest {
   }
 
   @Test
+  void orderAndToggleOfTheFileComeFirstAndOtherSourcesFollow() {
+    String web = newServiceName("web");
+    String first = register(web, Map.of("host", "10.1.2.3", "port", 3000)).get("id").asString();
+    String second = register(web, Map.of("host", "10.1.2.4", "port", 3000)).get("id").asString();
+    String other = register(web, Map.of("host", "10.1.2.5", "port", 3000)).get("id").asString();
+    put(instancePriorityPath(web), Map.of("order", List.of(other, first, second)));
+
+    ResponseEntity<JsonNode> response =
+        update(
+            """
+            version: 2
+            services:
+              %s:
+                instance-priority: false
+                sources:
+                  - static-instance:
+                      host: 10.1.2.4
+                      port: 3000
+                  - static-instance:
+                      host: 10.1.2.3
+                      port: 3000
+            """
+                .formatted(web));
+
+    assertThat(entries(response)).contains("update instance-priority " + web);
+    JsonNode service = get(servicePath(web)).getBody();
+    assertThat(service.get("instancePriority").asBoolean()).isFalse();
+    assertThat(service.get("sources").valueStream().map(source -> source.get("id").asString()))
+        .containsExactly(second, first, other);
+  }
+
+  @Test
+  void sameOrderAndToggleIsASkip() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 3000));
+    register(web, Map.of("host", "10.1.2.4", "port", 3000));
+
+    ResponseEntity<JsonNode> response =
+        update(
+            """
+            version: 2
+            services:
+              %s:
+                instance-priority: true
+                sources:
+                  - static-instance:
+                      host: 10.1.2.3
+                      port: 3000
+                  - static-instance:
+                      host: 10.1.2.4
+                      port: 3000
+            """
+                .formatted(web));
+
+    assertThat(entries(response))
+        .contains("skip instance-priority " + web + ": It is the same already.");
+  }
+
+  @Test
   void staticInstanceGetsTheCheckTagsAndMetaOfTheFileAndKeepsItsId() {
     String grafana = newServiceName("grafana");
     String id =
@@ -31,15 +90,16 @@ class BackupUpdateComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         update(
             """
-            version: 1
+            version: 2
             services:
               %s:
-                static-instances:
-                  - host: 10.1.2.3
-                    port: 3000
-                    check: {type: http, path: /health, interval: 5s, timeout: 1s}
-                    tags: [green]
-                    meta: {team: data}
+                sources:
+                  - static-instance:
+                      host: 10.1.2.3
+                      port: 3000
+                      check: {type: http, path: /health, interval: 5s, timeout: 1s}
+                      tags: [green]
+                      meta: {team: data}
             """
                 .formatted(grafana));
 
@@ -67,7 +127,7 @@ class BackupUpdateComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         update(
             """
-            version: 1
+            version: 2
             route-profiles:
               %s:
                 compress: {}
@@ -99,7 +159,7 @@ class BackupUpdateComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         update(
             """
-            version: 1
+            version: 2
             services:
               %s:
                 publication:
@@ -122,7 +182,7 @@ class BackupUpdateComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         update(
             """
-            version: 1
+            version: 2
             services:
               %s:
                 publication: none
@@ -145,13 +205,14 @@ class BackupUpdateComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         update(
             """
-            version: 1
+            version: 2
             services:
               %s:
-                static-instances:
-                  - host: 10.1.2.3
-                    port: 3000
-                    tags: [green]
+                sources:
+                  - static-instance:
+                      host: 10.1.2.3
+                      port: 3000
+                      tags: [green]
             """
                 .formatted(grafana));
 
@@ -177,7 +238,7 @@ class BackupUpdateComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         update(
             """
-            version: 1
+            version: 2
             route-profiles:
               %s:
                 headers:
@@ -207,7 +268,7 @@ class BackupUpdateComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         update(
             """
-            version: 1
+            version: 2
             route-profiles:
               %s:
                 basicAuth:
@@ -228,12 +289,13 @@ class BackupUpdateComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         update(
             """
-            version: 1
+            version: 2
             services:
               %s:
-                container-bindings:
-                  - compose: {project: shop, service: %s}
-                    port: 8080
+                sources:
+                  - container-binding:
+                      compose: {project: shop, service: %s}
+                      port: 8080
             """
                 .formatted(web, web));
 
@@ -264,12 +326,13 @@ class BackupUpdateComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         update(
             """
-            version: 1
+            version: 2
             services:
               %s:
-                aliases:
-                  - workstation: %s
-                    service: %s
+                sources:
+                  - alias:
+                      workstation: %s
+                      service: %s
             """
                 .formatted(dash, RemoteWorkstation.NAME, loki));
 

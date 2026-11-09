@@ -68,13 +68,27 @@ class ForeignInstanceComponentTest extends DashboardComponentTest {
 
   @Test
   void backupDoesNotHoldIt() {
-    Map<String, Object> backup =
-        BackupExportComponentTest.yaml(getYaml(BackupExportComponentTest.BACKUP_PATH).getBody());
+    assertThat(backedUp()).doesNotContainKey(service);
 
-    // The Backup names every Service, but an import must not register the Instance.
-    assertThat(
-            BackupExportComponentTest.map(
-                BackupExportComponentTest.map(backup.get("services")).get(service)))
-        .doesNotContainKey("static-instances");
+    register(service, Map.of("host", "10.1.2.4", "port", 3000));
+
+    assertThat(BackupExportComponentTest.map(backedUp().get(service)).get("sources"))
+        .isEqualTo(
+            List.of(
+                Map.of(
+                    "static-instance",
+                    Map.of(
+                        "host",
+                        "10.1.2.4",
+                        "port",
+                        3000,
+                        "check",
+                        Map.of("type", "tcp", "interval", "10s", "timeout", "2s")))));
+  }
+
+  private Map<String, Object> backedUp() {
+    return BackupExportComponentTest.map(
+        BackupExportComponentTest.yaml(getYaml(BackupExportComponentTest.BACKUP_PATH).getBody())
+            .get("services"));
   }
 }

@@ -31,6 +31,7 @@ public record PlanEntry(
           case ROUTE_PROFILE -> "Route Profile " + name;
           case SERVICE -> "Service " + name;
           case PUBLICATION -> "Publication of " + name;
+          case INSTANCE_PRIORITY -> "Instance Priority of " + name;
           case STATIC_INSTANCE -> "Static Instance " + name;
           case CONTAINER_BINDING -> "Container Binding " + name;
           case ALIAS -> "Alias to " + name;
@@ -54,6 +55,7 @@ public record PlanEntry(
     ROUTE_PROFILE,
     SERVICE,
     PUBLICATION,
+    INSTANCE_PRIORITY,
     STATIC_INSTANCE,
     CONTAINER_BINDING,
     ALIAS;

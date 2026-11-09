@@ -27,12 +27,13 @@ class SafetyBackupComponentTest extends DashboardComponentTest {
         postYaml(
             BackupImportComponentTest.IMPORT_PATH,
             """
-            version: 1
+            version: 2
             services:
               %s:
-                static-instances:
-                  - host: 10.1.2.4
-                    port: 3100
+                sources:
+                  - static-instance:
+                      host: 10.1.2.4
+                      port: 3100
             """
                 .formatted(loki));
 
@@ -52,12 +53,13 @@ class SafetyBackupComponentTest extends DashboardComponentTest {
     register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
     String backup =
         """
-        version: 1
+        version: 2
         services:
           %s:
-            static-instances:
-              - host: 10.1.2.3
-                port: 3000
+            sources:
+              - static-instance:
+                  host: 10.1.2.3
+                  port: 3000
         """
             .formatted(grafana);
 
@@ -78,12 +80,13 @@ class SafetyBackupComponentTest extends DashboardComponentTest {
         postYaml(
             BackupImportComponentTest.IMPORT_PATH + "&dry-run=true",
             """
-            version: 1
+            version: 2
             services:
               %s:
-                static-instances:
-                  - host: 10.1.2.4
-                    port: 3100
+                sources:
+                  - static-instance:
+                      host: 10.1.2.4
+                      port: 3100
             """
                 .formatted(loki));
 

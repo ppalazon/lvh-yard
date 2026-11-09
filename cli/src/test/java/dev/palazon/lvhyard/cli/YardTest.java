@@ -829,6 +829,7 @@ class YardTest extends YardTestSupport {
            {"kind": "static-instance", "name": "10.1.2.3:8080", "service": "web",
             "action": "update"},
            {"kind": "publication", "name": "web", "action": "update"},
+           {"kind": "instance-priority", "name": "web", "action": "update"},
            {"kind": "alias", "name": "ws-b/grafana", "service": "dash", "action": "add"}]}
         """);
     Path file = dir.resolve("ws-a.yaml");
@@ -843,8 +844,9 @@ class YardTest extends YardTestSupport {
             skip Service web: It exists already.
             update Static Instance 10.1.2.3:8080 of web
             update Publication of web
+            update Instance Priority of web
             add Alias to ws-b/grafana of dash
-            Added 1, updated 2, skipped 1.
+            Added 1, updated 3, skipped 1.
             """);
     dashboard.verifyCalled("POST", "/api/workstation/backup", "application/yaml", BACKUP);
   }
@@ -883,7 +885,7 @@ class YardTest extends YardTestSupport {
         """
         {"title": "Bad Request", "status": 400, "detail": "The Backup is refused.",
          "problems": [
-           {"place": "services.web.static-instances[0].port", "reason": "The port is missing."},
+           {"place": "services.web.sources[0].static-instance.port", "reason": "The port is missing."},
            {"place": "", "reason": "The file is not valid YAML."}]}
         """);
     Path file = dir.resolve("ws-a.yaml");
@@ -896,7 +898,7 @@ class YardTest extends YardTestSupport {
     assertThat(run.err())
         .isEqualTo(
             """
-            services.web.static-instances[0].port: The port is missing.
+            services.web.sources[0].static-instance.port: The port is missing.
             The file is not valid YAML.
             """);
   }
@@ -2909,12 +2911,12 @@ class YardTest extends YardTestSupport {
   void reinitKeepsTheBackupsInTheBackupsFolder(@TempDir Path dir) throws Exception {
     yardAsTyped("init", "--dir", dir.toString(), "--workstation", "ws-a");
     Path backup = dir.resolve("backups").resolve("ws-a-20261105-100000.yaml");
-    Files.writeString(backup, "version: 1\n");
+    Files.writeString(backup, "version: 2\n");
 
     Run run = yardAsTyped("init", "--dir", dir.toString(), "--reinit");
 
     assertThat(run.exitCode()).as(run.err()).isZero();
-    assertThat(backup).hasContent("version: 1");
+    assertThat(backup).hasContent("version: 2");
   }
 
   @Test

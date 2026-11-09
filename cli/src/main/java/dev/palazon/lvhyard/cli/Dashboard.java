@@ -452,6 +452,7 @@ final class Dashboard {
             case "route-profile" -> "Route Profile " + name;
             case "service" -> "Service " + name;
             case "publication" -> "Publication of " + name;
+            case "instance-priority" -> "Instance Priority of " + name;
             case "static-instance" -> "Static Instance " + name;
             case "container-binding" -> "Container Binding " + name;
             case "alias" -> "Alias to " + name;

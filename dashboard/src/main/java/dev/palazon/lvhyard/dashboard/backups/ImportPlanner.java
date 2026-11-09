@@ -19,6 +19,7 @@ import dev.palazon.lvhyard.dashboard.services.Aliases;
 import dev.palazon.lvhyard.dashboard.services.ContainerBindingRequest;
 import dev.palazon.lvhyard.dashboard.services.ContainerBindings;
 import dev.palazon.lvhyard.dashboard.services.Instance;
+import dev.palazon.lvhyard.dashboard.services.InstancePriorityRequest;
 import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
 import dev.palazon.lvhyard.dashboard.services.PublicationRequest;
 import dev.palazon.lvhyard.dashboard.services.Publications;
@@ -125,6 +126,8 @@ class ImportPlanner {
 
     private final List<Step> aliasSteps = new ArrayList<>();
 
+    private final List<Step> prioritySteps = new ArrayList<>();
+
     /** The Service of each target that a Binding of the file follows, by target. */
     private final Map<String, String> fileTargets = new HashMap<>();
 
@@ -144,6 +147,7 @@ class ImportPlanner {
       steps.addAll(instanceSteps);
       steps.addAll(publicationSteps);
       steps.addAll(aliasSteps);
+      steps.addAll(prioritySteps);
       return new ImportPlan(backup, mode, entries, steps);
     }
 
@@ -195,46 +199,88 @@ class ImportPlanner {
         return;
       }
       Service existing = current.services().get(name);
-      PlanEntry serviceEntry =
-          existing != null
-              ? PlanEntry.skip(Kind.SERVICE, name, null, EXISTS)
-              : PlanEntry.add(Kind.SERVICE, name, null);
-      int at = entries.size();
-      entries.add(serviceEntry);
-      int steps = instanceSteps.size() + publicationSteps.size() + aliasSteps.size();
-      Set<String> addresses = new HashSet<>();
-      for (int index = 0; index < service.staticInstances().size(); index++) {
-        staticInstance(
-            name,
-            service.staticInstances().get(index),
-            existing,
-            addresses,
-            place + ".static-instances[" + index + "]");
+      if (existing == null) {
+        PlanEntry entry = PlanEntry.add(Kind.SERVICE, name, null);
+        entries.add(entry);
+        serviceSteps.add(new Step(List.of(entry), () -> services.create(workstation.name(), name)));
+      } else {
+        entries.add(PlanEntry.skip(Kind.SERVICE, name, null, EXISTS));
       }
-      for (int index = 0; index < service.containerBindings().size(); index++) {
-        containerBinding(
-            name,
-            service.containerBindings().get(index),
-            existing,
-            place + ".container-bindings[" + index + "]");
+      Set<String> addresses = new HashSet<>();
+      for (int index = 0; index < service.sources().size(); index++) {
+        String at = place + ".sources[" + index + "]";
+        switch (service.sources().get(index)) {
+          case StaticInstance instance ->
+              staticInstance(name, instance, existing, addresses, at + ".static-instance");
+          case ContainerBinding binding ->
+              containerBinding(name, binding, existing, at + ".container-binding");
+          case Alias alias -> alias(name, alias, existing, at + ".alias");
+        }
       }
       publication(name, service.publication(), existing, place + ".publication");
-      for (int index = 0; index < service.aliases().size(); index++) {
-        alias(name, service.aliases().get(index), existing, place + ".aliases[" + index + "]");
+      instancePriority(name, service, existing);
+    }
+
+    /**
+     * Sets the order of the file's sources and its toggle. Sources that the file does not name,
+     * such as Foreign Instances, follow them.
+     */
+    private void instancePriority(String service, Service wanted, Service existing) {
+      // With one source, there is no order to set. A new Service has the toggle on already.
+      if (wanted.sources().size() < 2
+          && (existing == null
+              ? !Boolean.FALSE.equals(wanted.instancePriority())
+              : wanted.instancePriority() == null)) {
+        return;
       }
-      if (existing == null
-          && instanceSteps.size() + publicationSteps.size() + aliasSteps.size() == steps) {
-        entries.set(
-            at,
-            PlanEntry.skip(
-                Kind.SERVICE,
-                name,
-                null,
-                "It has no Static Instance, Container Binding, Publication or Alias to add."));
-      } else if (existing == null) {
-        serviceSteps.add(
-            new Step(List.of(serviceEntry), () -> services.create(workstation.name(), name)));
+      boolean same =
+          existing != null
+              && keys(existing).equals(keys(wanted))
+              && (wanted.instancePriority() == null
+                  || wanted.instancePriority().equals(existing.instancePriority()));
+      PlanEntry entry = entry(Kind.INSTANCE_PRIORITY, service, null, existing != null, same);
+      entries.add(entry);
+      if (entry.action() == Action.SKIP) {
+        return;
       }
+      prioritySteps.add(
+          new Step(
+              List.of(entry),
+              () ->
+                  services.setInstancePriority(
+                      workstation.name(),
+                      service,
+                      new InstancePriorityRequest(
+                          ids(service, wanted), wanted.instancePriority()))));
+    }
+
+    private List<String> keys(Service service) {
+      return service.sources().stream().map(this::key).toList();
+    }
+
+    /** What matches a source of the file with one of this Workstation. */
+    private String key(Backup.Source source) {
+      return switch (source) {
+        case StaticInstance instance ->
+            "static:" + Instance.address(hostOf(instance), instance.port());
+        case ContainerBinding binding -> "bound:" + binding.id();
+        case Alias alias -> "alias:" + alias.id();
+      };
+    }
+
+    /** The Instance Source IDs of the file's sources, once the earlier steps wrote them. */
+    private List<String> ids(String service, Service wanted) {
+      return wanted.sources().stream()
+          .map(source ->
+              switch (source) {
+                case StaticInstance instance ->
+                    registrations
+                        .staticInstanceAt(service, hostOf(instance), instance.port())
+                        .orElseThrow();
+                case ContainerBinding binding -> binding.id();
+                case Alias alias -> alias.id();
+              })
+          .toList();
     }
 
     private void staticInstance(

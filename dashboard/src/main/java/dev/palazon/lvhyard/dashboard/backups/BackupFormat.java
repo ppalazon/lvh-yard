@@ -6,6 +6,7 @@ import dev.palazon.lvhyard.dashboard.backups.Backup.ExportedFrom;
 import dev.palazon.lvhyard.dashboard.backups.Backup.Publication;
 import dev.palazon.lvhyard.dashboard.backups.Backup.Published;
 import dev.palazon.lvhyard.dashboard.backups.Backup.Service;
+import dev.palazon.lvhyard.dashboard.backups.Backup.Source;
 import dev.palazon.lvhyard.dashboard.backups.Backup.StaticInstance;
 import dev.palazon.lvhyard.dashboard.backups.Backup.Unpublished;
 import dev.palazon.lvhyard.dashboard.services.HealthCheck;
@@ -18,6 +19,7 @@ import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiFunction;
 import org.yaml.snakeyaml.DumperOptions;
@@ -35,6 +37,12 @@ import org.yaml.snakeyaml.representer.Representer;
 public final class BackupFormat {
 
   private static final String NONE = "none";
+
+  private static final String STATIC_INSTANCE = "static-instance";
+
+  private static final String CONTAINER_BINDING = "container-binding";
+
+  private static final String ALIAS = "alias";
 
   private BackupFormat() {}
 
@@ -73,22 +81,22 @@ public final class BackupFormat {
         entry.put("publication", publication);
       }
     }
-    if (!service.staticInstances().isEmpty()) {
-      entry.put(
-          "static-instances",
-          service.staticInstances().stream().map(BackupFormat::staticInstance).toList());
+    if (service.instancePriority() != null) {
+      entry.put("instance-priority", service.instancePriority());
     }
-    if (!service.containerBindings().isEmpty()) {
-      entry.put(
-          "container-bindings",
-          service.containerBindings().stream().map(BackupFormat::containerBinding).toList());
+    if (!service.sources().isEmpty()) {
+      entry.put("sources", service.sources().stream().map(BackupFormat::source).toList());
     }
-    if (!service.aliases().isEmpty()) {
-      entry.put(
-          "aliases",
-          service.aliases().stream()
-              .map(alias -> ordered("workstation", alias.workstation(), "service", alias.service()))
-              .toList());
+    return entry;
+  }
+
+  private static Map<String, Object> source(Source source) {
+    Map<String, Object> entry = new LinkedHashMap<>();
+    switch (source) {
+      case StaticInstance instance -> entry.put(STATIC_INSTANCE, staticInstance(instance));
+      case ContainerBinding binding -> entry.put(CONTAINER_BINDING, containerBinding(binding));
+      case Alias alias ->
+          entry.put(ALIAS, ordered("workstation", alias.workstation(), "service", alias.service()));
     }
     return entry;
   }
@@ -159,6 +167,24 @@ public final class BackupFormat {
     return backup;
   }
 
+  private static String versionProblem(Object version) {
+    if (version == null) {
+      return "The file has no version. A Backup has version: " + Backup.VERSION + ".";
+    }
+    if (version instanceof Integer older && older < Backup.VERSION) {
+      return "The version "
+          + older
+          + " is an older Backup format. This dashboard reads only version "
+          + Backup.VERSION
+          + ".";
+    }
+    return "The version "
+        + version
+        + " is not one this dashboard reads. It reads version "
+        + Backup.VERSION
+        + ".";
+  }
+
   private static RefusedBackupException refused(String place, String reason) {
     return new RefusedBackupException(List.of(new BackupProblem(place, reason)));
   }
@@ -179,20 +205,15 @@ public final class BackupFormat {
 
     Backup backup(Object root) {
       if (!(root instanceof Map<?, ?>)) {
-        problem("", "The file must be a Backup: a YAML mapping with version: 1.");
+        problem(
+            "", "The file must be a Backup: a YAML mapping with version: " + Backup.VERSION + ".");
         return null;
       }
       Map<String, Object> file =
           keys(root, "", Set.of("version", "exported-from", "route-profiles", "services"));
       Object version = file.get("version");
       if (!Integer.valueOf(Backup.VERSION).equals(version)) {
-        problem(
-            "version",
-            version == null
-                ? "The file has no version. A Backup has version: 1."
-                : "The version "
-                    + version
-                    + " is not one this dashboard reads. It reads version 1.");
+        problem("version", versionProblem(version));
         return null;
       }
       return new Backup(
@@ -231,21 +252,44 @@ public final class BackupFormat {
 
     private Service service(Object value, String place) {
       if (value == null) {
-        return new Service(null, List.of(), List.of(), List.of());
+        return new Service(null, null, List.of());
       }
       Map<String, Object> entry =
-          keys(
-              value,
-              place,
-              Set.of("publication", "static-instances", "container-bindings", "aliases"));
+          keys(value, place, Set.of("publication", "instance-priority", "sources"));
+      Object priority = entry.get("instance-priority");
       return new Service(
           publication(entry.get("publication"), place + ".publication"),
-          list(entry.get("static-instances"), place + ".static-instances", this::staticInstance),
-          list(
-              entry.get("container-bindings"),
-              place + ".container-bindings",
-              this::containerBinding),
-          list(entry.get("aliases"), place + ".aliases", this::alias));
+          priority == null ? null : flag(priority, place + ".instance-priority", true),
+          list(entry.get("sources"), place + ".sources", this::source).stream()
+              .filter(Objects::nonNull)
+              .toList());
+    }
+
+    /** {@code null} when it is not one mapping of one known kind, with a problem. */
+    private Source source(Object value, String place) {
+      if (!(value instanceof Map<?, ?> map) || map.size() != 1) {
+        problem(
+            place,
+            "An Instance Source is a mapping with one key: static-instance, container-binding or"
+                + " alias.");
+        return null;
+      }
+      String kind = String.valueOf(map.keySet().iterator().next());
+      Object entry = map.values().iterator().next();
+      String at = place + "." + kind;
+      return switch (kind) {
+        case STATIC_INSTANCE -> staticInstance(entry, at);
+        case CONTAINER_BINDING -> containerBinding(entry, at);
+        case ALIAS -> alias(entry, at);
+        default -> {
+          problem(
+              place,
+              "A Backup has no Instance Source of kind "
+                  + kind
+                  + ". It has static-instance, container-binding and alias.");
+          yield null;
+        }
+      };
     }
 
     private Publication publication(Object value, String place) {

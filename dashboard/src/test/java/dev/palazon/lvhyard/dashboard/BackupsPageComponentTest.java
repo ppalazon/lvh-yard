@@ -40,7 +40,7 @@ class BackupsPageComponentTest extends DashboardComponentTest {
     write(
         name,
         """
-        version: 1
+        version: 2
         exported-from:
           workstation: ws-other
           at: "2026-11-05T10:15:00+01:00"
@@ -50,8 +50,9 @@ class BackupsPageComponentTest extends DashboardComponentTest {
               sourceRange: [192.168.1.0/24]
         services:
           grafana:
-            aliases:
-              - {workstation: ws-other, service: grafana}
+            sources:
+              - alias:
+                  {workstation: ws-other, service: grafana}
           loki: {}
         """);
 
@@ -67,9 +68,9 @@ class BackupsPageComponentTest extends DashboardComponentTest {
   @Test
   void listsOnlyYamlFiles() throws IOException {
     String yml = newFile(".yml");
-    write(yml, "version: 1\n");
+    write(yml, "version: 2\n");
     String text = newFile(".txt");
-    write(text, "version: 1\n");
+    write(text, "version: 2\n");
 
     String page = getPage("/backups").getBody();
 
@@ -87,7 +88,7 @@ class BackupsPageComponentTest extends DashboardComponentTest {
   @Test
   void createButtonWritesABackupNamedAfterTheWorkstationAndTheTime() throws IOException {
     String old = newFile(".yaml");
-    write(old, "version: 1\n");
+    write(old, "version: 2\n");
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
     assertThat(getPage("/backups").getBody()).contains("action=\"/backups/new\"");
@@ -112,7 +113,7 @@ class BackupsPageComponentTest extends DashboardComponentTest {
   @Test
   void downloadGivesTheFileAsItIs() throws IOException {
     String name = newFile(".yaml");
-    String text = "version: 1\n# kept as it is\n";
+    String text = "version: 2\n# kept as it is\n";
     write(name, text);
     assertThat(row(getPage("/backups").getBody(), name))
         .contains("href=\"/backups/" + name + "/download\"");
@@ -134,7 +135,7 @@ class BackupsPageComponentTest extends DashboardComponentTest {
   @Test
   void deleteAsksForAConfirmationFirst() throws IOException {
     String name = newFile(".yaml");
-    write(name, "version: 1\n");
+    write(name, "version: 2\n");
     String deletePath = "/backups/" + name + "/delete";
     assertThat(row(getPage("/backups").getBody(), name)).contains("href=\"" + deletePath + "\"");
 
@@ -148,7 +149,7 @@ class BackupsPageComponentTest extends DashboardComponentTest {
   @Test
   void confirmedDeleteRemovesTheFile() throws IOException {
     String name = newFile(".yaml");
-    write(name, "version: 1\n");
+    write(name, "version: 2\n");
 
     ResponseEntity<String> response = postForm("/backups/" + name + "/delete", Map.of());
 
@@ -176,7 +177,7 @@ class BackupsPageComponentTest extends DashboardComponentTest {
   @Test
   void uploadFormIsShownAgainWithWhyTheUploadWasRefused() {
     ResponseEntity<String> response =
-        postFile("/backups/upload", "file", ".page-hidden.yaml", "version: 1\n");
+        postFile("/backups/upload", "file", ".page-hidden.yaml", "version: 2\n");
 
     assertThat(response.getBody()).contains("<h1>Upload a Backup</h1>");
     String form = formTo(response.getBody(), "/backups/upload");
@@ -187,7 +188,7 @@ class BackupsPageComponentTest extends DashboardComponentTest {
   @Test
   void uploadKeepsTheFileName() throws IOException {
     String name = newFile(".yaml");
-    String text = "version: 1\n# from a teammate\n";
+    String text = "version: 2\n# from a teammate\n";
 
     ResponseEntity<String> response = postFile("/backups/upload", "file", name, text);
 
@@ -202,7 +203,7 @@ class BackupsPageComponentTest extends DashboardComponentTest {
   void uploadRefusesANameWithAPath(String name) throws IOException {
     Set<String> before = names();
 
-    ResponseEntity<String> response = postFile("/backups/upload", "file", name, "version: 1\n");
+    ResponseEntity<String> response = postFile("/backups/upload", "file", name, "version: 2\n");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(alert(response.getBody())).contains("Not uploaded").contains("has a folder in it");
@@ -215,7 +216,7 @@ class BackupsPageComponentTest extends DashboardComponentTest {
     Set<String> before = names();
 
     ResponseEntity<String> response =
-        postFile("/backups/upload", "file", ".page-hidden.yaml", "version: 1\n");
+        postFile("/backups/upload", "file", ".page-hidden.yaml", "version: 2\n");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(alert(response.getBody())).contains(".page-hidden.yaml starts with a dot");
@@ -226,7 +227,7 @@ class BackupsPageComponentTest extends DashboardComponentTest {
   void uploadRefusesAFileThatIsNotYaml() throws IOException {
     String name = newFile(".txt");
 
-    ResponseEntity<String> response = postFile("/backups/upload", "file", name, "version: 1\n");
+    ResponseEntity<String> response = postFile("/backups/upload", "file", name, "version: 2\n");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(alert(response.getBody())).contains(".yaml or .yml");
@@ -236,10 +237,10 @@ class BackupsPageComponentTest extends DashboardComponentTest {
   @Test
   void uploadRefusesANameThatExists() throws IOException {
     String name = newFile(".yaml");
-    write(name, "version: 1\n# the first\n");
+    write(name, "version: 2\n# the first\n");
 
     ResponseEntity<String> response =
-        postFile("/backups/upload", "file", name, "version: 1\n# the second\n");
+        postFile("/backups/upload", "file", name, "version: 2\n# the second\n");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(alert(response.getBody())).contains(name).contains("already");
@@ -260,7 +261,7 @@ class BackupsPageComponentTest extends DashboardComponentTest {
   @Test
   void onlyABackupHasAnImportButton() throws IOException {
     String good = newFile(".yaml");
-    write(good, "version: 1\n");
+    write(good, "version: 2\n");
     String broken = newFile(".yaml");
     write(broken, "services: [\n");
 
@@ -302,7 +303,8 @@ class BackupsPageComponentTest extends DashboardComponentTest {
         .containsExactly(
             "Skip Service " + grafana + ": It exists already.",
             "Skip Static Instance 10.1.2.3:3000 of " + grafana + ": It is the same already.",
-            "Add Static Instance 10.1.2.3:3001 of " + grafana);
+            "Add Static Instance 10.1.2.3:3001 of " + grafana,
+            "Skip Instance Priority of " + grafana + ": It exists already.");
     String confirm = form(response.getBody(), "method=\"post\"");
     assertThat(confirm)
         .contains("action=\"/backups/" + name + "/import\"")
@@ -358,7 +360,7 @@ class BackupsPageComponentTest extends DashboardComponentTest {
     write(
         name,
         """
-        version: 1
+        version: 2
         services:
           %s:
             publication:
@@ -399,7 +401,8 @@ class BackupsPageComponentTest extends DashboardComponentTest {
         .containsExactly(
             "Skip Service " + grafana + ": It exists already.",
             "Skip Static Instance 10.1.2.3:3000 of " + grafana + ": It is the same already.",
-            "Add Static Instance 10.1.2.3:3001 of " + grafana);
+            "Add Static Instance 10.1.2.3:3001 of " + grafana,
+            "Skip Instance Priority of " + grafana + ": It exists already.");
     assertThat(names()).isEqualTo(before);
     assertThat(get(servicePath(grafana)).getBody().get("instances")).hasSize(1);
 
@@ -461,14 +464,14 @@ class BackupsPageComponentTest extends DashboardComponentTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(alert(response.getBody()))
-        .contains("services." + grafana + ".static-instances[0].port: ");
+        .contains("services." + grafana + ".sources[0].static-instance.port: ");
     assertThat(response.getBody()).doesNotContain("method=\"post\"");
   }
 
   @Test
   void unknownModeIsRefused() throws IOException {
     String name = newFile(".yaml");
-    write(name, "version: 1\n");
+    write(name, "version: 2\n");
 
     assertThat(getPage("/backups/" + name + "/import?mode=merge").getStatusCode())
         .isEqualTo(HttpStatus.BAD_REQUEST);
@@ -490,26 +493,29 @@ class BackupsPageComponentTest extends DashboardComponentTest {
 
   private static String oneInstance(String service, int port) {
     return """
-    version: 1
+    version: 2
     services:
       %s:
-        static-instances:
-          - host: 10.1.2.3
-            port: %d
+        sources:
+          - static-instance:
+              host: 10.1.2.3
+              port: %d
     """
         .formatted(service, port);
   }
 
   private static String twoInstances(String service) {
     return """
-    version: 1
+    version: 2
     services:
       %s:
-        static-instances:
-          - host: 10.1.2.3
-            port: 3000
-          - host: 10.1.2.3
-            port: 3001
+        sources:
+          - static-instance:
+              host: 10.1.2.3
+              port: 3000
+          - static-instance:
+              host: 10.1.2.3
+              port: 3001
     """
         .formatted(service);
   }

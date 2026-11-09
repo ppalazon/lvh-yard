@@ -20,7 +20,7 @@ public record Backup(
     Map<String, Map<String, Object>> routeProfiles,
     Map<String, Service> services) {
 
-  public static final int VERSION = 1;
+  public static final int VERSION = 2;
 
   public Backup {
     routeProfiles = Collections.unmodifiableMap(new LinkedHashMap<>(routeProfiles));
@@ -34,20 +34,35 @@ public record Backup(
 
   /**
    * @param publication {@code null} when the file has no {@code publication} key
-   * @param aliases in the order they were added
+   * @param instancePriority whether the Instance Priority is on; {@code null} when the file leaves
+   *     it out
+   * @param sources its Instance Sources in their order. Foreign Instances are never in a Backup.
    */
-  public record Service(
-      Publication publication,
-      List<StaticInstance> staticInstances,
-      List<ContainerBinding> containerBindings,
-      List<Alias> aliases) {
+  public record Service(Publication publication, Boolean instancePriority, List<Source> sources) {
 
     public Service {
-      staticInstances = List.copyOf(staticInstances);
-      containerBindings = List.copyOf(containerBindings);
-      aliases = List.copyOf(aliases);
+      sources = List.copyOf(sources);
+    }
+
+    public List<StaticInstance> staticInstances() {
+      return only(StaticInstance.class);
+    }
+
+    public List<ContainerBinding> containerBindings() {
+      return only(ContainerBinding.class);
+    }
+
+    public List<Alias> aliases() {
+      return only(Alias.class);
+    }
+
+    private <T extends Source> List<T> only(Class<T> kind) {
+      return sources.stream().filter(kind::isInstance).map(kind::cast).toList();
     }
   }
+
+  /** One Instance Source of a Service. */
+  public sealed interface Source permits StaticInstance, ContainerBinding, Alias {}
 
   /** {@code publication: none}, or a {@link Published} object. */
   public sealed interface Publication permits Unpublished, Published {}
@@ -73,7 +88,8 @@ public record Backup(
    * @param check {@code null} when the file leaves it out
    */
   public record StaticInstance(
-      String host, int port, HealthCheck check, List<String> tags, Map<String, String> meta) {
+      String host, int port, HealthCheck check, List<String> tags, Map<String, String> meta)
+      implements Source {
 
     public StaticInstance {
       tags = tags == null ? List.of() : List.copyOf(tags);
@@ -83,7 +99,7 @@ public record Backup(
 
   /** It follows either {@code container}, or {@code composeProject} and {@code composeService}. */
   public record ContainerBinding(
-      String container, String composeProject, String composeService, int port) {
+      String container, String composeProject, String composeService, int port) implements Source {
 
     public boolean followsCompose() {
       return container == null;
@@ -101,7 +117,7 @@ public record Backup(
   }
 
   /** An Alias of a Service, to the Remote Service {@code service} of {@code workstation}. */
-  public record Alias(String workstation, String service) {
+  public record Alias(String workstation, String service) implements Source {
 
     /** As the API names it: {@code <workstation>/<service>}. */
     public String id() {

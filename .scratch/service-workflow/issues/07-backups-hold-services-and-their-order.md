@@ -6,10 +6,10 @@
 
 **Status:** ready-for-agent
 
-- [ ] A Backup holds each Service, empty ones included, with its order and toggle.
-- [ ] Each Alias sits inside its Service. Foreign Instances stay out of the order.
-- [ ] The Backup format version goes up. An older file is refused with a clear reason.
-- [ ] An import restores the order and the toggle. It refuses an Alias to the importing Workstation, as today.
-- [ ] A round trip of export, remove everything, import and export gives an equal file, apart from `exported-from`.
-- [ ] A unit test of the format and component tests of export and import cover each rule above.
-- [ ] `docs/user-guide.md` describes the new Backup entries.
+- [x] A Backup holds each Service, empty ones included, with its order and toggle.
+- [x] Each Alias sits inside its Service. Foreign Instances stay out of the order.
+- [x] The Backup format version goes up. An older file is refused with a clear reason.
+- [x] An import restores the order and the toggle. It refuses an Alias to the importing Workstation, as today.
+- [x] A round trip of export, remove everything, import and export gives an equal file, apart from `exported-from`.
+- [x] A unit test of the format and component tests of export and import cover each rule above.
+- [x] `docs/user-guide.md` describes the new Backup entries.

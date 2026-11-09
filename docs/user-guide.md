@@ -338,13 +338,16 @@ as `lvh-yard status`.
 
 A Backup is one YAML file that holds what you set up on one Workstation:
 
-- each Service of this Workstation, with its Publication, Static Instances,
-  Container Bindings and Aliases. LVH Yard's own Services, such as `yard`, are
-  in it too.
+- each Service that you created on this Workstation, empty ones too. A Service
+  holds its Publication, its Instance Priority and its Instance Sources in
+  their order: Static Instances, Container Bindings and Aliases. LVH Yard's own
+  Services, such as `yard`, are in it too.
 - the Route Profiles of this Workstation
 
-A Backup never holds Bound Instances, Health or Remote Services. A Container
-Binding gives its Bound Instances again when its containers run.
+A Backup never holds Bound Instances, Foreign Instances, Health or Remote
+Services. A Container Binding gives its Bound Instances again when its
+containers run. Another tool registered a Foreign Instance, so that tool must
+register it again.
 
 `lvh-yard export` prints the Backup. `lvh-yard export -o <file>` writes it to a
 file. The API gives the same Backup at `GET /api/workstation/backup`, as
@@ -357,7 +360,7 @@ curl -H 'Accept: application/yaml' http://127.0.0.1:7780/api/workstation/backup
 A Backup looks like this:
 
 ```yaml
-version: 1
+version: 2
 exported-from:
   workstation: ws-a
   at: "2026-11-05T10:00:00+01:00"
@@ -373,30 +376,43 @@ services:
       route-profiles:
         - team-login
       access-log: true
-    static-instances:
-      - port: 3000
-        check:
-          type: http
-          path: /health
-          interval: 10s
-          timeout: 2s
-        tags:
-          - dashboards
+    instance-priority: true
+    sources:
+      - static-instance:
+          port: 3000
+          check:
+            type: http
+            path: /health
+            interval: 10s
+            timeout: 2s
+          tags:
+            - dashboards
   shop:
     publication: none
-    container-bindings:
-      - container: shop-web-1
-        port: 80
-      - compose:
-          project: shop
-          service: worker
-        port: 9000
-    aliases:
-      - workstation: ws-b
-        service: shop
+    instance-priority: false
+    sources:
+      - container-binding:
+          container: shop-web-1
+          port: 80
+      - alias:
+          workstation: ws-b
+          service: shop
+      - container-binding:
+          compose:
+            project: shop
+            service: worker
+          port: 9000
+  notes:
+    publication: none
+    instance-priority: true
 ```
 
 - `publication: none` means that the Service is Unpublished.
+- `instance-priority: false` means that the Instance Priority is off. Then
+  every passing Instance of every source shares the Route.
+- `sources` lists the Instance Sources in the order of the Instance Priority.
+  Each entry has one key: `static-instance`, `container-binding` or `alias`.
+- A Service with no `sources`, such as `notes`, is an empty Service.
 - `access-log: true` means that Traefik logs the requests to the Service. If
   the Backup leaves it out, Traefik does not log them.
 - If the host of a Static Instance is the LAN address of this Workstation, the
@@ -440,6 +456,7 @@ With `--dry-run`, the import prints the same plan and changes nothing.
 The import finds what exists in this way:
 
 - a Service and a Route Profile by their names
+- the Instance Priority of a Service by its order and toggle
 - an Alias by its Remote Service, inside its Service only
 - a Static Instance by its host and port, inside its Service only
 - a Container Binding by its ID, such as `shop-web-1:80` or
@@ -448,6 +465,9 @@ The import finds what exists in this way:
 With `--update`, the import overwrites what it finds:
 
 - the Publication of a Service: its Scope and Route Profiles
+- the Instance Priority of a Service: the order of the sources of the file and
+  the toggle. Sources that the file does not name, such as Foreign Instances,
+  come after them.
 - the health check, tags and meta of a Static Instance. The Instance keeps its
   ID.
 - the definition of a Route Profile
@@ -457,7 +477,8 @@ always skips one that exists.
 An entry with the same values is a skip in both modes.
 
 A Static Instance without a host is at the LAN address of this Workstation. A
-new Service without a `publication` key stays Unpublished. An existing Service
+new Service gets the order of the file and its toggle. A new Service without a
+`publication` key stays Unpublished. An existing Service
 without a `publication` key keeps its Publication, in both modes. With
 `--update`, `publication: none` unpublishes an existing Service. A Publication
 can name a Route Profile of the same file.
@@ -467,16 +488,16 @@ entry is wrong, the import changes nothing, prints each problem with its place
 in the file, and exits with 1:
 
 ```text
-services.grafana.static-instances[0].port: The port 70000 is not a TCP port: use 1 to 65535.
+services.grafana.sources[0].static-instance.port: The port 70000 is not a TCP port: use 1 to 65535.
 services.grafana.publication.route-profiles[0]: The Route Profile login is not in the file, and this Workstation does not have it.
 ```
 
-The import refuses a key that a Backup does not have, a version other than 1,
-and an unknown Route Profile. It also refuses an Alias to this Workstation, and
+The import refuses a key that a Backup does not have, a version other than 2,
+and an unknown Route Profile. Version 1 is the format of older dashboards. It also refuses an Alias to this Workstation, and
 a Container Binding to a container that another Service follows already.
 
 The import writes Route Profiles first, then Services, then Static Instances
-and Container Bindings, then Publications, then Aliases. It adds an Alias even
+and Container Bindings, then Publications, then Aliases, then the Instance Priority. It adds an Alias even
 when its Remote Service has no Yard Scope now. Consul cannot write them all at
 once. So if a write fails halfway, the import stops. It lists each entry that
 it wrote before, and it gives the name of the safety Backup:

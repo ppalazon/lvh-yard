@@ -362,7 +362,8 @@ public class Registrations {
         .orElseThrow(() -> new UnknownInstanceException(service, id));
   }
 
-  private Optional<String> staticInstanceAt(String service, String host, int port) {
+  /** The ID of the Static Instance of {@code service} at this host and port. */
+  public Optional<String> staticInstanceAt(String service, String host, int port) {
     return consul.agentServices().values().stream()
         .filter(registration ->
             registration.name().equals(service)

@@ -79,12 +79,13 @@ class BackupImportComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         importBackup(
             """
-            version: 1
+            version: 2
             services:
               %s:
-                static-instances:
-                  - host: 10.1.2.3
-                    port: 3000
+                sources:
+                  - static-instance:
+                      host: 10.1.2.3
+                      port: 3000
             """
                 .formatted(grafana));
 
@@ -107,17 +108,20 @@ class BackupImportComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         importBackup(
             """
-            version: 1
+            version: 2
             services:
               %s:
-                static-instances:
-                  - host: 10.1.2.3
-                    port: 3000
-                  - host: 10.1.2.3
-                    port: 3001
-                    tags: [green]
-                  - host: 10.1.2.3
-                    port: 3002
+                sources:
+                  - static-instance:
+                      host: 10.1.2.3
+                      port: 3000
+                  - static-instance:
+                      host: 10.1.2.3
+                      port: 3001
+                      tags: [green]
+                  - static-instance:
+                      host: 10.1.2.3
+                      port: 3002
             """
                 .formatted(grafana));
 
@@ -126,7 +130,8 @@ class BackupImportComponentTest extends DashboardComponentTest {
             "skip service " + grafana + ": It exists already.",
             "skip static-instance 10.1.2.3:3000 of " + grafana + ": It is the same already.",
             "skip static-instance 10.1.2.3:3001 of " + grafana + ": It exists already.",
-            "add static-instance 10.1.2.3:3002 of " + grafana);
+            "add static-instance 10.1.2.3:3002 of " + grafana,
+            "skip instance-priority " + grafana + ": It exists already.");
     JsonNode instances = get(servicePath(grafana)).getBody().get("instances");
     assertThat(instances).hasSize(3);
     assertThat(
@@ -150,15 +155,17 @@ class BackupImportComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         importBackup(
             """
-            version: 1
+            version: 2
             services:
               %s:
-                static-instances:
-                  - port: 3000
+                sources:
+                  - static-instance:
+                      port: 3000
               %s:
-                static-instances:
-                  - host: %s
-                    port: 3000
+                sources:
+                  - static-instance:
+                      host: %s
+                      port: 3000
             """
                 .formatted(grafana, loki, lanAddress()));
 
@@ -182,14 +189,16 @@ class BackupImportComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         importBackup(
             """
-            version: 1
+            version: 2
             services:
               %s:
-                container-bindings:
-                  - compose: {project: shop, service: %s}
-                    port: 8080
-                  - container: %s-1
-                    port: 80
+                sources:
+                  - container-binding:
+                      compose: {project: shop, service: %s}
+                      port: 8080
+                  - container-binding:
+                      container: %s-1
+                      port: 80
             """
                 .formatted(web, web, web));
 
@@ -201,7 +210,8 @@ class BackupImportComponentTest extends DashboardComponentTest {
                 + ":8080 of "
                 + web
                 + ": It is the same already.",
-            "add container-binding " + web + "-1:80 of " + web);
+            "add container-binding " + web + "-1:80 of " + web,
+            "skip instance-priority " + web + ": It exists already.");
     assertThat(
             get(servicePath(web))
                 .getBody()
@@ -219,7 +229,7 @@ class BackupImportComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         importBackup(
             """
-            version: 1
+            version: 2
             route-profiles:
               %s:
                 compress: {}
@@ -228,9 +238,10 @@ class BackupImportComponentTest extends DashboardComponentTest {
                 publication:
                   scope: yard
                   route-profiles: [%s]
-                static-instances:
-                  - host: 10.1.2.3
-                    port: 3000
+                sources:
+                  - static-instance:
+                      host: 10.1.2.3
+                      port: 3000
             """
                 .formatted(compress, grafana, compress));
 
@@ -254,12 +265,13 @@ class BackupImportComponentTest extends DashboardComponentTest {
 
     importBackup(
         """
-        version: 1
+        version: 2
         services:
           %s:
-            static-instances:
-              - host: 10.1.2.3
-                port: 3001
+            sources:
+              - static-instance:
+                  host: 10.1.2.3
+                  port: 3001
         """
             .formatted(grafana));
 
@@ -274,7 +286,7 @@ class BackupImportComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         importBackup(
             """
-            version: 1
+            version: 2
             services:
               %s:
                 publication:
@@ -296,26 +308,28 @@ class BackupImportComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         importBackup(
             """
-            version: 1
+            version: 2
             services:
               %s:
-                static-instances:
-                  - host: 10.1.2.3
-                    port: 3000
+                sources:
+                  - static-instance:
+                      host: 10.1.2.3
+                      port: 3000
               %s:
                 publication:
                   scope: everywhere
                   route-profiles: [missing-profile]
-                static-instances:
-                  - host: 10.1.2.3
-                    port: 70000
+                sources:
+                  - static-instance:
+                      host: 10.1.2.3
+                      port: 70000
             """
                 .formatted(grafana, loki));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(problems(response))
         .containsExactly(
-            "services." + loki + ".static-instances[0].port",
+            "services." + loki + ".sources[0].static-instance.port",
             "services." + loki + ".publication.scope",
             "services." + loki + ".publication.route-profiles[0]");
     assertThat(response.getBody().get("problems").get(2).get("reason").asString())
@@ -330,7 +344,7 @@ class BackupImportComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         importBackup(
             """
-            version: 1
+            version: 2
             services:
               %s:
                 static-instance:
@@ -344,11 +358,116 @@ class BackupImportComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void unknownVersionIsRefused() {
-    ResponseEntity<JsonNode> response = importBackup("version: 2\n");
+  void olderVersionIsRefusedWithItsReason() {
+    ResponseEntity<JsonNode> response = importBackup("version: 1\nservices: {}\n");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(problems(response)).containsExactly("version");
+    assertThat(response.getBody().get("problems").get(0).get("reason").asString())
+        .contains("older");
+  }
+
+  @Test
+  void emptyServiceIsAdded() {
+    String notes = newServiceName("notes");
+
+    ResponseEntity<JsonNode> response =
+        importBackup(
+            """
+            version: 2
+            services:
+              %s:
+                publication: none
+                instance-priority: true
+            """
+                .formatted(notes));
+
+    assertThat(entries(response))
+        .containsExactly(
+            "add service " + notes, "skip publication " + notes + ": It is Unpublished already.");
+    JsonNode service = get(servicePath(notes)).getBody();
+    assertThat(service.get("created").asBoolean()).isTrue();
+    assertThat(service.get("empty").asBoolean()).isTrue();
+  }
+
+  @Test
+  void orderAndToggleAreRestored() {
+    String web = newServiceName("web");
+
+    ResponseEntity<JsonNode> response =
+        importBackup(
+            """
+            version: 2
+            services:
+              %s:
+                instance-priority: false
+                sources:
+                  - alias:
+                      workstation: %s
+                      service: nothing-here
+                  - static-instance:
+                      host: 10.1.2.4
+                      port: 3000
+                  - container-binding:
+                      compose: {project: shop, service: %s}
+                      port: 8080
+                  - static-instance:
+                      host: 10.1.2.3
+                      port: 3000
+            """
+                .formatted(web, RemoteWorkstation.NAME, web));
+
+    assertThat(entries(response)).contains("add instance-priority " + web);
+    JsonNode service = get(servicePath(web)).getBody();
+    assertThat(service.get("instancePriority").asBoolean()).isFalse();
+    assertThat(service.get("sources").valueStream().map(source -> source.get("kind").asString()))
+        .containsExactly("alias", "static", "bound", "static");
+    assertThat(service.get("sources").get(0).get("id").asString())
+        .isEqualTo(RemoteWorkstation.NAME + "/nothing-here");
+    assertThat(service.get("sources").get(2).get("id").asString())
+        .isEqualTo("compose:shop:" + web + ":8080");
+    String first = service.get("sources").get(1).get("id").asString();
+    assertThat(
+            service
+                .get("instances")
+                .valueStream()
+                .filter(instance -> instance.get("id").asString().equals(first))
+                .findFirst()
+                .orElseThrow()
+                .get("host")
+                .asString())
+        .isEqualTo("10.1.2.4");
+  }
+
+  @Test
+  void existingServiceKeepsItsOrderAndToggle() {
+    String web = newServiceName("web");
+    String first = register(web, Map.of("host", "10.1.2.3", "port", 3000)).get("id").asString();
+    String second = register(web, Map.of("host", "10.1.2.4", "port", 3000)).get("id").asString();
+
+    ResponseEntity<JsonNode> response =
+        importBackup(
+            """
+            version: 2
+            services:
+              %s:
+                instance-priority: false
+                sources:
+                  - static-instance:
+                      host: 10.1.2.4
+                      port: 3000
+                  - static-instance:
+                      host: 10.1.2.3
+                      port: 3000
+            """
+                .formatted(web));
+
+    assertThat(entries(response))
+        .contains("skip instance-priority " + web + ": It exists already.");
+    JsonNode service = get(servicePath(web)).getBody();
+    assertThat(service.get("instancePriority").asBoolean()).isTrue();
+    assertThat(service.get("sources").valueStream().map(source -> source.get("id").asString()))
+        .containsExactly(first, second);
   }
 
   @Test
@@ -359,7 +478,7 @@ class BackupImportComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         importBackup(
             """
-            version: 1
+            version: 2
             route-profiles:
               %s:
                 basicAuth:
@@ -368,9 +487,10 @@ class BackupImportComponentTest extends DashboardComponentTest {
               %s:
                 publication:
                   route-profiles: [%s]
-                static-instances:
-                  - host: 10.1.2.3
-                    port: 3000
+                sources:
+                  - static-instance:
+                      host: 10.1.2.3
+                      port: 3000
             """
                 .formatted(auth, grafana, auth));
 
@@ -388,16 +508,18 @@ class BackupImportComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         importBackup(
             """
-            version: 1
+            version: 2
             services:
               %s:
-                container-bindings:
-                  - compose: {project: shop, service: %s}
-                    port: 9090
+                sources:
+                  - container-binding:
+                      compose: {project: shop, service: %s}
+                      port: 9090
             """
                 .formatted(shop, web));
 
-    assertThat(problems(response)).containsExactly("services." + shop + ".container-bindings[0]");
+    assertThat(problems(response))
+        .containsExactly("services." + shop + ".sources[0].container-binding");
     assertThat(response.getBody().get("problems").get(0).get("reason").asString()).contains(web);
   }
 
@@ -409,15 +531,16 @@ class BackupImportComponentTest extends DashboardComponentTest {
         postYaml(
             IMPORT_PATH + "&dry-run=true",
             """
-            version: 1
+            version: 2
             exported-from:
               workstation: ws-other
               at: 2026-11-05T10:00:00Z
             services:
               %s:
-                static-instances:
-                  - host: 10.1.2.3
-                    port: 3000
+                sources:
+                  - static-instance:
+                      host: 10.1.2.3
+                      port: 3000
             """
                 .formatted(grafana));
 
@@ -435,7 +558,7 @@ class BackupImportComponentTest extends DashboardComponentTest {
   @Test
   void unknownModeIsRefused() {
     ResponseEntity<JsonNode> response =
-        postYaml(BackupExportComponentTest.BACKUP_PATH + "?mode=merge", "version: 1\n");
+        postYaml(BackupExportComponentTest.BACKUP_PATH + "?mode=merge", "version: 2\n");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody().get("detail").asString()).contains("merge");
@@ -450,16 +573,18 @@ class BackupImportComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         importBackup(
             """
-            version: 1
+            version: 2
             services:
               %s:
-                aliases:
-                  - workstation: %s
-                    service: %s
+                sources:
+                  - alias:
+                      workstation: %s
+                      service: %s
             """
                 .formatted(dash, WORKSTATION, grafana));
 
-    assertThat(problems(response)).containsExactly("services." + dash + ".aliases[0].workstation");
+    assertThat(problems(response))
+        .containsExactly("services." + dash + ".sources[0].alias.workstation");
   }
 
   @Test
@@ -469,12 +594,13 @@ class BackupImportComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         importBackup(
             """
-            version: 1
+            version: 2
             services:
               %s:
-                aliases:
-                  - workstation: %s
-                    service: nothing-here
+                sources:
+                  - alias:
+                      workstation: %s
+                      service: nothing-here
             """
                 .formatted(dash, RemoteWorkstation.NAME));
 
@@ -494,16 +620,18 @@ class BackupImportComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         importBackup(
             """
-            version: 1
+            version: 2
             services:
               %s:
-                aliases:
-                  - workstation: WS_B
-                    service: grafana
+                sources:
+                  - alias:
+                      workstation: WS_B
+                      service: grafana
             """
                 .formatted(dash));
 
-    assertThat(problems(response)).containsExactly("services." + dash + ".aliases[0].workstation");
+    assertThat(problems(response))
+        .containsExactly("services." + dash + ".sources[0].alias.workstation");
   }
 
   @Test
@@ -523,14 +651,16 @@ class BackupImportComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         importBackup(
             """
-            version: 1
+            version: 2
             services:
               %s:
-                aliases:
-                  - workstation: %s
-                    service: %s
-                  - workstation: %s
-                    service: %s
+                sources:
+                  - alias:
+                      workstation: %s
+                      service: %s
+                  - alias:
+                      workstation: %s
+                      service: %s
             """
                 .formatted(dash, RemoteWorkstation.NAME, grafana, RemoteWorkstation.NAME, loki));
 
@@ -544,7 +674,8 @@ class BackupImportComponentTest extends DashboardComponentTest {
                 + " of "
                 + dash
                 + ": It is the same already.",
-            "add alias " + RemoteWorkstation.NAME + "/" + loki + " of " + dash);
+            "add alias " + RemoteWorkstation.NAME + "/" + loki + " of " + dash,
+            "skip instance-priority " + dash + ": It exists already.");
     assertThat(get(AliasesComponentTest.aliasesPath(dash)).getBody().findValuesAsString("service"))
         .containsExactly(grafana, loki);
   }
@@ -591,6 +722,10 @@ class BackupImportComponentTest extends DashboardComponentTest {
         Map.of("scope", "yard", "priority", List.of("static"), "profiles", List.of(compress)));
     String web = newServiceName("web");
     bindCompose(web, "shop", web, 8080);
+    String webStatic = register(web, Map.of("host", "10.1.2.3", "port", 8080)).get("id").asString();
+    put(instancePriorityPath(web), Map.of("order", List.of(webStatic), "on", false));
+    String notes = newServiceName("notes");
+    create(notes);
     String docs = newServiceName("docs");
     String docsId = register(docs, Map.of("host", "10.1.2.3", "port", 80)).get("id").asString();
     publish(docs);
@@ -603,10 +738,13 @@ class BackupImportComponentTest extends DashboardComponentTest {
     post(
         AliasesComponentTest.aliasesPath(dash),
         Map.of("workstation", RemoteWorkstation.NAME, "service", remoteGrafana));
-    Set<String> names = Set.of(compress, grafana, web, docs, dash);
+    Set<String> names = Set.of(compress, grafana, web, notes, docs, dash);
     String before = only(getYaml(BackupExportComponentTest.BACKUP_PATH).getBody(), names);
+    assertThat(map(map(yaml(before).get("services")).get(web)))
+        .containsEntry("instance-priority", false);
     delete(servicePath(grafana));
     delete(servicePath(web));
+    delete(servicePath(notes));
     delete(servicePath(docs));
     delete(servicePath(dash));
     delete(ROUTE_PROFILES_PATH + "/" + compress);

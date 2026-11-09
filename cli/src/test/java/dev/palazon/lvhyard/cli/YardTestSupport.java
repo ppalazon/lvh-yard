@@ -126,7 +126,7 @@ abstract class YardTestSupport {
 
   static final String BACKUP =
       """
-      version: 1
+      version: 2
       exported-from:
         workstation: ws-a
         at: '2026-11-05T10:00:00Z'
@@ -134,8 +134,9 @@ abstract class YardTestSupport {
       services:
         web:
           publication: none
-          static-instances:
-            - port: 8080
+          sources:
+            - static-instance:
+                port: 8080
       aliases: {}
       """;
 

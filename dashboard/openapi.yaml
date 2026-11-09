@@ -1291,6 +1291,7 @@ components:
           - route-profile
           - service
           - publication
+          - instance-priority
           - static-instance
           - container-binding
           - alias

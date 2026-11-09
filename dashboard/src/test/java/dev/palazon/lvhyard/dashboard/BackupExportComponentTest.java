@@ -36,8 +36,21 @@ class BackupExportComponentTest extends DashboardComponentTest {
     return (Map<String, Object>) value;
   }
 
+  /** The entries of the sources of {@code service}, each without its kind. */
+  @SuppressWarnings("unchecked")
+  static List<Object> sources(Map<String, Object> backup, String service, String kind) {
+    List<Map<String, Object>> sources =
+        (List<Map<String, Object>>) map(map(backup.get("services")).get(service)).get("sources");
+    return sources == null
+        ? List.of()
+        : sources.stream()
+            .filter(source -> source.containsKey(kind))
+            .map(source -> source.get(kind))
+            .toList();
+  }
+
   @Test
-  void exportIsVersionOneYamlFromThisWorkstation() {
+  void exportIsVersionTwoYamlFromThisWorkstation() {
     OffsetDateTime before = OffsetDateTime.now().minusSeconds(1);
 
     ResponseEntity<String> response = getYaml(BACKUP_PATH);
@@ -45,7 +58,7 @@ class BackupExportComponentTest extends DashboardComponentTest {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getHeaders().getContentType().isCompatibleWith(YAML)).isTrue();
     Map<String, Object> backup = yaml(response.getBody());
-    assertThat(backup.get("version")).isEqualTo(1);
+    assertThat(backup.get("version")).isEqualTo(2);
     Map<String, Object> exportedFrom = map(backup.get("exported-from"));
     assertThat(exportedFrom.get("workstation")).isEqualTo(WORKSTATION);
     assertThat(OffsetDateTime.parse((String) exportedFrom.get("at")))
@@ -90,7 +103,7 @@ class BackupExportComponentTest extends DashboardComponentTest {
             "tags", List.of("blue", "100"),
             "meta", Map.of("team", "core", "version", "2")));
 
-    assertThat(map(map(exported().get("services")).get(grafana)).get("static-instances"))
+    assertThat(sources(exported(), grafana, "static-instance"))
         .isEqualTo(
             List.of(
                 Map.of(
@@ -115,7 +128,7 @@ class BackupExportComponentTest extends DashboardComponentTest {
     String grafana = newServiceName("grafana");
     register(grafana, Map.of("port", 3000));
 
-    assertThat(map(map(exported().get("services")).get(grafana)).get("static-instances"))
+    assertThat(sources(exported(), grafana, "static-instance"))
         .isEqualTo(
             List.of(
                 Map.of(
@@ -136,14 +149,14 @@ class BackupExportComponentTest extends DashboardComponentTest {
         .atMost(Duration.ofSeconds(15))
         .until(() -> get(servicePath(web)).getBody().get("instances").size() == 1);
 
-    Map<String, Object> entry = map(map(exported().get("services")).get(web));
+    Map<String, Object> backup = exported();
 
-    assertThat(entry.get("container-bindings"))
+    assertThat(sources(backup, web, "container-binding"))
         .isEqualTo(
             List.of(
-                Map.of("compose", Map.of("project", "shop", "service", web), "port", 8080),
-                Map.of("container", name, "port", 80)));
-    assertThat(entry).doesNotContainKey("static-instances");
+                Map.of("container", name, "port", 80),
+                Map.of("compose", Map.of("project", "shop", "service", web), "port", 8080)));
+    assertThat(sources(backup, web, "static-instance")).isEmpty();
   }
 
   @Test
@@ -165,8 +178,49 @@ class BackupExportComponentTest extends DashboardComponentTest {
 
     Map<String, Object> backup = exported();
 
-    assertThat(map(map(backup.get("services")).get(dash)).get("aliases"))
+    assertThat(sources(backup, dash, "alias"))
         .isEqualTo(List.of(Map.of("workstation", RemoteWorkstation.NAME, "service", grafana)));
     assertThat(map(backup.get("services"))).doesNotContainKey(grafana);
+  }
+
+  @Test
+  void emptyServiceIsHeld() {
+    String notes = newServiceName("notes");
+    create(notes);
+
+    assertThat(map(map(exported().get("services")).get(notes)))
+        .isEqualTo(Map.of("publication", "none", "instance-priority", true));
+  }
+
+  @Test
+  void sourcesAreHeldInTheirOrderWithTheToggle() {
+    String grafana = newServiceName("grafana");
+    remote.register(grafana, Map.of("host", "10.9.8.7", "port", 3000));
+    remote.publish(grafana, "yard");
+    String web = newServiceName("web");
+    String first = register(web, Map.of("host", "10.1.2.3", "port", 3000)).get("id").asString();
+    String bound = bindCompose(web, "shop", web, 8080).get("id").asString();
+    post(
+        AliasesComponentTest.aliasesPath(web),
+        Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
+    String second = register(web, Map.of("host", "10.1.2.4", "port", 3000)).get("id").asString();
+    put(
+        instancePriorityPath(web),
+        Map.of(
+            "order",
+            List.of(RemoteWorkstation.NAME + "/" + grafana, second, bound, first),
+            "on",
+            false));
+
+    Map<String, Object> entry = map(map(exported().get("services")).get(web));
+
+    assertThat(entry.get("instance-priority")).isEqualTo(false);
+    assertThat(entry.get("sources"))
+        .asList()
+        .extracting(source -> map(source).keySet().iterator().next())
+        .containsExactly("alias", "static-instance", "container-binding", "static-instance");
+    assertThat(sources(exported(), web, "static-instance"))
+        .extracting(instance -> map(instance).get("host"))
+        .containsExactly("10.1.2.4", "10.1.2.3");
   }
 }
