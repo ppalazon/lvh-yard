@@ -108,54 +108,10 @@ class PagesController {
     return value == null || value.isBlank();
   }
 
-  /** Keeps old bookmarks working. */
-  @GetMapping(StaticInstancesPage.OLD_PATH)
-  ResponseEntity<Void> register() {
-    return ResponseEntity.status(HttpStatus.MOVED_PERMANENTLY)
-        .location(URI.create(StaticInstancesPage.PATH))
-        .build();
-  }
-
-  @GetMapping(path = StaticInstancesPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
-  @ResponseBody
-  String staticInstances() {
-    return StaticInstancesPage.render(workstation, yard.services(workstation.name()));
-  }
-
-  @GetMapping(path = StaticInstancesPage.NEW_PATH, produces = MediaType.TEXT_HTML_VALUE)
-  @ResponseBody
-  String newStaticInstance() {
-    return newStaticInstancePage("", InstanceForm.Fields.EMPTY, null);
-  }
-
-  @PostMapping(path = StaticInstancesPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
-  ResponseEntity<String> registerStaticInstance(
-      @RequestParam String name, InstanceForm.Fields fields) {
-    String service = name.strip();
-    InvalidRegistrationException error;
-    try {
-      registrations.register(workstation.name(), service, fields.request());
-      return seeOther(ServicePage.path(workstation.name(), service));
-    } catch (InvalidRegistrationException e) {
-      error = e;
-    } catch (UnknownServiceException e) {
-      error = notCreated(e);
-    }
-    return ResponseEntity.badRequest()
-        .contentType(Layout.HTML)
-        .body(newStaticInstancePage(name, fields, error));
-  }
-
   /** A form that names a Service shows this at its name field. */
   private static InvalidRegistrationException notCreated(UnknownServiceException e) {
     return new InvalidRegistrationException(
         "name", e.getMessage() + " Create it first, with New Service in the catalog.");
-  }
-
-  private String newStaticInstancePage(
-      String name, InstanceForm.Fields fields, InvalidRegistrationException error) {
-    return StaticInstancesPage.renderNew(
-        workstation, name, fields, registrations.defaultHost(), error);
   }
 
   @GetMapping(path = NewServicePage.PATH, produces = MediaType.TEXT_HTML_VALUE)
@@ -228,6 +184,41 @@ class PagesController {
     } catch (UnreachableWorkstationException e) {
       throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage(), e);
     }
+  }
+
+  @GetMapping(
+      path = "/services/{workstation}/{service}/instances/new",
+      produces = MediaType.TEXT_HTML_VALUE)
+  @ResponseBody
+  String newStaticInstance(@PathVariable("workstation") String home, @PathVariable String service) {
+    return AddStaticInstancePage.render(
+        workstation,
+        ownService(home, service),
+        InstanceForm.Fields.EMPTY,
+        registrations.defaultHost(),
+        null);
+  }
+
+  @PostMapping(
+      path = "/services/{workstation}/{service}/instances",
+      produces = MediaType.TEXT_HTML_VALUE)
+  ResponseEntity<String> addStaticInstance(
+      @PathVariable("workstation") String home,
+      @PathVariable String service,
+      InstanceForm.Fields fields) {
+    Service found = ownService(home, service);
+    try {
+      registrations.register(home, service, fields.request());
+    } catch (InvalidRegistrationException error) {
+      return ResponseEntity.badRequest()
+          .contentType(Layout.HTML)
+          .body(
+              AddStaticInstancePage.render(
+                  workstation, found, fields, registrations.defaultHost(), error));
+    } catch (UnknownServiceException e) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+    }
+    return seeOther(ServicePage.path(found));
   }
 
   @GetMapping(

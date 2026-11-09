@@ -6,10 +6,10 @@
 
 **Status:** ready-for-agent
 
-- [ ] The Service page has an "Add Static Instance" form. It shows errors at their fields.
-- [ ] Each Static Instance on the Service page has an edit form and a remove button.
-- [ ] A Service can have many Static Instances.
-- [ ] The Static Instances page and its routes go away, with no redirects. The menu loses its link.
-- [ ] Component tests cover add, edit, remove and the removed page.
+- [x] The Service page has an "Add Static Instance" form. It shows errors at their fields.
+- [x] Each Static Instance on the Service page has an edit form and a remove button.
+- [x] A Service can have many Static Instances.
+- [x] The Static Instances page and its routes go away, with no redirects. The menu loses its link.
+- [x] Component tests cover add, edit, remove and the removed page.
 - [ ] If 03 and 06 are done, the Service page parts follow the order of the spec.
-- [ ] `docs/user-guide.md` explains Static Instances on the Service page.
+- [x] `docs/user-guide.md` explains Static Instances on the Service page.

@@ -67,11 +67,6 @@ class ForeignInstanceComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void staticInstancesPageDoesNotListIt() {
-    assertThat(getPage("/static-instances").getBody()).doesNotContain(service);
-  }
-
-  @Test
   void backupDoesNotHoldIt() {
     Map<String, Object> backup =
         BackupExportComponentTest.yaml(getYaml(BackupExportComponentTest.BACKUP_PATH).getBody());

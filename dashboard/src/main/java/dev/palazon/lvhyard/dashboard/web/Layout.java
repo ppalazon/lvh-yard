@@ -33,7 +33,6 @@ public final class Layout {
   enum Section {
     CATALOG("Catalog", "/"),
     ALIASES("Aliases", AliasesPage.PATH),
-    STATIC_INSTANCES("Static Instances", StaticInstancesPage.PATH),
     ROUTE_PROFILES("Route Profiles", RouteProfilesPage.PATH),
     BACKUPS("Backups", BackupsPage.PATH);
 

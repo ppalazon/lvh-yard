@@ -14,7 +14,7 @@ Each Workstation runs three things:
   ([ADR-0002](adr/0002-traefik-reads-routes-from-lvh-yard.md))
 
 Each page of the dashboard has a navigation bar at the top. It links to the
-Catalog, Aliases, Static Instances and Route Profiles pages, and it
+Catalog, Aliases, Route Profiles and Backups pages, and it
 highlights the current page.
 
 The Catalog shows one row for each Service, grouped by Workstation. Its columns
@@ -936,18 +936,26 @@ profile again, or remove it from the Publication.
 ### Static Instances
 
 A Static Instance is at a fixed host and port. It stays registered until you
-remove it. The Static Instances page, at `/static-instances`, lists the Static
-Instances of this Workstation, with their Service, address and Health. Each row
-links to the form that edits the Instance. The old address `/register` leads to
-this page.
+remove it. You add, edit and remove Static Instances on the page of their
+Service. A Service can have many Static Instances, for example two copies on
+different ports.
 
-To register a Static Instance on that page, click "Register a Static
-Instance". The form opens on its own page, `/static-instances/new`. Cancel
-goes back to the Static Instances page. If a value is wrong, the form shows
-your input again with the error under its field. You can also run
-`lvh-yard register static`. The Service must exist, and it keeps its
-Publication, or stays Unpublished. For a missing Service, the form shows the
-error under the Service name.
+To add a Static Instance, open the page of the Service and click "Add Static
+Instance" in the Instances part. The form opens on its own page. It asks for the
+host, the port, the health check, the tags and the meta. If you leave the host
+empty, the Instance is at the LAN address of this Workstation. Cancel goes back
+to the Service page. If a value is wrong, the form shows your input again with
+the error under its field. You can also run `lvh-yard register static`.
+
+The Service must exist first. To create it, click "New Service" in the catalog,
+or run `lvh-yard service create`. LVH Yard refuses a Static Instance for a
+missing Service, and it creates no Service. Adding a Static Instance does not
+change the Publication, and an Unpublished Service stays Unpublished.
+
+Each Static Instance on the Service page has an "Edit" button and a "Remove"
+button. Edit opens a form with the current values. An edited Static Instance
+keeps its ID. Remove deletes only that Static Instance. When you remove the last
+one, the Service stays, empty.
 
 ### Container Bindings
 

@@ -15,8 +15,6 @@ class NavigationBarComponentTest extends DashboardComponentTest {
         .contains(">Catalog<")
         .contains("href=\"/aliases\"")
         .contains(">Aliases<")
-        .contains("href=\"/static-instances\"")
-        .contains(">Static Instances<")
         .contains("href=\"/route-profiles\"")
         .contains(">Route Profiles<")
         .contains("href=\"/backups\"")
@@ -27,7 +25,6 @@ class NavigationBarComponentTest extends DashboardComponentTest {
   void eachListMarksItsOwnLinkAsCurrent() {
     assertThat(currentLinkOf("/")).isEqualTo("/");
     assertThat(currentLinkOf("/aliases")).isEqualTo("/aliases");
-    assertThat(currentLinkOf("/static-instances")).isEqualTo("/static-instances");
     assertThat(currentLinkOf("/route-profiles")).isEqualTo("/route-profiles");
     assertThat(currentLinkOf("/backups")).isEqualTo("/backups");
   }
