@@ -731,7 +731,7 @@ keeps its place. A removed source leaves the order. If you add it again, it
 goes to the end.
 
 If no Instance passes its check, the Route uses every Instance in range of
-every source. Out-of-range Instances never count.
+every source, Aliases included. Out-of-range Instances never count.
 
 An Alias source works only on your own Workstation. Other Workstations skip
 it, and use the next source in the order. Apart from that, every Workstation
@@ -755,7 +755,7 @@ lvh-yard priority web <id> <id>
 
 You can also turn the Instance Priority off. Then every passing Instance of
 every source shares the Route, Aliases included. If no Instance passes, the
-Route uses every Instance in range. The order stays. When you turn the
+Route uses every Instance in range, Aliases included. The order stays. When you turn the
 Instance Priority on again, the order is back:
 
 ```sh

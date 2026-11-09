@@ -90,7 +90,7 @@ In these stories, "user" is a person who uses one Workstation. "Teammate" is a u
 46. As a user, I want the Route to use the first source with a passing Instance, so that I reach my preferred copy.
 47. As a user, I want the passing Instances of that source to share requests, so that a scaled Compose service spreads its load.
 48. As a user, I want the Route to fall back to the next source, so that the hostname keeps working.
-49. As a user, I want every Instance in range used while none passes, as today, so that the hostname still answers.
+49. As a user, I want every Instance in range of every source used while none passes, Alias Instances included, so that the hostname still answers.
 50. As a user, I want an Instance Priority toggle on the Service page, so that I can spread requests over every source.
 51. As a user, while the toggle is off, I want every passing Instance of every source to share the Route, Aliases included.
 52. As a user, while the toggle is off, I want the up and down buttons hidden and the order kept.
@@ -143,7 +143,7 @@ In these stories, "user" is a person who uses one Workstation. "Teammate" is a u
 - No code reads old Alias keys or old Publication values, because LVH Yard is not released yet.
 - The Route choice becomes one rule over ordered sources. Its input is the ordered sources with their Instances, the toggle, and whether the Workstation that builds the Route is the Home Workstation.
 - Out-of-range Instances never count in the Route choice. On any other Workstation, Alias sources are left out before the choice.
-- With the toggle off, the passing Instances of every source share the Route. If none pass, every Instance in range shares it, as today.
+- With the toggle off, the passing Instances of every source share the Route. If none pass, every Instance in range of every source shares it, Alias Instances included.
 - The routing result names the Instance Source that the Route uses now and the sources that wait. It replaces today's Instance kind. The API and the CLI show it.
 - The InstanceKind order and its default go away. A source still has a kind (static, bound, alias or foreign) for display and for the Alias rule.
 - The REST API gets these endpoints: create a Service, delete a Service, add and remove an Alias of a Service, and read and set the order and the toggle.
