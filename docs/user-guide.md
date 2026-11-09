@@ -836,10 +836,25 @@ Put them in order: while the first one has no passing Instance, the Route uses
 the next one. A new Alias goes to the end of the order. The Aliases are in the
 record of the Service, in the Consul KV of this Workstation.
 
+To add an Alias from the catalog, click "Alias" on the row of a Remote Service.
+Only Remote Services with Yard Scope have this button. The form opens on its
+own page. Choose one of your Services, or type a new name. The default is the
+name of the Remote Service. Then click "Add":
+
+- If the Service does not exist, the dashboard creates it and publishes it with
+  Local Scope. So its hostname works at once.
+- If the Service exists, it keeps its Publication. The Alias goes to the end of
+  its order.
+
+If the dashboard refuses the Alias, the form shows the reason under its field.
+Cancel goes back to the catalog.
+
 To add an Alias on the Service page, click "Add Alias" in the Instance Sources
 card. The form opens on its own page and lists the Remote Services with Yard
 Scope. Cancel goes back to the Service page. If the dashboard refuses the
-Alias, the form shows the reason under its field. You can also run:
+Alias, the form shows the reason under its field. You can also run the command
+below. As the "Alias" button does, it creates a missing Service and publishes
+it with Local Scope:
 
 ```sh
 lvh-yard alias add web --workstation ws-b --service web
@@ -849,7 +864,8 @@ lvh-yard alias remove web --workstation ws-b --service web
 
 The dashboard refuses a new Alias in these cases:
 
-- The Service does not exist. Create it first.
+- The Service does not exist, on the Service page or in the API without
+  `create`.
 - The Service already has an Alias to this Remote Service.
 - The Remote Service is on this Workstation.
 - The Remote Service is not there with Yard Scope now, or its Workstation does
@@ -871,7 +887,8 @@ These are the states of an Alias, which `lvh-yard alias list` and
 - `missing`: the Remote Service or its Workstation is gone
 
 `POST /api/workstation/services/{service}/aliases` with `workstation` and
-`service` adds an Alias. `DELETE
+`service` adds an Alias. With `"create": true`, a missing Service is created
+and published with Local Scope. `DELETE
 /api/workstation/services/{service}/aliases/{workstation}/{remoteService}` removes
 one. The ID of an Alias source is `<workstation>/<service>` of its Remote
 Service.

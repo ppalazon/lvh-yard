@@ -563,8 +563,14 @@ final class Dashboard {
             .POST(
                 HttpRequest.BodyPublishers.ofString(
                     JSON.writeValueAsString(
-                        Map.of("workstation", workstation, "service", remoteService))));
-    return read(attach(request), new TypeReference<>() {});
+                        Map.of(
+                            "workstation",
+                            workstation,
+                            "service",
+                            remoteService,
+                            "create",
+                            true))));
+    return read(send(request), new TypeReference<>() {});
   }
 
   void removeAlias(String service, String workstation, String remoteService) {

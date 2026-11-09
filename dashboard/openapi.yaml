@@ -511,7 +511,8 @@ paths:
         \ of the Remote Service. The Remote Service must have Yard Scope now. Later,\
         \ the Alias stays when the Remote Service loses Yard Scope or its Workstation\
         \ stops answering, and it then gives no Instances. Only this Workstation's\
-        \ Route uses its Aliases."
+        \ Route uses its Aliases. With create, a missing Service is created and published\
+        \ with Local Scope."
       operationId: addAlias
       parameters:
       - in: path
@@ -546,7 +547,8 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: This Workstation has no Service you created
+          description: "This Workstation has no Service you created, and create is\
+            \ not true"
         "409":
           content:
             application/problem+json:
@@ -985,6 +987,10 @@ components:
     AliasRequest:
       type: object
       properties:
+        create:
+          type: boolean
+          description: "true creates the Service when it does not exist, and publishes\
+            \ it with Local Scope. An existing Service keeps its Publication."
         service:
           type: string
         workstation:

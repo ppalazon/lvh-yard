@@ -246,7 +246,8 @@ class WorkstationServicesController {
           "The Alias goes to the end of the order, and gives the Instances of the Remote Service."
               + " The Remote Service must have Yard Scope now. Later, the Alias stays when the"
               + " Remote Service loses Yard Scope or its Workstation stops answering, and it then"
-              + " gives no Instances. Only this Workstation's Route uses its Aliases.")
+              + " gives no Instances. Only this Workstation's Route uses its Aliases. With create,"
+              + " a missing Service is created and published with Local Scope.")
   @ApiResponse(
       responseCode = "201",
       description = "Added, with its state",
@@ -258,12 +259,15 @@ class WorkstationServicesController {
               + ", the Workstation or Service name is not a DNS label, the Workstation is this"
               + " one, or the Remote Service is not there with Yard Scope. The answer names the"
               + " field")
-  @ApiResponse(responseCode = "404", description = "This Workstation has no Service you created")
+  @ApiResponse(
+      responseCode = "404",
+      description = "This Workstation has no Service you created, and create is not true")
   @ApiResponse(
       responseCode = "409",
       description = "The Service already has an Alias to this Remote Service")
   Alias addAlias(@PathVariable String service, @RequestBody AliasRequest request) {
-    return aliases.add(service, request.workstation(), request.service());
+    return aliases.add(
+        service, request.workstation(), request.service(), Boolean.TRUE.equals(request.create()));
   }
 
   @DeleteMapping("/{service}/aliases/{workstation}/{remoteService}")

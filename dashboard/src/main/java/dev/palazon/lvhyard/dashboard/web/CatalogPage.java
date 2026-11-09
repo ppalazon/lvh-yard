@@ -159,7 +159,7 @@ final class CatalogPage {
 
   private static void home(Div<?> region, HomeWorkstation home, Filters filters) {
     heading(region, home.name(), "secondary", "This Workstation");
-    services(region, home.services(), filters);
+    services(region, home.services(), filters, false);
   }
 
   private static void remote(Div<?> region, YardWorkstation remote, Filters filters) {
@@ -169,7 +169,7 @@ final class CatalogPage {
       return;
     }
     heading(region, remote.name(), null, null);
-    services(region, remote.services(), filters);
+    services(region, remote.services(), filters, true);
   }
 
   private static void heading(Div<?> region, String name, String variant, String badge) {
@@ -187,7 +187,10 @@ final class CatalogPage {
         .__();
   }
 
-  private static void services(Div<?> region, List<Service> all, Filters filters) {
+  /**
+   * @param remote whether the Services are of another Workstation, so a row can offer an Alias
+   */
+  private static void services(Div<?> region, List<Service> all, Filters filters, boolean remote) {
     List<Service> services = filters.of(all);
     if (services.isEmpty()) {
       region.p().text(all.isEmpty() ? "No Services yet." : "No Services in this state.").__();
@@ -212,16 +215,21 @@ final class CatalogPage {
         .th()
         .text("Instances")
         .__()
+        .of(head -> {
+          if (remote) {
+            head.th().__();
+          }
+        })
         .__()
         .__()
         .tbody()
-        .of(body -> services.forEach(service -> row(body, service)))
+        .of(body -> services.forEach(service -> row(body, service, remote)))
         .__()
         .__()
         .__();
   }
 
-  private static void row(Tbody<?> body, Service service) {
+  private static void row(Tbody<?> body, Service service, boolean remote) {
     body.tr()
         .td()
         .a()
@@ -252,6 +260,17 @@ final class CatalogPage {
           }
         })
         .__()
+        .of(tr -> {
+          if (remote) {
+            tr.td()
+                .of(cell -> {
+                  if (service.sharedWithYard()) {
+                    AliasRemoteServicePage.button(cell, service);
+                  }
+                })
+                .__();
+          }
+        })
         .__();
   }
 }

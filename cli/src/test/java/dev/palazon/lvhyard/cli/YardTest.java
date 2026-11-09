@@ -2383,7 +2383,7 @@ class YardTest extends YardTestSupport {
         "POST",
         "/api/workstation/services/web/aliases",
         """
-        {"workstation": "ws-b", "service": "grafana"}
+        {"workstation": "ws-b", "service": "grafana", "create": true}
         """);
   }
 
@@ -2435,20 +2435,25 @@ class YardTest extends YardTestSupport {
   }
 
   @Test
-  void aliasAddToAMissingServiceNamesServiceCreate() {
+  void aliasAddWithANewServiceNameAsksTheDashboardToCreateAndPublishIt() {
     dashboard.answer(
         "POST",
-        "/api/workstation/services/web/aliases",
-        404,
+        "/api/workstation/services/dash/aliases",
+        201,
         """
-        {"type": "about:blank", "title": "Not Found", "status": 404,
-         "detail": "This Workstation has no Service web.", "service": "web"}
+        {"id": "ws-b/grafana", "workstation": "ws-b", "service": "grafana", "state": "active"}
         """);
 
-    Run run = yard("alias", "add", "web", "--workstation", "ws-b", "--service", "grafana");
+    Run run = yard("alias", "add", "dash", "--workstation", "ws-b", "--service", "grafana");
 
-    assertThat(run.exitCode()).isEqualTo(1);
-    assertThat(run.err()).contains("lvh-yard service create web");
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).isEqualTo("dash now has an Alias to grafana on ws-b.\n");
+    dashboard.verifyCalled(
+        "POST",
+        "/api/workstation/services/dash/aliases",
+        """
+        {"workstation": "ws-b", "service": "grafana", "create": true}
+        """);
   }
 
   @Test
