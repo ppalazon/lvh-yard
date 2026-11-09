@@ -4,7 +4,7 @@
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] A Backup holds each Service, empty ones included, with its order and toggle.
 - [x] Each Alias sits inside its Service. Foreign Instances stay out of the order.

@@ -1,6 +1,6 @@
 # Services that you create, with ordered Instance Sources
 
-Status: ready-for-agent
+Status: done
 
 Words follow `GLOSSARY.md`. ADR-0009 gives the routing rule, and it supersedes ADR-0005.
 

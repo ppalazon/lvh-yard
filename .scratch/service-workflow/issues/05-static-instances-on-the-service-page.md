@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] The Service page has an "Add Static Instance" form. It shows errors at their fields.
 - [x] Each Static Instance on the Service page has an edit form and a remove button.

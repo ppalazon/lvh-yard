@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] A Service record in this Workstation's Consul KV makes a Service exist, with no Instances and no Publication.
 - [x] A Service that only Foreign Instances give still shows, without a record. It works like a created Service: the first change that needs a record writes one.

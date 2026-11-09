@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] The container list API returns every container of this Workstation, stopped ones included. Each entry has its Compose project and service, its Container Ports, and whether a Container Binding follows it.
 - [x] The Service page has a "Bind container" form. The container field lists Compose services as project and service, then containers with no Compose project by name.
