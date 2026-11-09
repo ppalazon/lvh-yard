@@ -52,7 +52,7 @@ public class Aliases {
     checkTarget("workstation", "Workstation", home);
     checkTarget("service", "Service", remoteService);
     checkRemote(home);
-    String id = Alias.id(home, remoteService);
+    String id = new AliasTarget(home, remoteService).id();
     Optional<ServiceRecords.ServiceRecord> record = records.get(service);
     if (record.isEmpty() && !create) {
       throw new UnknownServiceException(service);
@@ -92,7 +92,7 @@ public class Aliases {
     checkTarget("workstation", "Workstation", home);
     checkTarget("service", "Service", remoteService);
     checkRemote(home);
-    records.addAlias(service, Alias.id(home, remoteService));
+    records.addAlias(service, new AliasTarget(home, remoteService).id());
   }
 
   private void checkRemote(String home) {
@@ -123,7 +123,7 @@ public class Aliases {
    */
   public void remove(String service, String home, String remoteService) {
     Registrations.checkName(service);
-    records.removeAlias(service, Alias.id(home, remoteService));
+    records.removeAlias(service, new AliasTarget(home, remoteService).id());
   }
 
   /**
@@ -136,10 +136,8 @@ public class Aliases {
     ServiceRecords.ServiceRecord record =
         records.get(service).orElseThrow(() -> new UnknownServiceException(service));
     return InstanceSource.order(record.order(), record.aliases()).stream()
-        .map(id -> {
-          String[] target = id.split("/", 2);
-          return alias(target[0], target.length < 2 ? "" : target[1]);
-        })
+        .map(AliasTarget::parse)
+        .map(target -> alias(target.workstation(), target.service()))
         .toList();
   }
 
@@ -148,7 +146,7 @@ public class Aliases {
    * Workstation's own pages.
    */
   private Alias alias(String home, String service) {
-    String id = Alias.id(home, service);
+    String id = new AliasTarget(home, service).id();
     Optional<Service> target;
     try {
       target = yard.service(home, service);

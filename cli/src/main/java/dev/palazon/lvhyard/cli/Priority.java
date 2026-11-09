@@ -105,13 +105,18 @@ class Priority implements Runnable {
         String[] target = source.id().split("/", 2);
         yield "Alias to " + (target.length < 2 ? "" : target[1]) + " on " + target[0];
       }
-      default ->
-          (source.kind().equals("foreign") ? "Foreign Instance " : "Static Instance ")
-              + found.instances().stream()
-                  .filter(instance -> source.instances().contains(instance.id()))
-                  .map(instance -> instance.host() + ":" + instance.port())
-                  .findFirst()
-                  .orElse("");
+      case "static" -> "Static Instance " + address(found, source);
+      case "foreign" -> "Foreign Instance " + address(found, source);
+      // A newer dashboard can send a kind that this lvh-yard does not know.
+      default -> source.kind();
     };
+  }
+
+  private static String address(Dashboard.Service found, Dashboard.Source source) {
+    return found.instances().stream()
+        .filter(instance -> source.instances().contains(instance.id()))
+        .map(instance -> instance.host() + ":" + instance.port())
+        .findFirst()
+        .orElse("");
   }
 }

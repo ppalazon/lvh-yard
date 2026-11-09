@@ -1,5 +1,6 @@
 package dev.palazon.lvhyard.dashboard.backups;
 
+import dev.palazon.lvhyard.dashboard.services.AliasTarget;
 import dev.palazon.lvhyard.dashboard.services.HealthCheck;
 import java.time.OffsetDateTime;
 import java.util.Collections;
@@ -121,7 +122,7 @@ public record Backup(
 
     /** As the API names it: {@code <workstation>/<service>}. */
     public String id() {
-      return workstation + "/" + service;
+      return new AliasTarget(workstation, service).id();
     }
   }
 }

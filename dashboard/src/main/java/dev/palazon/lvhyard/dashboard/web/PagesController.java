@@ -5,6 +5,7 @@ import dev.palazon.lvhyard.dashboard.profiles.RouteProfiles;
 import dev.palazon.lvhyard.dashboard.reachability.ReachabilityTester;
 import dev.palazon.lvhyard.dashboard.services.Alias;
 import dev.palazon.lvhyard.dashboard.services.AliasExistsException;
+import dev.palazon.lvhyard.dashboard.services.AliasTarget;
 import dev.palazon.lvhyard.dashboard.services.Aliases;
 import dev.palazon.lvhyard.dashboard.services.ContainerBindings;
 import dev.palazon.lvhyard.dashboard.services.Instance;
@@ -425,10 +426,10 @@ class PagesController {
       @RequestParam(required = false) String target) {
     Service found = ownService(home, service);
     String chosen = target == null ? "" : target.strip();
-    String[] parts = chosen.split("/", 2);
+    AliasTarget parsed = AliasTarget.parse(chosen);
     InvalidRegistrationException error;
     try {
-      aliases.add(service, parts[0], parts.length < 2 ? "" : parts[1], false);
+      aliases.add(service, parsed.workstation(), parsed.service(), false);
       return seeOther(ServicePage.path(found));
     } catch (InvalidRegistrationException | AliasExistsException e) {
       error = new InvalidRegistrationException(AddAliasPage.TARGET, e.getMessage());

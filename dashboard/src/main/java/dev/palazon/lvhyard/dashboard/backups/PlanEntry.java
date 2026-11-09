@@ -2,6 +2,7 @@ package dev.palazon.lvhyard.dashboard.backups;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonValue;
+import dev.palazon.lvhyard.dashboard.services.SourceKind;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
@@ -32,9 +33,9 @@ public record PlanEntry(
           case SERVICE -> "Service " + name;
           case PUBLICATION -> "Publication of " + name;
           case INSTANCE_PRIORITY -> "Instance Priority of " + name;
-          case STATIC_INSTANCE -> "Static Instance " + name;
-          case CONTAINER_BINDING -> "Container Binding " + name;
-          case ALIAS -> "Alias to " + name;
+          case STATIC_INSTANCE -> SourceKind.STATIC.describe(name);
+          case CONTAINER_BINDING -> SourceKind.BOUND.describe(name);
+          case ALIAS -> SourceKind.ALIAS.describe(name);
         };
     return what + (service == null ? "" : " of " + service);
   }

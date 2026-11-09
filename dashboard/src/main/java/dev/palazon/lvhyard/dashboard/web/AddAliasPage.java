@@ -1,6 +1,7 @@
 package dev.palazon.lvhyard.dashboard.web;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
+import dev.palazon.lvhyard.dashboard.services.AliasTarget;
 import dev.palazon.lvhyard.dashboard.services.InstanceSource;
 import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
 import dev.palazon.lvhyard.dashboard.services.Service;
@@ -101,13 +102,15 @@ final class AddAliasPage {
                 .attrName(TARGET)
                 .of(select ->
                     shared.forEach(remote -> {
-                      String value = remote.workstation() + "/" + remote.name();
+                      AliasTarget remoteTarget =
+                          new AliasTarget(remote.workstation(), remote.name());
+                      String value = remoteTarget.id();
                       if (!taken.contains(value)) {
                         select
                             .option()
                             .attrValue(Layout.attr(value))
                             .of(option -> option.attrSelected(value.equals(target)))
-                            .text(remote.name() + " on " + remote.workstation())
+                            .text(remoteTarget.label())
                             .__();
                       }
                     }))

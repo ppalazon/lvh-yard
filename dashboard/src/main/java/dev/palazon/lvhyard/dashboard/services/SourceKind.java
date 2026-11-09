@@ -14,6 +14,21 @@ public enum SourceKind {
 
   FOREIGN;
 
+  /**
+   * How pages and messages name a source of this kind, such as {@code Static Instance 10.0.0.5:80}.
+   *
+   * @param detail what tells it apart: the address of an Instance, the container of a Container
+   *     Binding, or the Remote Service of an Alias
+   */
+  public String describe(String detail) {
+    return switch (this) {
+      case STATIC -> "Static Instance " + detail;
+      case BOUND -> "Container Binding " + detail;
+      case ALIAS -> "Alias to " + detail;
+      case FOREIGN -> "Foreign Instance " + detail;
+    };
+  }
+
   @JsonValue
   public String value() {
     return name().toLowerCase();

@@ -193,9 +193,9 @@ public class YardReader {
           service.sources().stream()
               .filter(source -> source.kind() == SourceKind.ALIAS)
               .forEach(alias -> {
-                String[] target = alias.id().split("/", 2);
+                AliasTarget target = AliasTarget.parse(alias.id());
                 remoteService
-                    .apply(target[0], target.length < 2 ? "" : target[1])
+                    .apply(target.workstation(), target.service())
                     .filter(Service::sharedWithYard)
                     .ifPresent(found -> aliased.put(alias.id(), found.instances()));
               });

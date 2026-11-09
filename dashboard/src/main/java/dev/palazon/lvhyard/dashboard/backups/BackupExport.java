@@ -10,6 +10,7 @@ import dev.palazon.lvhyard.dashboard.backups.Backup.Source;
 import dev.palazon.lvhyard.dashboard.backups.Backup.StaticInstance;
 import dev.palazon.lvhyard.dashboard.backups.Backup.Unpublished;
 import dev.palazon.lvhyard.dashboard.profiles.RouteProfiles;
+import dev.palazon.lvhyard.dashboard.services.AliasTarget;
 import dev.palazon.lvhyard.dashboard.services.Instance;
 import dev.palazon.lvhyard.dashboard.services.InstanceSource;
 import dev.palazon.lvhyard.dashboard.services.Registrations;
@@ -100,8 +101,8 @@ public class BackupExport {
           }
         }
         case ALIAS -> {
-          String[] target = source.id().split("/", 2);
-          sources.add(new Alias(target[0], target.length < 2 ? "" : target[1]));
+          AliasTarget target = AliasTarget.parse(source.id());
+          sources.add(new Alias(target.workstation(), target.service()));
         }
         case FOREIGN -> {}
       }

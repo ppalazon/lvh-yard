@@ -41,10 +41,6 @@ public record Alias(
     }
   }
 
-  static String id(String workstation, String service) {
-    return workstation + "/" + service;
-  }
-
   public boolean active() {
     return state == State.ACTIVE;
   }
