@@ -1,4 +1,4 @@
-// The Service page swaps its region every 5 seconds, and the new risks box comes closed.
+// Each refresh swaps the region of the Service page, and the new risks box comes closed.
 // The open state lives only in this variable, so it lasts only while the page is open.
 let risksOpen = false;
 
