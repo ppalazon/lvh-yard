@@ -138,7 +138,7 @@ class CreateAndDeleteServicesPageComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void serviceThatOnlyForeignInstancesGiveSaysWhyItStaysAndHasNoDelete() {
+  void deletedServiceWithForeignInstancesLeftSaysWhyItStays() {
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 3000));
     String id = "foreign-" + UUID.randomUUID();
@@ -147,8 +147,26 @@ class CreateAndDeleteServicesPageComponentTest extends DashboardComponentTest {
       ResponseEntity<String> response = postForm(deletePath(web), Map.of());
 
       assertThat(response.getHeaders().getLocation()).hasPath("/services/ws-test/" + web);
+      assertThat(getPage("/services/ws-test/" + web).getBody()).contains("data-foreign-only");
+    } finally {
+      consul.deregister(id);
+    }
+  }
+
+  @Test
+  void serviceThatOnlyForeignInstancesGiveHasThePartsOfACreatedService() {
+    String web = newServiceName("web");
+    String id = "foreign-" + UUID.randomUUID();
+    consul.register(new Registration(id, web, "10.9.8.7", 8080, List.of(), Map.of(), null));
+    try {
       String page = getPage("/services/ws-test/" + web).getBody();
-      assertThat(page).contains("data-foreign-only").doesNotContain(deletePath(web));
+
+      assertThat(page)
+          .contains("id=\"add-sources\"")
+          .contains("href=\"/services/ws-test/" + web + "/aliases/new\"")
+          .contains("href=\"/services/ws-test/" + web + "/instances/new\"")
+          .contains(deletePath(web))
+          .doesNotContain("create a Service");
     } finally {
       consul.deregister(id);
     }

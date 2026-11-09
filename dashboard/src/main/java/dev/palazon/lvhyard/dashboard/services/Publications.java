@@ -54,7 +54,8 @@ public class Publications {
       checkProfiles(profiles);
     }
     Registrations.checkName(service);
-    checkExists(service);
+    // The record keeps a published Service after its Foreign Instances go.
+    records.ensure(service);
     Publication existing = all().get(service);
     Publication chosen =
         new Publication(
@@ -142,7 +143,7 @@ public class Publications {
   }
 
   private void checkExists(String service) {
-    if (!records.exists(service)) {
+    if (!records.serviceExists(service)) {
       throw new UnknownServiceException(service);
     }
   }

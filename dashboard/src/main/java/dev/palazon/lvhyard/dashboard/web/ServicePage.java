@@ -110,7 +110,7 @@ final class ServicePage {
                                                 + service.workstation()
                                                 + "."))
                                 .__()
-                                .of(content -> foreignOnly(content, service, own))
+                                .of(content -> foreignOnly(content, service))
                                 .of(content -> alerts(content, service))
                                 .of(content -> summary(content, service))
                                 .div()
@@ -138,7 +138,7 @@ final class ServicePage {
                 .of(card -> reachability(card, workstation, service, reachability))
                 .__()
                 .of(content -> {
-                  if (own && service.created()) {
+                  if (own) {
                     content
                         .div()
                         .attrId("delete")
@@ -153,8 +153,11 @@ final class ServicePage {
                 }));
   }
 
-  /** Why a Service that LVH Yard did not create is here, and how long it stays. */
-  private static void foreignOnly(Div<?> content, Service service, boolean own) {
+  /**
+   * Why a Service with no record is here, and why a delete leaves it. The first change that needs a
+   * record writes one, and the note goes.
+   */
+  private static void foreignOnly(Div<?> content, Service service) {
     if (service.created()) {
       return;
     }
@@ -162,8 +165,8 @@ final class ServicePage {
         .p()
         .addAttr("data-foreign-only", "")
         .text(
-            "Only Foreign Instances give this Service, so it stays while they are registered."
-                + (own ? " To publish it, create a Service of this name in the catalog." : ""))
+            "Only Foreign Instances give this Service, so it stays while they are registered,"
+                + " also after a delete.")
         .__();
   }
 

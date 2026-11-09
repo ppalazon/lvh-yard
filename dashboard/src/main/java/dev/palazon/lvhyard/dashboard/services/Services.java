@@ -1,7 +1,6 @@
 package dev.palazon.lvhyard.dashboard.services;
 
 import dev.palazon.lvhyard.dashboard.Workstation;
-import dev.palazon.lvhyard.dashboard.consul.Consul;
 import org.springframework.stereotype.Component;
 
 /** Creates and deletes the Services of this Workstation. */
@@ -9,8 +8,6 @@ import org.springframework.stereotype.Component;
 public class Services {
 
   private final Workstation workstation;
-
-  private final Consul consul;
 
   private final ServiceRecords records;
 
@@ -22,13 +19,11 @@ public class Services {
 
   Services(
       Workstation workstation,
-      Consul consul,
       ServiceRecords records,
       Publications publications,
       Registrations registrations,
       ContainerBindings containerBindings) {
     this.workstation = workstation;
-    this.consul = consul;
     this.records = records;
     this.publications = publications;
     this.registrations = registrations;
@@ -36,17 +31,27 @@ public class Services {
   }
 
   /**
-   * An empty, Unpublished Service. A Service that only Foreign Instances give can get its record
-   * too, so that you can publish it.
+   * An empty, Unpublished Service.
    *
-   * @throws ServiceExistsException when this Workstation already has a record of this name
+   * @throws ServiceExistsException when this Workstation already has a Service of this name, also
+   *     one that only Foreign Instances give
    */
   public void create(String workstation, String service) {
     checkHome(workstation);
     Registrations.checkName(service);
-    if (records.exists(service)) {
+    if (records.serviceExists(service)) {
       throw new ServiceExistsException(service);
     }
+    records.put(service);
+  }
+
+  /**
+   * The record of a Service of a Backup. Unlike {@link #create}, it accepts a Service that only
+   * Foreign Instances give, as a Backup never holds that Service and so the import adds it.
+   */
+  public void restore(String workstation, String service) {
+    checkHome(workstation);
+    Registrations.checkName(service);
     records.put(service);
   }
 
@@ -57,9 +62,9 @@ public class Services {
    */
   public void delete(String workstation, String service) {
     checkHome(workstation);
-    // A name Consul cannot look up fails here, as a 400, not in consul.health.
+    // A name Consul cannot look up fails here, as a 400, not in the Consul lookup.
     Registrations.checkName(service);
-    if (!records.exists(service) && consul.health(service).isEmpty()) {
+    if (!records.serviceExists(service)) {
       throw new UnknownServiceException(service);
     }
     publications.remove(service);
@@ -72,7 +77,7 @@ public class Services {
    * The order and the toggle stay over unpublish and publish, as they are not part of the
    * Publication.
    *
-   * @throws UnknownServiceException when you have not created the Service
+   * @throws UnknownServiceException when this Workstation has no Service of this name
    * @throws InvalidPriorityException when the order names an ID twice, or an ID that is not one of
    *     the Service's Instance Sources
    */
@@ -80,6 +85,7 @@ public class Services {
       String workstation, String service, InstancePriorityRequest request) {
     checkHome(workstation);
     Registrations.checkName(service);
+    records.ensure(service);
     records.setPriority(service, request.order(), request.on());
   }
 

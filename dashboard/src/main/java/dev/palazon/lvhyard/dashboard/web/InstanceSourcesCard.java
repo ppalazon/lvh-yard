@@ -128,7 +128,7 @@ final class InstanceSourcesCard {
           }
         })
         .__();
-    if (own && service.created()) {
+    if (own) {
       // Each kind of source adds its link or form to this row.
       card.div()
           .attrId("add-sources")

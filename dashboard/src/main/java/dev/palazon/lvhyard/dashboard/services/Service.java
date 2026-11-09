@@ -13,8 +13,8 @@ import java.util.stream.Collectors;
  * {@code publication}, {@code hostname}, {@code profiles} and {@code routing} are left out of the
  * JSON when null or empty. {@code containerBindings} include those that match no running container.
  *
- * @param created whether you created it on its Home Workstation. If not, only Foreign Instances
- *     give it, and it leaves once they do
+ * @param created whether its Home Workstation holds a record of it. If not, only Foreign Instances
+ *     give it, and it leaves once they do. The first change to it that needs a record writes one.
  * @param empty whether it has no Instance Sources. Its Aliases count, also where it does not list
  *     them.
  * @param sources its Instance Sources, in the order of its Instance Priority. Only its Home
@@ -33,8 +33,8 @@ public record Service(
     @Schema(
             requiredMode = Schema.RequiredMode.REQUIRED,
             description =
-                "Whether you created it on its Home Workstation. If not, only Foreign Instances"
-                    + " give it")
+                "Whether its Home Workstation holds a record of it. If not, only Foreign"
+                    + " Instances give it, and the first change to it writes the record")
         boolean created,
     @Schema(
             requiredMode = Schema.RequiredMode.REQUIRED,

@@ -202,7 +202,8 @@ class ImportPlanner {
       if (existing == null) {
         PlanEntry entry = PlanEntry.add(Kind.SERVICE, name, null);
         entries.add(entry);
-        serviceSteps.add(new Step(List.of(entry), () -> services.create(workstation.name(), name)));
+        serviceSteps.add(
+            new Step(List.of(entry), () -> services.restore(workstation.name(), name)));
       } else {
         entries.add(PlanEntry.skip(Kind.SERVICE, name, null, EXISTS));
       }

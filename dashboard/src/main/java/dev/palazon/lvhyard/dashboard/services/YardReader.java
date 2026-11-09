@@ -158,7 +158,7 @@ public class YardReader {
     return this.workstation.is(workstation) ? withAliases(services, this::aliasTarget) : services;
   }
 
-  /** While you created it, or an Instance gives it. */
+  /** While it has a record, or an Instance gives it. */
   public Optional<Service> service(String workstation, String name) {
     checkInYard(workstation);
     Optional<Service> service =

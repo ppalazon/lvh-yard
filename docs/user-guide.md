@@ -595,7 +595,7 @@ Service is empty and Unpublished, so nothing gets a hostname by mistake. To
 create one, click "New Service" in the catalog, give the name and click
 Create. The page of the new Service opens. You can also run
 `lvh-yard service create <name>`. A name that this Workstation already uses is
-refused. The catalog marks a Service with no Instances and no Container
+refused, also the name of a Service that only Foreign Instances give. The catalog marks a Service with no Instances and no Container
 Bindings as Empty.
 
 Static Instances and Container Bindings attach to a Service that exists. A
@@ -609,8 +609,11 @@ the Container Bindings with their Bound Instances. Click Delete. The containers
 keep running. You can also run `lvh-yard service delete <name>`.
 
 A Service that only Foreign Instances give shows without being created. It
-stays while they are registered, also after a delete, and its page says why.
-To publish it, create a Service of the same name.
+works like any other Service: you publish it, attach Instance Sources, add
+Aliases and set its Instance Priority with no create step. The first of these
+changes stores it under `lvh-yard/services/`, so it then stays until you
+delete it. A Service with Foreign Instances left stays after a delete while
+they are registered, and its page says why.
 
 A Service is `unpublished`, `unavailable` (published, no Instances), `unhealthy`
 (published, no passing Instance), `degraded` (published, some Instances pass and

@@ -148,11 +148,9 @@ class PagesController {
     return ServicePage.render(workstation, found, aliasesOf(found), routeProfiles.names(), null);
   }
 
-  /** Only this Workstation reads the Aliases of its own Services, and only of those you created. */
+  /** Only this Workstation reads the Aliases of its own Services. */
   private List<Alias> aliasesOf(Service service) {
-    return workstation.is(service.workstation()) && service.created()
-        ? aliases.of(service.name())
-        : List.of();
+    return workstation.is(service.workstation()) ? aliases.of(service.name()) : List.of();
   }
 
   @GetMapping(

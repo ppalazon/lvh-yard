@@ -7,8 +7,8 @@
 **Status:** ready-for-agent
 
 - [x] A Service record in this Workstation's Consul KV makes a Service exist, with no Instances and no Publication.
-- [x] A Service that only Foreign Instances give still shows, without a record.
-- [x] The REST API creates a Service by name. It refuses a name that is not one DNS label, and a name that this Workstation already uses.
+- [x] A Service that only Foreign Instances give still shows, without a record. It works like a created Service: the first change that needs a record writes one.
+- [x] The REST API creates a Service by name. It refuses a name that is not one DNS label, and a name that this Workstation already uses, also one that only Foreign Instances give.
 - [x] The REST API deletes a Service. A delete removes its Publication, Static Instances, Container Bindings and their Bound Instances. Containers keep running.
 - [x] After a delete, a Service with Foreign Instances left stays, and its page says why.
 - [x] Publishing, a new Static Instance and a new Container Binding for a missing Service answer 404.

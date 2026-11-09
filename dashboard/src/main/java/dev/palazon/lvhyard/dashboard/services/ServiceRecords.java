@@ -15,9 +15,10 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * One Consul KV key per Service that you created, holding a JSON object. The key alone makes the
- * Service exist, with no Instances and no Publication. It holds the Instance Priority (the order of
- * the Instance Source IDs and whether the order is on) and the Aliases of the Service.
+ * One Consul KV key per Service, holding a JSON object. The key alone makes the Service exist, with
+ * no Instances and no Publication. A Service that only Foreign Instances give has none until a
+ * change needs it. It holds the Instance Priority (the order of the Instance Source IDs and whether
+ * the order is on) and the Aliases of the Service.
  */
 @Component
 public class ServiceRecords {
@@ -41,6 +42,31 @@ public class ServiceRecords {
 
   boolean exists(String service) {
     return get(service).isPresent();
+  }
+
+  /**
+   * Whether this Workstation has the Service: a record, or an Instance that another tool
+   * registered.
+   */
+  boolean serviceExists(String service) {
+    return exists(service)
+        || consul.health(service).stream()
+            .anyMatch(entry -> !Consul.isServerItself(entry.service()));
+  }
+
+  /**
+   * Writes the record of a Service that only Foreign Instances give, before a write that needs it.
+   *
+   * @throws UnknownServiceException when this Workstation has no Service of this name
+   */
+  void ensure(String service) {
+    if (exists(service)) {
+      return;
+    }
+    if (!serviceExists(service)) {
+      throw new UnknownServiceException(service);
+    }
+    write(service, new ServiceRecord(List.of(), null, List.of()));
   }
 
   Optional<ServiceRecord> get(String service) {
@@ -73,7 +99,7 @@ public class ServiceRecords {
    * Adds an Alias at the end of the order.
    *
    * @param id {@code <workstation>/<service>} of its Remote Service
-   * @throws UnknownServiceException when you have not created the Service
+   * @throws UnknownServiceException when the Service has no record
    * @throws AliasExistsException when the Service already has an Alias to this Remote Service
    */
   void addAlias(String service, String id) {
@@ -88,7 +114,7 @@ public class ServiceRecords {
   }
 
   /**
-   * @throws UnknownServiceException when you have not created the Service
+   * @throws UnknownServiceException when the Service has no record
    * @throws UnknownAliasException when the Service has no Alias to this Remote Service
    */
   void removeAlias(String service, String id) {
@@ -123,7 +149,7 @@ public class ServiceRecords {
    *
    * @param order {@code null} keeps the order
    * @param on {@code null} keeps the toggle
-   * @throws UnknownServiceException when you have not created the Service
+   * @throws UnknownServiceException when the Service has no record
    * @throws InvalidPriorityException when {@code order} names an ID twice, or an ID that is not one
    *     of the Service's Instance Sources
    */

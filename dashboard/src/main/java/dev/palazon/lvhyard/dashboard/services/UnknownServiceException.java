@@ -1,6 +1,6 @@
 package dev.palazon.lvhyard.dashboard.services;
 
-/** You have not created it, and no Foreign Instance gives it. */
+/** It has no record, and no Instance gives it. */
 public class UnknownServiceException extends RuntimeException {
 
   private final String service;

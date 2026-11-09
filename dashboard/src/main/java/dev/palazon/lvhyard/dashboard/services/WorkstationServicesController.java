@@ -75,13 +75,16 @@ class WorkstationServicesController {
       operationId = "createService",
       summary = "Creates a Service",
       description =
-          "The new Service is empty and Unpublished. It stays until you delete it. You can also"
-              + " create a Service that only Foreign Instances give, so that you can publish it.")
+          "The new Service is empty and Unpublished. It stays until you delete it. A Service"
+              + " that only Foreign Instances give exists already, so you change it with no"
+              + " create step.")
   @ApiResponse(responseCode = "201", description = "Created", useReturnTypeSchema = true)
   @ApiResponse(responseCode = "400", description = Registrations.INVALID_NAME)
   @ApiResponse(
       responseCode = "409",
-      description = "This Workstation already has a Service of this name")
+      description =
+          "This Workstation already has a Service of this name, also one that only Foreign"
+              + " Instances give")
   Service create(@RequestBody NewServiceRequest request) {
     String name = request.name() == null ? "" : request.name().strip();
     services.create(workstation.name(), name);
@@ -232,7 +235,7 @@ class WorkstationServicesController {
       summary = "Lists the Aliases of a Service",
       description = "In the order of its Instance Priority, each with its state.")
   @ApiResponse(responseCode = "200", description = "OK", useReturnTypeSchema = true)
-  @ApiResponse(responseCode = "404", description = "This Workstation has no Service you created")
+  @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
   List<Alias> aliases(@PathVariable String service) {
     return aliases.of(service);
   }
@@ -261,7 +264,7 @@ class WorkstationServicesController {
               + " field")
   @ApiResponse(
       responseCode = "404",
-      description = "This Workstation has no Service you created, and create is not true")
+      description = "This Workstation has no Service of this name, and create is not true")
   @ApiResponse(
       responseCode = "409",
       description = "The Service already has an Alias to this Remote Service")
@@ -343,7 +346,7 @@ class WorkstationServicesController {
   @ApiResponse(
       responseCode = "400",
       description = "The order names an ID twice, or an ID that is not one of its Instance Sources")
-  @ApiResponse(responseCode = "404", description = "This Workstation has no Service you created")
+  @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
   InstancePriority setInstancePriority(
       @PathVariable String service, @RequestBody InstancePriorityRequest request) {
     services.setInstancePriority(workstation.name(), service, request);

@@ -17,7 +17,7 @@ final class ContainerBindingsCard {
 
   private ContainerBindingsCard() {}
 
-  /** Only your own Service that you created gets it. */
+  /** Only a Service of this Workstation gets it. */
   static void openLink(Div<?> row, Service service) {
     row.a()
         .attrClass("btn w-fit")

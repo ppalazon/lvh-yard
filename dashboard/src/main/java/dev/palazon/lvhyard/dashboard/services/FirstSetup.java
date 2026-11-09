@@ -155,7 +155,7 @@ public class FirstSetup implements SmartLifecycle {
       for (OwnService service : services) {
         failIfPast(deadline);
         // A Service that only Foreign Instances give is in use too, so it is left alone.
-        if (!records.exists(service.name()) && consul.health(service.name()).isEmpty()) {
+        if (!records.serviceExists(service.name())) {
           toWrite.add(service.name());
         }
       }

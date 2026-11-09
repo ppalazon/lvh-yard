@@ -4,11 +4,13 @@ import static dev.palazon.lvhyard.dashboard.BackupExportComponentTest.map;
 import static dev.palazon.lvhyard.dashboard.BackupExportComponentTest.yaml;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.palazon.lvhyard.dashboard.consul.Consul.Registration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -365,6 +367,36 @@ class BackupImportComponentTest extends DashboardComponentTest {
     assertThat(problems(response)).containsExactly("version");
     assertThat(response.getBody().get("problems").get(0).get("reason").asString())
         .contains("older");
+  }
+
+  @Test
+  void serviceThatOnlyForeignInstancesGiveGetsItsRecordAndSources() {
+    String grafana = newServiceName("grafana");
+    String id = "foreign-" + UUID.randomUUID();
+    consul.register(new Registration(id, grafana, "10.9.8.7", 8080, List.of(), Map.of(), null));
+    try {
+      ResponseEntity<JsonNode> response =
+          importBackup(
+              """
+              version: 2
+              services:
+                %s:
+                  sources:
+                    - static-instance:
+                        host: 10.1.2.3
+                        port: 3000
+                  instance-priority: false
+              """
+                  .formatted(grafana));
+
+      assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+      JsonNode service = get(servicePath(grafana)).getBody();
+      assertThat(service.get("created").asBoolean()).isTrue();
+      assertThat(service.get("instances")).hasSize(2);
+      assertThat(service.get("instancePriority").asBoolean()).isFalse();
+    } finally {
+      consul.deregister(id);
+    }
   }
 
   @Test

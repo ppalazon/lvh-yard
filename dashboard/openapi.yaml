@@ -399,8 +399,8 @@ paths:
       - workstation-services-controller
     post:
       description: "The new Service is empty and Unpublished. It stays until you delete\
-        \ it. You can also create a Service that only Foreign Instances give, so that\
-        \ you can publish it."
+        \ it. A Service that only Foreign Instances give exists already, so you change\
+        \ it with no create step."
       operationId: createService
       requestBody:
         content:
@@ -426,7 +426,8 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: This Workstation already has a Service of this name
+          description: "This Workstation already has a Service of this name, also\
+            \ one that only Foreign Instances give"
       summary: Creates a Service
       tags:
       - workstation-services-controller
@@ -502,7 +503,7 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: This Workstation has no Service you created
+          description: This Workstation has no Service of this name
       summary: Lists the Aliases of a Service
       tags:
       - workstation-services-controller
@@ -547,7 +548,7 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: "This Workstation has no Service you created, and create is\
+          description: "This Workstation has no Service of this name, and create is\
             \ not true"
         "409":
           content:
@@ -732,7 +733,7 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: This Workstation has no Service you created
+          description: This Workstation has no Service of this name
       summary: "Sets the order of the Instance Sources of a Service, or turns the\
         \ order on or off"
       tags:
@@ -1483,8 +1484,9 @@ components:
             $ref: "#/components/schemas/ContainerBinding"
         created:
           type: boolean
-          description: "Whether you created it on its Home Workstation. If not, only\
-            \ Foreign Instances give it"
+          description: "Whether its Home Workstation holds a record of it. If not,\
+            \ only Foreign Instances give it, and the first change to it writes the\
+            \ record"
         empty:
           type: boolean
           description: Whether it has no Instance Sources. Its Aliases count

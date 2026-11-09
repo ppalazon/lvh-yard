@@ -79,13 +79,13 @@ public class ContainerBindings {
    * @return the Binding's ID
    * @throws FollowedContainerException when a Binding of this Workstation already names the same
    *     container, or the same Compose project and service, whatever its port
-   * @throws UnknownServiceException when you have not created the Service
+   * @throws UnknownServiceException when this Workstation has no Service of this name
    */
   public String add(String workstation, String service, ContainerBindingRequest request) {
     checkHome(workstation);
     Registrations.checkName(service);
     ContainerBindingRequest binding = checked(request);
-    registrations.checkCreated(service);
+    records.ensure(service);
     following(all(null), other -> sameTarget(binding, other))
         .ifPresent(following -> {
           throw new FollowedContainerException(

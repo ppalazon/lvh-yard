@@ -42,7 +42,7 @@ In these stories, "user" is a person who uses one Workstation. "Teammate" is a u
 10. As a user, I want a delete to remove the Publication and every Instance Source, so that nothing of the Service stays.
 11. As a user, I want my containers to keep running after a delete, so that a delete changes only LVH Yard.
 12. As a user, I want a deleted Service with Foreign Instances left to stay and say why.
-13. As a user, I want a Service that only Foreign Instances give to show without a record, so that I see what other tools register.
+13. As a user, I want a Service that only Foreign Instances give to work like any other Service, with no create step, so that I can publish and change what other tools register.
 
 ### Attach Static Instances
 
@@ -135,7 +135,7 @@ In these stories, "user" is a person who uses one Workstation. "Teammate" is a u
 ## Implementation Decisions
 
 - A new Service record in this Workstation's Consul KV holds the order of its Instance Sources and the Instance Priority toggle. There is one key per Service.
-- A Service exists while it has this record or a Foreign Instance. Publishing, attaching a source and adding an Alias need the record.
+- A Service exists while it has this record or a Foreign Instance. A Service that only Foreign Instances give is a normal Service: creating its name is refused, and the first change that needs a record writes one. That is publishing, attaching a source, setting the Instance Priority and adding an Alias. A missing name, with no record and no Instance, still answers 404.
 - The Publication keeps its Scope, its Route Profiles and its access log. It loses the Instance Priority. Unpublishing deletes only the Publication.
 - Each Instance Source has a stable ID inside its Service. A Static Instance and a Foreign Instance use their Consul ID. A Container Binding uses its Binding ID. An Alias uses `<workstation>/<service>` of its Remote Service. The order stores these IDs.
 - At read time, a source that the order does not name goes to the end. An ID in the order whose source is gone is skipped. A write of the order drops IDs whose sources are gone.

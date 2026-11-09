@@ -119,13 +119,13 @@ public class Registrations {
    * port again replaces that Instance, which keeps its ID.
    *
    * @return the new Instance, critical until its check first passes
-   * @throws UnknownServiceException when you have not created the Service
+   * @throws UnknownServiceException when this Workstation has no Service of this name
    */
   public Instance register(String workstation, String service, StaticInstanceRequest request) {
     checkHome(workstation);
     checkName(service);
     StaticInstanceRequest checked = checked(request);
-    checkCreated(service);
+    records.ensure(service);
     String id =
         staticInstanceAt(service, checked.host(), checked.port())
             .orElseGet(() -> UUID.randomUUID().toString());
@@ -393,12 +393,6 @@ public class Registrations {
   private void checkHome(String workstation) {
     if (!this.workstation.is(workstation)) {
       throw new RemoteServiceException(workstation);
-    }
-  }
-
-  void checkCreated(String service) {
-    if (!records.exists(service)) {
-      throw new UnknownServiceException(service);
     }
   }
 

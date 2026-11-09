@@ -39,12 +39,13 @@ public class Aliases {
    * now. Later, the Alias stays when its Remote Service loses Yard Scope or its Workstation stops
    * answering. An existing Service keeps its Publication.
    *
-   * @param create when {@code service} has no record, true creates it and publishes it with Local
-   *     Scope, so that its hostname works at once. It is created only after every check passes.
+   * @param create when this Workstation has no Service {@code service}, true creates it and
+   *     publishes it with Local Scope, so that its hostname works at once. It is created only after
+   *     every check passes.
    * @throws InvalidRegistrationException when a name is not one DNS label, the Workstation is this
    *     one, or the Remote Service is not there with Yard Scope now
-   * @throws UnknownServiceException when you have not created {@code service} and {@code create} is
-   *     false
+   * @throws UnknownServiceException when this Workstation has no Service {@code service} and {@code
+   *     create} is false
    * @throws AliasExistsException when {@code service} already has an Alias to this Remote Service
    */
   public Alias add(String service, String home, String remoteService, boolean create) {
@@ -54,7 +55,8 @@ public class Aliases {
     checkRemote(home);
     String id = new AliasTarget(home, remoteService).id();
     Optional<ServiceRecords.ServiceRecord> record = records.get(service);
-    if (record.isEmpty() && !create) {
+    boolean missing = record.isEmpty() && !records.serviceExists(service);
+    if (missing && !create) {
       throw new UnknownServiceException(service);
     }
     if (record.isPresent() && record.get().aliases().contains(id)) {
@@ -69,10 +71,12 @@ public class Aliases {
           target.reason()
               + " Only a Remote Service with Yard Scope can be the target of an Alias.");
     }
-    if (record.isEmpty()) {
+    if (missing) {
       records.put(service);
       publications.publish(
           workstation.name(), service, new PublicationRequest(Scope.LOCAL, null, null));
+    } else {
+      records.ensure(service);
     }
     records.addAlias(service, id);
     return target;
@@ -84,7 +88,7 @@ public class Aliases {
    *
    * @throws InvalidRegistrationException when a name is not one DNS label, or the Workstation is
    *     this one
-   * @throws UnknownServiceException when you have not created {@code service}
+   * @throws UnknownServiceException when {@code service} has no record
    * @throws AliasExistsException when {@code service} already has an Alias to this Remote Service
    */
   public void restore(String service, String home, String remoteService) {
@@ -118,23 +122,33 @@ public class Aliases {
   }
 
   /**
-   * @throws UnknownServiceException when you have not created {@code service}
+   * @throws UnknownServiceException when this Workstation has no Service {@code service}
    * @throws UnknownAliasException when {@code service} has no Alias to this Remote Service
    */
   public void remove(String service, String home, String remoteService) {
     Registrations.checkName(service);
-    records.removeAlias(service, new AliasTarget(home, remoteService).id());
+    String id = new AliasTarget(home, remoteService).id();
+    if (!records.exists(service) && records.serviceExists(service)) {
+      throw new UnknownAliasException(service, id);
+    }
+    records.removeAlias(service, id);
   }
 
   /**
    * The Aliases of this Workstation's {@code service}, in the order of its Instance Priority.
    *
-   * @throws UnknownServiceException when you have not created {@code service}
+   * @throws UnknownServiceException when this Workstation has no Service {@code service}
    */
   public List<Alias> of(String service) {
     Registrations.checkName(service);
-    ServiceRecords.ServiceRecord record =
-        records.get(service).orElseThrow(() -> new UnknownServiceException(service));
+    Optional<ServiceRecords.ServiceRecord> stored = records.get(service);
+    if (stored.isEmpty()) {
+      if (!records.serviceExists(service)) {
+        throw new UnknownServiceException(service);
+      }
+      return List.of();
+    }
+    ServiceRecords.ServiceRecord record = stored.get();
     return InstanceSource.order(record.order(), record.aliases()).stream()
         .map(AliasTarget::parse)
         .map(target -> alias(target.workstation(), target.service()))
