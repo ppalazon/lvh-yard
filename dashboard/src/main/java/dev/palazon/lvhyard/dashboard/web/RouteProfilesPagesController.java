@@ -37,16 +37,14 @@ class RouteProfilesPagesController {
 
   @GetMapping(path = RouteProfilesPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
   @ResponseBody
-  String routeProfiles(@RequestParam(required = false) String example) {
-    if (example == null) {
-      return page(RouteProfilesPage.Form.EMPTY);
-    }
-    RouteProfileExample chosen =
-        RouteProfileExample.of(example)
-            .orElseThrow(() ->
-                new ResponseStatusException(
-                    HttpStatus.NOT_FOUND, "No example is called " + example + "."));
-    return page(new RouteProfilesPage.Form(chosen.profile, chosen.text, List.of()));
+  String routeProfiles() {
+    return RouteProfilesPage.render(workstation, profiles.list(), null);
+  }
+
+  @GetMapping(path = RouteProfileEditorPage.NEW_PATH, produces = MediaType.TEXT_HTML_VALUE)
+  @ResponseBody
+  String newForm() {
+    return RouteProfileEditorPage.render(workstation, RouteProfileEditorPage.Form.EMPTY, false);
   }
 
   /** Adds the profile, or replaces the one of the same name. */
@@ -70,7 +68,23 @@ class RouteProfilesPagesController {
     }
     return ResponseEntity.badRequest()
         .contentType(Layout.HTML)
-        .body(page(new RouteProfilesPage.Form(name, yaml, errors)));
+        .body(
+            RouteProfileEditorPage.render(
+                workstation,
+                new RouteProfileEditorPage.Form(name, yaml, errors),
+                profiles.list().stream().anyMatch(existing -> existing.name().equals(profile))));
+  }
+
+  @GetMapping(
+      path = RouteProfilesPage.PATH + "/{profile}/view",
+      produces = MediaType.TEXT_HTML_VALUE)
+  @ResponseBody
+  String view(@PathVariable String profile) {
+    try {
+      return RouteProfileViewPage.render(workstation, profiles.find(profile));
+    } catch (NoRouteProfileException e) {
+      throw notFound(e);
+    }
   }
 
   @GetMapping(
@@ -84,9 +98,11 @@ class RouteProfilesPagesController {
     } catch (NoRouteProfileException e) {
       throw notFound(e);
     }
-    return page(
-        new RouteProfilesPage.Form(
-            found.name(), RouteProfileYaml.write(found.definition()), List.of()));
+    return RouteProfileEditorPage.render(
+        workstation,
+        new RouteProfileEditorPage.Form(
+            found.name(), RouteProfileYaml.write(found.definition()), List.of()),
+        true);
   }
 
   @PostMapping(
@@ -100,21 +116,13 @@ class RouteProfilesPagesController {
     } catch (RouteProfileInUseException e) {
       return ResponseEntity.status(HttpStatus.CONFLICT)
           .contentType(Layout.HTML)
-          .body(page(RouteProfilesPage.Form.EMPTY, e.getMessage()));
+          .body(RouteProfilesPage.render(workstation, profiles.list(), e.getMessage()));
     }
     return seeOther(RouteProfilesPage.PATH);
   }
 
   private static ResponseStatusException notFound(NoRouteProfileException e) {
     return new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
-  }
-
-  private String page(RouteProfilesPage.Form form) {
-    return page(form, null);
-  }
-
-  private String page(RouteProfilesPage.Form form, String removeError) {
-    return RouteProfilesPage.render(workstation, profiles.list(), form, removeError);
   }
 
   /**

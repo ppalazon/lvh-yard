@@ -401,3 +401,139 @@
     }
   }
 }
+
+@layer components {
+  .route-profiles-page,
+  .route-profile-editor {
+    overflow-wrap: anywhere;
+  }
+
+  .route-profiles-page a:focus-visible,
+  .route-profile-editor a:focus-visible,
+  .profile-example summary:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+
+  .route-profiles-table {
+    table-layout: fixed;
+  }
+
+  .route-profiles-table th,
+  .route-profiles-table td {
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .route-profiles-table td {
+    padding-block: 1rem;
+  }
+
+  .route-profile-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
+    align-items: start;
+  }
+
+  .route-profile-editor .profile-yaml {
+    min-height: 32rem;
+    resize: vertical;
+    line-height: 1.6;
+    tab-size: 2;
+  }
+
+  .profile-reference {
+    min-width: 0;
+    border-top: 1px solid var(--border);
+    padding-top: 1.5rem;
+  }
+
+  .profile-example {
+    min-width: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .profile-example::details-content {
+    transition: none;
+  }
+
+  .profile-example[open]::details-content {
+    block-size: auto;
+  }
+
+  .profile-example summary {
+    display: list-item;
+    list-style-position: inside;
+    list-style-type: disclosure-closed;
+    padding-block: 0.875rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  .profile-example[open] > summary {
+    list-style-type: disclosure-open;
+  }
+
+  .profile-example pre {
+    min-width: 0;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--muted);
+    padding: 0.75rem;
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    white-space: pre;
+  }
+
+  @media (width >= 64rem) {
+    .route-profile-workspace {
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    }
+
+    .profile-reference {
+      border-top: 0;
+      border-left: 1px solid var(--border);
+      padding-top: 0;
+      padding-left: 1.5rem;
+    }
+  }
+
+  @media (width < 48rem) {
+    .route-profiles-table,
+    .route-profiles-table tbody {
+      display: block;
+      width: 100%;
+    }
+
+    .route-profiles-table thead {
+      @apply sr-only;
+    }
+
+    .route-profiles-table tbody tr {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0.75rem;
+      padding-block: 1rem;
+    }
+
+    .route-profiles-table td {
+      min-width: 0;
+      padding: 0;
+    }
+
+    .route-profiles-table td[data-label] {
+      display: grid;
+      grid-template-columns: minmax(0, 5rem) minmax(0, 1fr);
+      gap: 0.75rem;
+      font-size: 0.875rem;
+    }
+
+    .route-profiles-table td[data-label]::before {
+      content: attr(data-label);
+      color: var(--muted-foreground);
+    }
+  }
+}

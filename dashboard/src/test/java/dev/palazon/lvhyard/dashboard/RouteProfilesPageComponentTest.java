@@ -45,14 +45,6 @@ class RouteProfilesPageComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void formHasANameFieldAndAMonospaceTextBox() {
-    String page = getPage("/route-profiles").getBody();
-
-    assertThat(openingTag(page, "name=\"name\"")).contains("<input");
-    assertThat(openingTag(page, "name=\"definition\"")).contains("<textarea").contains("font-mono");
-  }
-
-  @Test
   void savingTheFormAddsTheProfile() {
     ResponseEntity<String> response =
         postForm(
@@ -101,43 +93,6 @@ class RouteProfilesPageComponentTest extends DashboardComponentTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody()).contains("needs a name");
-  }
-
-  @Test
-  void newProfileButtonOffersFiveExamples() {
-    String page = getPage("/route-profiles").getBody();
-
-    assertThat(openingTag(page, "name=\"example\"")).contains("<select");
-    assertThat(page)
-        .contains(">Basic auth<")
-        .contains(">IP allow list<")
-        .contains(">Headers<")
-        .contains(">CORS<")
-        .contains(">Chain<")
-        .contains(">New profile<");
-  }
-
-  @Test
-  void eachExampleFillsTheFormAndSaves() {
-    for (String example : List.of("basic-auth", "ip-allow-list", "headers", "cors", "chain")) {
-      String page = getPage("/route-profiles?example=" + example).getBody();
-      String name = valueOf(openingTag(page, "id=\"name\""));
-      String definition = textBoxOf(page);
-      assertThat(definition).as(example).isNotBlank();
-
-      ResponseEntity<String> response =
-          postForm("/route-profiles", Map.of("name", name, "definition", definition));
-
-      assertThat(response.getStatusCode())
-          .as(example + ": " + response.getBody())
-          .isEqualTo(HttpStatus.SEE_OTHER);
-    }
-    String page = getPage("/route-profiles").getBody();
-    assertThat(row(page, "team-login")).contains("basicAuth");
-    assertThat(row(page, "office-only")).contains("ipAllowList");
-    assertThat(row(page, "behind-https")).contains("headers");
-    assertThat(row(page, "cors")).contains("headers");
-    assertThat(row(page, "protected")).contains("chain");
   }
 
   @Test

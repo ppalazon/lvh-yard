@@ -890,16 +890,22 @@ A profile is one middleware in the format of Traefik, such as
 `{"headers": {"customRequestHeaders": {"X-Forwarded-Proto": "https"}}}`.
 
 The Route Profiles page of the dashboard lists each profile with its name, its
-Traefik type and the Services whose Publications name it.
+Traefik type and the Services whose Publications name it. In **Used by**, click a
+Service to open its page.
 
-- To add a profile, type its name, and write its middleware as YAML in the text
-  box, such as `headers:` with its options below it. Then click Save.
-- To start from an example, choose one and click New profile. The examples are
-  basic auth, an IP allow list, headers, CORS and a chain. Change the example
-  before you save it: the basic auth example has no real password hash.
-- To change a profile, click Change in its row. The form then shows its YAML.
-  A save with the same name replaces the profile.
-- To remove a profile, click Remove in its row. If a Publication or a chain
+- To add a profile, click **New Route Profile**. Type its name and write one
+  middleware as YAML in **Route options**, such as `headers:` with its options
+  below it. Then click **Save Route Profile**.
+- To use a reference, open an example in the **Examples** sidebar. Copy its YAML
+  into **Route options** and adapt the values before you save. Each example has
+  usage notes and a link to the Traefik documentation. Opening an example keeps
+  your form unchanged. On a phone, the examples follow the form.
+- To see a profile's options without editing, click its name or **View** in its
+  row. The page shows its YAML.
+- To change a profile, click **Change**. The editor shows its YAML.
+  Click **Save changes** to save it. Saving an existing name replaces that
+  profile for every Service and chain that uses it.
+- To remove a profile, click **Remove** in its row. If a Publication or a chain
   names it, the page refuses and names each Service and chain.
 
 If the dashboard refuses a save, the page shows the reason and keeps your text
