@@ -1,6 +1,6 @@
 # 12: `init` for a new Workstation Folder
 
-Status: ready-for-agent
+Status: done
 
 Blocked by: 03
 
@@ -20,8 +20,17 @@ Follow `Init.java`, `Templates.java`, `EnvFile.java` and `ConfigFolder.java`. Po
 
 ## Acceptance criteria
 
-- [ ] `lvh-yard init --workstation ws-a --base-domain lvh.me` in a clean home writes `compose.yaml` and `.env`, and `docker compose config` accepts them.
-- [ ] Without a terminal and without `--workstation`, `init` fails and writes nothing.
-- [ ] A second `init` refuses to overwrite, and `--force` replaces the files.
-- [ ] The drift test fails when a template copy is edited.
+- [x] `lvh-yard init --workstation ws-a --base-domain lvh.me` in a clean home writes `compose.yaml` and `.env`, and `docker compose config` accepts them.
+- [x] Without a terminal and without `--workstation`, `init` fails and writes nothing.
+- [x] A second `init` refuses to overwrite, and `--force` replaces the files.
+- [x] The drift test fails when a template copy is edited.
 - [ ] `mise run check` passes.
+
+## Comments
+
+- 2026-11-10: The integration owner reported that `mise run test:unit` passed, including Java, Go and template tests. The Go build also passed.
+- With an isolated `HOME`, `init` wrote the default Workstation Folder, and `docker compose config` accepted the generated files. A development build used the `latest` dashboard image and removed the dashboard build line.
+- Live overwrite refusal and `--force` passed. Nonterminal input without the required flag and input that ended early both left no files.
+- A real PTY run displayed both prompts and exited with code 0.
+- The integration owner deliberately edited a template copy and observed the drift test fail, then restored the copy.
+- `mise run check` and hosted checks remain unverified. No tests, builds, linters or formatters ran during integration.

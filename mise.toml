@@ -51,6 +51,13 @@ run = [
 description = "Run the dashboard's component tests: the dashboard with fake Consul and Docker, without Docker"
 run = "./mvnw -q -pl dashboard test -Dtest='*ComponentTest' -Dsurefire.failIfNoSpecifiedTests=false"
 
+[tasks."cli:templates"]
+description = "Refresh the Go CLI's embedded copies of compose.yaml and .env.example"
+run = [
+  "cp compose.yaml cli-go/internal/templates/compose.yaml",
+  "cp .env.example cli-go/internal/templates/.env.example",
+]
+
 [tasks."cli:build"]
 description = "Build the Go lvh-yard executable in cli-go/target"
 dir = "{{config_root}}/cli-go"

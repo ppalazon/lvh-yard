@@ -69,6 +69,13 @@ The Go CLI sources live in `cli-go/` until the Java CLI is removed.
 debug data. It reports `dev` unless `VERSION` is set at build time.
 The Java CLI stays in `cli/` until the cutover.
 
+The Go CLI embeds copies of `compose.yaml` and `.env.example` from
+`cli-go/internal/templates/`. After you edit either root file, run
+`mise run cli:templates` to refresh the copies. Commit both copies with the
+root files. A unit test compares the raw bytes. When `init` writes the
+Workstation Folder, it removes the dashboard build line and pins the image
+to the CLI version, or `latest` for `dev`.
+
 To build the CLI as a jar or as the executable:
 
 ```sh
