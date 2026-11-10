@@ -187,8 +187,25 @@ class StaticInstancesOnTheServicePageComponentTest extends DashboardComponentTes
     for (String id : new String[] {first, second}) {
       String instance = pagePath(api) + "/instances/" + id;
       assertThat(openingTag(page, "href=\"" + instance + "/edit\"")).startsWith("<a");
-      assertThat(formTo(page, instance + "/remove")).contains(">Remove</button>");
+      assertThat(formTo(page, instance + "/remove"))
+          .contains("aria-label=\"Remove Static Instance")
+          .doesNotContain(">Remove<");
     }
+  }
+
+  @Test
+  void removeButtonComesAfterTheButtonsThatMoveTheSource() {
+    String api = newServiceName("api");
+    String first = register(api, Map.of("host", "10.1.2.3", "port", 8080)).get("id").asString();
+    String second = register(api, Map.of("host", "10.1.2.3", "port", 8081)).get("id").asString();
+
+    String page = getPage(pagePath(api)).getBody();
+
+    String item =
+        page.substring(
+            page.indexOf("data-source=\"" + first + "\""),
+            page.indexOf("data-source=\"" + second + "\""));
+    assertThat(item.indexOf("/remove")).isGreaterThan(item.lastIndexOf(" down\""));
   }
 
   @Test

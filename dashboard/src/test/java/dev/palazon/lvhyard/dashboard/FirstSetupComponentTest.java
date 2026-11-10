@@ -83,7 +83,7 @@ class FirstSetupComponentTest extends DashboardComponentTest {
         .contains("Published")
         .contains("Share with the Yard")
         .contains("Instance Priority")
-        .contains(">Remove<");
+        .contains("aria-label=\"Remove Static Instance");
   }
 
   @Test

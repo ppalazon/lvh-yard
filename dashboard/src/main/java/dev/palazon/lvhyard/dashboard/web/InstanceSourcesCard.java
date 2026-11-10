@@ -171,7 +171,7 @@ final class InstanceSourcesCard {
                   if (!own) {
                     return;
                   }
-                  // The order buttons come last, so they line up whatever buttons come before.
+                  // The remove button comes last, so it lines up whatever buttons come before.
                   header
                       .div()
                       .attrClass("ml-auto flex flex-wrap items-center justify-end gap-3")
@@ -179,16 +179,13 @@ final class InstanceSourcesCard {
                         if (source.kind() == SourceKind.STATIC) {
                           source
                               .givenInstances()
-                              .forEach(instance -> actions(group, service, instance));
-                        }
-                        if (source.kind() == SourceKind.BOUND) {
-                          binding(service, source)
-                              .ifPresent(binding ->
-                                  ContainerBindingsCard.removeButton(group, service, binding));
+                              .forEach(instance -> editLink(group, service, instance));
                         }
                         if (movable) {
                           orderSlots(group, service, sources, at, label);
                         }
+                        removePath(service, source)
+                            .ifPresent(action -> removeButton(group, action, "Remove " + label));
                       })
                       .__();
                 })
@@ -197,7 +194,7 @@ final class InstanceSourcesCard {
                   switch (source.kind()) {
                     case STATIC -> instances(item, service, source);
                     case BOUND -> boundSource(item, service, source);
-                    case ALIAS -> aliasSource(item, service, source, aliases, own);
+                    case ALIAS -> aliasSource(item, service, source, aliases);
                     case FOREIGN -> foreignSource(item, service, source);
                   }
                 })
@@ -237,7 +234,7 @@ final class InstanceSourcesCard {
    * that gives no Instances says why.
    */
   private static void aliasSource(
-      Li<?> item, Service service, InstanceSource source, List<Alias> aliases, boolean own) {
+      Li<?> item, Service service, InstanceSource source, List<Alias> aliases) {
     AliasTarget target = AliasTarget.parse(source.id());
     Optional<Alias> alias =
         aliases.stream().filter(candidate -> candidate.id().equals(source.id())).findFirst();
@@ -247,22 +244,6 @@ final class InstanceSourcesCard {
         .attrHref(Layout.attr(ServicePage.path(target.workstation(), target.service())))
         .text("Open " + target.label())
         .__()
-        .of(row -> {
-          if (own) {
-            row.form()
-                .addAttr("method", "post")
-                .addAttr("action", Layout.attr(AddAliasPage.removePath(service, source.id())))
-                .button()
-                .attrType(EnumTypeButtonType.SUBMIT)
-                .attrClass("btn")
-                .addAttr("data-variant", "destructive")
-                .addAttr("data-size", "sm")
-                .addAttr("aria-label", Layout.attr("Remove " + label(service, source)))
-                .text("Remove")
-                .__()
-                .__();
-          }
-        })
         .__();
     if (alias.isPresent() && alias.get().reason() != null) {
       item.p()
@@ -457,27 +438,46 @@ final class InstanceSourcesCard {
         .__();
   }
 
-  private static void actions(Div<?> group, Service service, Instance instance) {
+  private static void editLink(Div<?> group, Service service, Instance instance) {
     group
-        .div()
-        .attrClass("flex gap-2")
         .a()
         .attrClass("btn")
         .addAttr("data-variant", "outline")
         .addAttr("data-size", "sm")
         .attrHref(Layout.attr(EditInstancePage.path(service, instance)))
         .text("Edit")
-        .__()
+        .__();
+  }
+
+  /** The page that removes the source, or none when LVH Yard cannot change it. */
+  private static Optional<String> removePath(Service service, InstanceSource source) {
+    return switch (source.kind()) {
+      case STATIC ->
+          source.givenInstances().stream()
+              .findFirst()
+              .map(instance -> ServicePage.removePath(service, instance));
+      case BOUND ->
+          binding(service, source).map(binding -> ServicePage.removePath(service, binding));
+      case ALIAS -> Optional.of(AddAliasPage.removePath(service, source.id()));
+      case FOREIGN -> Optional.empty();
+    };
+  }
+
+  /** An icon button in its own form. The last button of the header, at its right. */
+  private static void removeButton(Div<?> group, String action, String label) {
+    group
         .form()
+        .attrClass("flex")
         .addAttr("method", "post")
-        .addAttr("action", Layout.attr(ServicePage.removePath(service, instance)))
+        .addAttr("action", Layout.attr(action))
         .button()
         .attrType(EnumTypeButtonType.SUBMIT)
         .attrClass("btn")
         .addAttr("data-variant", "destructive")
-        .addAttr("data-size", "sm")
-        .text("Remove")
-        .__()
+        .addAttr("data-size", "icon-sm")
+        .addAttr("aria-label", Layout.attr(label))
+        .addAttr("title", Layout.attr(label))
+        .of(button -> Layout.icon(button.svg(), "size-4", "M18 6 6 18", "m6 6 12 12"))
         .__()
         .__();
   }

@@ -3,7 +3,6 @@ package dev.palazon.lvhyard.dashboard.web;
 import dev.palazon.lvhyard.dashboard.services.ContainerBinding;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import org.xmlet.htmlapifaster.Div;
-import org.xmlet.htmlapifaster.EnumTypeButtonType;
 import org.xmlet.htmlapifaster.Li;
 
 /**
@@ -22,24 +21,6 @@ final class ContainerBindingsCard {
         .addAttr("data-size", "sm")
         .attrHref(Layout.attr(BindContainerPage.path(service)))
         .text("Bind container")
-        .__();
-  }
-
-  /** In the header row of the Binding's source, at its right. */
-  static void removeButton(Div<?> header, Service service, ContainerBinding binding) {
-    header
-        .form()
-        .attrClass("flex")
-        .addAttr("method", "post")
-        .addAttr("action", Layout.attr(ServicePage.removePath(service, binding)))
-        .button()
-        .attrType(EnumTypeButtonType.SUBMIT)
-        .attrClass("btn")
-        .addAttr("data-variant", "destructive")
-        .addAttr("data-size", "sm")
-        .addAttr("aria-label", Layout.attr("Remove the Binding to " + binding.follows()))
-        .text("Remove")
-        .__()
         .__();
   }
 
