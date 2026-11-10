@@ -219,3 +219,18 @@ The Release workflow (`.github/workflows/release.yml`) then does these steps:
 
 When the image and every executable are ready, the release appears. After the
 first release, make the package public once in its settings on GitHub.
+
+The `cli-go` job also runs the Go tests and cross-compiles on one
+`ubuntu-latest` runner, without GraalVM or C code. It builds stripped
+executables for `linux-amd64`, `linux-arm64` and `macos-arm64`, then checks
+`--version` on the Linux amd64 executable. The version drops the tag's
+leading `v`, so tag `v0.1.0` prints `lvh-yard 0.1.0`.
+
+The `go-cli-archives` workflow artifact holds
+`lvh-yard-go-<version>-<platform>.tar.gz`. Each archive holds `lvh-yard` and
+`LICENSE`. Its names keep it separate from the native archives, even when
+both artifacts are downloaded into one folder. The GitHub release still
+uses only `cli-native`; it does not wait for `cli-go`.
+
+The Go release job has not run on a hosted test tag. Its Linux arm64 and
+macOS arm64 executables need separate runtime checks.
