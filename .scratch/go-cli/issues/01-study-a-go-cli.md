@@ -1,6 +1,6 @@
 # Study: write the lvh-yard CLI in Go
 
-Status: needs-triage
+Status: done
 
 The native `lvh-yard` executable is 49 MB, or 16 MB as tar.gz, with -O3. A Go CLI of this kind is usually 8 to 12 MB, or about 4 MB as tar.gz. Study whether a port to Go is worth its cost.
 
@@ -18,3 +18,7 @@ Questions to answer:
 - What is the order of the port: one command at a time, or all at once?
 
 If the answer is yes, record the decision in an ADR, then write the spec with the spec skill.
+
+## Comments
+
+The maintainer chose to port the whole CLI without the study. The decision is `docs/adr/0010-the-cli-is-written-in-go.md`. The spec and tickets 02 to 17 follow it. The questions above are answered there: `go:embed` reads committed copies of the templates, the client is hand-made, and Cobra with one YAML module replaces picocli and Jackson. The size and start time of a real `lvh-yard` are measured in ticket 03.
