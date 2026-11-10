@@ -28,7 +28,7 @@ description = "Format and check every file, as the pre-commit hook does"
 run = "prek run --all-files"
 
 [tasks.check]
-description = "Build app.css, build both Java modules from scratch and check the Go CLI"
+description = "Build app.css, build both Java modules from scratch, check the Go CLI and smoke-test it"
 # clean: compiled classes of moved or deleted sources otherwise linger in target/ and fail as phantom tests.
 # -T 2: the cli module does not depend on the dashboard, so both build at the same time.
 # sources and auto outputs: mise skips the task if no source changed after the last run that passed.
@@ -38,7 +38,7 @@ sources = [
   "dashboard/src/**/*", "dashboard/openapi.yaml", "compose.yaml", ".env.example",
 ]
 outputs = { auto = true }
-run = [{ task = "css" }, "./mvnw -q -T 2 clean verify", { task = "cli:check" }]
+run = [{ task = "css" }, "./mvnw -q -T 2 clean verify", { task = "cli:check" }, { task = "cli:smoke" }]
 
 [tasks."test:unit"]
 description = "Run Java unit tests and check the Go CLI, without Spring or Docker"
@@ -67,6 +67,11 @@ run = 'CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${VERSIO
 description = "Run go vet and the Go CLI unit tests"
 dir = "{{config_root}}/cli-go"
 run = ["go vet ./...", "go test ./..."]
+
+[tasks."cli:smoke"]
+description = "Run the Go CLI smoke test: the built executable against a fake dashboard"
+dir = "{{config_root}}/cli-go"
+run = "go test -tags integration -count=1 ./cmd/lvh-yard"
 
 [tasks.native]
 description = "Build the lvh-yard executable with GraalVM, and run the CLI's tests on it: cli/target/lvh-yard"
