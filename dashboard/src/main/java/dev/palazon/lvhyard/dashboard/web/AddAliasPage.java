@@ -67,53 +67,73 @@ final class AddAliasPage {
       List<Service> shared,
       String target,
       InvalidRegistrationException error) {
-    return FormPage.render(
-        workstation,
-        spec(service),
-        ServicePage.path(service),
-        form -> {},
-        section -> field(section, service, shared, target, error));
-  }
-
-  private static void field(
-      FlowContent<?, ?> section,
-      Service service,
-      List<Service> shared,
-      String target,
-      InvalidRegistrationException error) {
     List<String> taken =
         service.sources().stream()
             .filter(source -> source.kind() == SourceKind.ALIAS)
             .map(InstanceSource::id)
             .toList();
+    List<AliasTarget> offered =
+        shared.stream()
+            .map(remote -> new AliasTarget(remote.workstation(), remote.name()))
+            .filter(remote -> !taken.contains(remote.id()))
+            .toList();
+    return FormPage.render(
+        workstation,
+        spec(service),
+        ServicePage.path(service),
+        !offered.isEmpty(),
+        form -> {},
+        section -> {
+          if (offered.isEmpty()) {
+            section
+                .p()
+                .attrClass("text-muted-foreground")
+                .text(
+                    shared.isEmpty()
+                        ? "No Remote Service has Yard Scope now. An Alias needs one."
+                        : "Every Remote Service with Yard Scope is an Alias of this Service"
+                            + " already.")
+                .__();
+            if (error != null) {
+              section
+                  .p()
+                  .attrId(TARGET + "-error")
+                  .addAttr("role", "alert")
+                  .attrClass("text-destructive text-sm")
+                  .text(error.getMessage())
+                  .__();
+            }
+          } else {
+            field(section, offered, target, error);
+          }
+        });
+  }
+
+  private static void field(
+      FlowContent<?, ?> section,
+      List<AliasTarget> offered,
+      String target,
+      InvalidRegistrationException error) {
     InstanceForm.field(
         section,
         TARGET,
         "Remote Service",
-        shared.isEmpty()
-            ? "No Remote Service has Yard Scope now. An Alias needs one."
-            : "Only Remote Services with Yard Scope are listed.",
+        "Only Remote Services with Yard Scope are listed.",
         error,
         field ->
             field
                 .select()
-                .attrClass("select")
+                .attrClass("select w-full")
                 .attrId(TARGET)
                 .attrName(TARGET)
                 .of(select ->
-                    shared.forEach(remote -> {
-                      AliasTarget remoteTarget =
-                          new AliasTarget(remote.workstation(), remote.name());
-                      String value = remoteTarget.id();
-                      if (!taken.contains(value)) {
+                    offered.forEach(remote ->
                         select
                             .option()
-                            .attrValue(Layout.attr(value))
-                            .of(option -> option.attrSelected(value.equals(target)))
-                            .text(remoteTarget.label())
-                            .__();
-                      }
-                    }))
+                            .attrValue(Layout.attr(remote.id()))
+                            .of(option -> option.attrSelected(remote.id().equals(target)))
+                            .text(remote.label())
+                            .__()))
                 .__());
   }
 }

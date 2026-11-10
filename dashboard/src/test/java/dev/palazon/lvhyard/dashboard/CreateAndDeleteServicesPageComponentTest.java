@@ -113,6 +113,18 @@ class CreateAndDeleteServicesPageComponentTest extends DashboardComponentTest {
   }
 
   @Test
+  void deleteConfirmationLeavesOutWhatTheServiceDoesNotHave() {
+    String web = newServiceName("web");
+    create(web);
+
+    assertThat(getPage(deletePath(web)).getBody())
+        .contains("the Service itself")
+        .doesNotContain("Static Instance")
+        .doesNotContain("Container Binding")
+        .doesNotContain("its Publication");
+  }
+
+  @Test
   void deleteServiceGoesBackToTheCatalog() {
     String web = newServiceName("web");
     create(web);

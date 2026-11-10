@@ -21,29 +21,44 @@ final class DeleteServicePage {
         "Delete " + service.name(),
         workstation.name(),
         main ->
-            main.h1()
+            main.div()
+                .attrClass("flex max-w-xl flex-col gap-2")
+                .h1()
                 .text("Delete Service " + service.name())
                 .__()
                 .p()
-                .text("This removes " + String.join(", ", parts(service)) + ".")
-                .__()
-                .p()
+                .attrClass("text-muted-foreground")
                 .text("Containers keep running. You cannot undo this.")
+                .__()
+                .__()
+                .form()
+                .attrClass("card flex max-w-xl flex-col gap-6 p-6")
+                .addAttr("method", "post")
+                .addAttr("action", Layout.attr(path(service)))
+                .div()
+                .attrClass("flex flex-col gap-2")
+                .p()
+                .attrClass("font-medium")
+                .text("This removes:")
+                .__()
+                .ul()
+                .attrClass("list-disc pl-5")
+                .of(list -> parts(service).forEach(part -> list.li().text(part).__()))
                 .__()
                 .of(content -> {
                   if (service.instances().stream().anyMatch(Instance::foreign)) {
                     content
                         .p()
+                        .attrClass("text-muted-foreground text-sm")
                         .text(
                             "Foreign Instances stay, because another tool registered them. The"
                                 + " Service stays while they do.")
                         .__();
                   }
                 })
-                .form()
-                .attrClass("flex gap-2")
-                .addAttr("method", "post")
-                .addAttr("action", Layout.attr(path(service)))
+                .__()
+                .div()
+                .attrClass("flex gap-3")
                 .button()
                 .attrType(EnumTypeButtonType.SUBMIT)
                 .attrClass("btn")
@@ -56,6 +71,7 @@ final class DeleteServicePage {
                 .addAttr("data-variant", "outline")
                 .text("Cancel")
                 .__()
+                .__()
                 .__());
   }
 
@@ -66,15 +82,15 @@ final class DeleteServicePage {
       parts.add("its Publication");
     }
     long statics = service.instances().stream().filter(Instance::staticInstance).count();
-    parts.add(count(statics, "Static Instance"));
+    if (statics > 0) {
+      parts.add(count(statics, "Static Instance"));
+    }
     int bindings = service.containerBindings().size();
-    parts.add(
-        count(bindings, "Container Binding")
-            + switch (bindings) {
-              case 0 -> "";
-              case 1 -> " with its Bound Instances";
-              default -> " with their Bound Instances";
-            });
+    if (bindings > 0) {
+      parts.add(
+          count(bindings, "Container Binding")
+              + (bindings == 1 ? " with its Bound Instances" : " with their Bound Instances"));
+    }
     parts.add("the Service itself");
     return parts;
   }

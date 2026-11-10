@@ -339,6 +339,12 @@
   .switch-form p {
     margin-left: 2.75rem;
   }
+
+  /* The path matters only for an HTTP check. An error at the field keeps it visible. */
+  .form:has(select[name="check"] option[value="tcp"]:checked)
+    .http-only:not(:has([data-invalid])) {
+    display: none;
+  }
 }
 
 @layer components {

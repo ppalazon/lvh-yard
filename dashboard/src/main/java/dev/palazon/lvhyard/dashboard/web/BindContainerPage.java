@@ -10,7 +10,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.xmlet.htmlapifaster.Div;
-import org.xmlet.htmlapifaster.EnumTypeButtonType;
 import org.xmlet.htmlapifaster.EnumTypeInputType;
 import org.xmlet.htmlapifaster.Input;
 import org.xmlet.htmlapifaster.Ul;
@@ -83,76 +82,51 @@ final class BindContainerPage {
       String dockerProblem,
       Bind bind,
       InvalidRegistrationException error) {
-    String title = "Bind a container to " + service.name();
+    FormPage.Spec spec =
+        new FormPage.Spec(
+            null,
+            "Bind a container to " + service.name(),
+            "The container does not need to run. Each container that matches gives an Instance.",
+            path(service),
+            action(service),
+            "Bind");
     Optional<Target> picked =
         targets.stream().filter(target -> target.value().equals(bind.target().strip())).findFirst();
-    return Layout.page(
-        title,
-        workstation.name(),
-        main ->
-            main.h1()
-                .text(title)
-                .__()
-                .p()
-                .text(
-                    "The container does not need to run. Each container that matches gives an"
-                        + " Instance.")
-                .__()
-                .of(content -> {
-                  if (dockerProblem != null) {
-                    content
-                        .div()
-                        .attrClass("alert max-w-md")
-                        .addAttr("role", "status")
-                        .h3()
-                        .text("The dashboard cannot read Docker, so the list is empty")
-                        .__()
-                        .section()
-                        .text(dockerProblem + " You can still type a name.")
-                        .__()
-                        .__();
-                  }
-                })
-                .form()
-                .attrClass("form flex max-w-md flex-col gap-6")
-                .addAttr("method", "post")
-                .addAttr("action", Layout.attr(action(service)))
-                .addAttr("data-bind-form", "")
-                .of(form ->
-                    InstanceForm.field(
-                        form,
-                        TARGET,
-                        "Container",
-                        "A container name, or a Compose project and service as project/service.",
-                        error,
-                        field -> targetControl(field, targets, bind.target(), error)))
-                .of(form ->
-                    InstanceForm.field(
-                        form,
-                        PORT,
-                        "Container Port",
-                        "The port inside the container.",
-                        error,
-                        field -> portControl(field, picked, bind.containerPort(), error)))
+    return FormPage.render(
+        workstation,
+        spec,
+        ServicePage.path(service),
+        form -> form.addAttr("data-bind-form", ""),
+        section -> {
+          if (dockerProblem != null) {
+            section
                 .div()
-                .attrClass("flex gap-3")
-                .button()
-                .attrType(EnumTypeButtonType.SUBMIT)
-                .attrClass("btn")
-                .text("Bind")
+                .attrClass("alert")
+                .addAttr("role", "status")
+                .h3()
+                .text("The dashboard cannot read Docker, so the list is empty")
                 .__()
-                .a()
-                .attrClass("btn")
-                .addAttr("data-variant", "outline")
-                .attrHref(Layout.attr(ServicePage.path(service)))
-                .text("Cancel")
+                .section()
+                .text(dockerProblem + " You can still type a name.")
                 .__()
-                .__()
-                .__()
-                .script()
-                .attrSrc("/bind.js")
-                .attrDefer(true)
-                .__());
+                .__();
+          }
+          InstanceForm.field(
+              section,
+              TARGET,
+              "Container",
+              "A container name, or a Compose project and service as project/service.",
+              error,
+              field -> targetControl(field, targets, bind.target(), error));
+          InstanceForm.field(
+              section,
+              PORT,
+              "Container Port",
+              "The port inside the container.",
+              error,
+              field -> portControl(field, picked, bind.containerPort(), error));
+          section.script().attrSrc("/bind.js").attrDefer(true).__();
+        });
   }
 
   private static void targetControl(

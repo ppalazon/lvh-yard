@@ -76,21 +76,37 @@ final class FormPage {
       String cancel,
       Consumer<Form<?>> form,
       Consumer<FlowContent<?, ?>> fields) {
+    return render(workstation, spec, cancel, true, form, fields);
+  }
+
+  /**
+   * @param submittable {@code false} when the form has nothing to send, so its submit button is off
+   */
+  static String render(
+      Workstation workstation,
+      Spec spec,
+      String cancel,
+      boolean submittable,
+      Consumer<Form<?>> form,
+      Consumer<FlowContent<?, ?>> fields) {
     return Layout.page(
         spec.title(),
         workstation.name(),
         spec.section(),
         main ->
-            main.h1()
+            main.div()
+                .attrClass("flex max-w-xl flex-col gap-2")
+                .h1()
                 .text(spec.title())
                 .__()
                 .of(content -> {
                   if (spec.description() != null) {
-                    content.p().text(spec.description()).__();
+                    content.p().attrClass("text-muted-foreground").text(spec.description()).__();
                   }
                 })
+                .__()
                 .form()
-                .attrClass("form flex max-w-md flex-col gap-6")
+                .attrClass("form card flex max-w-xl flex-col gap-6 overflow-visible p-6")
                 .addAttr("method", "post")
                 .addAttr("action", Layout.attr(spec.action()))
                 .of(form::accept)
@@ -100,6 +116,7 @@ final class FormPage {
                 .button()
                 .attrType(EnumTypeButtonType.SUBMIT)
                 .attrClass("btn")
+                .of(button -> button.attrDisabled(!submittable))
                 .text(spec.submit())
                 .__()
                 .a()

@@ -81,62 +81,71 @@ final class InstanceForm {
       Fields fields,
       String defaultHost,
       InvalidRegistrationException error) {
-    text(
+    row(
         parent,
-        "host",
-        "Host",
-        fields.host(),
-        defaultHost,
-        "Empty: this Workstation's LAN address, " + defaultHost + ".",
-        error);
-    text(parent, "port", "Port", fields.port(), "3000", null, error);
-    field(
-        parent,
-        "check",
-        "Health check",
-        "TCP connects to the port. HTTP passes on a 2xx answer.",
-        error,
-        field ->
-            field
-                .select()
-                .attrClass("select")
-                .attrId("check")
-                .attrName("check")
-                .option()
-                .attrValue("tcp")
-                .of(option -> option.attrSelected(!fields.check().equals("http")))
-                .text("TCP")
-                .__()
-                .option()
-                .attrValue("http")
-                .of(option -> option.attrSelected(fields.check().equals("http")))
-                .text("HTTP")
-                .__()
-                .__());
-    text(
-        parent,
-        "path",
-        "HTTP path",
-        fields.path(),
-        "/",
-        "Only for an HTTP check. Empty: /.",
-        error);
-    text(
-        parent,
-        "interval",
-        "Interval",
-        fields.interval(),
-        "10s",
-        "Such as 5s or 1m, at least 1s. Empty: 10s.",
-        error);
-    text(
-        parent,
-        "timeout",
-        "Timeout",
-        fields.timeout(),
-        "2s",
-        "Such as 500ms or 2s. Empty: 2s.",
-        error);
+        row -> {
+          text(
+              row,
+              "host",
+              "Host",
+              fields.host(),
+              defaultHost,
+              "Empty: this Workstation's LAN address, " + defaultHost + ".",
+              error);
+          text(row, "port", "Port", fields.port(), "3000", null, error);
+          field(
+              row,
+              "check",
+              "Health check",
+              "TCP connects to the port. HTTP passes on a 2xx answer.",
+              error,
+              field ->
+                  field
+                      .select()
+                      .attrClass("select w-full")
+                      .attrId("check")
+                      .attrName("check")
+                      .option()
+                      .attrValue("tcp")
+                      .of(option -> option.attrSelected(!fields.check().equals("http")))
+                      .text("TCP")
+                      .__()
+                      .option()
+                      .attrValue("http")
+                      .of(option -> option.attrSelected(fields.check().equals("http")))
+                      .text("HTTP")
+                      .__()
+                      .__());
+          // The page style hides this field while the check is TCP, unless it shows an error.
+          row.div()
+              .attrClass("http-only")
+              .of(path ->
+                  text(
+                      path,
+                      "path",
+                      "HTTP path",
+                      fields.path(),
+                      "/",
+                      "Only for an HTTP check. Empty: /.",
+                      error))
+              .__();
+          text(
+              row,
+              "interval",
+              "Interval",
+              fields.interval(),
+              "10s",
+              "Such as 5s or 1m, at least 1s. Empty: 10s.",
+              error);
+          text(
+              row,
+              "timeout",
+              "Timeout",
+              fields.timeout(),
+              "2s",
+              "Such as 500ms or 2s. Empty: 2s.",
+              error);
+        });
     text(parent, "tags", "Tags", fields.tags(), "backend, v2", "Separated by commas.", error);
     field(
         parent,
@@ -161,6 +170,15 @@ final class InstanceForm {
                 })
                 .text(fields.meta())
                 .__());
+  }
+
+  /** Fields side by side, one under the other on a narrow screen. */
+  static void row(FlowContent<?, ?> parent, Consumer<FlowContent<?, ?>> fields) {
+    parent
+        .div()
+        .attrClass("grid items-start gap-6 sm:grid-cols-2")
+        .of(row -> fields.accept(row))
+        .__();
   }
 
   static void text(

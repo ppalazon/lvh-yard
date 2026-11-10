@@ -49,7 +49,8 @@ class AliasesOnTheServicePageComponentTest extends DashboardComponentTest {
     assertThat(form)
         .contains("name=\"target\"")
         .contains("value=\"" + target(shared) + "\"")
-        .doesNotContain("value=\"" + target(local) + "\"");
+        .doesNotContain("value=\"" + target(local) + "\"")
+        .doesNotContain("disabled");
   }
 
   @Test

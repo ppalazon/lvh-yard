@@ -594,9 +594,10 @@ so is a Publication. The Services are in the Consul KV of this Workstation,
 under `lvh-yard/services/`.
 
 To delete a Service, click "Delete Service" at the bottom of its page. A
-confirmation page names what goes: the Publication, the Static Instances, and
-the Container Bindings with their Bound Instances. Click Delete. The containers
-keep running. You can also run `lvh-yard service delete <name>`.
+confirmation page lists what goes: the Publication, the Static Instances, and
+the Container Bindings with their Bound Instances. It leaves out what the
+Service does not have. Click Delete. The containers keep running. You can also
+run `lvh-yard service delete <name>`.
 
 A Service that only Foreign Instances give shows without being created. It
 works like any other Service: you publish it, attach Instance Sources, add
@@ -1042,10 +1043,11 @@ different ports.
 
 To add a Static Instance, open the page of the Service and click "Add Static
 Instance" in the Instances part. The form opens on its own page. It asks for the
-host, the port, the health check, the tags and the meta. If you leave the host
-empty, the Instance is at the LAN address of this Workstation. Cancel goes back
-to the Service page. If a value is wrong, the form shows your input again with
-the error under its field. You can also run `lvh-yard register static`.
+host, the port, the health check, the tags and the meta. The HTTP path field
+shows only while the check is HTTP. If you leave the host empty, the Instance
+is at the LAN address of this Workstation. Cancel goes back to the Service
+page. If a value is wrong, the form shows your input again with the error under
+its field. You can also run `lvh-yard register static`.
 
 The Service must exist first. To create it, click "New Service" in the catalog,
 or run `lvh-yard service create`. LVH Yard refuses a Static Instance for a
