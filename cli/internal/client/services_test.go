@@ -60,14 +60,15 @@ func TestCreateServiceReportsWhetherItWasNew(t *testing.T) {
 
 func TestDeleteServiceCanBeRepeatedButPreservesRefusals(t *testing.T) {
 	for _, tc := range []struct {
-		status int
-		body   string
-		want   string
+		status  int
+		body    string
+		want    string
+		existed bool
 	}{
-		{204, "", ""},
-		{404, `{"detail":"There is no such Service."}`, ""},
-		{409, `{"detail":"The Services of desk can be changed only on desk."}`, "The Services of desk can be changed only on desk."},
-		{500, `{"detail":"There is no such Service."}`, "There is no such Service."},
+		{204, "", "", true},
+		{404, `{"detail":"There is no such Service."}`, "", false},
+		{409, `{"detail":"The Services of desk can be changed only on desk."}`, "The Services of desk can be changed only on desk.", false},
+		{500, `{"detail":"There is no such Service."}`, "There is no such Service.", false},
 	} {
 		t.Run(http.StatusText(tc.status), func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -78,9 +79,9 @@ func TestDeleteServiceCanBeRepeatedButPreservesRefusals(t *testing.T) {
 				w.Write([]byte(tc.body))
 			}))
 			defer server.Close()
-			err := client.New(server.URL).DeleteService("web/blue")
-			if tc.want == "" && err != nil || tc.want != "" && (err == nil || err.Error() != tc.want) {
-				t.Fatalf("error=%v, want %q", err, tc.want)
+			existed, err := client.New(server.URL).DeleteService("web/blue")
+			if tc.want == "" && err != nil || tc.want != "" && (err == nil || err.Error() != tc.want) || existed != tc.existed {
+				t.Fatalf("existed=%v, error=%v, want %q", existed, err, tc.want)
 			}
 		})
 	}

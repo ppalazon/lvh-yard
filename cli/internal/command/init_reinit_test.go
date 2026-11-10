@@ -35,7 +35,7 @@ func TestInitReinitKeepsSettingsAndReplacesExplicitFlags(t *testing.T) {
 			t.Errorf("missing %s in .env", setting)
 		}
 	}
-	if strings.Contains(run.Stdout, "Workstation name") || strings.Contains(run.Stdout, "Base domain [") {
+	if strings.Contains(run.Stdout, "Workstation name") || strings.Contains(run.Stdout, "Base Domain [") {
 		t.Fatalf("reinit asked for old values: %+v", run)
 	}
 	if !strings.Contains(run.Stdout, "http://127.0.0.1:7790") || !strings.Contains(run.Stdout, newKey) {

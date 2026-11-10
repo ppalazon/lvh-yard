@@ -25,23 +25,23 @@ func TestPriorityShowsAndSetsSourceOrder(t *testing.T) {
 	}{
 		{
 			name: "show", on: true, sources: priorityStaticSource + "," + priorityBoundSource,
-			lines: []string{"Instance Priority of web: on. The Route uses the first source with a passing Instance.", "  1. 1a2b  Static Instance 10.1.2.3:3000  (in use)", "  2. web-1:80  Container Binding to container web-1, port 80"},
+			lines: []string{"Instance Priority of web: on. The Route uses the first Instance Source with a passing Instance.", "  1. 1a2b  Static Instance 10.1.2.3:3000  (in use)", "  2. web-1:80  Container Binding to container web-1, port 80"},
 		},
 		{
 			name: "set order", args: []string{"web-1:80", "1a2b"}, body: `{"order":["web-1:80","1a2b"]}`, on: true, sources: priorityBoundSource + "," + priorityStaticSource,
-			lines: []string{"Instance Priority of web: on. The Route uses the first source with a passing Instance.", "  1. web-1:80  Container Binding to container web-1, port 80", "  2. 1a2b  Static Instance 10.1.2.3:3000  (in use)"},
+			lines: []string{"Instance Priority of web: on. The Route uses the first Instance Source with a passing Instance.", "  1. web-1:80  Container Binding to container web-1, port 80", "  2. 1a2b  Static Instance 10.1.2.3:3000  (in use)"},
 		},
 		{
 			name: "off keeps order", args: []string{"--off"}, body: `{"on":false}`, sources: priorityStaticSource + "," + priorityBoundSource,
-			lines: []string{"Instance Priority of web: off. Every passing Instance of every source shares the Route.", "  1. 1a2b  Static Instance 10.1.2.3:3000  (in use)", "  2. web-1:80  Container Binding to container web-1, port 80"},
+			lines: []string{"Instance Priority of web: off. Every passing Instance of every Instance Source shares the Route.", "  1. 1a2b  Static Instance 10.1.2.3:3000  (in use)", "  2. web-1:80  Container Binding to container web-1, port 80"},
 		},
 		{
 			name: "on and order", args: []string{"web-1:80", "--on"}, body: `{"on":true,"order":["web-1:80"]}`, on: true, sources: priorityBoundSource + "," + priorityStaticSource,
-			lines: []string{"Instance Priority of web: on. The Route uses the first source with a passing Instance.", "  1. web-1:80  Container Binding to container web-1, port 80", "  2. 1a2b  Static Instance 10.1.2.3:3000  (in use)"},
+			lines: []string{"Instance Priority of web: on. The Route uses the first Instance Source with a passing Instance.", "  1. web-1:80  Container Binding to container web-1, port 80", "  2. 1a2b  Static Instance 10.1.2.3:3000  (in use)"},
 		},
 		{
 			name: "no sources", on: true,
-			lines: []string{"Instance Priority of web: on. The Route uses the first source with a passing Instance.", "  No Instance Sources yet."},
+			lines: []string{"Instance Priority of web: on. The Route uses the first Instance Source with a passing Instance.", "  No Instance Sources yet."},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -90,7 +90,7 @@ func TestPriorityDescribesEverySource(t *testing.T) {
 	}))
 	defer server.Close()
 	run := commandtest.New(t).Run("--dashboard", server.URL, "priority", "web")
-	want := "Instance Priority of web: on. The Route uses the first source with a passing Instance.\n" +
+	want := "Instance Priority of web: on. The Route uses the first Instance Source with a passing Instance.\n" +
 		"  1. compose:80  Container Binding to Compose service web of project shop, port 80\n" +
 		"  2. gone:80  Container Binding\n" +
 		"  3. ws-b/api  Alias to api on ws-b\n" +

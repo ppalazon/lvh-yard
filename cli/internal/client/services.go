@@ -23,13 +23,14 @@ func (c *Client) CreateService(service string) (bool, error) {
 	return status == http.StatusCreated, err
 }
 
-func (c *Client) DeleteService(service string) error {
+// DeleteService reports whether the Service existed. Deleting a missing Service is not an error.
+func (c *Client) DeleteService(service string) (bool, error) {
 	err := c.request(http.MethodDelete, servicePath(service), nil, nil)
 	var response *responseError
 	if errors.As(err, &response) && response.status == http.StatusNotFound {
-		return nil
+		return false, nil
 	}
-	return err
+	return err == nil, err
 }
 
 func servicePath(service string) string {

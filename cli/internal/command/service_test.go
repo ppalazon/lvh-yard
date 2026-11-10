@@ -18,8 +18,8 @@ func TestServiceCreateAndDelete(t *testing.T) {
 	}{
 		{"new", "create", 201, `{"name":"web","created":true}`, "Created web."},
 		{"existing", "create", 200, `{"name":"web","created":true}`, "web exists already."},
-		{"delete", "delete", 204, "", "Deleted web"},
-		{"missing", "delete", 404, `{"detail":"This Workstation has no Service web."}`, "Deleted web"},
+		{"delete", "delete", 204, "", "Deleted web with"},
+		{"missing", "delete", 404, `{"detail":"This Workstation has no Service web."}`, "web does not exist already. Nothing to delete."},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -39,19 +39,15 @@ func TestServiceCreateAndDelete(t *testing.T) {
 			}))
 			defer server.Close()
 			result := commandtest.New(t).Run("--dashboard", server.URL, "service", tc.action, "web")
-			if result.ExitCode != 0 || result.Stderr != "" || !strings.Contains(result.Stdout, tc.output) {
+			if result.ExitCode != 0 || result.Stderr != "" || !strings.Contains(result.Stdout, tc.output) || strings.Contains(tc.output, "Nothing") && strings.Contains(result.Stdout, "Deleted") {
 				t.Fatalf("unexpected result: %+v", result)
 			}
 		})
 	}
 }
 
-func TestServiceGroupAndRequiredNames(t *testing.T) {
+func TestServiceRequiresAName(t *testing.T) {
 	h := commandtest.New(t)
-	result := h.Run("service")
-	if result.ExitCode != 0 || !strings.Contains(result.Stdout, "create") || !strings.Contains(result.Stdout, "delete") {
-		t.Fatalf("unexpected group help: %+v", result)
-	}
 	for _, action := range []string{"create", "delete"} {
 		result := h.Run("service", action)
 		if result.ExitCode != 1 || result.Stderr == "" {

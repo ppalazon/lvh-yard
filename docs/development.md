@@ -105,6 +105,14 @@ There are three kinds of tests, as `docs/adr/0008` explains:
 - An integration test uses at least one real system: Docker, Consul, Traefik,
   or another process such as `lvh-yard`. Its class name ends in `IT`.
 
+The Go CLI in `cli/` has no component tests. Its kinds are:
+
+- `go test ./...` runs the unit tests. They go through the command seam or the
+  client seam, with no real process and no Docker.
+- The integration test builds the executable and runs it against a fake
+  dashboard. It has the build tag `integration` and runs with
+  `mise run cli:smoke`.
+
 Surefire runs unit and component tests. Failsafe runs integration tests.
 `DockerContract` and `ConsulContract` run the same cases against each fake
 and against the real system, so a fake cannot drift from the real one.

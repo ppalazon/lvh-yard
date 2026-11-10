@@ -2,9 +2,11 @@ package command
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -89,11 +91,41 @@ func writeProfileFile(name string, definition map[string]any) ([]byte, error) {
 	encoder := yaml.NewEncoder(&text)
 	encoder.SetIndent(2)
 	// The YAML encoder quotes strings such as 100, true and null for a safe round trip.
-	if err := encoder.Encode(map[string]any{"http": map[string]any{"middlewares": map[string]any{name: definition}}}); err != nil {
+	if err := encoder.Encode(map[string]any{"http": map[string]any{"middlewares": map[string]any{name: plainNumbers(definition)}}}); err != nil {
 		return nil, fmt.Errorf("Cannot write the Route Profile: %w", err)
 	}
 	if err := encoder.Close(); err != nil {
 		return nil, fmt.Errorf("Cannot write the Route Profile: %w", err)
 	}
 	return text.Bytes(), nil
+}
+
+// plainNumbers turns JSON numbers into Go numbers. The YAML encoder writes a
+// json.Number as a quoted string, and a float64 as 2e+06.
+func plainNumbers(value any) any {
+	switch value := value.(type) {
+	case map[string]any:
+		converted := make(map[string]any, len(value))
+		for key, item := range value {
+			converted[key] = plainNumbers(item)
+		}
+		return converted
+	case []any:
+		converted := make([]any, len(value))
+		for i, item := range value {
+			converted[i] = plainNumbers(item)
+		}
+		return converted
+	case json.Number:
+		if integer, err := value.Int64(); err == nil {
+			return integer
+		}
+		if unsigned, err := strconv.ParseUint(value.String(), 10, 64); err == nil {
+			return unsigned
+		}
+		if float, err := value.Float64(); err == nil {
+			return float
+		}
+	}
+	return value
 }

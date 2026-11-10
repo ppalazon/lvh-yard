@@ -139,7 +139,7 @@ func TestInitGeneratesAndSharesNewGossipKey(t *testing.T) {
 		if err != nil || len(decoded) != 32 || key == previous {
 			t.Fatalf("new gossip key %q: %v", key, err)
 		}
-		if !strings.Contains(run.Stdout, "The Yard's gossip key: "+key) || !strings.Contains(run.Stdout, "Give this key to every other Workstation") {
+		if !strings.Contains(run.Stdout, "The Yard's Gossip Key: "+key) || !strings.Contains(run.Stdout, "Give this key to every other Workstation") {
 			t.Fatalf("missing key instructions: %+v", run)
 		}
 		previous = key
@@ -279,7 +279,7 @@ func TestInitPromptsOnlyForWorkstationAndBaseDomain(t *testing.T) {
 	yard.Process.Stdin = "ws-a\nexample.test\n"
 	folder := t.TempDir()
 	run := yard.Run("init", "--dir", folder)
-	if run.ExitCode != 0 || !strings.Contains(run.Stdout, "Workstation name") || !strings.Contains(run.Stdout, "Base domain [lvh.me]: ") || strings.Contains(run.Stdout, "Peers") {
+	if run.ExitCode != 0 || !strings.Contains(run.Stdout, "Workstation name") || !strings.Contains(run.Stdout, "Base Domain [lvh.me]: ") || strings.Contains(run.Stdout, "Peers") {
 		t.Fatalf("prompts: %+v", run)
 	}
 	env := readInitFile(t, folder, ".env")

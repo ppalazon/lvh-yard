@@ -11,8 +11,8 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// Every command of the Java CLI with its public and hidden options, by name.
-var javaCommands = map[string][]string{
+// Every command with the options it must accept, by name.
+var commands = map[string][]string{
 	"":                   {"dashboard"},
 	"init":               {"dir", "workstation", "peers", "gossip-key", "base-domain", "force", "upgrade", "reinit", "docker-socket", "hostname", "terminal"},
 	"catalog":            {"workstation", "state", "details"},
@@ -64,9 +64,9 @@ func findCommand(root *cobra.Command, path string) *cobra.Command {
 	return cmd
 }
 
-func TestEveryJavaCommandAndOptionExists(t *testing.T) {
+func TestEveryCommandAndOptionExists(t *testing.T) {
 	root := command.NewRoot(command.Options{Process: &commandtest.Process{}, Out: io.Discard, Err: io.Discard})
-	for path, options := range javaCommands {
+	for path, options := range commands {
 		cmd := findCommand(root, path)
 		if cmd == nil {
 			t.Errorf("command %q is missing", path)
@@ -90,7 +90,7 @@ func TestEveryJavaCommandAndOptionExists(t *testing.T) {
 			}
 		}
 		if cmd.Flags().ShorthandLookup("v") != nil {
-			t.Errorf("command %q has -v, which Java does not", path)
+			t.Errorf("command %q has -v, which is not a short form of --version", path)
 		}
 	}
 	if flag := findCommand(root, "export").Flags().ShorthandLookup("o"); flag == nil || flag.Name != "output" {
@@ -99,7 +99,7 @@ func TestEveryJavaCommandAndOptionExists(t *testing.T) {
 }
 
 func TestEveryCommandPrintsTheVersionWithoutADashboard(t *testing.T) {
-	for path := range javaCommands {
+	for path := range commands {
 		yard := commandtest.New(t)
 		yard.Version = "1.2.3"
 		args := append(strings.Fields(path), "-V")

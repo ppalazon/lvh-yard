@@ -15,13 +15,13 @@ func TestStatus(t *testing.T) {
 		name, overall, partState, detailState string
 		strict                                bool
 		exit                                  int
-		mark                                  string
+		want                                  string
 	}{
-		{"ok", "ok", "ok", "", false, 0, "ok    "},
-		{"warning", "warning", "warning", "warning", false, 0, "WARN  "},
-		{"strict warning", "warning", "warning", "warning", true, 1, "WARN  "},
-		{"failing", "failing", "failing", "failing", false, 1, "FAIL  "},
-		{"unknown", "unknown", "unknown", "unknown", false, 1, "FAIL  "},
+		{"ok", "ok", "ok", "", false, 0, "LVH Yard on this Workstation: ok\n  ok    Consul: Peer reason\n          peer: 10.0.0.2\n          version: 28.1.1\n  ok    Docker: Docker answers\n"},
+		{"warning", "warning", "warning", "warning", false, 0, "LVH Yard on this Workstation: warning\n  WARN  Consul: Peer reason\n          peer: 10.0.0.2 (warning)\n          version: 28.1.1\n  ok    Docker: Docker answers\n"},
+		{"strict warning", "warning", "warning", "warning", true, 1, "LVH Yard on this Workstation: warning\n  WARN  Consul: Peer reason\n          peer: 10.0.0.2 (warning)\n          version: 28.1.1\n  ok    Docker: Docker answers\n"},
+		{"failing", "failing", "failing", "failing", false, 1, "LVH Yard on this Workstation: failing\n  FAIL  Consul: Peer reason\n          peer: 10.0.0.2 (failing)\n          version: 28.1.1\n  ok    Docker: Docker answers\n"},
+		{"unknown", "unknown", "unknown", "unknown", false, 1, "LVH Yard on this Workstation: unknown\n  FAIL  Consul: Peer reason\n          peer: 10.0.0.2 (unknown)\n          version: 28.1.1\n  ok    Docker: Docker answers\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -34,13 +34,8 @@ func TestStatus(t *testing.T) {
 				args = append(args, "--strict")
 			}
 			result := h.Run(args...)
-			suffix := ""
-			if tc.detailState != "" && tc.detailState != "ok" {
-				suffix = " (" + tc.detailState + ")"
-			}
-			want := "LVH Yard on this Workstation: " + tc.overall + "\n  " + tc.mark + "Consul: Peer reason\n          peer: 10.0.0.2" + suffix + "\n          version: 28.1.1\n  ok    Docker: Docker answers\n"
-			if result.ExitCode != tc.exit || result.Stdout != want || result.Stderr != "" {
-				t.Fatalf("got %+v; want code %d and output %q", result, tc.exit, want)
+			if result.ExitCode != tc.exit || result.Stdout != tc.want || result.Stderr != "" {
+				t.Fatalf("got %+v; want code %d and output %q", result, tc.exit, tc.want)
 			}
 		})
 	}
