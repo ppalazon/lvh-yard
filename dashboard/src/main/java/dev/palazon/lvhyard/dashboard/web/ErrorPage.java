@@ -10,7 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.View;
-import org.xmlet.htmlapifaster.Main;
+import org.xmlet.htmlapifaster.FlowContent;
 import org.xmlet.htmlapifaster.Ol;
 
 /**
@@ -68,42 +68,67 @@ public class ErrorPage implements ErrorViewResolver {
   static String render(
       Workstation workstation, HttpStatus status, String message, String path, String consulUrl) {
     String title = title(status, consulUrl);
+    boolean generic = status == HttpStatus.NOT_FOUND && isSpringNotFound(message);
     return Layout.page(
         title,
         workstation.name(),
-        main -> {
-          main.div()
-              .attrClass("flex flex-col gap-2")
-              .p()
-              .attrClass("text-muted-foreground text-sm")
-              .text("Error " + status.value() + " · " + status.getReasonPhrase())
-              .__()
-              .h1()
-              .text(title)
-              .__()
-              .__();
-          // The Consul steps name the address, so they replace the message.
-          if (message != null && consulUrl == null) {
+        main ->
             main.div()
-                .attrClass("alert")
-                .addAttr("data-variant", "destructive")
-                .addAttr("role", "alert")
-                .section()
-                .text(message)
+                .attrClass("flex max-w-3xl flex-col gap-6")
+                .div()
+                .attrClass("flex flex-col gap-2")
+                .span()
+                .attrClass("badge w-fit")
+                .addAttr("data-variant", status.is5xxServerError() ? "destructive" : "outline")
+                .text("Error " + status.value() + " · " + status.getReasonPhrase())
                 .__()
-                .__();
-          }
-          if (consulUrl != null) {
-            consulSteps(main, consulUrl);
-          } else if (status.is5xxServerError()) {
-            main.p()
-                .text(
-                    "The Status page shows which part of LVH Yard does not work. If the problem"
-                        + " stays, read the dashboard log.")
-                .__();
-          }
-          actions(main, status, path);
-        });
+                .h1()
+                .text(title)
+                .__()
+                .__()
+                .of(content -> {
+                  if (generic) {
+                    content
+                        .p()
+                        .attrClass("text-muted-foreground")
+                        .text(
+                            path == null
+                                ? "There is nothing at this address."
+                                : "There is nothing at " + path + ".")
+                        .__();
+                  } else if (message != null && consulUrl == null) {
+                    // The Consul steps name the address, so they replace the message.
+                    content
+                        .div()
+                        .attrClass("alert")
+                        .addAttr("data-variant", "destructive")
+                        .addAttr("role", "alert")
+                        .section()
+                        .text(message)
+                        .__()
+                        .__();
+                  }
+                  if (consulUrl != null) {
+                    consulSteps(content, consulUrl);
+                  } else if (status.is5xxServerError()) {
+                    content
+                        .p()
+                        .attrClass("text-muted-foreground")
+                        .text(
+                            "The Status page shows which part of LVH Yard does not work. If the"
+                                + " problem stays, read the dashboard log.")
+                        .__();
+                  }
+                  actions(content, status, path);
+                })
+                .__());
+  }
+
+  /** Spring's own text for an address that no handler serves. It says nothing to a person. */
+  private static boolean isSpringNotFound(String message) {
+    return message == null
+        || message.startsWith("No static resource ")
+        || message.startsWith("No endpoint ");
   }
 
   private static String title(HttpStatus status, String consulUrl) {
@@ -120,14 +145,17 @@ public class ErrorPage implements ErrorViewResolver {
   }
 
   /** The dashboard knows Consul only by its HTTP API, so the steps name no tool that runs it. */
-  private static void consulSteps(Main<?> main, String consulUrl) {
-    main.p()
+  private static void consulSteps(FlowContent<?, ?> parent, String consulUrl) {
+    parent
+        .p()
+        .attrClass("text-muted-foreground")
         .text(
             "The dashboard reads and writes the Services, Publications and Aliases through the"
                 + " HTTP API of the Consul of this Workstation, at "
                 + consulUrl
                 + ". That address does not answer, so the dashboard cannot show or change them.")
-        .__()
+        .__();
+    parent
         .div()
         .attrClass("card flex flex-col gap-3 p-4")
         .h2()
@@ -169,7 +197,9 @@ public class ErrorPage implements ErrorViewResolver {
         .of(item -> {
           if (command != null) {
             item.code()
-                .attrClass("mt-1 block w-fit rounded bg-muted px-2 py-1 font-mono text-sm")
+                .attrClass(
+                    "mt-1 block w-fit max-w-full break-all rounded bg-muted px-2 py-1 font-mono"
+                        + " text-sm")
                 .text(command)
                 .__();
           }
@@ -177,27 +207,40 @@ public class ErrorPage implements ErrorViewResolver {
         .__();
   }
 
-  /** A 404 has nothing to try again. */
-  private static void actions(Main<?> main, HttpStatus status, String path) {
-    main.div()
+  /**
+   * A 404 has nothing to try again. The first button is the one to click: Try again, or else the
+   * Catalog. After a failure, the Status page comes before the Catalog, because the Catalog may
+   * fail too.
+   */
+  private static void actions(FlowContent<?, ?> parent, HttpStatus status, String path) {
+    boolean retry = status != HttpStatus.NOT_FOUND && path != null;
+    parent
+        .div()
         .attrClass("flex flex-wrap gap-3")
         .of(buttons -> {
-          if (status != HttpStatus.NOT_FOUND && path != null) {
+          if (retry) {
             buttons.a().attrClass("btn").attrHref(Layout.attr(path)).text("Try again").__();
+            link(buttons, StatusPage.PATH, "Status", true);
+            link(buttons, "/", "Catalog", true);
+          } else {
+            link(buttons, "/", "Catalog", false);
+            link(buttons, StatusPage.PATH, "Status", true);
           }
         })
+        .__();
+  }
+
+  private static void link(FlowContent<?, ?> parent, String href, String text, boolean outline) {
+    parent
         .a()
         .attrClass("btn")
-        .addAttr("data-variant", "outline")
-        .attrHref(StatusPage.PATH)
-        .text("Status")
-        .__()
-        .a()
-        .attrClass("btn")
-        .addAttr("data-variant", "outline")
-        .attrHref("/")
-        .text("Catalog")
-        .__()
+        .of(link -> {
+          if (outline) {
+            link.addAttr("data-variant", "outline");
+          }
+        })
+        .attrHref(href)
+        .text(text)
         .__();
   }
 }

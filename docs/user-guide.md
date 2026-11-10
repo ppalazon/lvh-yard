@@ -91,11 +91,12 @@ If a request to the dashboard fails, `docker compose logs dashboard` shows one
 line for it, with no stack trace. To also log the stack trace, set
 `YARD_STACK_TRACES=true` in `.env`. Then run `docker compose up -d`.
 
-If a page of the dashboard fails, the browser shows an error page. It says
-what failed and links to the Status page. The dashboard talks to Consul only
-through the Consul HTTP API, whatever runs Consul. If that API does not answer,
-the page shows its address and a request that tests it. The REST API still
-answers errors with JSON.
+If a page of the dashboard fails, the browser shows an error page. It names the
+error, says what failed, and links to the Status page. A failed page that you
+can load again has a "Try again" button. A page that does not exist links to
+the Catalog. The dashboard talks to Consul only through the Consul HTTP API,
+whatever runs Consul. If that API does not answer, the page shows its address
+and a request that tests it. The REST API still answers errors with JSON.
 
 The files that `init` writes are a reference setup, and they are yours. You
 can change `compose.yaml`, or run Consul, Traefik and the dashboard another

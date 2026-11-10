@@ -75,9 +75,27 @@ class ErrorPageTest {
   }
 
   @Test
-  void missingPageOffersNoTryAgain() throws Exception {
+  void missingPageOffersNoTryAgainAndSaysWhatIsMissing() throws Exception {
     String page = page(failed("GET", "/nope", "No static resource nope."), HttpStatus.NOT_FOUND);
 
-    assertThat(page).contains("<h1>Page not found</h1>").doesNotContain("Try again");
+    assertThat(page)
+        .contains("<h1>Page not found</h1>")
+        .contains("There is nothing at /nope.")
+        .doesNotContain("Try again")
+        .doesNotContain("No static resource")
+        .doesNotContain("role=\"alert\"");
+  }
+
+  @Test
+  void missingThingWithItsOwnMessageShowsIt() throws Exception {
+    String page =
+        page(
+            failed("GET", "/services/ws-test/web", "Service web does not exist."),
+            HttpStatus.NOT_FOUND);
+
+    assertThat(page)
+        .contains("role=\"alert\"")
+        .contains("Service web does not exist.")
+        .doesNotContain("There is nothing at");
   }
 }
