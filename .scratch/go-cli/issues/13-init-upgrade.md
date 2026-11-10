@@ -1,6 +1,6 @@
 # 13: `init --upgrade`
 
-Status: ready-for-agent
+Status: done
 
 Blocked by: 12
 
