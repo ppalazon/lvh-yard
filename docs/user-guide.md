@@ -530,7 +530,8 @@ an add, remove those entries by hand.
 The Backups page of the dashboard, at `/backups`, lists the `.yaml` and `.yml`
 files of the Backups folder. Each row shows the name of the file, the date from
 its `exported-from`, and how many Services, Aliases and Route Profiles it
-holds. If a file is not a Backup, its row shows why instead.
+holds. An invalid file shows **Cannot import**. Open **Problems** to see each
+error. On a phone, the rows stack their details and actions below the filename.
 
 - To make a Backup of the current setup, click **New Backup**. Its name is
   `<workstation>-<yyyyMMdd-HHmmss>.yaml`, so the names sort by date.
@@ -549,14 +550,20 @@ holds. If a file is not a Backup, its row shows why instead.
 
 To import a Backup from the page, do these steps:
 
-1. Click **Import** in its row. A file that is not a Backup has no **Import**.
+1. Click **Import** in its row to open **Plan a Backup importation**.
+   A file that is not a Backup has no **Import**.
 2. Choose the mode. **Add** adds what is new and skips what exists. **Update**
    also overwrites what exists with the values of the file.
-3. Click **Show the plan**. The page shows the plan, as a dry run. Nothing
-   changes yet. If the file has problems, the page shows each one, and you
-   cannot import it.
-4. To import, click **Import**. The page shows what the import did and the name
-   of the safety Backup. To go back, import that safety Backup in update mode.
+3. Click **Show the plan**. **What's going to change** lists additions and
+   updates. The gray **Skipped** panel lists skipped entries and their reasons.
+   Both headings show entry counts. Nothing changes yet. If the file has
+   problems, the page shows each one, and you cannot import it.
+4. To import, click **Import** in the plan header. **What the import did** shows
+   **Changes** and **Skipped** panels for the result. If the import changed the
+   setup, the page also names its safety Backup. To go back, import that Backup
+   in update mode.
+
+The plan and result list each panel's entries alphabetically.
 
 The page imports only the plan that you saw. If the file or the setup changed
 after you clicked **Show the plan**, the page changes nothing. It shows the new

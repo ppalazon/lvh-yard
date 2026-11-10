@@ -3,12 +3,12 @@ package dev.palazon.lvhyard.dashboard.web;
 import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.backups.Backup;
 import dev.palazon.lvhyard.dashboard.backups.BackupFile;
-import dev.palazon.lvhyard.dashboard.backups.BackupProblem;
 import dev.palazon.lvhyard.dashboard.backups.ImportFailedException;
 import dev.palazon.lvhyard.dashboard.backups.ImportMode;
 import dev.palazon.lvhyard.dashboard.backups.ImportResult;
 import dev.palazon.lvhyard.dashboard.backups.PlanEntry;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
@@ -51,8 +51,26 @@ final class BackupsPage {
         workstation.name(),
         Layout.Section.BACKUPS,
         main ->
-            main.h1()
+            main.div()
+                .attrClass("backups-page flex min-w-0 flex-col gap-6")
+                .div()
+                .attrClass("flex flex-wrap items-center justify-between gap-4")
+                .h1()
                 .text("Backups")
+                .__()
+                .div()
+                .attrClass("flex flex-wrap items-center gap-2")
+                .form()
+                .addAttr("method", "post")
+                .addAttr("action", NEW_PATH)
+                .button()
+                .attrType(EnumTypeButtonType.SUBMIT)
+                .attrClass("btn")
+                .text("New Backup")
+                .__()
+                .__()
+                .of(buttons -> FormPage.openLink(buttons, UPLOAD))
+                .__()
                 .__()
                 .p()
                 .text(
@@ -61,20 +79,8 @@ final class BackupsPage {
                         + ", in the Backups folder of its Workstation Folder. They hold basic-auth"
                         + " hashes, so keep them private.")
                 .__()
-                .div()
-                .attrClass("flex flex-wrap items-end gap-2")
-                .form()
-                .addAttr("method", "post")
-                .addAttr("action", NEW_PATH)
-                .button()
-                .attrType(EnumTypeButtonType.SUBMIT)
-                .attrClass("btn w-fit")
-                .text("New Backup")
-                .__()
-                .__()
-                .of(buttons -> FormPage.openLink(buttons, UPLOAD))
-                .__()
-                .of(content -> list(content, backups)));
+                .of(content -> list(content, backups))
+                .__());
   }
 
   /**
@@ -212,15 +218,15 @@ final class BackupsPage {
       String alertTitle,
       List<String> alert) {
     return Layout.page(
-        "Import " + backup,
+        "Plan a Backup importation: " + backup,
         workstation.name(),
         Layout.Section.BACKUPS,
         main ->
             main.h1()
-                .text("Import a Backup")
+                .text("Plan a Backup importation")
                 .__()
                 .p()
-                .text("Import " + backup + " into " + workstation.name() + ".")
+                .text("Plan the import of " + backup + " into " + workstation.name() + ".")
                 .__()
                 .of(content -> alert(content, alertTitle, alert))
                 .of(content -> modeForm(content, backup, mode == null ? ImportMode.ADD : mode))
@@ -286,7 +292,7 @@ final class BackupsPage {
                 .h2()
                 .text("What the import did")
                 .__()
-                .of(content -> entries(content, result))
+                .of(content -> entryPanels(content, result))
                 .a()
                 .attrHref(PATH)
                 .attrClass("btn w-fit")
@@ -341,15 +347,19 @@ final class BackupsPage {
   }
 
   private static void confirm(Main<?> main, String backup, ImportResult plan, String fingerprint) {
-    main.h2()
+    main.div()
+        .attrClass("flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between")
+        .div()
+        .attrClass("flex min-w-0 flex-col gap-2")
+        .h2()
         .text("Plan in " + plan.mode().value() + " mode")
         .__()
         .p()
         .text("Nothing changes until you import.")
         .__()
-        .of(content -> entries(content, plan))
+        .__()
         .form()
-        .attrClass("flex gap-2")
+        .attrClass("flex shrink-0 gap-2")
         .addAttr("method", "post")
         .addAttr("action", Layout.attr(importPath(backup)))
         .input()
@@ -373,15 +383,61 @@ final class BackupsPage {
         .addAttr("data-variant", "outline")
         .text("Cancel")
         .__()
+        .__()
+        .__()
+        .of(content -> entryPanels(content, plan));
+  }
+
+  private static void entryPanels(Main<?> main, ImportResult plan) {
+    int skipped = 0;
+    for (PlanEntry entry : plan.entries()) {
+      if (entry.action() == PlanEntry.Action.SKIP) {
+        skipped++;
+      }
+    }
+    List<String> changes = new ArrayList<>(plan.entries().size() - skipped);
+    List<String> skippedEntries = new ArrayList<>(skipped);
+    for (PlanEntry entry : plan.entries()) {
+      (entry.action() == PlanEntry.Action.SKIP ? skippedEntries : changes).add(entry(entry));
+    }
+    changes.sort(String.CASE_INSENSITIVE_ORDER);
+    skippedEntries.sort(String.CASE_INSENSITIVE_ORDER);
+    main.div()
+        .attrId("plan")
+        .attrClass("grid min-w-0 grid-cols-1 gap-4 wrap-anywhere md:grid-cols-2")
+        .of(content -> entryPanel(content, changes, false, plan.dryRun()))
+        .of(content -> entryPanel(content, skippedEntries, true, plan.dryRun()))
         .__();
   }
 
-  private static void entries(Main<?> main, ImportResult result) {
-    if (result.entries().isEmpty()) {
-      main.p().text("The Backup is empty.").__();
-      return;
-    }
-    entries(main, result.entries());
+  private static void entryPanel(
+      Div<?> parent, List<String> entries, boolean skipped, boolean planning) {
+    String heading = skipped ? "plan-skipped-heading" : "plan-changes-heading";
+    String label = skipped ? "Skipped" : planning ? "What's going to change" : "Changes";
+    parent
+        .section()
+        .attrClass(
+            skipped
+                ? "bg-secondary flex min-w-0 flex-col gap-4 rounded-lg border p-5"
+                : "bg-background flex min-w-0 flex-col gap-4 rounded-lg border p-5")
+        .addAttr("aria-labelledby", heading)
+        .h3()
+        .attrId(heading)
+        .attrClass("text-lg font-semibold")
+        .text(label + " (" + entries.size() + ")" + (planning && !skipped ? "?" : ""))
+        .__()
+        .of(panel -> {
+          if (entries.isEmpty()) {
+            panel.p().text(skipped ? "Nothing is skipped." : "No changes.").__();
+            return;
+          }
+          panel
+              .ul()
+              .attrClass("flex flex-col gap-3 list-disc pl-5")
+              .of(list -> entries.forEach(entry -> list.li().text(entry).__()))
+              .__();
+        })
+        .__();
   }
 
   private static void entries(Main<?> main, List<PlanEntry> entries) {
@@ -402,15 +458,13 @@ final class BackupsPage {
         + (entry.reason() == null ? "" : ": " + entry.reason());
   }
 
-  private static void list(Main<?> main, List<BackupFile> backups) {
+  private static void list(Div<?> main, List<BackupFile> backups) {
     if (backups.isEmpty()) {
       main.p().text("No Backups yet.").__();
       return;
     }
-    main.div()
-        .attrClass("table-container")
-        .table()
-        .attrClass("table")
+    main.table()
+        .attrClass("table backups-table")
         .thead()
         .tr()
         .th()
@@ -430,41 +484,57 @@ final class BackupsPage {
         .tbody()
         .of(body -> backups.forEach(backup -> row(body.tr(), backup)))
         .__()
-        .__()
         .__();
   }
 
   private static void row(Tr<?> row, BackupFile file) {
     row.attrId(Layout.attr("backup-" + file.name()))
         .td()
-        .attrClass("align-top font-mono")
+        .attrClass("align-top")
+        .div()
+        .attrClass("flex min-w-0 flex-col gap-2")
+        .span()
+        .attrClass("font-mono font-semibold")
         .text(file.name())
         .__()
-        .of(cells -> {
-          if (file.backup() == null) {
-            cells
-                .td()
-                .attrClass("align-top text-destructive")
-                .attrColspan(2)
-                .ul()
-                .of(list ->
-                    file.problems().stream()
-                        .map(BackupProblem::text)
-                        .forEach(problem -> list.li().text(problem).__()))
-                .__()
-                .__();
-          } else {
-            cells
-                .td()
-                .attrClass("align-top")
-                .text(exported(file.backup()))
-                .__()
-                .td()
-                .attrClass("align-top")
-                .text(holds(file.backup()))
-                .__();
+        .of(content -> {
+          if (file.backup() != null) {
+            return;
           }
+          content
+              .span()
+              .attrClass("badge w-fit")
+              .addAttr("data-variant", "destructive")
+              .text("Cannot import")
+              .__();
+          content
+              .custom("details")
+              .attrClass("backup-problems")
+              .custom("summary")
+              .addAttr("aria-label", Layout.attr("Problems in " + file.name()))
+              .text("Problems")
+              .__()
+              .ul()
+              .attrClass("text-destructive flex flex-col gap-2 pb-2 text-sm")
+              .of(list ->
+                  file.problems()
+                      .forEach(problem ->
+                          list.li().attrClass("whitespace-pre-wrap").text(problem.text()).__()))
+              .__()
+              .__();
         })
+        .__()
+        .__()
+        .td()
+        .attrClass("align-top")
+        .addAttr("data-label", "Exported")
+        .text(file.backup() == null ? "" : exported(file.backup()))
+        .__()
+        .td()
+        .attrClass("align-top")
+        .addAttr("data-label", "Holds")
+        .text(file.backup() == null ? "" : holds(file.backup()))
+        .__()
         .of(cells -> actions(cells, file))
         .__();
   }
@@ -475,7 +545,7 @@ final class BackupsPage {
     row.td()
         .attrClass("align-top")
         .div()
-        .attrClass("flex justify-end gap-2")
+        .attrClass("flex flex-wrap gap-2 lg:justify-end")
         .of(buttons -> {
           if (file.backup() != null) {
             buttons
@@ -499,7 +569,7 @@ final class BackupsPage {
         .a()
         .attrHref(Layout.attr(deletePath(backup)))
         .attrClass("btn")
-        .addAttr("data-variant", "outline")
+        .addAttr("data-variant", "destructive")
         .addAttr("data-size", "sm")
         .addAttr("aria-label", Layout.attr("Delete " + backup))
         .text("Delete")

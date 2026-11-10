@@ -300,7 +300,7 @@ class BackupsPageComponentTest extends DashboardComponentTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(plan(response.getBody()))
-        .containsExactly(
+        .containsExactlyInAnyOrder(
             "Skip Service " + grafana + ": It exists already.",
             "Skip Static Instance 10.1.2.3:3000 of " + grafana + ": It is the same already.",
             "Add Static Instance 10.1.2.3:3001 of " + grafana,
@@ -398,7 +398,7 @@ class BackupsPageComponentTest extends DashboardComponentTest {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     assertThat(alert(response.getBody())).contains("The plan changed");
     assertThat(plan(response.getBody()))
-        .containsExactly(
+        .containsExactlyInAnyOrder(
             "Skip Service " + grafana + ": It exists already.",
             "Skip Static Instance 10.1.2.3:3000 of " + grafana + ": It is the same already.",
             "Add Static Instance 10.1.2.3:3001 of " + grafana,
@@ -524,7 +524,7 @@ class BackupsPageComponentTest extends DashboardComponentTest {
   private static List<String> plan(String page) {
     int start = page.indexOf("id=\"plan\"");
     assertThat(start).as("the plan").isNotNegative();
-    String list = page.substring(start, page.indexOf("</ul>", start));
+    String list = div(page, "id=\"plan\"");
     return Pattern.compile("<li[^>]*>(.*?)</li>", Pattern.DOTALL)
         .matcher(list)
         .results()
