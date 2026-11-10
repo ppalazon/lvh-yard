@@ -29,9 +29,9 @@ final class BindContainerPage {
    *
    * @param value what the field sends: a container name, or {@code project/service}
    * @param ports its Container Ports
-   * @param followedBy the Service of the Binding that already names it, or {@code null}
+   * @param followedBy the Services that have a Binding that names it, by name
    */
-  record Target(String value, boolean compose, List<TargetPort> ports, String followedBy) {}
+  record Target(String value, boolean compose, List<TargetPort> ports, List<String> followedBy) {}
 
   /**
    * @param hostPorts the host ports that publish it, none when it is only exposed
@@ -175,27 +175,22 @@ final class BindContainerPage {
         .text(heading)
         .__();
     for (Target target : members) {
-      boolean followed = target.followedBy() != null;
+      boolean used = !target.followedBy().isEmpty();
       list.li()
           .attrClass(
               "flex cursor-default justify-between gap-2 rounded-sm px-2 py-1.5 text-sm"
-                  + " aria-disabled:opacity-50 aria-selected:bg-accent")
+                  + " aria-selected:bg-accent")
           .addAttr("role", "option")
           .addAttr("data-value", Layout.attr(target.value()))
           .addAttr("data-ports", Layout.attr(dataPorts(target.ports())))
-          .of(option -> {
-            if (followed) {
-              option.addAttr("aria-disabled", "true");
-            }
-          })
           .span()
           .text(target.value())
           .__()
           .span()
           .attrClass("text-muted-foreground")
           .text(
-              followed
-                  ? "followed by " + target.followedBy()
+              used
+                  ? "used by " + String.join(", ", target.followedBy())
                   : target.ports().isEmpty() ? "" : portNumbers(target.ports()))
           .__()
           .__();

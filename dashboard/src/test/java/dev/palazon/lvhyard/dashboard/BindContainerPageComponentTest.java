@@ -104,7 +104,7 @@ class BindContainerPageComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void followedTargetShowsButCannotBeSelected() {
+  void followedTargetShowsItsServicesAndCanBeSelected() {
     String name = newContainerName();
     start(FakeDocker.container(name).port(80));
     String other = newServiceName("other");
@@ -114,9 +114,9 @@ class BindContainerPageComponentTest extends DashboardComponentTest {
 
     String page = getPage(bindPage(web)).getBody();
 
-    assertThat(option(page, name)).contains("aria-disabled=\"true\"");
+    assertThat(option(page, name)).doesNotContain("aria-disabled");
     String item = page.substring(page.indexOf("data-value=\"" + name + "\""));
-    assertThat(item.substring(0, item.indexOf("</li>"))).contains(other);
+    assertThat(item.substring(0, item.indexOf("</li>"))).contains("used by " + other);
   }
 
   @Test
@@ -183,7 +183,7 @@ class BindContainerPageComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void typedFollowedTargetIsRefusedAtItsField() {
+  void typedTargetThatAnotherServiceFollowsIsBound() {
     String project = newComposeProject();
     String other = newServiceName("other");
     bindCompose(other, project, "web", 80);
@@ -193,10 +193,8 @@ class BindContainerPageComponentTest extends DashboardComponentTest {
     ResponseEntity<String> response =
         postForm(bindAction(web), Map.of("target", project + "/web", "containerPort", "9000"));
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(openingTag(response.getBody(), "name=\"target\"")).contains("aria-invalid=\"true\"");
-    assertThat(response.getBody()).contains("of the Service " + other);
-    assertThat(get(servicePath(web)).getBody().get("containerBindings")).isEmpty();
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    assertThat(get(servicePath(web)).getBody().get("containerBindings")).hasSize(1);
   }
 
   @Test

@@ -116,9 +116,9 @@ final class Dashboard {
 
   /**
    * A container of the Workstation, running or stopped. The API leaves {@code composeProject},
-   * {@code composeService}, {@code health} and {@code followedBy} out when the container has none.
+   * {@code composeService} and {@code health} out when the container has none.
    *
-   * @param followedBy the Service of a Container Binding that matches the container
+   * @param followedBy the Services that have a Container Binding that matches the container
    */
   record Container(
       String name,
@@ -128,11 +128,11 @@ final class Dashboard {
       boolean running,
       List<ContainerPort> ports,
       String health,
-      String followedBy) {
+      List<String> followedBy) {
 
     /** A running container that no Container Binding matches. */
     boolean unfollowed() {
-      return running && followedBy == null;
+      return running && followedBy.isEmpty();
     }
 
     List<Integer> containerPorts() {

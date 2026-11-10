@@ -212,7 +212,7 @@ class RegisterTest extends YardTestSupport {
         "/api/workstation/containers",
         200,
         """
-        [{"name": "%s", "service": "%s", "running": true, "ports": [%s]}]
+        [{"name": "%s", "service": "%s", "running": true, "followedBy": [], "ports": [%s]}]
         """
             .formatted(name, name, ports));
   }
@@ -350,24 +350,6 @@ class RegisterTest extends YardTestSupport {
 
     assertThat(run.exitCode()).isEqualTo(1);
     assertThat(run.err()).contains("80, 9000").contains("--port");
-  }
-
-  @Test
-  void registerContainerOfAFollowedContainerSaysWhichServiceFollowsIt() {
-    dashboard.answer(
-        "POST",
-        "/api/workstation/services/grafana/container-bindings",
-        409,
-        """
-        {"status": 409,
-         "detail": "The container grafana is already followed by a Container Binding of the Service metrics."}
-        """);
-
-    Run run = yard("register", "container", "grafana", "--port", "3000");
-
-    assertThat(run.exitCode()).isEqualTo(1);
-    assertThat(run.err())
-        .contains("already followed by a Container Binding of the Service metrics.");
   }
 
   @Test
@@ -533,23 +515,6 @@ class RegisterTest extends YardTestSupport {
   void registerTargetsAreRequired() {
     assertThat(yard("register", "container").exitCode()).isNotZero();
     assertThat(yard("register", "compose", "--port", "80").exitCode()).isNotZero();
-  }
-
-  @Test
-  void registerComposeThatABindingFollowsSaysWhichServiceFollowsIt() {
-    dashboard.answer(
-        "POST",
-        "/api/workstation/services/web/container-bindings",
-        409,
-        """
-        {"status": 409,
-         "detail": "The Compose service web of project shop is already followed by a Container Binding of the Service shop."}
-        """);
-
-    Run run = yard("register", "compose", "shop/web", "--port", "80");
-
-    assertThat(run.exitCode()).isEqualTo(1);
-    assertThat(run.err()).contains("of the Service shop.");
   }
 
   @Test

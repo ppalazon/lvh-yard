@@ -532,7 +532,7 @@ class BackupImportComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void bindingATargetThatAnotherServiceFollowsIsRefused() {
+  void bindingATargetThatAnotherServiceFollowsIsAdded() {
     String web = newServiceName("web");
     String shop = newServiceName("shop");
     bindCompose(web, "shop", web, 8080);
@@ -550,9 +550,8 @@ class BackupImportComponentTest extends DashboardComponentTest {
             """
                 .formatted(shop, web));
 
-    assertThat(problems(response))
-        .containsExactly("services." + shop + ".sources[0].container-binding");
-    assertThat(response.getBody().get("problems").get(0).get("reason").asString()).contains(web);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(get(servicePath(shop)).getBody().get("containerBindings")).hasSize(1);
   }
 
   @Test

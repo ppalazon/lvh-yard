@@ -20,8 +20,8 @@ import java.util.stream.Stream;
  *     follow the Service name rule
  * @param ports its TCP port mappings, each once. Docker lists none for a stopped container
  * @param health none when it has no HEALTHCHECK
- * @param followedBy the Service of a Container Binding that matches it, whatever the Binding's
- *     port, or none
+ * @param followedBy the Services that have a Container Binding that matches it, whatever the
+ *     Binding's port, by name
  */
 public record ListedContainer(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
@@ -31,7 +31,7 @@ public record ListedContainer(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean running,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ContainerPort> ports,
     @JsonInclude(JsonInclude.Include.NON_NULL) HealthcheckState health,
-    @JsonInclude(JsonInclude.Include.NON_NULL) String followedBy) {
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<String> followedBy) {
 
   /** {@code hostPort} and {@code hostIp} are none when the container port is not published. */
   public record ContainerPort(
@@ -55,7 +55,7 @@ public record ListedContainer(
     }
   }
 
-  static ListedContainer of(Docker.Container container, String followedBy) {
+  static ListedContainer of(Docker.Container container, List<String> followedBy) {
     Optional<String> composeService =
         container.composeProject().isPresent() ? container.composeService() : Optional.empty();
     return new ListedContainer(

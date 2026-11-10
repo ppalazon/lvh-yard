@@ -4,7 +4,6 @@ import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.services.ContainerBindingRequest;
 import dev.palazon.lvhyard.dashboard.services.ContainerBindings;
 import dev.palazon.lvhyard.dashboard.services.ContainerList;
-import dev.palazon.lvhyard.dashboard.services.FollowedContainerException;
 import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
 import dev.palazon.lvhyard.dashboard.services.ListedContainer;
 import dev.palazon.lvhyard.dashboard.services.Service;
@@ -80,8 +79,6 @@ class BindContainerPagesController {
           .location(URI.create(ServicePage.path(found)))
           .build();
     } catch (InvalidRegistrationException e) {
-      error = atTarget(e.field(), e.getMessage());
-    } catch (FollowedContainerException e) {
       error = atTarget(e.field(), e.getMessage());
     } catch (UnknownServiceException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);

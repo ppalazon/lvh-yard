@@ -48,7 +48,7 @@ class ContainersComponentTest extends DashboardComponentTest {
     assertThat(listed.get("running").asBoolean()).isTrue();
     assertThat(listed.has("composeProject")).isFalse();
     assertThat(listed.has("health")).isFalse();
-    assertThat(listed.has("followedBy")).isFalse();
+    assertThat(listed.get("followedBy")).isEmpty();
     JsonNode ports = listed.get("ports");
     assertThat(ports).hasSize(2);
     assertThat(ports.get(0).get("containerPort").asInt()).isEqualTo(80);
@@ -133,7 +133,22 @@ class ContainersComponentTest extends DashboardComponentTest {
 
     bind(web, name, 1234);
 
-    assertThat(listed(name).get("followedBy").asString()).isEqualTo(web);
+    assertThat(listed(name).get("followedBy").valueStream().map(JsonNode::asString))
+        .containsExactly(web);
+  }
+
+  @Test
+  void containerThatSeveralServicesFollowNamesEachOfThem() {
+    String name = newContainerName();
+    start(FakeDocker.container(name));
+    String web = newServiceName("web");
+    String api = newServiceName("api");
+
+    bind(web, name, 80);
+    bind(api, name, 9000);
+
+    assertThat(listed(name).get("followedBy").valueStream().map(JsonNode::asString))
+        .containsExactlyInAnyOrder(web, api);
   }
 
   @Test
@@ -146,7 +161,8 @@ class ContainersComponentTest extends DashboardComponentTest {
 
     bindCompose(web, project, "web", 1234);
 
-    assertThat(listed(name).get("followedBy").asString()).isEqualTo(web);
+    assertThat(listed(name).get("followedBy").valueStream().map(JsonNode::asString))
+        .containsExactly(web);
   }
 
   @Test

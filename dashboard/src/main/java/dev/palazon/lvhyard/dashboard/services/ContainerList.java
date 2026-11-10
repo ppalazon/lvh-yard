@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Component;
 
-/** Every container of this Workstation, with the Container Binding that follows it. */
+/** Every container of this Workstation, with the Services whose Container Bindings follow it. */
 @Component
 public class ContainerList {
 
@@ -40,9 +40,8 @@ public class ContainerList {
         .map(container ->
             ListedContainer.of(
                 container,
-                ContainerBindings.following(
-                        followed, binding -> ContainerBindings.matches(binding, container))
-                    .orElse(null)))
+                ContainerBindings.followers(
+                    followed, binding -> ContainerBindings.matches(binding, container))))
         .sorted(
             Comparator.comparing(
                     ListedContainer::composeProject,
@@ -52,12 +51,11 @@ public class ContainerList {
   }
 
   /**
-   * The Service of the Binding that names this target, whatever its port, or {@code null}. A
-   * Binding by name and a Binding by Compose service are different targets, even for one container.
+   * The Services that have a Binding that names this target, whatever its port, by name. A Binding
+   * by name and a Binding by Compose service are different targets, even for one container.
    */
-  public String following(ContainerBindingRequest target) {
-    return ContainerBindings.following(
-            bindings.all(null), binding -> ContainerBindings.sameTarget(target, binding))
-        .orElse(null);
+  public List<String> following(ContainerBindingRequest target) {
+    return ContainerBindings.followers(
+        bindings.all(null), binding -> ContainerBindings.sameTarget(target, binding));
   }
 }

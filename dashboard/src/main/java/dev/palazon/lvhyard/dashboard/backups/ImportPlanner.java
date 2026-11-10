@@ -28,7 +28,6 @@ import dev.palazon.lvhyard.dashboard.services.Scope;
 import dev.palazon.lvhyard.dashboard.services.Services;
 import dev.palazon.lvhyard.dashboard.services.StaticInstanceRequest;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -127,9 +126,6 @@ class ImportPlanner {
     private final List<Step> aliasSteps = new ArrayList<>();
 
     private final List<Step> prioritySteps = new ArrayList<>();
-
-    /** The Service of each target that a Binding of the file follows, by target. */
-    private final Map<String, String> fileTargets = new HashMap<>();
 
     Run(Backup backup, ImportMode mode) {
       this.backup = backup;
@@ -362,47 +358,17 @@ class ImportPlanner {
               checked.composeProject(),
               checked.composeService(),
               checked.port());
-      String target = target(normal);
-      String other = fileTargets.putIfAbsent(target, service);
-      if (other != null) {
-        problem(
-            place,
-            "The file binds "
-                + follows(normal)
-                + " twice, but one Binding is the most that a container can have: "
-                + (other.equals(service) ? "again for " + service : "for " + other + " too")
-                + ".");
-        return;
-      }
       if (existing != null
           && existing.containerBindings().stream()
               .anyMatch(candidate -> candidate.id().equals(normal.id()))) {
         entries.add(PlanEntry.skip(Kind.CONTAINER_BINDING, normal.id(), service, SAME));
         return;
       }
-      current.services().entrySet().stream()
-          .filter(byService ->
-              byService.getValue().containerBindings().stream()
-                  .anyMatch(candidate -> target(candidate).equals(target)))
-          .map(Map.Entry::getKey)
-          .findFirst()
-          .ifPresentOrElse(
-              following ->
-                  problem(
-                      place,
-                      "The Service "
-                          + following
-                          + " follows "
-                          + follows(normal)
-                          + " already. A container can have one Binding only."),
-              () -> {
-                PlanEntry entry = PlanEntry.add(Kind.CONTAINER_BINDING, normal.id(), service);
-                entries.add(entry);
-                instanceSteps.add(
-                    new Step(
-                        List.of(entry),
-                        () -> containerBindings.add(workstation.name(), service, checked)));
-              });
+      PlanEntry entry = PlanEntry.add(Kind.CONTAINER_BINDING, normal.id(), service);
+      entries.add(entry);
+      instanceSteps.add(
+          new Step(
+              List.of(entry), () -> containerBindings.add(workstation.name(), service, checked)));
     }
 
     private void publication(
@@ -515,22 +481,6 @@ class ImportPlanner {
     private void problem(String place, String reason) {
       problems.add(new BackupProblem(place, reason));
     }
-  }
-
-  /** What two Bindings follow when no two Services may follow it at once. */
-  private static String target(ContainerBinding binding) {
-    return binding.followsCompose()
-        ? "compose:" + binding.composeProject() + ":" + binding.composeService()
-        : binding.container();
-  }
-
-  private static String follows(ContainerBinding binding) {
-    return binding.followsCompose()
-        ? "the Compose service "
-            + binding.composeService()
-            + " of project "
-            + binding.composeProject()
-        : "the container " + binding.container();
   }
 
   /** The place in a Static Instance of the field that {@link Registrations} names. */

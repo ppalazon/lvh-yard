@@ -199,12 +199,6 @@ class WorkstationServicesController {
               + ", the body names both or neither of a container and a Compose service, a name is"
               + " not one Docker or Compose allows, or the port is not a TCP port")
   @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
-  @ApiResponse(
-      responseCode = "409",
-      description =
-          "A Container Binding of this Workstation already follows the same container name, or the"
-              + " same Compose project and service, whatever its port. The answer names its"
-              + " Service")
   ContainerBinding bind(
       @PathVariable String service, @RequestBody ContainerBindingRequest request) {
     String id = containerBindings.add(workstation.name(), service, request);

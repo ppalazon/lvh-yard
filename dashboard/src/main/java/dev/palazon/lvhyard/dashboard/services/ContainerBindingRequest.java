@@ -27,10 +27,6 @@ public record ContainerBindingRequest(
     return composeProject != null || composeService != null;
   }
 
-  String follows() {
-    return follows(container, composeProject, composeService);
-  }
-
   /**
    * As the pages say it: {@code container web-1}, or {@code Compose service web of project shop}.
    */

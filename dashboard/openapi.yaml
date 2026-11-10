@@ -226,8 +226,9 @@ paths:
     get:
       description: "Compose projects come first, then the other containers. Each port\
         \ is a TCP container port, with its host port when it is published. A stopped\
-        \ container has no ports. followedBy names the Service of a Container Binding\
-        \ that matches the container, whatever its port."
+        \ container has no ports. followedBy names the Services that have a Container\
+        \ Binding that matches the container, whatever its port, and is empty when\
+        \ none does."
       operationId: containers
       responses:
         "200":
@@ -633,14 +634,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: This Workstation has no Service of this name
-        "409":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-          description: "A Container Binding of this Workstation already follows the\
-            \ same container name, or the same Compose project and service, whatever\
-            \ its port. The answer names its Service"
       summary: Binds a Service to a container or a Compose service
       tags:
       - workstation-services-controller
@@ -1285,7 +1278,9 @@ components:
         composeService:
           type: string
         followedBy:
-          type: string
+          type: array
+          items:
+            type: string
         health:
           type: string
           enum:
@@ -1303,6 +1298,7 @@ components:
         service:
           type: string
       required:
+      - followedBy
       - name
       - ports
       - running

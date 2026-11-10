@@ -25,8 +25,8 @@ class ContainersController {
       description =
           "Compose projects come first, then the other containers. Each port is a TCP container"
               + " port, with its host port when it is published. A stopped container has no"
-              + " ports. followedBy names the Service of a Container Binding that matches the"
-              + " container, whatever its port.")
+              + " ports. followedBy names the Services that have a Container Binding that matches"
+              + " the container, whatever its port, and is empty when none does.")
   @ApiResponse(responseCode = "200", description = "The containers", useReturnTypeSchema = true)
   @ApiResponse(
       responseCode = "503",

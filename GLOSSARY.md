@@ -35,7 +35,7 @@ An Instance at a fixed host and port that you give. It stays until you remove it
 _Avoid_: Manual instance, fixed instance
 
 **Container Binding**:
-A link from a Service to a Docker container, by container name or by Compose project and service, and a container port. Every running container that matches gives the Service a Bound Instance.
+A link from a Service to a Docker container, by container name or by Compose project and service, and a container port. Every running container that matches gives the Service a Bound Instance. Any number of Services can have a Container Binding to the same container or Compose service.
 _Avoid_: Docker registration, container mapping
 
 **Bound Instance**:

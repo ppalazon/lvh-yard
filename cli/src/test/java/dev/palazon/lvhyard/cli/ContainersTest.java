@@ -51,13 +51,16 @@ class ContainersTest extends YardTestSupport {
         200,
         """
         [{"name": "beta-web-1", "composeProject": "beta", "composeService": "web",
-          "service": "web", "running": true, "ports": [{"containerPort": 8080}]},
+          "service": "web", "running": true, "followedBy": [],
+          "ports": [{"containerPort": 8080}]},
          {"name": "alpha-web-2", "composeProject": "alpha", "composeService": "web",
-          "service": "web", "running": true, "ports": [{"containerPort": 9000}, {"containerPort": 80}]},
+          "service": "web", "running": true, "followedBy": [],
+          "ports": [{"containerPort": 9000}, {"containerPort": 80}]},
          {"name": "alpha-worker-1", "composeProject": "alpha", "composeService": "worker",
-          "service": "worker", "running": true, "ports": []},
+          "service": "worker", "running": true, "followedBy": [], "ports": []},
          {"name": "alpha-web-1", "composeProject": "alpha", "composeService": "web",
-          "service": "web", "running": true, "ports": [{"containerPort": 443}, {"containerPort": 80}]}]
+          "service": "web", "running": true, "followedBy": [],
+          "ports": [{"containerPort": 443}, {"containerPort": 80}]}]
         """);
 
     Run run = yard("containers");
@@ -82,7 +85,8 @@ class ContainersTest extends YardTestSupport {
         200,
         """
         [{"name": "shop-Front_End-1", "composeProject": "shop", "composeService": "Front_End",
-          "service": "front-end", "running": true, "ports": [{"containerPort": 80}]}]
+          "service": "front-end", "running": true, "followedBy": [],
+          "ports": [{"containerPort": 80}]}]
         """);
 
     Run run = yard("containers");
@@ -143,7 +147,7 @@ class ContainersTest extends YardTestSupport {
         "/api/workstation/containers",
         200,
         """
-        [{"name": "web-1", "service": "web", "running": true,
+        [{"name": "web-1", "service": "web", "running": true, "followedBy": [],
           "ports": [{"containerPort": 8080, "hostPort": 37137}]}]
         """);
 
@@ -166,9 +170,10 @@ class ContainersTest extends YardTestSupport {
         "/api/workstation/containers",
         200,
         """
-        [{"name": "api-1", "service": "api", "running": true, "ports": [{"containerPort": 80}]},
-         {"name": "old-1", "service": "old", "running": false, "ports": []},
-         {"name": "web-1", "service": "web", "running": true, "followedBy": "web",
+        [{"name": "api-1", "service": "api", "running": true, "followedBy": [],
+          "ports": [{"containerPort": 80}]},
+         {"name": "old-1", "service": "old", "running": false, "followedBy": [], "ports": []},
+         {"name": "web-1", "service": "web", "running": true, "followedBy": ["web"],
           "ports": [{"containerPort": 80}]}]
         """);
 

@@ -1,5 +1,5 @@
 // The two fields of the bind form are lists that you can also type in.
-// A typed value is sent as it is. An option with aria-disabled (a followed target) cannot be picked.
+// A typed value is sent as it is.
 // The port field lists the open ports of the target in the container field.
 
 // A field with a listbox under it. It shows the options that match what you typed, or all of them
@@ -67,7 +67,7 @@ const combobox = (input, listbox, onPick) => {
   };
 
   const pick = (option) => {
-    if (!option || option.getAttribute("aria-disabled") === "true") {
+    if (!option) {
       return;
     }
     input.value = option.dataset.value;

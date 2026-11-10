@@ -483,8 +483,7 @@ services.grafana.publication.route-profiles[0]: The Route Profile login is not i
 ```
 
 The import refuses a key that a Backup does not have, a version other than 2,
-and an unknown Route Profile. It also refuses an Alias to this Workstation, and
-a Container Binding to a container that another Service follows already.
+and an unknown Route Profile. It also refuses an Alias to this Workstation.
 
 The import writes Route Profiles first, then Services, then Static Instances
 and Container Bindings, then Publications, then Aliases, then the Instance Priority. It adds an Alias even
@@ -1133,8 +1132,9 @@ The Container field is a list that you can also type in. It lists:
    `docker compose up` makes new containers.
 2. Each container with no Compose project, by its name.
 
-The list holds stopped containers too. A target that another Container
-Binding follows shows the Service of that Binding, and you cannot select it.
+The list holds stopped containers too. A target that other Services follow
+shows `used by` and their names. You can still select it, so one container or
+Compose service can give Instances to several Services.
 
 You can also type a target that does not exist yet. Type a container name,
 or a Compose project and service as `project/service`. A Docker container
@@ -1147,9 +1147,7 @@ any other port. Docker lists no ports for a stopped container, so then you type
 the port.
 
 Click Bind. The page of the Service opens. If the binding fails, the form
-shows your input again with the error under its field. A typed target that
-another Container Binding follows is refused at the Container field, and the
-error names the Service of that Binding.
+shows your input again with the error under its field.
 
 If the Service has Yard Scope and the container port is not published, the
 page of the Service warns that other Workstations cannot reach the Bound
@@ -1163,9 +1161,10 @@ stopped ones too. Compose projects come first. Each entry gives `name`,
 labels, and `running`. Each published TCP port mapping includes
 `containerPort` and `hostPort`. The optional `hostIp` field gives the address
 Docker binds on the Workstation. An unpublished port has no `hostPort` or
-`hostIp`. A stopped container has no ports. `followedBy` names the Service of
-a Container Binding that matches the container, whatever the port of the
-Binding. If the dashboard cannot read Docker, the answer is 503 and says why.
+`hostIp`. A stopped container has no ports. `followedBy` lists the Services
+that have a Container Binding that matches the container, whatever the port of
+the Binding, and is empty when none does. If the dashboard cannot read Docker,
+the answer is 503 and says why.
 
 `lvh-yard containers` lists the Unfollowed Containers: the running containers
 that no Container Binding matches. It groups them by Compose project and
@@ -1181,11 +1180,10 @@ The detail lines also show the Docker HEALTHCHECK state when one is set.
 
 `POST /api/workstation/services/<service>/container-bindings` binds a Service.
 The body gives `container`, or `composeProject` and `composeService`, and
-`port`. If the Service does not exist, the binding is refused with 404. If a
-Container Binding of this Workstation already follows the same container
-name, or the same Compose project and service, the binding is refused with
-409, and names the Service of that Container Binding. This is also true for
-the same target and port again.
+`port`. If the Service does not exist, the binding is refused with 404. Any
+number of Services can bind the same container or Compose service, on the same
+port or on another one. Binding the same target and port again to the same
+Service changes nothing.
 
 From the terminal:
 

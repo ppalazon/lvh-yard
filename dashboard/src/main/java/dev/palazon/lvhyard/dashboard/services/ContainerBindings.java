@@ -74,11 +74,10 @@ public class ContainerBindings {
 
   /**
    * {@code workstation} must be this one. Running containers that match give their Bound Instances
-   * at once.
+   * at once. Any number of Services can follow one container or Compose service. Adding a Binding
+   * of this Service that exists, with the same target and port, changes nothing.
    *
    * @return the Binding's ID
-   * @throws FollowedContainerException when a Binding of this Workstation already names the same
-   *     container, or the same Compose project and service, whatever its port
    * @throws UnknownServiceException when this Workstation has no Service of this name
    */
   public String add(String workstation, String service, ContainerBindingRequest request) {
@@ -86,13 +85,6 @@ public class ContainerBindings {
     Registrations.checkName(service);
     ContainerBindingRequest binding = checked(request);
     records.ensure(service);
-    following(all(null), other -> sameTarget(binding, other))
-        .ifPresent(following -> {
-          throw new FollowedContainerException(
-              binding.follows(),
-              following,
-              binding.followsCompose() ? "composeService" : "container");
-        });
     String id = ContainerBinding.id(binding);
     consul.putValue(PREFIX + service + "/" + id, JSON.writeValueAsString(binding));
     records.addSource(service, id);
@@ -101,8 +93,7 @@ public class ContainerBindings {
   }
 
   /**
-   * The Binding as {@link #add} would store it. It writes nothing, and it does not look for a
-   * Binding that follows the same target.
+   * The Binding as {@link #add} would store it. It writes nothing.
    *
    * @throws InvalidRegistrationException at the first rule that {@code request} breaks
    */
@@ -173,14 +164,15 @@ public class ContainerBindings {
         : one.container().equals(other.container());
   }
 
-  /** The Service of the first Binding in {@code followed} that {@code test} accepts. */
-  static Optional<String> following(
+  /** The Services that have a Binding in {@code followed} that {@code test} accepts, by name. */
+  static List<String> followers(
       Map<String, Map<String, ContainerBindingRequest>> followed,
       Predicate<ContainerBindingRequest> test) {
     return followed.entrySet().stream()
         .filter(byService -> byService.getValue().values().stream().anyMatch(test))
         .map(Map.Entry::getKey)
-        .findFirst();
+        .sorted()
+        .toList();
   }
 
   private static String stripped(String name) {

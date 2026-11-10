@@ -288,7 +288,7 @@ class ContainerBindingsComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void bindingAContainerNameThatABindingFollowsIsRefusedWithItsServiceWhateverThePort() {
+  void servicesCanBindTheSameContainerOnAnyPort() {
     String web = newServiceName("web");
     String api = newServiceName("api");
     create(api);
@@ -298,13 +298,13 @@ class ContainerBindingsComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         post(containerBindingsPath(api), Map.of("container", name, "port", 9000));
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-    assertThat(response.getBody().get("detail").asString()).contains(name).contains(web);
-    assertThat(get(servicePath(api)).getBody().get("containerBindings")).isEmpty();
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(get(servicePath(api)).getBody().get("containerBindings")).hasSize(1);
+    assertThat(get(servicePath(web)).getBody().get("containerBindings")).hasSize(1);
   }
 
   @Test
-  void bindingTheSameContainerAgainIsRefused() {
+  void bindingTheSameContainerAndPortAgainChangesNothing() {
     String web = newServiceName("web");
     String name = newContainerName();
     bind(web, name, 80);
@@ -312,12 +312,13 @@ class ContainerBindingsComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> response =
         post(containerBindingsPath(web), Map.of("container", name, "port", 80));
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     assertThat(get(servicePath(web)).getBody().get("containerBindings")).hasSize(1);
+    assertThat(get(servicePath(web)).getBody().get("sources")).hasSize(1);
   }
 
   @Test
-  void bindingAComposeServiceThatABindingFollowsIsRefusedWithItsService() {
+  void servicesCanBindTheSameComposeService() {
     String web = newServiceName("web");
     String api = newServiceName("api");
     create(api);
@@ -329,10 +330,8 @@ class ContainerBindingsComponentTest extends DashboardComponentTest {
             containerBindingsPath(api),
             Map.of("composeProject", project, "composeService", "web", "port", 8080));
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-    assertThat(response.getBody().get("detail").asString())
-        .contains("Compose service web of project " + project)
-        .contains(web);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(get(servicePath(api)).getBody().get("containerBindings")).hasSize(1);
   }
 
   @Test
