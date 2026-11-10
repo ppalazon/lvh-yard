@@ -1,6 +1,6 @@
 # 14: `init --reinit`
 
-Status: ready-for-agent
+Status: done
 
 Blocked by: 12
 
