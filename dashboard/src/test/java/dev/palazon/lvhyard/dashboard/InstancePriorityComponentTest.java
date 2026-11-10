@@ -148,7 +148,9 @@ class InstancePriorityComponentTest extends DashboardComponentTest {
           assertThat(service.get("routing").get("kind").asString()).isEqualTo("static");
           assertThat(texts(service.get("routing").get("waiting"))).containsExactly(sources.get(1));
           String page = getPage("/services/ws-test/" + web).getBody();
-          assertThat(sourceItem(page, sources.getFirst())).contains("data-in-use");
+          assertThat(sourceItem(page, sources.getFirst()))
+              .contains("data-in-use")
+              .doesNotContain("data-unavailable");
           assertThat(sourceItem(page, sources.get(1))).doesNotContain("data-in-use");
         });
   }

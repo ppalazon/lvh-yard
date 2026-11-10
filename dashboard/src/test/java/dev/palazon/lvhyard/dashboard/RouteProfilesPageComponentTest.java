@@ -176,7 +176,7 @@ class RouteProfilesPageComponentTest extends DashboardComponentTest {
 
     assertThat(getPage("/services/ws-test/" + web).getBody())
         .contains("id=\"route-profiles\"")
-        .contains("aria-label=\"Add page-offered\"");
+        .contains("<option value=\"page-offered\">page-offered</option>");
 
     postForm("/services/ws-test/" + web + "/publish", Map.of("profiles", "page-offered"));
 

@@ -174,9 +174,9 @@ class RouteProfilesOnRoutesComponentTest extends DashboardComponentTest {
     String page = "/services/ws-test/" + web;
     assertThat(getPage(page).getBody())
         .contains("Route Profiles")
-        .contains("aria-label=\"Add team-login\"")
-        .contains("name=\"profiles\" value=\"team-login\"")
-        .contains("aria-label=\"Add protected\"");
+        .contains("aria-label=\"Route Profile to add\"")
+        .contains("<option value=\"team-login\">team-login</option>")
+        .contains("<option value=\"protected\">protected</option>");
 
     ResponseEntity<String> response =
         postForm(page + "/publish", Map.of("profiles", "behind-https,team-login"));
@@ -189,7 +189,7 @@ class RouteProfilesOnRoutesComponentTest extends DashboardComponentTest {
         .contains("name=\"profiles\" value=\"team-login,behind-https\"")
         .contains("aria-label=\"Remove behind-https\"")
         .contains("name=\"profiles\" value=\"team-login\"")
-        .doesNotContain("aria-label=\"Add team-login\"")
+        .doesNotContain(">team-login</option>")
         .contains("asks who the user is only on the hostname");
   }
 

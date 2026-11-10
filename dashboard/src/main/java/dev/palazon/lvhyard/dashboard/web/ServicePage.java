@@ -77,16 +77,16 @@ final class ServicePage {
                             region
                                 .of(content -> header(content, service, own))
                                 .of(content -> foreignOnly(content, service))
-                                .of(content -> alerts(content, service))
                                 .div()
                                 .attrId("sections")
                                 .attrClass("grid grid-cols-1 items-start gap-4 lg:grid-cols-2")
                                 .of(grid ->
                                     card(grid, "publication", "Publication")
-                                        .of(card -> publication(card, workstation, service, own))
                                         .of(card -> {
                                           if (own) {
-                                            publicationForms(card, service);
+                                            publicationSwitches(card, workstation, service);
+                                          } else {
+                                            publication(card, service);
                                           }
                                         })
                                         .__())
@@ -146,76 +146,81 @@ final class ServicePage {
     return moved;
   }
 
-  private static void publicationForms(Div<?> div, Service service) {
+  /**
+   * Each switch posts its own form, so one flip changes one setting. Each has a line that says what
+   * its setting does now.
+   */
+  private static void publicationSwitches(Div<?> div, Workstation workstation, Service service) {
     div.div()
-        .attrClass("flex flex-wrap gap-2")
-        .of(buttons -> {
+        .attrClass("flex flex-col gap-4")
+        .of(switches -> {
+          SwitchForm.render(
+              switches,
+              publicationPath(service),
+              null,
+              null,
+              service.published(),
+              "Published",
+              service.published()
+                  ? "The hostname routes requests to its Instances."
+                  : "Not published, so it has no hostname.");
           if (service.published()) {
             boolean yard = service.publication().scope() == Scope.YARD;
-            buttons
-                .form()
-                .addAttr("method", "post")
-                .addAttr("action", Layout.attr(path(service) + "/publish"))
-                .input()
-                .attrType(EnumTypeInputType.HIDDEN)
-                .attrName("scope")
-                .attrValue(yard ? Scope.LOCAL.value() : Scope.YARD.value())
-                .__()
-                .button()
-                .attrType(EnumTypeButtonType.SUBMIT)
-                .attrClass("btn")
-                .addAttr("data-variant", "outline")
-                .text(yard ? "Keep on this Workstation" : "Share with the Yard")
-                .__()
-                .__();
+            SwitchForm.render(
+                switches,
+                path(service) + "/publish",
+                "scope",
+                yard ? Scope.LOCAL.value() : Scope.YARD.value(),
+                yard,
+                "Share with the Yard",
+                yard
+                    ? "Yard Scope: every Workstation routes it. Other Workstations use "
+                        + workstation.yardHostname(service.name())
+                        + "."
+                    : "Local Scope: only " + service.workstation() + " routes it.");
             boolean logged = service.publication().accessLog();
-            buttons
-                .form()
-                .addAttr("method", "post")
-                .addAttr("action", Layout.attr(path(service) + "/publish"))
-                .input()
-                .attrType(EnumTypeInputType.HIDDEN)
-                .attrName("accessLog")
-                .attrValue(String.valueOf(!logged))
-                .__()
-                .button()
-                .attrType(EnumTypeButtonType.SUBMIT)
-                .attrClass("btn")
-                .addAttr("data-variant", "outline")
-                .text(logged ? "Hide from the access log" : "Show in the access log")
-                .__()
-                .__();
+            SwitchForm.render(
+                switches,
+                path(service) + "/publish",
+                "accessLog",
+                String.valueOf(!logged),
+                logged,
+                "Show in the access log",
+                logged
+                    ? "Traefik logs each request to the Route."
+                    : "Traefik does not log requests to the Route.");
           }
         })
-        .form()
-        .addAttr("method", "post")
-        .addAttr("action", Layout.attr(publicationPath(service)))
-        .button()
-        .attrType(EnumTypeButtonType.SUBMIT)
-        .attrClass("btn")
-        .of(button -> {
-          if (service.published()) {
-            button.addAttr("data-variant", "outline");
-          }
-        })
-        .text(service.published() ? "Unpublish" : "Publish")
-        .__()
-        .__()
         .__();
   }
 
   /**
    * Like the Instance Sources, each button posts the whole new list, so the page needs no script.
-   * Only this Workstation's Route Profiles can be added, and each name links to its row on the
-   * Route Profiles page. On an Unpublished Service, adding one publishes it. A Remote Service shows
-   * its names only: they are chosen on its Home Workstation, and its profiles are on that
-   * Workstation's page.
+   * Only this Workstation's Route Profiles can be added, in the selector at the right of the title,
+   * and each name links to its row on the Route Profiles page. On an Unpublished Service, adding
+   * one publishes it. A Remote Service shows its names only: they are chosen on its Home
+   * Workstation, and its profiles are on that Workstation's page.
    */
   private static void routeProfiles(
       Div<?> content, Service service, boolean own, List<String> profileNames) {
     List<String> chosen = service.profiles();
     List<String> addable = profileNames.stream().filter(name -> !chosen.contains(name)).toList();
-    card(content, "route-profiles", "Route Profiles")
+    content
+        .div()
+        .attrId("route-profiles")
+        .attrClass(CARD)
+        .div()
+        .attrClass("flex flex-wrap items-center justify-between gap-3")
+        .h2()
+        .attrClass("text-lg font-semibold")
+        .text("Route Profiles")
+        .__()
+        .of(heading -> {
+          if (own && !addable.isEmpty()) {
+            addProfileForm(heading, service, chosen, addable);
+          }
+        })
+        .__()
         .p()
         .attrClass("text-muted-foreground")
         .text(
@@ -226,16 +231,20 @@ final class ServicePage {
                     : "The Route applies them in this order.")
         .__()
         .ol()
-        .attrClass("flex flex-col gap-2")
+        .attrClass("flex flex-col gap-1")
         .of(list -> {
           for (int i = 0; i < chosen.size(); i++) {
             String name = chosen.get(i);
             int at = i;
             list.li()
                 .div()
-                .attrClass("flex flex-wrap items-center gap-2")
+                .attrClass(
+                    own
+                        ? "-mx-2 flex items-center justify-between gap-2 rounded-md px-2 py-1"
+                            + " hover:bg-primary/5"
+                        : "flex items-center justify-between gap-2")
                 .span()
-                .attrClass("min-w-16")
+                .attrClass("min-w-0")
                 .of(label -> {
                   if (own) {
                     label
@@ -250,57 +259,42 @@ final class ServicePage {
                   }
                 })
                 .__()
-                .of(buttons -> {
-                  if (!own) {
-                    return;
+                .of(row -> {
+                  if (own) {
+                    profileActions(row, service, chosen, at, name);
                   }
-                  if (at > 0) {
-                    profilesForm(
-                        buttons, service, moved(chosen, at, at - 1), "Up", "Move " + name + " up");
-                  }
-                  if (at < chosen.size() - 1) {
-                    profilesForm(
-                        buttons,
-                        service,
-                        moved(chosen, at, at + 1),
-                        "Down",
-                        "Move " + name + " down");
-                  }
-                  List<String> without =
-                      chosen.stream().filter(other -> !other.equals(name)).toList();
-                  profilesForm(buttons, service, without, "Remove", "Remove " + name);
                 })
                 .__()
                 .__();
           }
         })
         .__()
-        .div()
-        .attrClass("flex flex-wrap gap-2")
-        .of(buttons -> {
-          if (!own) {
-            return;
-          }
-          for (String name : addable) {
-            List<String> with = Stream.concat(chosen.stream(), Stream.of(name)).toList();
-            profilesForm(buttons, service, with, "Add " + name, "Add " + name);
-          }
-          if (profileNames.isEmpty()) {
-            buttons
-                .p()
+        .of(card -> {
+          if (own && addable.isEmpty()) {
+            card.p()
                 .attrClass("text-muted-foreground")
-                .text("This Workstation has no Route Profiles to add.")
+                .text(
+                    profileNames.isEmpty()
+                        ? "This Workstation has no Route Profiles to add."
+                        : "Every Route Profile of this Workstation is in use here.")
                 .__();
           }
         })
-        .__()
         .__();
   }
 
-  /** {@code label} is the button's accessible name, as several buttons share a short text. */
+  /**
+   * One small icon button in its own form. {@code label} is its accessible name, as several buttons
+   * share an icon. {@code variant} is the Basecoat variant of the button.
+   */
   private static void profilesForm(
-      Div<?> buttons, Service service, List<String> profiles, String text, String label) {
-    buttons
+      Div<?> actions,
+      Service service,
+      List<String> profiles,
+      String label,
+      String variant,
+      String... iconPaths) {
+    actions
         .form()
         .addAttr("method", "post")
         .addAttr("action", Layout.attr(path(service) + "/publish"))
@@ -312,10 +306,92 @@ final class ServicePage {
         .button()
         .attrType(EnumTypeButtonType.SUBMIT)
         .attrClass("btn")
-        .addAttr("data-variant", "outline")
-        .addAttr("data-size", "sm")
+        .addAttr("data-variant", variant)
+        .addAttr("data-size", "icon-sm")
         .addAttr("aria-label", Layout.attr(label))
-        .text(text)
+        .addAttr("title", Layout.attr(label))
+        .of(button -> Layout.icon(button.svg(), "size-4", iconPaths))
+        .__()
+        .__();
+  }
+
+  /**
+   * Up, Down and Remove sit in three fixed slots at the right of the row, so each is in the same
+   * place in every row. The first profile has no Up and the last has no Down. Their slots stay
+   * empty.
+   */
+  private static void profileActions(
+      Div<?> row, Service service, List<String> chosen, int at, String name) {
+    row.div()
+        .attrClass("grid shrink-0 grid-cols-[repeat(3,2rem)] gap-1")
+        .of(actions -> {
+          if (at > 0) {
+            profilesForm(
+                actions,
+                service,
+                moved(chosen, at, at - 1),
+                "Move " + name + " up",
+                "outline",
+                "m5 12 7-7 7 7",
+                "M12 19V5");
+          } else {
+            actions.span().addAttr("aria-hidden", "true").__();
+          }
+          if (at < chosen.size() - 1) {
+            profilesForm(
+                actions,
+                service,
+                moved(chosen, at, at + 1),
+                "Move " + name + " down",
+                "outline",
+                "M12 5v14",
+                "m19 12-7 7-7-7");
+          } else {
+            actions.span().addAttr("aria-hidden", "true").__();
+          }
+          List<String> without = chosen.stream().filter(other -> !other.equals(name)).toList();
+          profilesForm(
+              actions,
+              service,
+              without,
+              "Remove " + name,
+              "destructive",
+              "M18 6 6 18",
+              "m6 6 12 12");
+        })
+        .__();
+  }
+
+  /**
+   * The Route Profiles that the Service does not use are in one selector. Each option holds the
+   * whole new list, so the form needs no script.
+   */
+  private static void addProfileForm(
+      Div<?> row, Service service, List<String> chosen, List<String> addable) {
+    row.form()
+        .attrClass("flex flex-wrap items-center gap-2")
+        .addAttr("method", "post")
+        .addAttr("action", Layout.attr(path(service) + "/publish"))
+        .select()
+        .attrClass("select w-auto min-w-48")
+        .attrName("profiles")
+        .addAttr("aria-label", "Route Profile to add")
+        .of(select ->
+            addable.forEach(name ->
+                select
+                    .option()
+                    .attrValue(
+                        Layout.attr(
+                            String.join(
+                                ",", Stream.concat(chosen.stream(), Stream.of(name)).toList())))
+                    .text(name)
+                    .__()))
+        .__()
+        .button()
+        .attrType(EnumTypeButtonType.SUBMIT)
+        .attrClass("btn")
+        .addAttr("data-variant", "outline")
+        .text("Add")
         .__()
         .__();
   }
@@ -379,8 +455,8 @@ final class ServicePage {
     };
   }
 
-  private static void publication(
-      Div<?> div, Workstation workstation, Service service, boolean own) {
+  /** A Remote Service shows its Publication as text. Its Home Workstation has the switches. */
+  private static void publication(Div<?> div, Service service) {
     if (!service.published()) {
       div.p().text("Not published.").__();
       return;
@@ -393,16 +469,17 @@ final class ServicePage {
                 + (yard
                     ? "every Workstation routes it."
                     : "only " + service.workstation() + " routes it."))
-        .__();
-    if (own && yard) {
-      div.p().text("Other Workstations use " + workstation.yardHostname(service.name()) + ".").__();
-    }
-    div.p()
+        .__()
+        .p()
         .attrClass("text-sm text-muted-foreground")
         .text("Access log: " + (service.publication().accessLog() ? "on" : "off"))
         .__();
   }
 
+  /**
+   * The name, state and Test Reachability, then two columns: the hostname, the passing count and
+   * the Home Workstation on the left, the alerts on the right. They stack on a narrow screen.
+   */
   private static void header(Div<?> content, Service service, boolean own) {
     long passing =
         service.instances().stream()
@@ -410,7 +487,7 @@ final class ServicePage {
             .count();
     content
         .div()
-        .attrClass("service-heading space-y-2")
+        .attrClass("service-heading space-y-3")
         .div()
         .attrClass("flex flex-wrap items-center gap-3")
         .h1()
@@ -424,6 +501,10 @@ final class ServicePage {
         .text("Test Reachability")
         .__()
         .__()
+        .div()
+        .attrClass("grid items-start gap-4 lg:grid-cols-2")
+        .div()
+        .attrClass("min-w-0 space-y-2")
         .p()
         .attrClass("text-lg")
         .of(p -> {
@@ -438,6 +519,12 @@ final class ServicePage {
         .attrClass("font-medium")
         .text(passing + " of " + service.instances().size() + " Instances passing")
         .__()
+        .of(facts -> {
+          // An Unpublished Service has no Route, and its state says so already.
+          if (service.published()) {
+            InstanceSourcesCard.routingSummary(facts, service);
+          }
+        })
         .p()
         .attrClass("text-sm text-muted-foreground")
         .text(
@@ -445,6 +532,12 @@ final class ServicePage {
                 + service.workstation()
                 + "."
                 + (own ? "" : " It can be changed only on " + service.workstation() + "."))
+        .__()
+        .__()
+        .div()
+        .attrClass("flex min-w-0 flex-col gap-2 empty:hidden")
+        .of(column -> alerts(column, service))
+        .__()
         .__()
         .__();
   }

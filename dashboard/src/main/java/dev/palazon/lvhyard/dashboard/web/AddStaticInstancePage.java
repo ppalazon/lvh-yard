@@ -30,7 +30,7 @@ final class AddStaticInstancePage {
   }
 
   static void openLink(Element<?, ?> parent, Service service) {
-    FormPage.openLink(parent, spec(service));
+    FormPage.openCardLink(parent, spec(service));
   }
 
   /**

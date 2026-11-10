@@ -80,7 +80,7 @@ class FirstSetupComponentTest extends DashboardComponentTest {
 
     assertThat(page.substring(page.indexOf("<main")))
         .doesNotContain("Core Service")
-        .contains("Unpublish")
+        .contains("Published")
         .contains("Share with the Yard")
         .contains("Instance Priority")
         .contains(">Remove<");

@@ -41,6 +41,18 @@ final class FormPage {
         .__();
   }
 
+  /** A small outline link, for a row of actions in a card. */
+  static void openCardLink(Element<?, ?> parent, Spec spec) {
+    parent
+        .custom("a")
+        .addAttr("href", Layout.attr(spec.path()))
+        .addAttr("class", "btn w-fit")
+        .addAttr("data-variant", "outline")
+        .addAttr("data-size", "sm")
+        .text(spec.title())
+        .__();
+  }
+
   /**
    * The submit button comes before Cancel, so the Enter key in a field sends the form.
    *

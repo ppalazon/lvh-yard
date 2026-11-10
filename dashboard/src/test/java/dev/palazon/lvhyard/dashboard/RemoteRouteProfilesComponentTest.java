@@ -107,7 +107,7 @@ class RemoteRouteProfilesComponentTest extends DashboardComponentTest {
         .contains("1. protected")
         .contains("2. team-login")
         .doesNotContain("aria-label=\"Remove protected\"")
-        .doesNotContain("aria-label=\"Add ");
+        .doesNotContain("aria-label=\"Route Profile to add\"");
   }
 
   @Test

@@ -45,7 +45,7 @@ final class AddAliasPage {
   }
 
   static void openLink(Element<?, ?> parent, Service service) {
-    FormPage.openLink(parent, spec(service));
+    FormPage.openCardLink(parent, spec(service));
   }
 
   /** The Remote Services that a new Alias can name: those with Yard Scope. */

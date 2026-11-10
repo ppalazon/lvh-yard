@@ -80,6 +80,10 @@ public final class Layout {
         .attrDefer(true)
         .__()
         .script()
+        .attrSrc("/switches.js")
+        .attrDefer(true)
+        .__()
+        .script()
         .attrSrc("/webjars/htmx.org/dist/htmx.min.js")
         .__()
         .script()
@@ -213,7 +217,7 @@ public final class Layout {
         .__();
   }
 
-  private static void icon(Svg<?> svg, String classes, String... paths) {
+  static void icon(Svg<?> svg, String classes, String... paths) {
     svg.attrClass(classes)
         .addAttr("viewBox", "0 0 24 24")
         .addAttr("fill", "none")

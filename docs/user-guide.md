@@ -652,7 +652,7 @@ one of two levels:
 
 A Foreign Instance is an Instance that another tool registered straight in
 Consul, for example with `curl` or the `consul` command. LVH Yard shows it and
-routes it as a Static Instance. LVH Yard cannot edit or remove it, so its row
+routes it as a Static Instance. LVH Yard cannot edit or remove it, so its source
 has no Edit or Remove button. A Backup does not hold it. To remove it,
 deregister it from the Consul agent of its Home Workstation. For example, on
 that Workstation, send this request to the Consul HTTP API. The port is the
@@ -677,8 +677,8 @@ for its state.
     risk: The Instance at 127.0.0.1:8080 is on loopback, so other Workstations cannot reach it. ...
 ```
 
-The Service page shows what stops the hostname from working as red alerts under
-the title, one alert for each problem. Each error is one alert. An Unavailable
+The Service page shows what stops the hostname from working as red alerts to the
+right of the hostname, one alert for each problem. Each error is one alert. An Unavailable
 Service also shows "No Instances are registered", and an Unhealthy Service
 shows "No Instance passes its checks".
 
@@ -687,15 +687,21 @@ keep in mind". Click it to read them. When the page refreshes, the box stays
 open or closed as you left it. If you leave the page, the box is
 closed again on your next visit. A Service without risks has no box.
 
-The Service page starts with its name, hostname, state and passing Instance
-count. A Service without a Route on this Workstation has no hostname link.
-The header also names its Home Workstation.
+The Service page starts with its name, state and Test Reachability button.
+Under them, the hostname, the passing Instance count, where the Route goes (a
+published Service only) and the Home Workstation are on the left. A Service
+without a Route on this Workstation has no hostname link. The alerts and the
+risks box are on the right on a wide screen, and
+below the facts on a phone.
 
-The Publication card shows the Scope and access log setting. Route Profiles
-sits beside it on a wide screen and below it on a phone. The Instance Sources
-card follows them at full width. Each card holds its own controls. Delete
-Service is at the bottom of the page. A Remote Service shows the same facts
-and alerts, without controls that change it.
+The Publication card has a switch for each setting: Published, Share with the
+Yard and Show in the access log. A switch changes its setting as soon as you
+flip it. A line under each switch says what the setting does now. The last two
+switches show while the Service is published. Route Profiles
+sits beside the card on a wide screen and below it on a phone. The Instance
+Sources card follows them at full width. Each card holds its own controls.
+Delete Service is at the bottom of the page. A Remote Service shows the same
+facts and alerts, without controls that change it.
 
 ### Instance Priority
 
@@ -754,13 +760,25 @@ The order and the toggle are in the record of the Service, not in its
 Publication. When you unpublish and publish again, they stay.
 
 On the page of the Service, the Instance Sources card lists the sources in
-order, each with its Instances. The Up and Down buttons change the order. They
-hide while the Instance Priority is off. The toggle button turns it off and
-on. The source that the Route uses now has an "In use" mark. The page of a
-Remote Service shows its sources in order, without the buttons.
+order, each with its Instances. The Instance Priority switch turns the order on
+and off, and the buttons that add a source sit beside it. Each source has an up
+and a down icon button at the right of its title. They keep the same place in
+every source. The first source has no up button and the last has no down
+button, and their places stay empty. The icons change the order. They hide while
+the Instance Priority is off. The
+source that the Route uses now has a green "In use" badge. A source that gives
+no Instance, or none that passes, has a red "Unavailable" badge instead. The
+source under the
+pointer gets a highlighted background, so you see which source you change. The
+page of a Remote
+Service shows its sources in order, without the switch, the buttons and the
+highlight.
 
-The Instance Sources card names the source in use, for example "Static Instance
-10.1.2.3:3000", and how many sources wait. While Instance Priority is off, it
+Each source has a short title: a badge for its type (Static, Container, Compose,
+Alias or Foreign), then what tells it apart, then a Port badge for a Container
+Binding. For example, a Compose Binding reads "Compose", "shop / web" and "Port
+80". The header of the page names the source in use in the same way after
+"Routes to:", and says how many sources wait. While Instance Priority is off, it
 shows "Every passing Instance".
 `lvh-yard catalog --details` marks each Instance that the Route uses with
 `routed`.
@@ -923,7 +941,14 @@ Service to open its page.
 
 If the dashboard refuses a save, the page shows the reason and keeps your text
 in the form. The Service page links each Route Profile of a Publication to its
-row on this page.
+row on this page. On the Service page, the Route Profiles card has a selector at
+the right of its title, with the profiles that the Service does not use yet, and
+an **Add** button next to it. Each used profile has three icon buttons at the
+right of its row: up, down and a red cross that removes it. They keep the same
+place in every row. The first profile has no up button and the last has no down
+button, and their places stay empty. The cross takes the profile off the Service
+only. It does not delete the profile. The row under the pointer gets a
+highlighted background, so you see which profile you change.
 
 You can also add, replace and remove Route Profiles through the API of the
 dashboard, under `/api/workstation/route-profiles`:
@@ -1056,22 +1081,22 @@ the Host Port. With no Host Port, the Bound Instance uses the container's own
 address and Container Port. A Bound Instance comes and goes with its container.
 You cannot edit or remove it alone.
 
-The Instance Sources card shows each Instance's address, container, Container
-Port, Host Port and Health. On a phone, these facts stack without sideways
-scrolling. A Bound Instance with no Host Port says "Not published". A Static
-Instance has no container fields.
+Each source on the Instance Sources card has a box with its Instances, such as
+"1 Instance, 1 passing". Open it to read each Instance's address and Health.
+A thick bar at the left of each Instance sets it apart from the next one. Under
+the address, the facts are on the left: container, Container Port, Host Port,
+tags and meta. A Bound Instance with no Host Port says "Not published". A
+Static Instance has no container fields. Its checks are on the right, each with
+its Health and last output. On a phone, the checks go below the facts. The box
+starts open when an Instance does not pass, and closed when every Instance
+passes. It stays open or closed as you left it when the page refreshes. Remote
+Services show the same facts and checks, from their Home Workstation.
 
-Warning and critical checks stay visible under Health. Open "Passing checks" to
-read checks that pass. Each box stays open or closed as you left it when the
-page refreshes. It starts closed when you visit the page again. Remote Services
-show the same facts and checks, from their Home Workstation.
-
-The Container Bindings card of the Service page lists each Binding. Under
-Bound Instances, it gives a count such as "3 containers, 2 passing", then
-each container that the Binding follows now. A Binding with no match says that no
-container runs. The API gives each Bound Instance's `container` and
-`containerPort`. It also gives `hostPort` when the Instance has a Host Port.
-A Static Instance has none of these fields.
+Each Container Binding is one source on the Instance Sources card. Its Remove
+button is at the right of its title, and its Bound Instances are in its box.
+A Binding with no match says that no container runs. The API gives each Bound
+Instance's `container` and `containerPort`. It also gives `hostPort` when the
+Instance has a Host Port. A Static Instance has none of these fields.
 
 The dashboard follows the Docker events at `DOCKER_HOST`. If that is not set,
 it uses `unix:///var/run/docker.sock`. When it starts, or when Docker answers

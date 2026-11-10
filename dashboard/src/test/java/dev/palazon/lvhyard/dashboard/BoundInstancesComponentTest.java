@@ -20,7 +20,7 @@ class BoundInstancesComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void composeBindingSummarizesItsContainersAndKeepsTheirDetailsInTheInstancesCard() {
+  void composeBindingShowsEachContainerInItsInstancesBox() {
     String web = newServiceName("web");
     String project = newComposeProject();
     String firstName = newContainerName();
@@ -34,14 +34,14 @@ class BoundInstancesComponentTest extends DashboardComponentTest {
         .atMost(Duration.ofSeconds(15))
         .untilAsserted(() ->
             assertThat(div(getPage("/services/ws-test/" + web).getBody(), "id=\"sources\""))
-                .contains("3 containers, 2 passing"));
+                .contains("3 Instances, 2 passing"));
 
     String page = getPage("/services/ws-test/" + web).getBody();
 
     assertThat(page)
         .contains("Compose service web of project " + project)
         .contains("Bound to Compose service web of project " + project + ", port 80.");
-    assertThat(div(page, "id=\"sources\"")).contains("3 containers, 2 passing");
+    assertThat(div(page, "id=\"sources\"")).contains("3 Instances, 2 passing");
   }
 
   private static final Duration FOLLOW_TIMEOUT = Duration.ofSeconds(15);

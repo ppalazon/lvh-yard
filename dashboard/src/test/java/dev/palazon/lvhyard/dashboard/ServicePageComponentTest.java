@@ -143,17 +143,42 @@ class ServicePageComponentTest extends DashboardComponentTest {
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
     publish(web);
     String page = "/services/ws-test/" + web;
-    assertThat(getPage(page).getBody()).contains("Show in the access log");
+    assertThat(getPage(page).getBody())
+        .contains("Show in the access log")
+        .contains("name=\"accessLog\" value=\"true\"");
 
     ResponseEntity<String> response = postForm(page + "/publish", Map.of("accessLog", "true"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
-    assertThat(getPage(page).getBody()).contains("Hide from the access log");
+    assertThat(getPage(page).getBody()).contains("name=\"accessLog\" value=\"false\"");
 
     postForm(page + "/publish", Map.of("accessLog", "false"));
 
     assertThat(get(servicePath(web)).getBody().get("publication").get("accessLog").asBoolean())
         .isFalse();
+  }
+
+  @Test
+  void publicationSwitchesShowTheirStateAndPostTheOtherValue() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+    String page = "/services/ws-test/" + web;
+
+    String unpublished = div(getPage(page).getBody(), "id=\"publication\"");
+
+    assertThat(unpublished.split("role=\"switch\"", -1)).hasSize(2);
+    assertThat(unpublished).doesNotContain("checked");
+
+    publish(web);
+    put(publicationPath(web), Map.of("scope", "yard"));
+    String published = div(getPage(page).getBody(), "id=\"publication\"");
+
+    assertThat(published.split("role=\"switch\"", -1)).hasSize(4);
+    // Published and Share with the Yard are on. Show in the access log is off.
+    assertThat(published.split("checked", -1)).hasSize(3);
+    assertThat(published)
+        .contains("name=\"scope\" value=\"local\"")
+        .contains("name=\"accessLog\" value=\"true\"");
   }
 
   @Test
@@ -530,8 +555,10 @@ class ServicePageComponentTest extends DashboardComponentTest {
     String page = getPage("/services/ws-test/" + web).getBody();
 
     assertThat(page)
-        .contains("Container Binding to container " + name)
-        .contains("8080")
+        .contains(">Container</span>")
+        .contains(">" + name + "</span>")
+        .contains(">Port 8080</span>")
+        .contains(">Unavailable</span>")
         .contains("No container of this name runs");
   }
 

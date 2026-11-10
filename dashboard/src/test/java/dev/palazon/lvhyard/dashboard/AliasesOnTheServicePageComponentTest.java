@@ -66,7 +66,8 @@ class AliasesOnTheServicePageComponentTest extends DashboardComponentTest {
     String sources = div(getPage(page(web)).getBody(), "id=\"sources\"");
     assertThat(sources)
         .contains("data-source=\"" + target(grafana) + "\"")
-        .contains("Alias to " + grafana + " on " + RemoteWorkstation.NAME)
+        .contains(">Alias</span>")
+        .contains(">" + grafana + " on " + RemoteWorkstation.NAME + "</span>")
         .contains("href=\"/services/" + target(grafana) + "\"")
         .contains("10.9.8.7:3000")
         .doesNotContain("data-alias-reason");

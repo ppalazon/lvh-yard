@@ -204,9 +204,9 @@ class BindContainerPageComponentTest extends DashboardComponentTest {
     String page = getPage(servicePage(web)).getBody();
 
     assertThat(InstancePriorityComponentTest.sourceItem(page, first + ":80"))
-        .contains("<li>" + first);
+        .contains(">" + first + "</span>");
     assertThat(InstancePriorityComponentTest.sourceItem(page, second + ":80"))
-        .contains("<li>" + second);
+        .contains(">" + second + "</span>");
   }
 
   @Test

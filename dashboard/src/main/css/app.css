@@ -232,8 +232,7 @@
   }
 
   .service-page .card,
-  .service-page #sections,
-  .instance-table-container {
+  .service-page #sections {
     min-width: 0;
     box-shadow: none;
   }
@@ -249,53 +248,24 @@
 
   .service-page a:focus-visible,
   .reachability-page a:focus-visible,
-  .instance-checks summary:focus-visible,
+  .source-instances summary:focus-visible,
+  .service-page input[role="switch"]:focus-visible,
   .service-page #risks summary:focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 3px;
   }
 
-  .instance-table {
-    table-layout: fixed;
-  }
-
-  .instance-table th,
-  .instance-table td {
-    overflow-wrap: anywhere;
-    white-space: normal;
-  }
-
-  .instance-table td {
-    padding-block: 0.75rem;
-    vertical-align: top;
-  }
-
-  .instance-table th:first-child {
-    width: 24%;
-  }
-
-  .instance-table th:nth-child(2) {
-    width: 18%;
-  }
-
-  .instance-table th:nth-child(3),
-  .instance-table th:nth-child(4) {
-    width: 9%;
-  }
-
-  .instance-table th:nth-child(5) {
-    width: 28%;
-  }
-
-  .instance-check {
-    margin-top: 0.75rem;
+  .instance-check-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
   }
 
   .instance-check pre {
     overflow-wrap: anywhere;
   }
 
-  .instance-checks summary {
+  .source-instances summary {
     display: list-item;
     list-style-position: inside;
     list-style-type: disclosure-closed;
@@ -306,52 +276,68 @@
     color: var(--muted-foreground);
   }
 
-  .instance-checks[open] > summary {
+  .source-instances[open] > summary {
     list-style-type: disclosure-open;
   }
 
-  @media (width < 64rem) {
-    .instance-table,
-    .instance-table tbody {
-      display: block;
-      width: 100%;
+  .instance-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 0.5rem;
+  }
+
+  .instance-entry {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-block: 0.25rem;
+    padding-left: 1rem;
+    border-left: 4px solid var(--primary);
+  }
+
+  .instance-body {
+    display: grid;
+    gap: 0.75rem 1.5rem;
+  }
+
+  .instance-body:empty {
+    display: none;
+  }
+
+  @media (width >= 48rem) {
+    .instance-body {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .instance-table thead {
-      @apply sr-only;
+    .instance-check-list {
+      grid-column: 2;
     }
+  }
 
-    .instance-table tbody tr {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr);
-      gap: 0.75rem;
-      padding-block: 1rem;
-    }
+  .instance-facts {
+    display: grid;
+    grid-template-columns: minmax(6rem, max-content) minmax(0, 1fr);
+    gap: 0.25rem 1rem;
+    font-size: 0.875rem;
+  }
 
-    .instance-table td {
-      min-width: 0;
-      padding: 0;
-    }
+  .instance-facts dt {
+    color: var(--muted-foreground);
+  }
 
-    .instance-table td:nth-child(5) {
-      grid-row: 2;
-    }
+  .switch-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
 
-    .instance-table td[data-label] {
-      display: grid;
-      grid-template-columns: minmax(0, 7rem) minmax(0, 1fr);
-      gap: 0.75rem;
-      font-size: 0.875rem;
-    }
+  .switch-form label {
+    cursor: pointer;
+  }
 
-    .instance-table td[data-label]::before {
-      content: attr(data-label);
-      color: var(--muted-foreground);
-    }
-
-    .instance-table td:empty {
-      display: none;
-    }
+  .switch-form p {
+    margin-left: 2.75rem;
   }
 }
 
