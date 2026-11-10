@@ -57,6 +57,7 @@ func NewRoot(options Options, groups ...func(*Options) *cobra.Command) *cobra.Co
 	root.AddCommand(NewInit(&options))
 	root.AddCommand(NewContainers(&options))
 	root.AddCommand(NewPublish(&options), NewUnpublish(&options), NewPriority(&options))
+	root.AddCommand(NewAlias(&options))
 	for _, group := range groups {
 		root.AddCommand(group(&options))
 	}
