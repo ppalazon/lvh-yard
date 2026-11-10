@@ -136,7 +136,8 @@ final class InstanceSourcesCard {
                 .addAttr("data-source", Layout.attr(source.id()))
                 .attrClass(
                     own
-                        ? "flex flex-col gap-2 rounded-lg border p-3 hover:bg-primary/5"
+                        ? "flex flex-col gap-2 rounded-lg border p-3 hover:bg-muted"
+                            + " focus-within:bg-muted"
                         : "flex flex-col gap-2 rounded-lg border p-3")
                 .div()
                 .attrClass("flex flex-wrap items-center gap-2")

@@ -241,7 +241,7 @@ final class ServicePage {
                 .attrClass(
                     own
                         ? "-mx-2 flex items-center justify-between gap-2 rounded-md px-2 py-1"
-                            + " hover:bg-primary/5"
+                            + " hover:bg-muted focus-within:bg-muted"
                         : "flex items-center justify-between gap-2")
                 .span()
                 .attrClass("min-w-0")
