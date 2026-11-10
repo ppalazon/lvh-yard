@@ -18,7 +18,6 @@ import dev.palazon.lvhyard.dashboard.services.Registrations;
 import dev.palazon.lvhyard.dashboard.services.RemoteServiceException;
 import dev.palazon.lvhyard.dashboard.services.Scope;
 import dev.palazon.lvhyard.dashboard.services.Service;
-import dev.palazon.lvhyard.dashboard.services.ServiceExistsException;
 import dev.palazon.lvhyard.dashboard.services.ServiceState;
 import dev.palazon.lvhyard.dashboard.services.Services;
 import dev.palazon.lvhyard.dashboard.services.UnknownAliasException;
@@ -123,22 +122,18 @@ class PagesController {
     return NewServicePage.render(workstation, "", null);
   }
 
-  /** A name that breaks a rule or is in use shows at the name field. */
+  /** A name that breaks a rule shows at the name field. A Service that exists opens its page. */
   @PostMapping(path = NewServicePage.ACTION, produces = MediaType.TEXT_HTML_VALUE)
   ResponseEntity<String> createService(@RequestParam(required = false) String name) {
     String service = name == null ? "" : name.strip();
-    InvalidRegistrationException error;
     try {
       services.create(workstation.name(), service);
       return seeOther(ServicePage.path(workstation.name(), service));
     } catch (InvalidRegistrationException e) {
-      error = e;
-    } catch (ServiceExistsException e) {
-      error = new InvalidRegistrationException("name", e.getMessage());
+      return ResponseEntity.badRequest()
+          .contentType(Layout.HTML)
+          .body(NewServicePage.render(workstation, name, e));
     }
-    return ResponseEntity.badRequest()
-        .contentType(Layout.HTML)
-        .body(NewServicePage.render(workstation, name, error));
   }
 
   @GetMapping(path = "/services/{workstation}/{service}", produces = MediaType.TEXT_HTML_VALUE)

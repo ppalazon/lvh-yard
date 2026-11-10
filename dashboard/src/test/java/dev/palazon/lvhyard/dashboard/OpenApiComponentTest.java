@@ -135,7 +135,6 @@ class OpenApiComponentTest extends DashboardComponentTest {
     assertThat(paths.path(services).path("post").path("operationId").asString())
         .isEqualTo("createService");
     assertThat(answersWithProblem(paths, services, "post", "400")).isTrue();
-    assertThat(answersWithProblem(paths, services, "post", "409")).isTrue();
     assertThat(paths.path(service).path("delete").path("operationId").asString())
         .isEqualTo("deleteService");
     assertThat(answersWithProblem(paths, service, "delete", "404")).isTrue();

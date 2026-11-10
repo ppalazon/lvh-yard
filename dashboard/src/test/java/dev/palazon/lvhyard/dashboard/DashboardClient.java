@@ -300,8 +300,7 @@ abstract class DashboardClient {
    */
   void create(String service) {
     ResponseEntity<JsonNode> response = post(SERVICES_PATH, Map.of("name", service));
-    if (!response.getStatusCode().is2xxSuccessful()
-        && response.getStatusCode() != HttpStatus.CONFLICT) {
+    if (!response.getStatusCode().is2xxSuccessful()) {
       throw new AssertionError("Creating " + service + " answered " + response);
     }
   }

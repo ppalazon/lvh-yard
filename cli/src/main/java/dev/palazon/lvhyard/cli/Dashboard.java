@@ -337,15 +337,19 @@ final class Dashboard {
     return read(attach(request), new TypeReference<>() {});
   }
 
-  /** An empty, Unpublished Service. */
-  Service createService(String service) {
+  /**
+   * An empty, Unpublished Service, unless the Service exists.
+   *
+   * @return {@code true} when it created the Service, {@code false} when the Service existed
+   */
+  boolean createService(String service) {
     HttpRequest.Builder request =
         HttpRequest.newBuilder(url.resolve("api/workstation/services"))
             .header("Content-Type", "application/json")
             .POST(
                 HttpRequest.BodyPublishers.ofString(
                     JSON.writeValueAsString(Map.of("name", service))));
-    return read(send(request), new TypeReference<>() {});
+    return send(request).statusCode() == 201;
   }
 
   void deleteService(String service) {

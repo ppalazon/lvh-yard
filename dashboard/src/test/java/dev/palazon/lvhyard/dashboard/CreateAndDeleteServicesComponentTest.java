@@ -50,15 +50,16 @@ class CreateAndDeleteServicesComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void nameThatThisWorkstationUsesIsRefused() {
+  void createOfAServiceThisWorkstationHasAnswersItAndChangesNothing() {
     String grafana = newServiceName("grafana");
     create(grafana);
     register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
 
     ResponseEntity<JsonNode> response = post(SERVICES_PATH, Map.of("name", grafana));
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-    assertThat(response.getBody().get("detail").asString()).contains(grafana);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody().get("name").asString()).isEqualTo(grafana);
+    assertThat(response.getBody().get("instances")).hasSize(1);
     assertThat(get(servicePath(grafana)).getBody().get("instances")).hasSize(1);
   }
 

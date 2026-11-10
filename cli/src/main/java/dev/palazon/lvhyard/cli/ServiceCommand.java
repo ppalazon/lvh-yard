@@ -25,7 +25,7 @@ class ServiceCommand implements Runnable {
   @Command(
       name = "create",
       mixinStandardHelpOptions = true,
-      description = "Creates an empty, Unpublished Service.")
+      description = "Creates an empty, Unpublished Service, unless it exists.")
   static class Create implements Runnable {
 
     @ParentCommand ServiceCommand parent;
@@ -37,13 +37,15 @@ class ServiceCommand implements Runnable {
 
     @Override
     public void run() {
-      Dashboard.Service created = parent.yard.dashboard().createService(service);
+      boolean created = parent.yard.dashboard().createService(service);
       spec.commandLine()
           .getOut()
           .println(
-              "Created "
-                  + created.name()
-                  + ". It is empty and Unpublished: attach Instances with lvh-yard register.");
+              created
+                  ? "Created "
+                      + service
+                      + ". It is empty and Unpublished: attach Instances with lvh-yard register."
+                  : service + " exists already.");
       spec.commandLine().getOut().flush();
     }
   }

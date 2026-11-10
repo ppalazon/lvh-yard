@@ -399,8 +399,9 @@ paths:
       - workstation-services-controller
     post:
       description: "The new Service is empty and Unpublished. It stays until you delete\
-        \ it. A Service that only Foreign Instances give exists already, so you change\
-        \ it with no create step."
+        \ it. When this Workstation already has a Service of this name, nothing changes\
+        \ and the answer is that Service. That includes a Service that only Foreign\
+        \ Instances give."
       operationId: createService
       requestBody:
         content:
@@ -409,6 +410,12 @@ paths:
               $ref: "#/components/schemas/NewServiceRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Service"
+          description: The Service existed
         "201":
           content:
             application/json:
@@ -421,14 +428,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: The name is not a single DNS label or is consul
-        "409":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-          description: "This Workstation already has a Service of this name, also\
-            \ one that only Foreign Instances give"
-      summary: Creates a Service
+      summary: "Creates a Service, unless it exists"
       tags:
       - workstation-services-controller
   /api/workstation/services/{service}:

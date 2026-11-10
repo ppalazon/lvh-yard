@@ -65,15 +65,14 @@ class CreateAndDeleteServicesPageComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void newServiceFormShowsANameInUseAtItsField() {
+  void newServiceFormOpensThePageOfAServiceThatExists() {
     String grafana = newServiceName("grafana");
     create(grafana);
 
     ResponseEntity<String> response = postForm(CREATE_PATH, Map.of("name", grafana));
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(openingTag(response.getBody(), "name=\"name\"")).contains("aria-invalid=\"true\"");
-    assertThat(response.getBody()).contains("already has a Service " + grafana);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    assertThat(response.getHeaders().getLocation()).hasPath("/services/ws-test/" + grafana);
   }
 
   @Test

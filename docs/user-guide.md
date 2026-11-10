@@ -228,7 +228,7 @@ lvh-yard catalog --workstation ws-b          # one Workstation
 lvh-yard catalog --state degraded            # one Service state
 lvh-yard catalog --details                  # Instance addresses, Health, IDs and Service Warnings
 lvh-yard catalog --details --workstation ws-b --state degraded
-lvh-yard service create web                 # an empty, Unpublished Service
+lvh-yard service create web                 # an empty, Unpublished Service, unless it exists
 lvh-yard service delete web                 # with its Publication, Static Instances and Container Bindings
 lvh-yard register static web --port 8080    # at this Workstation's LAN address
 lvh-yard register static web --host 127.0.0.1 --port 8080
@@ -591,9 +591,12 @@ You create a Service with a name, and it stays until you delete it. A new
 Service is empty and Unpublished, so nothing gets a hostname by mistake. To
 create one, click "New Service" in the catalog, give the name and click
 Create. The page of the new Service opens. You can also run
-`lvh-yard service create <name>`. A name that this Workstation already uses is
-refused, also the name of a Service that only Foreign Instances give. The catalog marks a Service with no Instances and no Container
-Bindings as Empty.
+`lvh-yard service create <name>`. Creating is safe to repeat. If this
+Workstation already has a Service of that name, also one that only Foreign
+Instances give, nothing changes: the page of the Service opens, and the command
+prints `<name> exists already.` and succeeds. The API answers `201` for a new
+Service and `200` for one that exists. The catalog marks a Service with no
+Instances and no Container Bindings as Empty.
 
 Static Instances and Container Bindings attach to a Service that exists. A
 Static Instance or a Container Binding for a missing Service is refused, and

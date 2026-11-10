@@ -284,7 +284,6 @@ final class RemoteWorkstation implements AutoCloseable {
         .contentType(MediaType.APPLICATION_JSON)
         .body(Map.of("name", service))
         .retrieve()
-        .onStatus(status -> status.value() == HttpStatus.CONFLICT.value(), (request, answer) -> {})
         .toBodilessEntity();
   }
 

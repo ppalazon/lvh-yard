@@ -44,13 +44,14 @@ class ForeignOnlyServiceComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void itsNameIsRefusedAsANewService() {
+  void createAnswersItAsAServiceThatExistsAndWritesNoRecord() {
     String grafana = foreignOnly("grafana");
 
     ResponseEntity<JsonNode> response = post(SERVICES_PATH, Map.of("name", grafana));
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-    assertThat(response.getBody().get("detail").asString()).contains(grafana);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody().get("name").asString()).isEqualTo(grafana);
+    assertThat(response.getBody().get("created").asBoolean()).isFalse();
   }
 
   @Test

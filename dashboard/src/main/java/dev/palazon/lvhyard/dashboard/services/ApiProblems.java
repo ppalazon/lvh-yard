@@ -85,11 +85,6 @@ class ApiProblems extends ResponseEntityExceptionHandler {
   }
 
   @ExceptionHandler
-  ProblemDetail serviceExists(ServiceExistsException exception) {
-    return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
-  }
-
-  @ExceptionHandler
   ProblemDetail unknownService(UnknownServiceException exception) {
     ProblemDetail problem =
         ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());

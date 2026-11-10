@@ -31,18 +31,19 @@ public class Services {
   }
 
   /**
-   * An empty, Unpublished Service.
+   * An empty, Unpublished Service. A Service that this Workstation already has stays as it is, also
+   * one that only Foreign Instances give.
    *
-   * @throws ServiceExistsException when this Workstation already has a Service of this name, also
-   *     one that only Foreign Instances give
+   * @return {@code true} when it created the Service, {@code false} when the Service existed
    */
-  public void create(String workstation, String service) {
+  public boolean create(String workstation, String service) {
     checkHome(workstation);
     Registrations.checkName(service);
     if (records.serviceExists(service)) {
-      throw new ServiceExistsException(service);
+      return false;
     }
     records.put(service);
+    return true;
   }
 
   /**

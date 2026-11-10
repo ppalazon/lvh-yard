@@ -32,20 +32,20 @@ class ServiceCommandTest extends YardTestSupport {
   }
 
   @Test
-  void serviceCreateOfANameInUseSaysSo() {
+  void serviceCreateOfAServiceThatExistsSucceedsAndSaysSo() {
     dashboard.answer(
         "POST",
         "/api/workstation/services",
-        409,
+        200,
         """
-        {"type": "about:blank", "title": "Conflict", "status": 409,
-         "detail": "This Workstation already has a Service web."}
+        {"workstation": "ws-a", "name": "web", "state": "healthy", "created": true,
+         "empty": false, "sources": [], "instancePriority": true, "instances": [], "containerBindings": [], "warnings": []}
         """);
 
     Run run = yard("service", "create", "web");
 
-    assertThat(run.exitCode()).isNotZero();
-    assertThat(run.err()).isEqualTo("This Workstation already has a Service web.\n");
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).isEqualTo("web exists already.\n");
   }
 
   @Test

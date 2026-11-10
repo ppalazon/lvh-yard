@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -70,25 +71,23 @@ class WorkstationServicesController {
   }
 
   @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-  @ResponseStatus(HttpStatus.CREATED)
   @Operation(
       operationId = "createService",
-      summary = "Creates a Service",
+      summary = "Creates a Service, unless it exists",
       description =
-          "The new Service is empty and Unpublished. It stays until you delete it. A Service"
-              + " that only Foreign Instances give exists already, so you change it with no"
-              + " create step.")
+          "The new Service is empty and Unpublished. It stays until you delete it. When this"
+              + " Workstation already has a Service of this name, nothing changes and the answer"
+              + " is that Service. That includes a Service that only Foreign Instances give.")
+  @ApiResponse(
+      responseCode = "200",
+      description = "The Service existed",
+      useReturnTypeSchema = true)
   @ApiResponse(responseCode = "201", description = "Created", useReturnTypeSchema = true)
   @ApiResponse(responseCode = "400", description = Registrations.INVALID_NAME)
-  @ApiResponse(
-      responseCode = "409",
-      description =
-          "This Workstation already has a Service of this name, also one that only Foreign"
-              + " Instances give")
-  Service create(@RequestBody NewServiceRequest request) {
+  ResponseEntity<Service> create(@RequestBody NewServiceRequest request) {
     String name = request.name() == null ? "" : request.name().strip();
-    services.create(workstation.name(), name);
-    return service(name);
+    boolean created = services.create(workstation.name(), name);
+    return ResponseEntity.status(created ? HttpStatus.CREATED : HttpStatus.OK).body(service(name));
   }
 
   @DeleteMapping("/{service}")
