@@ -18,6 +18,12 @@ Catalog, Route Profiles, Backups and Status pages, and it highlights the
 current page. The header names Consul, Traefik and Docker with their Status.
 On a phone, it shows their worst Status. Open the summary to see the details.
 
+Every page works with the keyboard. The first Tab on a page shows a "Skip to the
+main content" link, which moves past the header. Each control shows a ring when
+it has focus. The Container field of the bind form is a list: Down and Up mark
+an entry, Enter picks it, and Escape closes the list. The pages keep a contrast
+of at least 4.5 to 1 for text in both themes.
+
 The Status page shows one box for each of Consul, Traefik and Docker. Each box
 gives the state and the reason. Its Technical details list the facts behind the
 state. When a part is not OK, its details start open. When a part is OK, they

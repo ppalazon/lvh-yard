@@ -22,7 +22,8 @@
   --muted-foreground: oklch(0.551 0.0234 264.3637);
   --accent: oklch(0.9869 0.0214 95.2774);
   --accent-foreground: oklch(0.4732 0.1247 46.2007);
-  --destructive: oklch(0.6368 0.2078 25.3313);
+  /* Dark red text on the light red tint of a destructive button or badge, at least 4.5 to 1. */
+  --destructive: oklch(0.505 0.213 27.518);
   --border: oklch(0.9276 0.0058 264.5313);
   --input: oklch(0.9276 0.0058 264.5313);
   --ring: oklch(0.7686 0.1647 70.0804);
@@ -40,7 +41,7 @@
   --sidebar-border: oklch(0.9276 0.0058 264.5313);
   --sidebar-ring: oklch(0.7686 0.1647 70.0804);
   /* Orange, apart from the amber of the buttons, so that a risk does not look like a button. */
-  --risk: oklch(0.553 0.195 38.402);
+  --risk: oklch(0.52 0.195 38.402);
 }
 
 .dark {
@@ -58,7 +59,8 @@
   --muted-foreground: oklch(0.7155 0 0);
   --accent: oklch(0.4732 0.1247 46.2007);
   --accent-foreground: oklch(0.9243 0.1151 95.7459);
-  --destructive: oklch(0.6368 0.2078 25.3313);
+  /* Light red text on the dark red tint of a destructive button or badge, at least 4.5 to 1. */
+  --destructive: oklch(0.78 0.13 20);
   --border: oklch(0.3715 0 0);
   --input: oklch(0.3715 0 0);
   --ring: oklch(0.7686 0.1647 70.0804);
@@ -113,7 +115,7 @@
 /* Basecoat has no green badge. Good states use this one, with the same green in the light and the dark theme. */
 @layer components {
   .badge[data-variant="success"] {
-    @apply bg-green-600 text-white;
+    @apply bg-green-700 text-white;
   }
 
   .badge[data-variant="risk"] {

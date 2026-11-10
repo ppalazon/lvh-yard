@@ -51,6 +51,16 @@ class NavigationBarComponentTest extends DashboardComponentTest {
         .doesNotContain("aria-current");
   }
 
+  @Test
+  void skipLinkComesBeforeTheMenuAndNamesTheMainElement() {
+    String page = getPage("/").getBody();
+
+    int skip = page.indexOf("href=\"#main\"");
+    assertThat(skip).as("the skip link").isNotNegative();
+    assertThat(skip).isLessThan(page.indexOf("<nav aria-label=\"Main\""));
+    assertThat(page).contains("<main id=\"main\"");
+  }
+
   /** The address of the one link that has {@code aria-current="page"}. */
   private String currentLinkOf(String path) {
     String nav = navOf(getPage(path).getBody());

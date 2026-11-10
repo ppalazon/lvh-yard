@@ -94,6 +94,14 @@ public final class Layout {
         .body()
         .addAttr("hx-ext", "sse")
         .addAttr("hx-sse:connect", "/events")
+        .a()
+        .attrHref("#main")
+        .attrClass(
+            "sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-2 focus:z-50"
+                + " focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:shadow-md"
+                + " focus:ring-2 focus:ring-ring")
+        .text("Skip to the main content")
+        .__()
         .header()
         .attrClass("yard-header border-b")
         .div()
@@ -112,7 +120,9 @@ public final class Layout {
         .__()
         .__()
         .main()
-        .attrClass("mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8")
+        .attrId("main")
+        .addAttr("tabindex", "-1")
+        .attrClass("mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 focus:outline-none")
         .of(main -> content.accept(main))
         .__()
         .__()

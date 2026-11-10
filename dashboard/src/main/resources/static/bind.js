@@ -10,10 +10,18 @@ for (const form of document.querySelectorAll("[data-bind-form]")) {
 
   const visible = () => options.filter((option) => !option.hidden);
 
+  // Each option has an id, so aria-activedescendant on the field can name the marked option.
+  options.forEach((option, index) => {
+    option.id = `${listbox.id}-${index}`;
+  });
+
   const show = (open) => {
     const hasOptions = visible().length > 0;
     listbox.hidden = !(open && hasOptions);
     input.setAttribute("aria-expanded", String(!listbox.hidden));
+    if (listbox.hidden) {
+      input.removeAttribute("aria-activedescendant");
+    }
   };
 
   const filter = () => {
@@ -55,6 +63,9 @@ for (const form of document.querySelectorAll("[data-bind-form]")) {
     if (active >= 0) {
       shown[active].setAttribute("aria-selected", "true");
       shown[active].scrollIntoView({ block: "nearest" });
+      input.setAttribute("aria-activedescendant", shown[active].id);
+    } else {
+      input.removeAttribute("aria-activedescendant");
     }
   };
 
@@ -88,6 +99,7 @@ for (const form of document.querySelectorAll("[data-bind-form]")) {
       event.preventDefault();
       pick(visible()[active]);
     } else if (event.key === "Escape") {
+      mark(-1);
       show(false);
     }
   });
