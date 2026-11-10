@@ -109,6 +109,14 @@ func printCatalogDetails(out io.Writer, service client.Service) {
 		hostname = " at " + service.Hostname
 	}
 	fmt.Fprintf(out, "  %s: %s%s\n", service.Name, service.State, hostname)
+	if len(service.Sources) > 0 {
+		priority := "off"
+		if service.InstancePriority {
+			priority = "on"
+		}
+		fmt.Fprintf(out, "    Instance Priority: %s\n", priority)
+		printPrioritySources(out, service, "      ")
+	}
 	for _, instance := range service.Instances {
 		marks := ""
 		if service.Routing != nil && slices.Contains(service.Routing.Instances, instance.ID) {

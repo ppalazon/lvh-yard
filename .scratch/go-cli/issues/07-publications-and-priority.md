@@ -1,6 +1,6 @@
 # 07: Publications and Instance Priority
 
-Status: ready-for-agent
+Status: done
 
 Blocked by: 05
 
