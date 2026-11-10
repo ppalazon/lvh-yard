@@ -72,7 +72,7 @@ section(
   learnings
     .map((learning) => [
       learning,
-      learning.touches.filter((path) => !existsSync(path)),
+      learning.touches.filter((path) => !existsSync(path.split("#")[0])),
     ])
     .filter(([, missing]) => missing.length)
     .map(([learning, missing]) => `${learning.name}: ${missing.join(", ")}`),
