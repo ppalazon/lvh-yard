@@ -513,7 +513,8 @@ paths:
         \ the Alias stays when the Remote Service loses Yard Scope or its Workstation\
         \ stops answering, and it then gives no Instances. Only this Workstation's\
         \ Route uses its Aliases. With create, a missing Service is created and published\
-        \ with Local Scope."
+        \ with Local Scope. When the Service has the Alias already, nothing changes\
+        \ and the answer is that Alias."
       operationId: addAlias
       parameters:
       - in: path
@@ -528,6 +529,12 @@ paths:
               $ref: "#/components/schemas/AliasRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddedAlias"
+          description: The Service had the Alias already. aliasCreated is false
         "201":
           content:
             application/json:
@@ -551,13 +558,7 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
           description: "This Workstation has no Service of this name, and create is\
             \ not true"
-        "409":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-          description: The Service already has an Alias to this Remote Service
-      summary: Adds an Alias to a Remote Service
+      summary: "Adds an Alias to a Remote Service, unless the Service has it"
       tags:
       - workstation-services-controller
   /api/workstation/services/{service}/aliases/{workstation}/{remoteService}:
@@ -965,6 +966,8 @@ components:
     AddedAlias:
       type: object
       properties:
+        aliasCreated:
+          type: boolean
         id:
           type: string
         reason:
@@ -984,6 +987,7 @@ components:
         workstation:
           type: string
       required:
+      - aliasCreated
       - id
       - service
       - serviceCreated

@@ -107,7 +107,7 @@ class OpenApiComponentTest extends DashboardComponentTest {
                 paths, "/api/workstation/services/{service}/publication", "delete", "404"))
         .isTrue();
     String aliases = "/api/workstation/services/{service}/aliases";
-    for (String status : new String[] {"400", "404", "409"}) {
+    for (String status : new String[] {"400", "404"}) {
       assertThat(answersWithProblem(paths, aliases, "post", status)).as(status).isTrue();
     }
     assertThat(

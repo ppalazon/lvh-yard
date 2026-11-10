@@ -112,7 +112,7 @@ class AliasButtonInTheCatalogComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void refusalsShowTheFormAgainWithTheReasonAtTheirField() {
+  void aliasThatTheServiceHasOpensItsInstanceSourcesAndRefusalsShowAtTheirField() {
     String grafana = remoteService("grafana", "yard");
     String web = newServiceName("web");
     postForm(action(grafana), Map.of("name", web));
@@ -128,8 +128,10 @@ class AliasButtonInTheCatalogComponentTest extends DashboardComponentTest {
         .contains("<h1>Add Alias</h1>")
         .contains("id=\"name-error\"")
         .contains("value=\"Web_1\"");
-    assertThat(again.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(again.getBody()).contains("id=\"name-error\"").contains("already has an Alias");
+    assertThat(again.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    assertThat(again.getHeaders().getLocation())
+        .hasPath("/services/" + WORKSTATION + "/" + web)
+        .hasFragment("sources");
     assertThat(notShared.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(notShared.getBody()).contains("id=\"target-error\"").contains("Local Scope");
     assertThat(get(servicePath(other)).getStatusCode())

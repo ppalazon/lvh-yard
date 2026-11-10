@@ -240,16 +240,20 @@ class WorkstationServicesController {
   }
 
   @PostMapping(path = "/{service}/aliases", consumes = MediaType.APPLICATION_JSON_VALUE)
-  @ResponseStatus(HttpStatus.CREATED)
   @Operation(
       operationId = "addAlias",
-      summary = "Adds an Alias to a Remote Service",
+      summary = "Adds an Alias to a Remote Service, unless the Service has it",
       description =
           "The Alias goes to the end of the order, and gives the Instances of the Remote Service."
               + " The Remote Service must have Yard Scope now. Later, the Alias stays when the"
               + " Remote Service loses Yard Scope or its Workstation stops answering, and it then"
               + " gives no Instances. Only this Workstation's Route uses its Aliases. With create,"
-              + " a missing Service is created and published with Local Scope.")
+              + " a missing Service is created and published with Local Scope. When the Service has"
+              + " the Alias already, nothing changes and the answer is that Alias.")
+  @ApiResponse(
+      responseCode = "200",
+      description = "The Service had the Alias already. aliasCreated is false",
+      useReturnTypeSchema = true)
   @ApiResponse(
       responseCode = "201",
       description =
@@ -266,12 +270,16 @@ class WorkstationServicesController {
   @ApiResponse(
       responseCode = "404",
       description = "This Workstation has no Service of this name, and create is not true")
-  @ApiResponse(
-      responseCode = "409",
-      description = "The Service already has an Alias to this Remote Service")
-  AddedAlias addAlias(@PathVariable String service, @RequestBody AliasRequest request) {
-    return aliases.add(
-        service, request.workstation(), request.service(), Boolean.TRUE.equals(request.create()));
+  ResponseEntity<AddedAlias> addAlias(
+      @PathVariable String service, @RequestBody AliasRequest request) {
+    AddedAlias added =
+        aliases.add(
+            service,
+            request.workstation(),
+            request.service(),
+            Boolean.TRUE.equals(request.create()));
+    return ResponseEntity.status(added.aliasCreated() ? HttpStatus.CREATED : HttpStatus.OK)
+        .body(added);
   }
 
   @DeleteMapping("/{service}/aliases/{workstation}/{remoteService}")

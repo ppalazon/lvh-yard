@@ -15,7 +15,7 @@ class AliasTest extends YardTestSupport {
         201,
         """
         {"id": "ws-b/grafana", "workstation": "ws-b", "service": "grafana", "state": "active",
-         "serviceCreated": false}
+         "serviceCreated": false, "aliasCreated": true}
         """);
 
     Run run = yard("alias", "add", "web", "--workstation", "ws-b", "--service", "grafana");
@@ -41,7 +41,7 @@ class AliasTest extends YardTestSupport {
         """
         {"id": "ws-b/grafana", "workstation": "ws-b", "service": "grafana",
          "state": "unavailable", "reason": "grafana has no Instance this Workstation can reach.",
-         "serviceCreated": false}
+         "serviceCreated": false, "aliasCreated": true}
         """);
 
     Run run = yard("alias", "add", "web", "--workstation", "ws-b", "--service", "grafana");
@@ -65,20 +65,41 @@ class AliasTest extends YardTestSupport {
   }
 
   @Test
+  void aliasAddOfAnAliasTheServiceHasSucceedsAndSaysSo() {
+    dashboard.answer(
+        "POST",
+        "/api/workstation/services/web/aliases",
+        200,
+        """
+        {"id": "ws-b/grafana", "workstation": "ws-b", "service": "grafana", "state": "active",
+         "serviceCreated": false, "aliasCreated": false}
+        """);
+
+    Run run = yard("alias", "add", "web", "--workstation", "ws-b", "--service", "grafana");
+
+    assertThat(run.exitCode()).isZero();
+    assertThat(run.out()).isEqualTo("Service web has the Alias to grafana on ws-b already.\n");
+    assertThat(run.err()).isEmpty();
+  }
+
+  @Test
   void aliasAddThatIsRefusedPrintsTheReason() {
     dashboard.answer(
         "POST",
         "/api/workstation/services/web/aliases",
-        409,
+        400,
         """
-        {"type": "about:blank", "title": "Conflict", "status": 409,
-         "detail": "web already has an Alias to ws-b/grafana."}
+        {"type": "about:blank", "title": "Bad Request", "status": 400, "field": "service",
+         "detail": "ws-b has not published grafana. Only a Remote Service with Yard Scope can be the target of an Alias."}
         """);
 
     Run run = yard("alias", "add", "web", "--workstation", "ws-b", "--service", "grafana");
 
     assertThat(run.exitCode()).isEqualTo(1);
-    assertThat(run.err()).isEqualTo("web already has an Alias to ws-b/grafana.\n");
+    assertThat(run.err())
+        .isEqualTo(
+            "ws-b has not published grafana. Only a Remote Service with Yard Scope can be the"
+                + " target of an Alias.\n");
   }
 
   @Test
@@ -89,7 +110,7 @@ class AliasTest extends YardTestSupport {
         201,
         """
         {"id": "ws-b/grafana", "workstation": "ws-b", "service": "grafana", "state": "active",
-         "serviceCreated": true}
+         "serviceCreated": true, "aliasCreated": true}
         """);
 
     Run run = yard("alias", "add", "dash", "--workstation", "ws-b", "--service", "grafana");

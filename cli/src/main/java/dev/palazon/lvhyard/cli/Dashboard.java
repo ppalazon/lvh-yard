@@ -171,14 +171,18 @@ final class Dashboard {
    */
   record Alias(String id, String workstation, String service, String state, String reason) {}
 
-  /** {@code serviceCreated} is false when the Alias joined an existing Service. */
+  /**
+   * {@code serviceCreated} is false when the Alias joined an existing Service. {@code aliasCreated}
+   * is false when the Service had the Alias already.
+   */
   record AddedAlias(
       String id,
       String workstation,
       String service,
       String state,
       String reason,
-      boolean serviceCreated) {}
+      boolean serviceCreated,
+      boolean aliasCreated) {}
 
   record Publication(String scope, boolean accessLog) {}
 

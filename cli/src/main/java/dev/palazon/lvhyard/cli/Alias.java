@@ -48,7 +48,8 @@ class Alias implements Runnable {
       name = "add",
       mixinStandardHelpOptions = true,
       description = {
-        "Adds an Alias to a Remote Service with Yard Scope, at the end of the order.",
+        "Adds an Alias to a Remote Service with Yard Scope, at the end of the order, unless the"
+            + " Service has it.",
         "If the Service does not exist, creates it and publishes it with Local Scope."
       })
   static class Add implements Runnable {
@@ -69,13 +70,15 @@ class Alias implements Runnable {
       String remote = added.service() + " on " + added.workstation();
       PrintWriter out = spec.commandLine().getOut();
       out.println(
-          added.serviceCreated()
-              ? "Created Service "
-                  + service
-                  + " with Local Scope and added the Alias to "
-                  + remote
-                  + "."
-              : "Added the Alias to " + remote + " to the existing Service " + service + ".");
+          !added.aliasCreated()
+              ? "Service " + service + " has the Alias to " + remote + " already."
+              : added.serviceCreated()
+                  ? "Created Service "
+                      + service
+                      + " with Local Scope and added the Alias to "
+                      + remote
+                      + "."
+                  : "Added the Alias to " + remote + " to the existing Service " + service + ".");
       out.flush();
       if (added.reason() != null) {
         spec.commandLine().getErr().println("Warning: " + added.reason());

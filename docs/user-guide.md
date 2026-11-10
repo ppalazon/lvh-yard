@@ -887,13 +887,17 @@ lvh-yard alias remove web --workstation ws-b --service web
 ```text
 Added the Alias to web on ws-b to the existing Service web.
 Created Service web with Local Scope and added the Alias to web on ws-b.
+Service web has the Alias to web on ws-b already.
 ```
+
+Adding an Alias that the Service has already is safe to repeat. Nothing
+changes, the Alias keeps its place in the order, and the command succeeds. The
+form opens the page of the Service.
 
 The dashboard refuses a new Alias in these cases:
 
 - The Service does not exist, on the Service page or in the API without
   `create`.
-- The Service already has an Alias to this Remote Service.
 - The Remote Service is on this Workstation.
 - The Remote Service is not there with Yard Scope now, or its Workstation does
   not answer.
@@ -915,9 +919,10 @@ These are the states of an Alias, which `lvh-yard alias list` and
 
 `POST /api/workstation/services/{service}/aliases` with `workstation` and
 `service` adds an Alias. With `"create": true`, a missing Service is created
-and published with Local Scope. The answer is the Alias, and its
-`serviceCreated` field is `true` when the Service was created, or `false` when
-the Alias joined an existing Service. `DELETE
+and published with Local Scope. The answer is the Alias. Its `serviceCreated`
+field is `true` when the Service was created, or `false` when the Alias joined
+an existing Service. Its `aliasCreated` field is `false`, with status `200`
+instead of `201`, when the Service had the Alias already. `DELETE
 /api/workstation/services/{service}/aliases/{workstation}/{remoteService}` removes
 one. The ID of an Alias source is `<workstation>/<service>` of its Remote
 Service.

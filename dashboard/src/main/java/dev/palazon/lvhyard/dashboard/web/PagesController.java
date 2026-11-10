@@ -4,7 +4,6 @@ import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.profiles.RouteProfiles;
 import dev.palazon.lvhyard.dashboard.reachability.ReachabilityTester;
 import dev.palazon.lvhyard.dashboard.services.Alias;
-import dev.palazon.lvhyard.dashboard.services.AliasExistsException;
 import dev.palazon.lvhyard.dashboard.services.AliasTarget;
 import dev.palazon.lvhyard.dashboard.services.Aliases;
 import dev.palazon.lvhyard.dashboard.services.ContainerBindings;
@@ -423,7 +422,7 @@ class PagesController {
     try {
       aliases.add(service, parsed.workstation(), parsed.service(), false);
       return seeOther(ServicePage.path(found));
-    } catch (InvalidRegistrationException | AliasExistsException e) {
+    } catch (InvalidRegistrationException e) {
       error = new InvalidRegistrationException(AddAliasPage.TARGET, e.getMessage());
     } catch (UnknownServiceException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
@@ -471,8 +470,6 @@ class PagesController {
           e.field().equals("name")
               ? e
               : new InvalidRegistrationException(AliasRemoteServicePage.TARGET, e.getMessage());
-    } catch (AliasExistsException e) {
-      error = new InvalidRegistrationException(AliasRemoteServicePage.NAME, e.getMessage());
     }
     return ResponseEntity.badRequest()
         .contentType(Layout.HTML)

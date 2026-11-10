@@ -37,7 +37,8 @@ public class Aliases {
   /**
    * Adds an Alias at the end of {@code service}'s order. Its Remote Service must have Yard Scope
    * now. Later, the Alias stays when its Remote Service loses Yard Scope or its Workstation stops
-   * answering. An existing Service keeps its Publication.
+   * answering. An existing Service keeps its Publication. When the Service has the Alias already,
+   * nothing changes and the answer is that Alias with its state now.
    *
    * @param create when this Workstation has no Service {@code service}, true creates it and
    *     publishes it with Local Scope, so that its hostname works at once. It is created only after
@@ -46,7 +47,6 @@ public class Aliases {
    *     one, or the Remote Service is not there with Yard Scope now
    * @throws UnknownServiceException when this Workstation has no Service {@code service} and {@code
    *     create} is false
-   * @throws AliasExistsException when {@code service} already has an Alias to this Remote Service
    */
   public AddedAlias add(String service, String home, String remoteService, boolean create) {
     Registrations.checkName(service);
@@ -60,7 +60,7 @@ public class Aliases {
       throw new UnknownServiceException(service);
     }
     if (record.isPresent() && record.get().aliases().contains(id)) {
-      throw new AliasExistsException(service, id);
+      return new AddedAlias(alias(home, remoteService), false, false);
     }
     Alias target = alias(home, remoteService);
     if (!target.active() && target.state() != Alias.State.UNAVAILABLE) {
@@ -79,7 +79,7 @@ public class Aliases {
       records.ensure(service);
     }
     records.addAlias(service, id);
-    return new AddedAlias(target, missing);
+    return new AddedAlias(target, missing, true);
   }
 
   /**

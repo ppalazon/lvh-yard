@@ -78,7 +78,7 @@ class AliasesOnTheServicePageComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void refusedAliasShowsTheFormAgainWithTheReasonAtItsField() {
+  void aliasThatTheServiceHasOpensItsPageAndRefusalsShowAtTheirField() {
     String grafana = sharedRemoteService("grafana");
     String web = newServiceName("web");
     create(web);
@@ -89,13 +89,14 @@ class AliasesOnTheServicePageComponentTest extends DashboardComponentTest {
     ResponseEntity<String> own =
         postForm(page(web) + "/aliases", Map.of("target", WORKSTATION + "/" + web));
 
-    assertThat(again.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(again.getBody())
+    assertThat(again.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    assertThat(again.getHeaders().getLocation()).hasPath(page(web));
+    assertThat(get(servicePath(web)).getBody().get("sources")).hasSize(1);
+    assertThat(own.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(own.getBody())
         .contains("<h1>Add Alias</h1>")
         .contains("id=\"target-error\"")
-        .contains("already has an Alias");
-    assertThat(own.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(own.getBody()).contains("id=\"target-error\"").contains("this Workstation");
+        .contains("this Workstation");
   }
 
   @Test

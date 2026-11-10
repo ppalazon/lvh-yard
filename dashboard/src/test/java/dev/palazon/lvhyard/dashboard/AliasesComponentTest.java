@@ -102,16 +102,20 @@ class AliasesComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void secondAliasToTheSameRemoteServiceIsRefused() {
+  void secondAliasToTheSameRemoteServiceAnswersTheAliasAndChangesNothing() {
     String grafana = sharedRemoteService("grafana");
     String web = newServiceName("web");
     create(web);
-    addAlias(web, grafana);
+    ResponseEntity<JsonNode> first = addAlias(web, grafana);
 
     ResponseEntity<JsonNode> again = addAlias(web, grafana);
 
-    assertThat(again.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-    assertThat(again.getBody().get("detail").asString()).contains(grafana);
+    assertThat(first.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(first.getBody().get("aliasCreated").asBoolean()).isTrue();
+    assertThat(again.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(again.getBody().get("aliasCreated").asBoolean()).isFalse();
+    assertThat(again.getBody().get("id").asString())
+        .isEqualTo(RemoteWorkstation.NAME + "/" + grafana);
     assertThat(get(aliasesPath(web)).getBody().size()).isEqualTo(1);
   }
 
