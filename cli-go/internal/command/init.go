@@ -45,8 +45,11 @@ func NewInit(options *Options) *cobra.Command {
 			if !cmd.Flags().Changed("dir") {
 				folder = options.WorkstationFolder()
 			}
-			if flags.upgrade || flags.reinit {
-				return fmt.Errorf("this build does not support --upgrade or --reinit")
+			if flags.upgrade {
+				return upgradeInit(options, folder, cmd.OutOrStdout())
+			}
+			if flags.reinit {
+				return fmt.Errorf("this build does not support --reinit")
 			}
 			return flags.create(cmd, options, folder)
 		},
