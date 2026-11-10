@@ -674,21 +674,15 @@ keep in mind". Click it to read them. When the page refreshes, the box stays
 open or closed as you left it. If you leave the page, the box is
 closed again on your next visit. A Service without risks has no box.
 
-Under the alerts, a row of cards shows the Service at a glance:
+The Service page starts with its name, hostname, state and passing Instance
+count. A Service without a Route on this Workstation has no hostname link.
+The header also names its Home Workstation.
 
-- State: Healthy, Degraded, Unhealthy, Unavailable or Unpublished.
-- Publication: the hostname, the Scope and the access log, or "Not published".
-- Passing Instances: the Instances that pass their checks, out of all
-  Instances, for example "1 of 2".
-- Routes to: the Instance Source that the Route uses now. See
-  [Instance Priority](#instance-priority).
-
-Under them are the Publication, Instance Sources and Route Profiles cards, then
-the Reachability test and the Delete Service button, in this order.
-Each card holds the buttons that change it. On a wide screen the Publication
-and Route Profiles cards sit in two columns, and on a phone in one. The
-Instance Sources card and the Reachability test are at full width. The page of a Remote Service
-shows the same cards and alerts, without the buttons that change it.
+The Publication card shows the Scope and access log setting. Route Profiles
+sits beside it on a wide screen and below it on a phone. The Instance Sources
+card follows them at full width. Each card holds its own controls. Delete
+Service is at the bottom of the page. A Remote Service shows the same facts
+and alerts, without controls that change it.
 
 ### Instance Priority
 
@@ -752,9 +746,9 @@ hide while the Instance Priority is off. The toggle button turns it off and
 on. The source that the Route uses now has an "In use" mark. The page of a
 Remote Service shows its sources in order, without the buttons.
 
-The "Routes to" card of the Service page names the source in use, for example
-"Static Instance 10.1.2.3:3000", and how many sources wait. While the Instance
-Priority is off, it shows "Every passing Instance" and "Instance Priority off".
+The Instance Sources card names the source in use, for example "Static Instance
+10.1.2.3:3000", and how many sources wait. While Instance Priority is off, it
+shows "Every passing Instance".
 `lvh-yard catalog --details` marks each Instance that the Route uses with
 `routed`.
 
@@ -783,8 +777,12 @@ Routes are dropped. When it answers again, they come back.
 
 ### Reachability tests
 
-A Reachability test tells whether this Workstation reaches a Service. To run
-one, press Test on the page of the Service, run `lvh-yard test`, or send
+A Reachability test tells whether this Workstation reaches a Service. Click
+"Test Reachability" on the Service page to open the results on a separate page.
+Use "Test again" to run another test, or "Back to Service" to return. The results
+do not refresh by themselves.
+
+You can also run `lvh-yard test`, or send
 `GET /api/services/<workstation>/<service>/reachability`.
 
 The test connects to each Instance directly. It also sends a request for the
@@ -1039,10 +1037,15 @@ the Host Port. With no Host Port, the Bound Instance uses the container's own
 address and Container Port. A Bound Instance comes and goes with its container.
 You cannot edit or remove it alone.
 
-The Service page's Instances card shows Instance, Container, Container Port,
-Host Port and Health. Checks appear under Health. A Bound Instance with no Host
-Port says "Not published". A Static Instance has empty container cells.
-Remote Services show the same columns, from their Home Workstation.
+The Instance Sources card shows each Instance's address, container, Container
+Port, Host Port and Health. On a phone, these facts stack without sideways
+scrolling. A Bound Instance with no Host Port says "Not published". A Static
+Instance has no container fields.
+
+Warning and critical checks stay visible under Health. Open "Passing checks" to
+read checks that pass. Each box stays open or closed as you left it when the
+page refreshes. It starts closed when you visit the page again. Remote Services
+show the same facts and checks, from their Home Workstation.
 
 The Container Bindings card of the Service page lists each Binding. Under
 Bound Instances, it gives a count such as "3 containers, 2 passing", then

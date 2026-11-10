@@ -40,7 +40,6 @@ class ServiceStatesComponentTest extends DashboardComponentTest {
           assertThat(body.get("warnings")).isEmpty();
         });
     String page = getPage("/services/ws-test/" + service).getBody();
-    assertThat(summaryCard(page, "state")).contains(badge("risk", "Degraded"));
     assertThat(page).doesNotContain("role=\"alert\"");
     if (status.startsWith("429")) {
       assertThat(page).contains(badge("risk", "warning"));

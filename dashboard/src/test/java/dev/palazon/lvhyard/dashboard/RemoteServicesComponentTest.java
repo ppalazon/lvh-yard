@@ -282,10 +282,6 @@ class RemoteServicesComponentTest extends DashboardComponentTest {
         .contains("Local Scope: only " + RemoteWorkstation.NAME + " routes it")
         .contains("It can be changed only on " + RemoteWorkstation.NAME);
     String content = response.getBody().substring(response.getBody().indexOf("<main"));
-    // Its one form is the Reachability test's, which only reads.
     assertThat(content).doesNotContain("method=\"post\"").doesNotContain("/edit\"");
-    assertThat(content.split("<form", -1)).hasSize(2);
-    assertThat(content)
-        .contains("action=\"/services/" + RemoteWorkstation.NAME + "/" + api + "/reachability\"");
   }
 }

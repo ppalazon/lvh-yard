@@ -206,22 +206,17 @@ class ReachabilityIT extends DashboardIT {
   }
 
   @Test
-  void servicePageHasATestButtonThatShowsTheResults() {
+  void reachabilityPageShowsDirectConnectionResults() {
     String api = newServiceName("api");
     listenOnLanAddress(7103);
     register(api, Map.of("port", 7103));
     register(api, Map.of("port", 7104));
     String page = "/services/ws-test/" + api;
-    assertThat(getPage(page).getBody())
-        .contains("action=\"" + page + "/reachability\"")
-        .doesNotContain("Connection refused");
 
     ResponseEntity<String> response = getPage(page + "/reachability");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody())
-        .contains("<h1>" + api + "</h1>")
-        .contains("Reachability from ws-test")
         .contains(lanAddress() + ":7103")
         .contains(badge("success", "Reached"))
         .contains(lanAddress() + ":7104")
@@ -275,12 +270,11 @@ class ReachabilityIT extends DashboardIT {
   }
 
   @Test
-  void remoteServicePageHasATestButtonToo() {
+  void remoteOutOfRangeInstancesAreSkippedOnTheResultsPage() {
     String api = newServiceName("api");
     remote.register(api, Map.of("host", "127.0.0.1", "port", 9090));
     String page = "/services/" + RemoteWorkstation.NAME + "/" + api;
 
-    assertThat(getPage(page).getBody()).contains("action=\"" + page + "/reachability\"");
     assertThat(getPage(page + "/reachability").getBody())
         .contains("Out of range")
         .contains("Only " + RemoteWorkstation.NAME + " reaches this address")

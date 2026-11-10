@@ -41,11 +41,7 @@ class BoundInstancesComponentTest extends DashboardComponentTest {
     assertThat(page)
         .contains("Compose service web of project " + project)
         .contains("Bound to Compose service web of project " + project + ", port 80.");
-    assertThat(div(page, "id=\"sources\""))
-        .contains("3 containers, 2 passing")
-        .contains("<td>" + firstName + "</td><td>80</td><td>Not published</td>")
-        .contains("<td>" + secondName + "</td><td>80</td><td>Not published</td>")
-        .contains("<td>" + failingName + "</td><td>80</td><td>Not published</td>");
+    assertThat(div(page, "id=\"sources\"")).contains("3 containers, 2 passing");
   }
 
   private static final Duration FOLLOW_TIMEOUT = Duration.ofSeconds(15);
@@ -61,12 +57,6 @@ class BoundInstancesComponentTest extends DashboardComponentTest {
         .valueStream()
         .map(instance -> instance.get("host").asString() + ":" + instance.get("port").asInt())
         .toList();
-  }
-
-  private static String instanceRow(String instances, String value) {
-    int at = instances.indexOf(value, instances.indexOf("<tbody>"));
-    assertThat(at).as("Instance row containing %s", value).isNotNegative();
-    return instances.substring(instances.lastIndexOf("<tr>", at), instances.indexOf("</tr>", at));
   }
 
   @Test
@@ -101,24 +91,16 @@ class BoundInstancesComponentTest extends DashboardComponentTest {
     String name = newContainerName();
     Container container = startContainer(name, 80, true);
     remote.bind(web, name, 80);
-    String path = "/services/" + RemoteWorkstation.NAME + "/" + web;
-
     await()
         .atMost(FOLLOW_TIMEOUT)
         .untilAsserted(() -> {
-          String instances = div(getPage(path).getBody(), "id=\"sources\"");
-          assertThat(instances)
-              .contains("<th>Container</th><th>Container Port</th><th>Host Port</th>");
-          assertThat(instanceRow(instances, "<td>" + name + "</td>"))
-              .contains("<td>" + name + "</td><td>80</td><td>" + hostPort(container, 80) + "</td>");
+          JsonNode instances =
+              get("/api/services/" + RemoteWorkstation.NAME + "/" + web).getBody().get("instances");
+          assertThat(instances.size()).isEqualTo(1);
+          JsonNode instance = instances.get(0);
+          assertThat(instance.get("container").asString()).isEqualTo(name);
+          assertThat(instance.get("containerPort").asInt()).isEqualTo(80);
+          assertThat(instance.get("hostPort").asInt()).isEqualTo(hostPort(container, 80));
         });
-    JsonNode instance =
-        get("/api/services/" + RemoteWorkstation.NAME + "/" + web)
-            .getBody()
-            .get("instances")
-            .get(0);
-    assertThat(instance.get("container").asString()).isEqualTo(name);
-    assertThat(instance.get("containerPort").asInt()).isEqualTo(80);
-    assertThat(instance.get("hostPort").asInt()).isEqualTo(hostPort(container, 80));
   }
 }

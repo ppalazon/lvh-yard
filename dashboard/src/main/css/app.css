@@ -220,3 +220,184 @@
     }
   }
 }
+
+@layer components {
+  .service-page,
+  .reachability-page {
+    overflow-wrap: anywhere;
+  }
+
+  .service-page #service {
+    gap: 1.25rem;
+  }
+
+  .service-page .card,
+  .service-page #sections,
+  .instance-table-container {
+    min-width: 0;
+    box-shadow: none;
+  }
+
+  .service-page .card {
+    border: 1px solid var(--border);
+  }
+
+  .service-heading {
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .service-page a:focus-visible,
+  .reachability-page a:focus-visible,
+  .instance-checks summary:focus-visible,
+  .service-page #risks summary:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+
+  .instance-table {
+    table-layout: fixed;
+  }
+
+  .instance-table th,
+  .instance-table td {
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .instance-table td {
+    padding-block: 0.75rem;
+    vertical-align: top;
+  }
+
+  .instance-table th:first-child {
+    width: 24%;
+  }
+
+  .instance-table th:nth-child(2) {
+    width: 18%;
+  }
+
+  .instance-table th:nth-child(3),
+  .instance-table th:nth-child(4) {
+    width: 9%;
+  }
+
+  .instance-table th:nth-child(5) {
+    width: 28%;
+  }
+
+  .instance-check {
+    margin-top: 0.75rem;
+  }
+
+  .instance-check pre {
+    overflow-wrap: anywhere;
+  }
+
+  .instance-checks summary {
+    display: list-item;
+    list-style-position: inside;
+    list-style-type: disclosure-closed;
+    min-height: 2.5rem;
+    padding-block: 0.5rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+  }
+
+  .instance-checks[open] > summary {
+    list-style-type: disclosure-open;
+  }
+
+  @media (width < 64rem) {
+    .instance-table,
+    .instance-table tbody {
+      display: block;
+      width: 100%;
+    }
+
+    .instance-table thead {
+      @apply sr-only;
+    }
+
+    .instance-table tbody tr {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0.75rem;
+      padding-block: 1rem;
+    }
+
+    .instance-table td {
+      min-width: 0;
+      padding: 0;
+    }
+
+    .instance-table td:nth-child(5) {
+      grid-row: 2;
+    }
+
+    .instance-table td[data-label] {
+      display: grid;
+      grid-template-columns: minmax(0, 7rem) minmax(0, 1fr);
+      gap: 0.75rem;
+      font-size: 0.875rem;
+    }
+
+    .instance-table td[data-label]::before {
+      content: attr(data-label);
+      color: var(--muted-foreground);
+    }
+
+    .instance-table td:empty {
+      display: none;
+    }
+  }
+}
+
+@layer components {
+  .reachability-table {
+    table-layout: fixed;
+  }
+
+  .reachability-table th,
+  .reachability-table td {
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  @media (width < 48rem) {
+    .reachability-table,
+    .reachability-table tbody {
+      display: block;
+      width: 100%;
+    }
+
+    .reachability-table thead {
+      @apply sr-only;
+    }
+
+    .reachability-table tbody tr {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: start;
+      gap: 0.5rem 0.75rem;
+      padding-block: 1rem;
+    }
+
+    .reachability-table td {
+      min-width: 0;
+      padding: 0;
+    }
+
+    .reachability-table td:nth-child(2) {
+      justify-self: end;
+    }
+
+    .reachability-table td:nth-child(3) {
+      grid-column: 1 / -1;
+      font-size: 0.875rem;
+      color: var(--muted-foreground);
+    }
+  }
+}

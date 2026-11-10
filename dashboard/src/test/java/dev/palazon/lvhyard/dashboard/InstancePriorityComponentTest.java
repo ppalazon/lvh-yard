@@ -148,9 +148,6 @@ class InstancePriorityComponentTest extends DashboardComponentTest {
           assertThat(service.get("routing").get("kind").asString()).isEqualTo("static");
           assertThat(texts(service.get("routing").get("waiting"))).containsExactly(sources.get(1));
           String page = getPage("/services/ws-test/" + web).getBody();
-          assertThat(summaryCard(page, "routing"))
-              .contains("Static Instance")
-              .contains("1 source waiting");
           assertThat(sourceItem(page, sources.getFirst())).contains("data-in-use");
           assertThat(sourceItem(page, sources.get(1))).doesNotContain("data-in-use");
         });
@@ -342,8 +339,6 @@ class InstancePriorityComponentTest extends DashboardComponentTest {
     awaitRoutedTo(web, TEAMMATE);
     JsonNode routing = get(servicePath(web)).getBody().get("routing");
     assertThat(routing.get("kind").asString()).isEqualTo("alias");
-    assertThat(summaryCard(getPage("/services/ws-test/" + web).getBody(), "routing"))
-        .contains("Alias");
 
     listenOnLanAddress(port);
 

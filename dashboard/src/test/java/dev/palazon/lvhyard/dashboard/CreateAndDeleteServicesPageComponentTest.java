@@ -90,19 +90,6 @@ class CreateAndDeleteServicesPageComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void servicePageEndsWithDeleteService() {
-    String web = newServiceName("web");
-    create(web);
-
-    String page = getPage("/services/ws-test/" + web).getBody();
-
-    String link = openingTag(page, "href=\"" + deletePath(web) + "\"");
-    assertThat(link).startsWith("<a");
-    assertThat(page).contains(link + "Delete Service</a>");
-    assertThat(page.indexOf(link)).isGreaterThan(page.indexOf("id=\"reachability\""));
-  }
-
-  @Test
   void deleteConfirmationNamesWhatGoes() {
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 3000));

@@ -145,7 +145,7 @@ class PagesController {
   @ResponseBody
   String service(@PathVariable("workstation") String home, @PathVariable String service) {
     Service found = anyService(home, service);
-    return ServicePage.render(workstation, found, aliasesOf(found), routeProfiles.names(), null);
+    return ServicePage.render(workstation, found, aliasesOf(found), routeProfiles.names());
   }
 
   /** Only this Workstation reads the Aliases of its own Services. */
@@ -181,8 +181,7 @@ class PagesController {
   @ResponseBody
   String reachability(@PathVariable("workstation") String home, @PathVariable String service) {
     Service found = anyService(home, service);
-    return ServicePage.render(
-        workstation, found, aliasesOf(found), routeProfiles.names(), reachability.test(found));
+    return ReachabilityPage.render(workstation, found, reachability.test(found));
   }
 
   private Service anyService(String home, String service) {

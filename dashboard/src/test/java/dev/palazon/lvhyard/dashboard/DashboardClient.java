@@ -160,14 +160,6 @@ abstract class DashboardClient {
     return page.substring(start, at + "</div>".length());
   }
 
-  /**
-   * The Service page's summary card {@code name}: {@code state}, {@code publication}, {@code
-   * passing} or {@code routing}.
-   */
-  static String summaryCard(String page, String name) {
-    return div(page, "data-summary=\"" + name + "\"");
-  }
-
   /** The whole {@code form} element that posts to {@code action}. A form never holds another. */
   static String formTo(String page, String action) {
     int at = page.indexOf("action=\"" + action + "\"");

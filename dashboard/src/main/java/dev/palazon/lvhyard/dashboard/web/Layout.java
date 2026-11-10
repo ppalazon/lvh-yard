@@ -76,7 +76,7 @@ public final class Layout {
         .attrSrc("/theme.js")
         .__()
         .script()
-        .attrSrc("/risks.js")
+        .attrSrc("/disclosures.js")
         .attrDefer(true)
         .__()
         .script()

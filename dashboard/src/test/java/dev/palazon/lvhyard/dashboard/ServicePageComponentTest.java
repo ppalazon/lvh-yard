@@ -3,7 +3,6 @@ package dev.palazon.lvhyard.dashboard;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import dev.palazon.lvhyard.dashboard.docker.Docker.Container;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -15,12 +14,6 @@ import tools.jackson.databind.JsonNode;
 /** A Service's detail page, where its Instances are seen and removed. */
 class ServicePageComponentTest extends DashboardComponentTest {
 
-  private static String instanceRow(String instances, String value) {
-    int at = instances.indexOf(value, instances.indexOf("<tbody>"));
-    assertThat(at).as("Instance row containing %s", value).isNotNegative();
-    return instances.substring(instances.lastIndexOf("<tr>", at), instances.indexOf("</tr>", at));
-  }
-
   /** The risks box, up to its own closing tag. */
   private static String risks(String page) {
     int start = page.lastIndexOf("<details", page.indexOf("id=\"risks\""));
@@ -28,79 +21,6 @@ class ServicePageComponentTest extends DashboardComponentTest {
       throw new AssertionError("No risks box");
     }
     return page.substring(start, page.indexOf("</details>", start) + "</details>".length());
-  }
-
-  @Test
-  void summaryCardsShowTheStateThePublicationThePassingCountAndTheRoutingKind() {
-    String web = newServiceName("web");
-    int port = newLanPort();
-    listenOnLanAddress(port);
-    register(web, Map.of("port", port, "check", Map.of("interval", "1s")));
-    register(web, Map.of("host", "10.1.2.3", "port", 8080));
-    publish(web);
-    String page = "/services/ws-test/" + web;
-
-    await()
-        .atMost(Duration.ofSeconds(10))
-        .untilAsserted(
-            () -> assertThat(summaryCard(getPage(page).getBody(), "passing")).contains("1 of 2"));
-    String body = getPage(page).getBody();
-    assertThat(summaryCard(body, "state")).contains(badge("risk", "Degraded"));
-    assertThat(summaryCard(body, "publication"))
-        .contains("href=\"http://" + web + ".lvh.test\"")
-        .contains("Local Scope")
-        .contains("Access log: off");
-    assertThat(summaryCard(body, "routing"))
-        .as("the critical Instance waits in the second source")
-        .contains("Static Instance " + lanAddress() + ":" + port)
-        .contains("1 source waiting");
-  }
-
-  @Test
-  void partsFollowTheOrderSummaryPublicationSourcesRouteProfilesReachabilityAndDelete() {
-    String web = newServiceName("web");
-    register(web, Map.of("host", "10.1.2.3", "port", 8080));
-    publish(web);
-
-    String page = getPage("/services/ws-test/" + web).getBody();
-
-    int at = -1;
-    for (String part :
-        List.of(
-            "data-summary=\"state\"",
-            "id=\"publication\"",
-            "id=\"sources\"",
-            "id=\"route-profiles\"",
-            "id=\"reachability\"",
-            "id=\"delete\"")) {
-      int next = page.indexOf(part);
-      assertThat(next).as(part).isGreaterThan(at);
-      at = next;
-    }
-  }
-
-  @Test
-  void unpublishedServiceSaysSoInItsSummaryCards() {
-    String web = newServiceName("web");
-    register(web, Map.of("host", "10.1.2.3", "port", 8080));
-
-    String body = getPage("/services/ws-test/" + web).getBody();
-
-    assertThat(summaryCard(body, "state")).contains("Unpublished");
-    assertThat(summaryCard(body, "publication")).contains("Not published").doesNotContain("Scope");
-    assertThat(summaryCard(body, "passing")).contains("0 of 1");
-    assertThat(summaryCard(body, "routing")).contains("Not published");
-  }
-
-  @Test
-  void routingCardSaysWhenTheInstancePriorityIsOff() {
-    String web = newServiceName("web");
-    register(web, Map.of("host", "10.1.2.3", "port", 8080));
-    publish(web);
-    put(instancePriorityPath(web), Map.of("on", false));
-
-    assertThat(summaryCard(getPage("/services/ws-test/" + web).getBody(), "routing"))
-        .contains("Instance Priority off");
   }
 
   @Test
@@ -224,13 +144,11 @@ class ServicePageComponentTest extends DashboardComponentTest {
     publish(web);
     String page = "/services/ws-test/" + web;
     assertThat(getPage(page).getBody()).contains("Show in the access log");
-    assertThat(summaryCard(getPage(page).getBody(), "publication")).contains("Access log: off");
 
     ResponseEntity<String> response = postForm(page + "/publish", Map.of("accessLog", "true"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
     assertThat(getPage(page).getBody()).contains("Hide from the access log");
-    assertThat(summaryCard(getPage(page).getBody(), "publication")).contains("Access log: on");
 
     postForm(page + "/publish", Map.of("accessLog", "false"));
 
@@ -618,36 +536,6 @@ class ServicePageComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void instancesShowContainerPortsAndHostPortsAndLeaveStaticContainerCellsEmpty() {
-    String web = newServiceName("web");
-    String publishedName = newContainerName();
-    String unpublishedName = newContainerName();
-    Container published = startContainer(publishedName, 80, true);
-    startContainer(unpublishedName, 8080, false);
-    bind(web, publishedName, 80);
-    bind(web, unpublishedName, 8080);
-    register(web, Map.of("host", "10.1.2.3", "port", 9090));
-    await()
-        .atMost(Duration.ofSeconds(15))
-        .until(() -> get(servicePath(web)).getBody().get("instances").size() == 3);
-
-    String instances = div(getPage("/services/ws-test/" + web).getBody(), "id=\"sources\"");
-
-    assertThat(instances)
-        .contains(
-            "<th>Instance</th><th>Container</th><th>Container Port</th><th>Host Port</th>"
-                + "<th>Health</th>")
-        .doesNotContain("<th>Checks</th>");
-    assertThat(instanceRow(instances, "<td>" + publishedName + "</td>"))
-        .contains(
-            "<td>" + publishedName + "</td><td>80</td><td>" + hostPort(published, 80) + "</td>");
-    assertThat(instanceRow(instances, "<td>" + unpublishedName + "</td>"))
-        .contains("<td>" + unpublishedName + "</td><td>8080</td><td>Not published</td>");
-    assertThat(instanceRow(instances, "<div>10.1.2.3:9090</div>"))
-        .contains("<td></td><td></td><td></td>");
-  }
-
-  @Test
   void boundInstanceSaysWhichContainerGivesItAndCannotBeEditedOrRemoved() {
     String web = newServiceName("web");
     String name = newContainerName();
@@ -710,21 +598,6 @@ class ServicePageComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void refreshKeepsTheReachabilityResultsAndDoesNotTestAgain() {
-    String web = newServiceName("web");
-    register(web, Map.of("host", "10.1.2.3", "port", 8080));
-
-    String page = getPage("/services/ws-test/" + web + "/reachability").getBody();
-
-    assertThat(openingTag(page, "id=\"service\""))
-        .contains("hx-get=\"/services/ws-test/" + web + "\"");
-    assertThat(div(page, "id=\"service\""))
-        .contains("10.1.2.3:8080")
-        .doesNotContain("Reachability from");
-    assertThat(page).contains("Reachability from").contains("Test again");
-  }
-
-  @Test
   void remoteServiceWithYardScopeShowsItsHostnameHere() {
     String api = newServiceName("api");
     remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
@@ -756,15 +629,8 @@ class ServicePageComponentTest extends DashboardComponentTest {
 
     String body = getPage("/services/" + RemoteWorkstation.NAME + "/" + api).getBody();
 
-    assertThat(summaryCard(body, "state")).contains("Unhealthy");
-    assertThat(summaryCard(body, "publication")).contains("Yard Scope");
-    assertThat(summaryCard(body, "passing")).contains("0 of 1");
-    assertThat(summaryCard(body, "routing")).isNotEmpty();
     assertThat(div(body, "role=\"alert\"")).contains("No Instance passes its checks");
     assertThat(div(body, "id=\"sections\"")).contains(">Publication</h2>");
-    assertThat(div(body, "id=\"service\""))
-        .as("only the Reachability test, outside the region, has a button")
-        .doesNotContain("<form")
-        .doesNotContain("<button");
+    assertThat(div(body, "id=\"service\"")).doesNotContain("<form").doesNotContain("<button");
   }
 }

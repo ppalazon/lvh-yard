@@ -27,11 +27,11 @@ final class InstanceSourcesCard {
 
   /** {@code own} false leaves out the actions, such as for the Instances of an Alias. */
   private static void instanceTable(
-      Li<?> item, Service service, List<Instance> instances, boolean own) {
+      Li<?> item, Service service, InstanceSource source, boolean own) {
     item.div()
-        .attrClass("table-container")
+        .attrClass("instance-table-container")
         .table()
-        .attrClass("table")
+        .attrClass("table instance-table")
         .thead()
         .tr()
         .th()
@@ -58,40 +58,47 @@ final class InstanceSourcesCard {
         .__()
         .tbody()
         .of(body ->
-            instances.forEach(instance ->
-                body.tr()
-                    .td()
-                    .attrClass("align-top")
-                    .of(cell -> InstanceViews.description(cell, service, instance))
-                    .__()
-                    .td()
-                    .text(instance.container() == null ? "" : instance.container())
-                    .__()
-                    .td()
-                    .text(
-                        instance.containerPort() == null ? "" : instance.containerPort().toString())
-                    .__()
-                    .td()
-                    .text(
-                        !instance.bound()
-                            ? ""
-                            : instance.hostPort() == null
-                                ? "Not published"
-                                : instance.hostPort().toString())
-                    .__()
-                    .td()
-                    .attrClass("align-top")
-                    .of(cell -> InstanceViews.health(cell, instance.health()))
-                    .of(cell -> InstanceViews.checks(cell, instance))
-                    .__()
-                    .of(row -> {
-                      if (own && !instance.staticInstance()) {
-                        row.td().__();
-                      } else if (own) {
-                        actions(row, service, instance);
-                      }
-                    })
-                    .__()))
+            source
+                .givenInstances()
+                .forEach(instance ->
+                    body.tr()
+                        .td()
+                        .attrClass("align-top")
+                        .of(cell -> InstanceViews.description(cell, service, instance))
+                        .__()
+                        .td()
+                        .addAttr("data-label", "Container")
+                        .text(instance.container() == null ? "" : instance.container())
+                        .__()
+                        .td()
+                        .addAttr("data-label", "Container Port")
+                        .text(
+                            instance.containerPort() == null
+                                ? ""
+                                : instance.containerPort().toString())
+                        .__()
+                        .td()
+                        .addAttr("data-label", "Host Port")
+                        .text(
+                            !instance.bound()
+                                ? ""
+                                : instance.hostPort() == null
+                                    ? "Not published"
+                                    : instance.hostPort().toString())
+                        .__()
+                        .td()
+                        .attrClass("align-top")
+                        .of(cell -> InstanceViews.health(cell, instance.health()))
+                        .of(cell -> InstanceViews.checks(cell, instance, source.id()))
+                        .__()
+                        .of(row -> {
+                          if (own && !instance.staticInstance()) {
+                            row.td().__();
+                          } else if (own) {
+                            actions(row, service, instance);
+                          }
+                        })
+                        .__()))
         .__()
         .__()
         .__();
@@ -116,14 +123,14 @@ final class InstanceSourcesCard {
             .__();
     card.div()
         .attrClass("flex flex-wrap items-center justify-between gap-2")
+        .div()
+        .attrClass("min-w-0 space-y-1")
         .p()
-        .attrClass("text-muted-foreground")
+        .attrClass("text-sm text-muted-foreground")
         .addAttr("data-instance-priority", service.instancePriority() ? "on" : "off")
-        .text(
-            service.instancePriority()
-                ? "Instance Priority on: the Route uses the first source with a passing Instance."
-                : "Instance Priority off: every passing Instance of every source shares the"
-                    + " Route.")
+        .text("Instance Priority " + (service.instancePriority() ? "on" : "off"))
+        .__()
+        .of(content -> routingSummary(content, service))
         .__()
         .of(row -> {
           if (own) {
@@ -207,7 +214,7 @@ final class InstanceSourcesCard {
 
   private static void staticSource(
       Li<?> item, Service service, InstanceSource source, boolean own) {
-    instanceTable(item, service, source.givenInstances(), own);
+    instanceTable(item, service, source, own);
   }
 
   private static void foreignSource(
@@ -216,7 +223,7 @@ final class InstanceSourcesCard {
         .attrClass("text-muted-foreground text-sm")
         .text("Another tool registered it in Consul, so LVH Yard cannot change it.")
         .__();
-    instanceTable(item, service, source.givenInstances(), own);
+    instanceTable(item, service, source, own);
   }
 
   private static void boundSource(Li<?> item, Service service, InstanceSource source, boolean own) {
@@ -226,7 +233,7 @@ final class InstanceSourcesCard {
         .ifPresent(binding -> {
           ContainerBindingsCard.source(item, service, binding, source.givenInstances(), own);
           if (!source.givenInstances().isEmpty()) {
-            instanceTable(item, service, source.givenInstances(), own);
+            instanceTable(item, service, source, own);
           }
         });
   }
@@ -271,7 +278,7 @@ final class InstanceSourcesCard {
           .__();
     }
     if (!source.givenInstances().isEmpty()) {
-      instanceTable(item, service, source.givenInstances(), false);
+      instanceTable(item, service, source, false);
     }
   }
 
@@ -289,6 +296,39 @@ final class InstanceSourcesCard {
           case ALIAS -> AliasTarget.parse(source.id()).label();
         };
     return source.kind().describe(detail);
+  }
+
+  /** The source that wins under the Instance Priority, with the number of sources waiting. */
+  private static void routingSummary(Div<?> card, Service service) {
+    Routing routing = service.routing();
+    if (routing == null) {
+      String why;
+      if (!service.published()) {
+        why = "Not published";
+      } else if (service.hostname() == null) {
+        why = "No Route on this Workstation";
+      } else {
+        why = "No Instance in range";
+      }
+      card.p().text(why).__();
+      return;
+    }
+    String routed;
+    if (routing.offWithPassingInstances()) {
+      routed = "Every passing Instance";
+    } else if (routing.used() == null) {
+      routed = "Every Instance, as none is passing";
+    } else {
+      routed = label(service, routing.used());
+    }
+    card.p().text("Routes to: " + routed).__();
+    int waiting = service.waitingSources().size();
+    if (!routing.off() && waiting > 0) {
+      card.p()
+          .attrClass("text-muted-foreground")
+          .text(waiting + (waiting == 1 ? " source waiting" : " sources waiting"))
+          .__();
+    }
   }
 
   private static String address(InstanceSource source) {
@@ -344,7 +384,7 @@ final class InstanceSourcesCard {
     row.td()
         .attrClass("align-top")
         .div()
-        .attrClass("flex justify-end gap-2")
+        .attrClass("flex flex-wrap gap-2 lg:justify-end")
         .a()
         .attrClass("btn")
         .addAttr("data-variant", "outline")
