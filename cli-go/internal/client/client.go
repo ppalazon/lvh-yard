@@ -31,32 +31,42 @@ func New(address string) *Client {
 func segment(value string) string { return url.PathEscape(value) }
 
 func (c *Client) request(method, path string, body any, out any) error {
+	_, err := c.requestStatus(method, path, body, out)
+	return err
+}
+
+func (c *Client) requestStatus(method, path string, body any, out any) (int, error) {
 	var input io.Reader
 	contentType := ""
 	if body != nil {
 		data, err := json.Marshal(body)
 		if err != nil {
-			return fmt.Errorf("Cannot encode the dashboard request: %w", err)
+			return 0, fmt.Errorf("Cannot encode the dashboard request: %w", err)
 		}
 		input = bytes.NewReader(data)
 		contentType = "application/json"
 	}
-	data, err := c.exchange(method, path, contentType, "application/json", input)
+	data, status, err := c.exchangeStatus(method, path, contentType, "application/json", input)
 	if err != nil {
-		return err
+		return status, err
 	}
 	if out != nil {
 		if err := json.Unmarshal(data, out); err != nil {
-			return fmt.Errorf("%s is not the LVH Yard dashboard: its answer is not the API's JSON.", c.address)
+			return status, fmt.Errorf("%s is not the LVH Yard dashboard: its answer is not the API's JSON.", c.address)
 		}
 	}
-	return nil
+	return status, nil
 }
 
 func (c *Client) exchange(method, path, contentType, accept string, body io.Reader) ([]byte, error) {
+	data, _, err := c.exchangeStatus(method, path, contentType, accept, body)
+	return data, err
+}
+
+func (c *Client) exchangeStatus(method, path, contentType, accept string, body io.Reader) ([]byte, int, error) {
 	request, err := http.NewRequest(method, c.address+strings.TrimLeft(path, "/"), body)
 	if err != nil {
-		return nil, fmt.Errorf("The dashboard address is not valid: %s", c.address)
+		return nil, 0, fmt.Errorf("The dashboard address is not valid: %s", c.address)
 	}
 	request.Header.Set("Accept", accept)
 	if contentType != "" {
@@ -64,18 +74,35 @@ func (c *Client) exchange(method, path, contentType, accept string, body io.Read
 	}
 	response, err := c.http.Do(request)
 	if err != nil {
-		return nil, c.connectionError(err)
+		return nil, 0, c.connectionError(err)
 	}
 	defer response.Body.Close()
 	data, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, c.connectionError(err)
+		return nil, response.StatusCode, c.connectionError(err)
 	}
 	if response.StatusCode >= 400 {
-		return nil, problemReason(response.StatusCode, data)
+		var problem struct {
+			Service string `json:"service"`
+		}
+		_ = json.Unmarshal(data, &problem)
+		return nil, response.StatusCode, &responseError{
+			status:  response.StatusCode,
+			service: problem.Service,
+			reason:  problemReason(response.StatusCode, data),
+		}
 	}
-	return data, nil
+	return data, response.StatusCode, nil
 }
+
+type responseError struct {
+	status  int
+	service string
+	reason  error
+}
+
+func (e *responseError) Error() string { return e.reason.Error() }
+func (e *responseError) Unwrap() error { return e.reason }
 
 func (c *Client) connectionError(err error) error {
 	var timeout net.Error
