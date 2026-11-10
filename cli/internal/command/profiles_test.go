@@ -34,14 +34,17 @@ func TestProfilesList(t *testing.T) {
 }
 
 func TestProfilesShowSetRoundTrip(t *testing.T) {
-	const definition = `{"headers":{"customRequestHeaders":{"X-Proto":"https","X-Number":"100","X-Yes":"true","X-On":"on","X-Empty":"","X-Colon":"a: b","X-Hash":"#1","X-Null":"null"},"sslRedirect":true,"accessControlMaxAge":100,"hostsProxyHeaders":[],"nested":{"values":[null,false,1.5,"100",{}]}}}`
+	const definition = `{"headers":{"customRequestHeaders":{"X-Proto":"https","X-Number":"100","X-Yes":"true","X-On":"on","X-Empty":"","X-Colon":"a: b","X-Hash":"#1","X-Null":"null"},"sslRedirect":true,"accessControlMaxAge":100,"maxBody":2000000,"big":9007199254740993,"hostsProxyHeaders":[],"nested":{"values":[null,false,1.5,"100",{}]}}}`
 	var received map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == "GET" && r.URL.Path == "/api/workstation/route-profiles/behind-https":
 			fmt.Fprint(w, `{"name":"behind-https","definition":`+definition+`}`)
 		case r.Method == "PUT" && r.URL.Path == "/api/workstation/route-profiles":
-			if err := json.NewDecoder(r.Body).Decode(&received); err != nil {
+			// UseNumber keeps integers above 2^53 exact in this comparison.
+			decoder := json.NewDecoder(r.Body)
+			decoder.UseNumber()
+			if err := decoder.Decode(&received); err != nil {
 				t.Error(err)
 			}
 			fmt.Fprint(w, `[]`)
@@ -55,10 +58,17 @@ func TestProfilesShowSetRoundTrip(t *testing.T) {
 	if shown.ExitCode != 0 || shown.Stderr != "" || !strings.HasPrefix(shown.Stdout, "http:\n  middlewares:\n    behind-https:\n") {
 		t.Fatalf("unexpected show: %+v", shown)
 	}
+	for _, line := range []string{"maxBody: 2000000\n", "big: 9007199254740993\n"} {
+		if !strings.Contains(shown.Stdout, line) {
+			t.Errorf("missing %q in:\n%s", line, shown.Stdout)
+		}
+	}
 	h.Process.Stdin = shown.Stdout
 	set := h.Run("--dashboard", server.URL, "profiles", "set", "-")
 	var want any
-	if err := json.Unmarshal([]byte(definition), &want); err != nil {
+	decoder := json.NewDecoder(strings.NewReader(definition))
+	decoder.UseNumber()
+	if err := decoder.Decode(&want); err != nil {
 		t.Fatal(err)
 	}
 	if set.ExitCode != 0 || set.Stdout != "Saved the Route Profile behind-https.\n" || set.Stderr != "" || !reflect.DeepEqual(received, map[string]any{"behind-https": want}) {

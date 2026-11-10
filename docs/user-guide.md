@@ -207,7 +207,8 @@ source <(lvh-yard completions zsh)
 ```
 
 To load it in each new Zsh session, add that line to `~/.zshrc`.
-The script uses Zsh's Bash completion support.
+The Zsh script is a native Zsh script. It calls `compdef`, so run `compinit`
+before you load it. Most Zsh setups do this already.
 
 ## Using the CLI
 
@@ -284,7 +285,8 @@ The states are `unpublished`,
 `unavailable`, `unhealthy`, `degraded` and `healthy`. An unreachable Workstation
 shows `Workstation unreachable` instead of its Services.
 
-If a command fails, it prints the reason and exits with a code that is not 0.
+A command exits with 0 when it succeeds. If it fails, it prints the reason on
+stderr and exits with 1. A usage error, such as an unknown option, does the same.
 
 `lvh-yard register` attaches an Instance to a Service that exists. If the
 Service does not exist, the command fails and names the command that creates
@@ -318,8 +320,10 @@ names each Service and chain.
 command saves the profile. If you did not change the text, it saves nothing.
 The file must hold only that one profile, with the same name. If LVH Yard
 refuses your change, the command prints the reason and asks
-`Edit again? [Y/n]`. Press Enter to open your text again. Answer `n` to stop:
-the command then prints the path of the file that holds your text.
+`Edit again? [Y/n]`. Press Enter to open your text again. Answer `n` to stop. The
+command also stops if the input ends or the editor fails. Then it saves nothing,
+exits with 1 and prints the path of the file that holds your text. After a
+save, or when nothing changed, it deletes the file.
 
 The `/status` page of the dashboard and `GET /api/status` show the same status
 as `lvh-yard status`.
@@ -606,7 +610,8 @@ To delete a Service, click "Delete Service" at the bottom of its page. A
 confirmation page lists what goes: the Publication, the Static Instances, and
 the Container Bindings with their Bound Instances. It leaves out what the
 Service does not have. Click Delete. The containers keep running. You can also
-run `lvh-yard service delete <name>`.
+run `lvh-yard service delete <name>`. If the Service does not exist, the command
+says so and succeeds, so you can repeat it.
 
 A Service that only Foreign Instances give shows without being created. It
 works like any other Service: you publish it, attach Instance Sources, add

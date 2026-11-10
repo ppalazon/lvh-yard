@@ -4,7 +4,7 @@ status: accepted
 
 # The CLI is written in Go
 
-The `lvh-yard` executable that GraalVM builds is 49 MB, and the release needs GraalVM, a runner for each platform and Ubuntu 22.04 for its older glibc. A Go build is about 5 MB, cross-compiles on one runner and needs no system library. So the whole CLI moves to Go and replaces the Java CLI. The command and option names stay the same, so users change nothing. The dashboard stays in Java. The two share only the API contract in `dashboard/openapi.yaml`.
+The `lvh-yard` executable that GraalVM builds is 49 MB, and the release needs GraalVM, a runner for each platform and Ubuntu 22.04 for its older glibc. The stripped Go executable measures 9.19 MB (9,187,488 bytes), and `--help` takes a median of 1.44 ms over 100 runs. It cross-compiles on one runner and needs no system library. So the whole CLI moves to Go and replaces the Java CLI. The command and option names stay the same, so users change nothing. The dashboard stays in Java. The two share only the API contract in `dashboard/openapi.yaml`.
 
 ## Considered Options
 

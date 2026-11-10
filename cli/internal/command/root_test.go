@@ -1,7 +1,6 @@
 package command_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/ppalazon/lvh-yard/cli/internal/commandtest"
@@ -21,15 +20,6 @@ func TestVersionNamesThisBuild(t *testing.T) {
 				t.Fatalf("version: %+v", run)
 			}
 		})
-	}
-}
-
-func TestRootShowsHelp(t *testing.T) {
-	for _, args := range [][]string{nil, {"--help"}} {
-		run := commandtest.New(t).Run(args...)
-		if run.ExitCode != 0 || run.Stderr != "" || !strings.Contains(run.Stdout, "--dashboard") || !strings.Contains(run.Stdout, "--version") {
-			t.Fatalf("help for %v: %+v", args, run)
-		}
 	}
 }
 

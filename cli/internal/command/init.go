@@ -57,9 +57,9 @@ func NewInit(options *Options) *cobra.Command {
 	f := cmd.Flags()
 	f.StringVar(&flags.dir, "dir", "", "Writes the files to this Workstation Folder.")
 	f.StringVar(&flags.workstation, "workstation", "", "Sets this Workstation's unique name in the Yard.")
-	f.StringVar(&flags.baseDomain, "base-domain", "", "Sets the domain at the end of this Workstation's hostnames.")
+	f.StringVar(&flags.baseDomain, "base-domain", "", "Sets the Base Domain at the end of this Workstation's hostnames.")
 	f.StringArrayVar(&flags.peers, "peers", nil, "Sets the LAN addresses of other Workstations, separated by spaces or commas.")
-	f.StringVar(&flags.gossipKey, "gossip-key", "", "Uses the Yard's shared gossip key.")
+	f.StringVar(&flags.gossipKey, "gossip-key", "", "Uses the Yard's shared Gossip Key.")
 	f.BoolVar(&flags.force, "force", false, "Overwrites the files when they exist.")
 	f.BoolVar(&flags.upgrade, "upgrade", false, "Updates only the Consul, Traefik and dashboard images in compose.yaml.")
 	f.BoolVar(&flags.reinit, "reinit", false, "Rewrites the setup files with the old settings and keeps .bak copies.")
@@ -138,7 +138,7 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 		domain = env.get("YARD_BASE_DOMAIN")
 		if terminal && old == nil {
 			for {
-				typed, err := ask("Base domain ["+env.get("YARD_BASE_DOMAIN")+"]: ", "--base-domain")
+				typed, err := ask("Base Domain ["+env.get("YARD_BASE_DOMAIN")+"]: ", "--base-domain")
 				if err != nil {
 					return err
 				}
@@ -171,7 +171,7 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	} else {
 		bytes := make([]byte, 32)
 		if _, err := rand.Read(bytes); err != nil {
-			return fmt.Errorf("could not make a gossip key: %w", err)
+			return fmt.Errorf("could not make a Gossip Key: %w", err)
 		}
 		key = base64.StdEncoding.EncodeToString(bytes)
 	}
@@ -211,9 +211,9 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 		return err
 	}
 	if strings.TrimSpace(env.get("YARD_DOCKER_GID")) == "" {
-		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: no Docker socket at %s, so YARD_DOCKER_GID in .env is empty. Set it to what stat -c %%g /var/run/docker.sock prints, or the dashboard will not start.\n", f.dockerSocket)
+		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: no Docker socket at %s, so YARD_DOCKER_GID in .env is empty. Set it to the group of /var/run/docker.sock, or the dashboard will not start.\n", f.dockerSocket)
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "Wrote compose.yaml, .env to %s.\n\nThe Yard's gossip key: %s\nGive this key to every other Workstation: lvh-yard init --gossip-key <key>.\n\n", folder, key)
+	fmt.Fprintf(cmd.OutOrStdout(), "Wrote compose.yaml, .env to %s.\n\nThe Yard's Gossip Key: %s\nGive this key to every other Workstation: lvh-yard init --gossip-key <key>.\n\n", folder, key)
 	printInitNextSteps(cmd.OutOrStdout(), folder, env)
 	return nil
 }
@@ -224,7 +224,7 @@ func checkInitGossipKey(key string) error {
 		decoded, err = base64.RawStdEncoding.DecodeString(key)
 	}
 	if err != nil || (len(decoded) != 16 && len(decoded) != 24 && len(decoded) != 32) {
-		return fmt.Errorf("--gossip-key is not a gossip key: copy the Yard's key, Base64 of 32 bytes, from another Workstation's .env")
+		return fmt.Errorf("--gossip-key is not a Gossip Key: copy the Yard's key, Base64 of 32 bytes, from another Workstation's .env")
 	}
 	return nil
 }

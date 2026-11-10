@@ -39,9 +39,9 @@ func NewPriority(options *Options) *cobra.Command {
 			}
 			out := cmd.OutOrStdout()
 			if found.InstancePriority {
-				fmt.Fprintf(out, "Instance Priority of %s: on. The Route uses the first source with a passing Instance.\n", found.Name)
+				fmt.Fprintf(out, "Instance Priority of %s: on. The Route uses the first Instance Source with a passing Instance.\n", found.Name)
 			} else {
-				fmt.Fprintf(out, "Instance Priority of %s: off. Every passing Instance of every source shares the Route.\n", found.Name)
+				fmt.Fprintf(out, "Instance Priority of %s: off. Every passing Instance of every Instance Source shares the Route.\n", found.Name)
 			}
 			if len(found.Sources) == 0 {
 				fmt.Fprintln(out, "  No Instance Sources yet.")
@@ -51,7 +51,7 @@ func NewPriority(options *Options) *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&on, "on", false, "Uses the first Instance Source with a passing Instance.")
-	cmd.Flags().BoolVar(&off, "off", false, "Uses every passing Instance and keeps the source order.")
+	cmd.Flags().BoolVar(&off, "off", false, "Uses every passing Instance and keeps the Instance Source order.")
 	cmd.MarkFlagsMutuallyExclusive("on", "off")
 	return cmd
 }

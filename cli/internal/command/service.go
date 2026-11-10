@@ -36,8 +36,13 @@ func NewService(options *Options) *cobra.Command {
 		Short: "Deletes a Service with its Publication and Instance Sources.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := client.New(options.DashboardAddress()).DeleteService(args[0]); err != nil {
+			existed, err := client.New(options.DashboardAddress()).DeleteService(args[0])
+			if err != nil {
 				return err
+			}
+			if !existed {
+				fmt.Fprintf(cmd.OutOrStdout(), "%s does not exist already. Nothing to delete.\n", args[0])
+				return nil
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "Deleted %s with its Publication, Static Instances and Container Bindings. Its containers keep running.\n", args[0])
 			return nil

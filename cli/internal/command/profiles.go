@@ -109,7 +109,7 @@ func NewProfiles(options *Options) *cobra.Command {
 	return profiles
 }
 
-func editProfile(cmd *cobra.Command, options *Options, name string) (result error) {
+func editProfile(cmd *cobra.Command, options *Options, name string) error {
 	dashboard := client.New(options.DashboardAddress())
 	profile, err := dashboard.RouteProfile(name)
 	if err != nil {
@@ -125,32 +125,41 @@ func editProfile(cmd *cobra.Command, options *Options, name string) (result erro
 		return fmt.Errorf("Cannot write a temporary file: %w", err)
 	}
 	path := file.Name()
-	defer func() {
-		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-			result = errors.Join(result, fmt.Errorf("Cannot remove the temporary Route Profile: %w", err))
-		}
-	}()
 	_, writeErr := file.Write(original)
 	closeErr := file.Close()
 	if err := errors.Join(writeErr, closeErr); err != nil {
+		os.Remove(path)
 		return fmt.Errorf("Cannot write a temporary file: %w", err)
 	}
 	editor := options.Process.Getenv("EDITOR")
 	if strings.TrimSpace(editor) == "" {
 		editor = "vi"
 	}
+	saved, err := editUntilSaved(cmd, options, dashboard, name, path, editor, original)
+	if saved {
+		if removeErr := os.Remove(path); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			return errors.Join(err, fmt.Errorf("Cannot remove the temporary Route Profile: %w", removeErr))
+		}
+		return err
+	}
+	// The file is the only copy of the user's text, so it stays.
+	return errors.Join(err, fmt.Errorf("Did not save the Route Profile %s. Your text is in %s.", name, path))
+}
+
+// editUntilSaved reports true when the Route Profile is saved or has no change.
+func editUntilSaved(cmd *cobra.Command, options *Options, dashboard *client.Client, name, path, editor string, original []byte) (bool, error) {
 	answers := bufio.NewReader(options.Process.Input())
 	for {
 		if err := options.Process.Edit(editor, path); err != nil {
-			return fmt.Errorf("Cannot edit the Route Profile with %s: %w", editor, err)
+			return false, fmt.Errorf("Cannot edit the Route Profile with %s: %w", editor, err)
 		}
 		text, err := os.ReadFile(path)
 		if err != nil {
-			return fmt.Errorf("Cannot read %s: %w", path, err)
+			return false, fmt.Errorf("Cannot read %s: %w", path, err)
 		}
 		if bytes.Equal(text, original) {
 			fmt.Fprintln(cmd.OutOrStdout(), "No change to the Route Profile "+name+".")
-			return nil
+			return true, nil
 		}
 		set, err := readProfileFile(text)
 		if err == nil && (len(set.names) != 1 || set.names[0] != name) {
@@ -161,18 +170,18 @@ func editProfile(cmd *cobra.Command, options *Options, name string) (result erro
 		}
 		if err == nil {
 			fmt.Fprintln(cmd.OutOrStdout(), "Saved the Route Profile "+name+".")
-			return nil
+			return true, nil
 		}
 		fmt.Fprintln(cmd.ErrOrStderr(), err)
 		fmt.Fprint(cmd.ErrOrStderr(), "Edit again? [Y/n] ")
 		answer, readErr := answers.ReadString('\n')
 		if readErr != nil && len(answer) == 0 {
 			fmt.Fprintln(cmd.ErrOrStderr())
-			return fmt.Errorf("Did not save the Route Profile %s.", name)
+			return false, nil
 		}
 		answer = strings.ToLower(strings.TrimSpace(answer))
 		if readErr != nil && !errors.Is(readErr, io.EOF) || answer != "" && answer != "y" && answer != "yes" {
-			return fmt.Errorf("Did not save the Route Profile %s.", name)
+			return false, nil
 		}
 	}
 }

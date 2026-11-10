@@ -42,7 +42,7 @@ func TestProfilesEdit(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			edits, saves := 0, 0
-			var tempPath string
+			var tempPath, written string
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path != "/api/workstation/route-profiles/team" {
 					t.Errorf("unexpected path: %s", r.URL)
@@ -98,7 +98,8 @@ func TestProfilesEdit(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				if err := os.WriteFile(path, []byte(tc.transform(string(text), edits)), 0600); err != nil {
+				written = tc.transform(string(text), edits)
+				if err := os.WriteFile(path, []byte(written), 0600); err != nil {
 					return err
 				}
 				if tc.editorError {
@@ -113,10 +114,19 @@ func TestProfilesEdit(t *testing.T) {
 			if tc.wantErr == "" && result.Stderr != "" {
 				t.Errorf("unexpected stderr: %s", result.Stderr)
 			}
-			if tc.wantCode == 1 && !tc.editorError && !strings.Contains(result.Stderr, "Did not save the Route Profile team.") {
-				t.Errorf("missing refusal: %s", result.Stderr)
-			}
-			if _, err := os.Stat(tempPath); !errors.Is(err, os.ErrNotExist) {
+			if tc.wantCode == 1 {
+				if want := "Did not save the Route Profile team. Your text is in " + tempPath + ".\n"; !strings.HasSuffix(result.Stderr, want) {
+					t.Errorf("missing note about the kept text: %s", result.Stderr)
+				}
+				kept, err := os.ReadFile(tempPath)
+				if err != nil || string(kept) != written {
+					t.Errorf("kept text is %q, %v; want %q", kept, err, written)
+				}
+				if info, err := os.Stat(tempPath); err == nil && info.Mode().Perm() != 0600 {
+					t.Errorf("kept text has permissions %o", info.Mode().Perm())
+				}
+				os.Remove(tempPath)
+			} else if _, err := os.Stat(tempPath); !errors.Is(err, os.ErrNotExist) {
 				t.Errorf("temporary profile was not removed: %s: %v", tempPath, err)
 			}
 		})
