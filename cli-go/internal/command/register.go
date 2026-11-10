@@ -17,7 +17,7 @@ func NewRegister(options *Options) *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE:  func(cmd *cobra.Command, args []string) error { return cmd.Help() },
 	}
-	group.AddCommand(newRegisterStatic(options))
+	group.AddCommand(newRegisterStatic(options), newRegisterContainer(options), newRegisterCompose(options))
 	return group
 }
 

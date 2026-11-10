@@ -1,6 +1,6 @@
 # 06: Container Bindings
 
-Status: ready-for-agent
+Status: done
 
 Blocked by: 05
 
