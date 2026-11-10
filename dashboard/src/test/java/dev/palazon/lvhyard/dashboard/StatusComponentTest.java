@@ -203,6 +203,7 @@ class StatusComponentTest extends DashboardComponentTest {
         () -> {
           String consul = div(remote.page("/status"), "id=\"part-consul\"");
           assertThat(consul).contains("! Warning").contains("A Peer is not in Consul");
+          assertThat(consul).containsPattern("<details[^>]*open");
           String summary = remote.page("/status/summary");
           assertThat(openingTag(summary, "id=\"dot-consul\""))
               .contains("aria-label=\"Consul: Warning. A Peer is not in Consul");

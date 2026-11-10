@@ -18,6 +18,12 @@ Catalog, Route Profiles, Backups and Status pages, and it highlights the
 current page. The header names Consul, Traefik and Docker with their Status.
 On a phone, it shows their worst Status. Open the summary to see the details.
 
+The Status page shows one box for each of Consul, Traefik and Docker. Each box
+gives the state and the reason. Its Technical details list the facts behind the
+state. When a part is not OK, its details start open. When a part is OK, they
+start closed. The page refreshes by itself and keeps the details that you open
+or close. On a phone, each detail stacks its name, state and value.
+
 The Catalog shows one row for each Service, grouped by Workstation. Its columns
 are Service, State, Hostname and Instances. On a phone, each row stacks these
 facts without sideways scrolling. The Instances count says "2 of 3 passing",

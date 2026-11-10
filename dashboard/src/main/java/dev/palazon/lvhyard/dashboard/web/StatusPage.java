@@ -4,6 +4,7 @@ import static dev.palazon.lvhyard.dashboard.events.EventBroadcaster.STATUS_CHANG
 
 import dev.palazon.lvhyard.dashboard.Workstation;
 import dev.palazon.lvhyard.dashboard.status.Part;
+import dev.palazon.lvhyard.dashboard.status.PartState;
 import dev.palazon.lvhyard.dashboard.status.Status;
 import org.xmlet.htmlapifaster.Div;
 
@@ -28,6 +29,8 @@ final class StatusPage {
                 region ->
                     region
                         .div()
+                        .attrClass("flex flex-col gap-2")
+                        .div()
                         .attrClass("flex flex-wrap items-center gap-3")
                         .h1()
                         .text("Status")
@@ -37,16 +40,20 @@ final class StatusPage {
                         .p()
                         .text("Whether LVH Yard works on " + workstation.name() + ".")
                         .__()
-                        .of(content -> status.parts().forEach(part -> part(content, part)))));
+                        .__()
+                        .div()
+                        .attrClass("status-parts min-w-0 divide-y rounded-lg border")
+                        .of(content -> status.parts().forEach(part -> part(content, part)))
+                        .__()));
   }
 
   private static void part(Div<?> content, Part part) {
     content
         .div()
         .attrId(StatusViews.partId(part.name()))
-        .attrClass("card flex flex-col gap-3 p-4")
+        .attrClass("min-w-0 p-5 wrap-anywhere")
         .div()
-        .attrClass("flex flex-wrap items-center gap-3")
+        .attrClass("mb-2 flex flex-wrap items-center justify-between gap-3")
         .h2()
         .text(part.name())
         .__()
@@ -64,16 +71,33 @@ final class StatusPage {
   }
 
   private static void details(Div<?> card, Part part) {
-    card.div()
-        .attrClass("table-container")
+    card.custom("details")
+        .attrClass("status-details mt-4")
+        .addAttr("data-preserve-open", "status:" + part.name() + ":" + part.state())
+        .of(box -> {
+          if (part.state() != PartState.OK) {
+            box.addAttr("open", "");
+          }
+        })
+        .custom("summary")
+        .addAttr("aria-label", part.name() + " technical details")
+        .text("Technical details")
+        .__()
+        .section()
+        .attrClass("mt-2")
         .table()
-        .attrClass("table")
+        .attrClass("table status-details-table")
+        .caption()
+        .attrClass("sr-only")
+        .text(part.name() + " technical details")
+        .__()
         .tbody()
         .of(body ->
             part.details()
                 .forEach(detail ->
                     body.tr()
                         .th()
+                        .addAttr("scope", "row")
                         .attrClass("font-medium")
                         .text(detail.name())
                         .__()
@@ -88,6 +112,7 @@ final class StatusPage {
                         })
                         .__()
                         .__()))
+        .__()
         .__()
         .__()
         .__();

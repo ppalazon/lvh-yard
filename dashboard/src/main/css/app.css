@@ -637,3 +637,93 @@
     }
   }
 }
+
+@layer components {
+  .status-parts a:focus-visible,
+  .status-details summary:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+
+  .status-details::details-content {
+    transition: none;
+  }
+
+  .status-details[open]::details-content {
+    block-size: auto;
+  }
+
+  .status-details summary {
+    display: list-item;
+    list-style-position: inside;
+    list-style-type: disclosure-closed;
+    min-height: 2.5rem;
+    padding-block: 0.5rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+  }
+
+  .status-details[open] > summary {
+    list-style-type: disclosure-open;
+  }
+
+  .status-details-table {
+    table-layout: fixed;
+  }
+
+  .status-details-table th,
+  .status-details-table td {
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .status-details-table th {
+    width: 22%;
+  }
+
+  .status-details-table td:last-child {
+    width: 8rem;
+    text-align: right;
+  }
+
+  @media (width < 48rem) {
+    .status-details-table,
+    .status-details-table tbody {
+      display: block;
+      width: 100%;
+    }
+
+    .status-details-table tbody tr {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0.25rem 0.75rem;
+      padding-block: 0.75rem;
+    }
+
+    .status-details-table th,
+    .status-details-table td {
+      width: auto;
+      min-width: 0;
+      padding: 0;
+      text-align: left;
+    }
+
+    .status-details-table td:nth-child(2) {
+      grid-column: 1 / -1;
+      grid-row: 2;
+      font-size: 0.875rem;
+      color: var(--muted-foreground);
+    }
+
+    .status-details-table td:last-child {
+      grid-column: 2;
+      grid-row: 1;
+      width: auto;
+    }
+
+    .status-details-table td:empty {
+      display: none;
+    }
+  }
+}
