@@ -103,6 +103,35 @@ class BindContainerPageComponentTest extends DashboardComponentTest {
     assertThat(openingTag(page, "id=\"containerPort-options\"")).contains("role=\"listbox\"");
   }
 
+  /** Everything that the container field shows for the option whose value is {@code value}. */
+  private static String optionText(String page, String value) {
+    String item = page.substring(page.indexOf("data-value=\"" + value + "\""));
+    return item.substring(0, item.indexOf("</li>"));
+  }
+
+  @Test
+  void containerFieldSaysWhichTargetsRunAndWhichAreStopped() {
+    String project = newComposeProject();
+    String running = newContainerName();
+    String stopped = newContainerName();
+    start(FakeDocker.container(running));
+    stopContainer(start(FakeDocker.container(stopped)));
+    start(FakeDocker.container(newContainerName()).compose(project, "all"));
+    start(FakeDocker.container(newContainerName()).compose(project, "some"));
+    stopContainer(start(FakeDocker.container(newContainerName()).compose(project, "some")));
+    stopContainer(start(FakeDocker.container(newContainerName()).compose(project, "none")));
+    String web = newServiceName("web");
+    create(web);
+
+    String page = getPage(bindPage(web)).getBody();
+
+    assertThat(optionText(page, running)).contains(">running<");
+    assertThat(optionText(page, stopped)).contains(">stopped<");
+    assertThat(optionText(page, project + "/all")).contains(">running<");
+    assertThat(optionText(page, project + "/some")).contains(">1 of 2 running<");
+    assertThat(optionText(page, project + "/none")).contains(">stopped<");
+  }
+
   @Test
   void followedTargetShowsItsServicesAndCanBeSelected() {
     String name = newContainerName();

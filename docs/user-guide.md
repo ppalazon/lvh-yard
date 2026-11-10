@@ -1132,9 +1132,11 @@ The Container field is a list that you can also type in. It lists:
    `docker compose up` makes new containers.
 2. Each container with no Compose project, by its name.
 
-The list holds stopped containers too. A target that other Services follow
-shows `used by` and their names. You can still select it, so one container or
-Compose service can give Instances to several Services.
+The list holds stopped containers too. Each entry shows `running` or `stopped`.
+A Compose service with only some containers running shows how many, such as
+`1 of 2 running`. A target that other Services follow shows `used by` and
+their names. You can still select it, so one container or Compose service can
+give Instances to several Services.
 
 You can also type a target that does not exist yet. Type a container name,
 or a Compose project and service as `project/service`. A Docker container

@@ -121,7 +121,12 @@ class BindContainerPagesController {
       } else {
         plain.add(
             new BindContainerPage.Target(
-                container.name(), false, targetPorts(List.of(container)), container.followedBy()));
+                container.name(),
+                false,
+                targetPorts(List.of(container)),
+                container.followedBy(),
+                container.running() ? 1 : 0,
+                1));
       }
     }
     List<BindContainerPage.Target> targets = new ArrayList<>();
@@ -134,7 +139,9 @@ class BindContainerPagesController {
               targetPorts(members),
               containerList.following(
                   ContainerBindingRequest.compose(
-                      first.composeProject(), first.composeService(), null))));
+                      first.composeProject(), first.composeService(), null)),
+              (int) members.stream().filter(ListedContainer::running).count(),
+              members.size()));
     });
     targets.addAll(plain);
     return targets;

@@ -30,8 +30,35 @@ final class BindContainerPage {
    * @param value what the field sends: a container name, or {@code project/service}
    * @param ports its Container Ports
    * @param followedBy the Services that have a Binding that names it, by name
+   * @param running how many of its containers run
+   * @param total how many containers it has: one for a container, one or more for a Compose service
    */
-  record Target(String value, boolean compose, List<TargetPort> ports, List<String> followedBy) {}
+  record Target(
+      String value,
+      boolean compose,
+      List<TargetPort> ports,
+      List<String> followedBy,
+      int running,
+      int total) {
+
+    /**
+     * {@code running}, {@code stopped}, or {@code 1 of 2 running} when only some containers run.
+     */
+    String state() {
+      if (running == 0) {
+        return "stopped";
+      }
+      return running == total ? "running" : running + " of " + total + " running";
+    }
+
+    /** The badge variant of {@link #state()}. */
+    String variant() {
+      if (running == 0) {
+        return "secondary";
+      }
+      return running == total ? "success" : "outline";
+    }
+  }
 
   /**
    * @param hostPorts the host ports that publish it, none when it is only exposed
@@ -178,13 +205,21 @@ final class BindContainerPage {
       boolean used = !target.followedBy().isEmpty();
       list.li()
           .attrClass(
-              "flex cursor-default justify-between gap-2 rounded-sm px-2 py-1.5 text-sm"
-                  + " aria-selected:bg-accent")
+              "flex cursor-default items-center justify-between gap-2 rounded-sm py-1.5 pr-2 pl-5"
+                  + " text-sm aria-selected:bg-accent")
           .addAttr("role", "option")
           .addAttr("data-value", Layout.attr(target.value()))
           .addAttr("data-ports", Layout.attr(dataPorts(target.ports())))
           .span()
+          .attrClass("flex items-center gap-2")
+          .span()
           .text(target.value())
+          .__()
+          .span()
+          .attrClass("badge")
+          .addAttr("data-variant", target.variant())
+          .text(target.state())
+          .__()
           .__()
           .span()
           .attrClass("text-muted-foreground")
