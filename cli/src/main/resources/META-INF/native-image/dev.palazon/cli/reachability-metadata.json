@@ -1,6 +1,0 @@
-{
-  "resources": [
-    { "glob": "templates/compose.yaml" },
-    { "glob": "templates/.env.example" }
-  ]
-}

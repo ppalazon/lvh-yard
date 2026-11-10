@@ -43,51 +43,22 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # The lvh-yard command as one executable per platform, tested before it is packed. The CLI tests run once on the
-  # JVM and once against the executable (-Pnative verify). Linux builds on 22.04, because its older glibc lets the
-  # executable run on more distributions.
-  cli-native:
-    strategy:
-      matrix:
-        include:
-          - { runner: ubuntu-22.04, platform: linux-amd64 }
-          - { runner: ubuntu-22.04-arm, platform: linux-arm64 }
-          - { runner: macos-latest, platform: macos-arm64 }
-    runs-on: ${{ matrix.runner }}
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v5
-      # Sets JAVA_HOME and GRAALVM_HOME. The toolchain of the pom finds this JDK 25 through JAVA_HOME.
-      - uses: graalvm/setup-graalvm@v1
-        with:
-          java-version: "25"
-          distribution: graalvm-community
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          cache: maven
-      - run: ./mvnw -B -Pnative -pl cli verify -Drevision="${GITHUB_REF_NAME#v}"
-      # A tar keeps the executable bit, which an uploaded artifact loses.
-      - run: tar -czf "lvh-yard-${GITHUB_REF_NAME#v}-${{ matrix.platform }}.tar.gz" -C cli/target lvh-yard -C ../.. LICENSE
-      - uses: actions/upload-artifact@v4
-        with:
-          name: lvh-yard-${{ matrix.platform }}
-          path: lvh-yard-*.tar.gz
-
-  cli-go:
+  # The lvh-yard command as one executable per platform, tested and cross-compiled on one runner.
+  cli:
     runs-on: ubuntu-latest
     permissions:
       contents: read
     defaults:
       run:
-        working-directory: cli-go
+        working-directory: cli
     env:
       CGO_ENABLED: "0"
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
         with:
-          go-version-file: cli-go/go.mod
-          cache-dependency-path: cli-go/go.sum
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
       - run: go test ./...
       - name: Cross-compile and pack the CLI
         run: |
@@ -100,21 +71,21 @@ jobs:
             GOOS="$os" GOARCH="$arch" go build -trimpath \
               -ldflags="-s -w -X main.version=$version" \
               -o "target/$platform/lvh-yard" ./cmd/lvh-yard
-            tar -czf "target/lvh-yard-go-$version-$platform.tar.gz" \
+            tar -czf "target/lvh-yard-$version-$platform.tar.gz" \
               -C "target/$platform" lvh-yard -C "$GITHUB_WORKSPACE" LICENSE
           done
           test "$(target/linux-amd64/lvh-yard --version)" = "lvh-yard $version"
-      # The release downloads only lvh-yard-* artifacts while the native CLI is shipped.
+      # The release downloads the artifacts that match lvh-yard-*.
       - uses: actions/upload-artifact@v4
         with:
-          name: go-cli-archives
-          path: cli-go/target/lvh-yard-go-*.tar.gz
+          name: lvh-yard-archives
+          path: cli/target/lvh-yard-*.tar.gz
           if-no-files-found: error
 
   # The GitHub release, after the image is pushed and every executable is built. Its notes come from the commits
   # since the last tag. With SHA256SUMS and sha256sum -c, a user can make sure that a download is correct.
   release:
-    needs: [dashboard-image, cli-native]
+    needs: [dashboard-image, cli]
     runs-on: ubuntu-latest
     permissions:
       # Lets GITHUB_TOKEN create the release.
