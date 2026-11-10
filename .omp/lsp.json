@@ -1,0 +1,26 @@
+{
+  "servers": {
+    "jdtls": {
+      "command": "/home/ppalazon/.local/share/nvim/mason/bin/jdtls",
+      "args": [
+        "--java-executable=/usr/lib/jvm/java-21-openjdk/bin/java",
+        "-data",
+        "/home/ppalazon/.cache/omp/jdtls/lvh-yard"
+      ],
+      "fileTypes": [".java"],
+      "rootMarkers": ["pom.xml"],
+      "settings": {
+        "java": {
+          "configuration": {
+            "runtimes": [
+              {
+                "name": "JavaSE-25",
+                "path": "/usr/lib/jvm/java-25-openjdk"
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
