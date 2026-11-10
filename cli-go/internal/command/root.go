@@ -49,6 +49,7 @@ func NewRoot(options Options, groups ...func(*Options) *cobra.Command) *cobra.Co
 	root.SetVersionTemplate("lvh-yard {{.Version}}\n")
 	root.PersistentFlags().StringVar(&options.dashboard, "dashboard", "", "Uses the dashboard at this URL.")
 	root.AddCommand(NewStatus(&options))
+	root.AddCommand(NewCatalog(&options))
 	for _, group := range groups {
 		root.AddCommand(group(&options))
 	}
