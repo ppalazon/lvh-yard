@@ -55,6 +55,7 @@ func NewRoot(options Options, groups ...func(*Options) *cobra.Command) *cobra.Co
 	root.AddCommand(NewProfiles(&options))
 	root.AddCommand(NewExport(&options), NewImport(&options))
 	root.AddCommand(NewInit(&options))
+	root.AddCommand(NewContainers(&options))
 	for _, group := range groups {
 		root.AddCommand(group(&options))
 	}

@@ -1168,15 +1168,18 @@ that have a Container Binding that matches the container, whatever the port of
 the Binding, and is empty when none does. If the dashboard cannot read Docker,
 the answer is 503 and says why.
 
-`lvh-yard containers` lists the Unfollowed Containers: the running containers
-that no Container Binding matches. It groups them by Compose project and
-service. Each service line starts with its name, then gives the container
-count and combined Container Ports. Standalone containers keep separate lines.
+`lvh-yard containers` lists every container of this Workstation, running or
+stopped. It groups them by Compose project and service. Each service line
+starts with its name, then gives the container count and combined Container
+Ports. When some containers are stopped, the line gives both counts.
+It marks each Unfollowed Container by name: a running container that no
+Container Binding matches. Standalone containers keep separate lines.
 Add `--details` to list each container below its service, with mappings such
 as `127.0.0.1:8080->80`. IPv6 addresses have brackets, such as `[::]:8080->80`.
 If the bind address is unknown, the CLI keeps the Host Port and marks the
 mapping with `(bind address unknown)`.
-The detail lines also show the Docker HEALTHCHECK state when one is set.
+The detail lines also show whether each container runs and its Docker
+HEALTHCHECK state when one is set.
 
 #### The REST API
 
@@ -1190,7 +1193,7 @@ Service changes nothing.
 From the terminal:
 
 ```sh
-lvh-yard containers                                      # the Unfollowed Containers
+lvh-yard containers                                      # all containers, with Unfollowed Containers marked
 lvh-yard register container shop-web-1                   # a container with one Container Port
 lvh-yard register container shop-web-1 --port 9000       # choose the port of a container with several or none
 lvh-yard register container shop-web-1 --service shop    # choose the Service name
