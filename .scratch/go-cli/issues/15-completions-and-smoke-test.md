@@ -1,6 +1,6 @@
 # 15: `completions` and the smoke test
 
-Status: ready-for-agent
+Status: done
 
 Blocked by: 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 14
 

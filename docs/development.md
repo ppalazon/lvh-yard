@@ -147,6 +147,10 @@ While you work, run `mise run test:unit` or `mise run test:component`. Both
 run in seconds, without Docker. Before you commit, run `mise run check`. It
 builds the stylesheet, builds both Java modules from scratch and runs every test.
 Both `test:unit` and `check` also run `go vet` and `go test ./...` in `cli-go/`.
+`check` also runs `mise run cli:smoke`. This one integration test builds the Go
+CLI, runs the executable against a fake dashboard, and checks the output, the
+version and the exit codes. Its file has the build tag `integration`, so
+`go test ./...` skips it.
 The `gofmt` pre-commit hook rejects Go files that need formatting.
 The dashboard tests log only warnings and errors. The full output of each test
 class is in `dashboard/target/surefire-reports/` and
