@@ -1,4 +1,4 @@
-# Only what the Dockerfile builds from: the Maven wrapper and poms, both modules' sources and the npm files.
+# Only what the Dockerfile builds from: the Maven wrapper and poms, the dashboard's sources and the npm files.
 **/target/
 node_modules/
 .env

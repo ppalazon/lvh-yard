@@ -28,22 +28,21 @@ description = "Format and check every file, as the pre-commit hook does"
 run = "prek run --all-files"
 
 [tasks.check]
-description = "Build app.css, build both Java modules from scratch, check the Go CLI and smoke-test it"
+description = "Build app.css, build the dashboard from scratch, check the Go CLI and smoke-test it"
 # clean: compiled classes of moved or deleted sources otherwise linger in target/ and fail as phantom tests.
-# -T 2: the cli module does not depend on the dashboard, so both build at the same time.
 # sources and auto outputs: mise skips the task if no source changed after the last run that passed.
 sources = [
-  "pom.xml", "cli/pom.xml", "dashboard/pom.xml", ".mvn/**/*", "package-lock.json",
-  "cli/src/**/*", "cli-go/**/*.go", "cli-go/go.mod", "cli-go/go.sum",
+  "pom.xml", "dashboard/pom.xml", ".mvn/**/*", "package-lock.json",
+  "cli/**/*.go", "cli/go.mod", "cli/go.sum",
   "dashboard/src/**/*", "dashboard/openapi.yaml", "compose.yaml", ".env.example",
 ]
 outputs = { auto = true }
-run = [{ task = "css" }, "./mvnw -q -T 2 clean verify", { task = "cli:check" }, { task = "cli:smoke" }]
+run = [{ task = "css" }, "./mvnw -q clean verify", { task = "cli:check" }, { task = "cli:smoke" }]
 
 [tasks."test:unit"]
-description = "Run Java unit tests and check the Go CLI, without Spring or Docker"
+description = "Run the dashboard unit tests and check the Go CLI, without Spring or Docker"
 run = [
-  "./mvnw -q -T 2 test -Dtest='*Test,!*ComponentTest' -Dsurefire.failIfNoSpecifiedTests=false",
+  "./mvnw -q test -Dtest='*Test,!*ComponentTest' -Dsurefire.failIfNoSpecifiedTests=false",
   { task = "cli:check" },
 ]
 
@@ -54,73 +53,37 @@ run = "./mvnw -q -pl dashboard test -Dtest='*ComponentTest' -Dsurefire.failIfNoS
 [tasks."cli:templates"]
 description = "Refresh the Go CLI's embedded copies of compose.yaml and .env.example"
 run = [
-  "cp compose.yaml cli-go/internal/templates/compose.yaml",
-  "cp .env.example cli-go/internal/templates/.env.example",
+  "cp compose.yaml cli/internal/templates/compose.yaml",
+  "cp .env.example cli/internal/templates/.env.example",
 ]
 
 [tasks."cli:build"]
-description = "Build the Go lvh-yard executable in cli-go/target"
-dir = "{{config_root}}/cli-go"
+description = "Build the Go lvh-yard executable in cli/target"
+dir = "{{config_root}}/cli"
 run = 'CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${VERSION:-dev}" -o target/lvh-yard ./cmd/lvh-yard'
 
 [tasks."cli:check"]
 description = "Run go vet and the Go CLI unit tests"
-dir = "{{config_root}}/cli-go"
+dir = "{{config_root}}/cli"
 run = ["go vet ./...", "go test ./..."]
 
 [tasks."cli:smoke"]
 description = "Run the Go CLI smoke test: the built executable against a fake dashboard"
-dir = "{{config_root}}/cli-go"
+dir = "{{config_root}}/cli"
 run = "go test -tags integration -count=1 ./cmd/lvh-yard"
 
-[tasks.native]
-description = "Build the lvh-yard executable with GraalVM, and run the CLI's tests on it: cli/target/lvh-yard"
-# GraalVM for this task only, as the release workflow uses it. JAVA_HOME then names it, whatever GRAALVM_HOME says.
-# clean: picocli-codegen lists the commands' options only when Maven recompiles them.
-tools = { java = "graalvm-community-25.0.2" }
-run = 'GRAALVM_HOME="$JAVA_HOME" ./mvnw -q -Pnative -pl cli clean verify'
-
-[tasks."native:optimize"]
-description = "Build lvh-yard for speed (-O3) or size (-Os), and run the CLI's tests on it: mise run native:optimize [--for size]"
-# -O3 starts faster and is smaller than the default -O2. -Os is 20% smaller again, but each command starts about 2 ms slower.
-# -Dnative.optimization, not -DbuildArgs: -DbuildArgs replaces the pom's buildArgs and drops the NativeRecords Feature.
-usage = 'flag "--for <goal>" default="speed" help="speed or size" { choices "speed" "size" }'
-tools = { java = "graalvm-community-25.0.2" }
-run = """
-level=3; [ "$usage_for" = size ] && level=s
-GRAALVM_HOME="$JAVA_HOME" ./mvnw -q -Pnative -pl cli clean verify -Dnative.optimization="$level"
-"""
-
-[tasks."native:copy"]
-description = "Copy cli/target/lvh-yard to another computer through ssh: mise run native:copy user@host [--dir .local/bin]"
-# The other computer needs the same OS and CPU type as this one.
-# A new file, then mv: a running lvh-yard cannot be overwritten in place ("Text file busy").
-usage = """
-arg "<host>" help="The ssh destination, for example user@host"
-flag "--dir <dir>" default=".local/bin" help="The folder for lvh-yard on that computer, relative to its home folder"
-"""
-run = """
-[ -x cli/target/lvh-yard ] || { echo "cli/target/lvh-yard is missing. Build it first with mise run native." >&2; exit 1; }
-ssh -C "$usage_host" "mkdir -p '$usage_dir' && cat > '$usage_dir/lvh-yard.new' && chmod +x '$usage_dir/lvh-yard.new' && mv '$usage_dir/lvh-yard.new' '$usage_dir/lvh-yard'" < cli/target/lvh-yard
-echo "Copied lvh-yard to $usage_host:$usage_dir/lvh-yard"
-"""
-
-[tasks."native:install"]
-description = "Copy cli/target/lvh-yard to a folder on this computer: mise run native:install [--dir ~/.local/bin]"
+[tasks.install]
+description = "Build the lvh-yard executable and copy it to a folder on this computer: mise run install [--dir ~/.local/bin]"
 # A new file, then mv: a running lvh-yard cannot be overwritten in place ("Text file busy").
 usage = 'flag "--dir <dir>" default="~/.local/bin" help="The folder for lvh-yard"'
+depends = ["cli:build"]
 run = """
-[ -x cli/target/lvh-yard ] || { echo "cli/target/lvh-yard is missing. Build it first with mise run native." >&2; exit 1; }
 dir="${usage_dir/#\\~/$HOME}"
 mkdir -p "$dir"
 cp cli/target/lvh-yard "$dir/lvh-yard.new"
 mv "$dir/lvh-yard.new" "$dir/lvh-yard"
 echo "Installed lvh-yard to $dir/lvh-yard"
 """
-
-[tasks.install]
-description = "Build the dashboard image and lvh-yard, and copy lvh-yard to ~/.local/bin"
-run = [{ task = "dashboard:image" }, { task = "native" }, { task = "native:install" }]
 
 [tasks.openapi]
 description = "Rewrite dashboard/openapi.yaml from the running dashboard's OpenAPI document"

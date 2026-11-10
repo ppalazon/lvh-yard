@@ -43,14 +43,12 @@
         <url>https://github.com/ppalazon/lvh-yard/issues</url>
     </issueManagement>
 
-    <!-- The two modules share no code: the dashboard's openapi.yaml is their contract. -->
     <modules>
         <module>dashboard</module>
-        <module>cli</module>
     </modules>
 
     <properties>
-        <!-- The version of both modules. A release sets it from its tag: -Drevision=0.1.0 -->
+        <!-- The version of the dashboard. A release sets it from its tag: -Drevision=0.1.0 -->
         <revision>0.0.1-SNAPSHOT</revision>
         <java.version>25</java.version>
         <maven-toolchains-plugin.version>3.2.0</maven-toolchains-plugin.version>
