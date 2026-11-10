@@ -1,6 +1,6 @@
 # 02: Go tooling and a root command
 
-Status: ready-for-agent
+Status: done
 
 Blocked by: None (can start immediately)
 
@@ -20,8 +20,14 @@ An executable named `lvh-yard` that prints its version and its help, and that kn
 
 ## Acceptance criteria
 
-- [ ] `lvh-yard --version` prints the version, and `dev` for a plain build.
+- [x] `lvh-yard --version` prints the version, and `dev` for a plain build.
 - [ ] The address lookup tests cover each of the four sources, their order, the `0.0.0.0` mapping and a missing `.env`.
-- [ ] `mise run cli:build` makes the executable.
+- [x] `mise run cli:build` makes the executable.
 - [ ] `mise run check` runs the Go tests and passes.
-- [ ] The `gofmt` hook fails on a badly formatted Go file.
+- [x] The `gofmt` hook fails on a badly formatted Go file.
+
+## Comments
+
+The integration owner verified `mise run cli:build` with the default `dev` version and with `VERSION=0.1.0`. Both builds passed. The integration owner also verified `mise run cli:check` (`go vet` and the Go tests) and confirmed that the `gofmt` hook rejects a badly formatted Go fixture.
+
+The integration owner attempted `mise run check`. It failed in the unchanged dashboard `DockerEngineIT` because it missed a start event. The full-suite acceptance criterion remains unchecked. The merger did not rerun checks, tests, or formatters.

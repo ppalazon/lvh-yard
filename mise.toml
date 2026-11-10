@@ -1,6 +1,7 @@
 [tools]
 node = "24"
 prek = "0.3.10"
+go = "1.27.3"
 
 [tasks."css:install"]
 description = "Install Tailwind CSS and Basecoat into node_modules/, as package-lock.json pins them"
@@ -27,24 +28,38 @@ description = "Format and check every file, as the pre-commit hook does"
 run = "prek run --all-files"
 
 [tasks.check]
-description = "Build app.css, build both modules from scratch and run every test"
+description = "Build app.css, build both Java modules from scratch and check the Go CLI"
 # clean: compiled classes of moved or deleted sources otherwise linger in target/ and fail as phantom tests.
 # -T 2: the cli module does not depend on the dashboard, so both build at the same time.
 # sources and auto outputs: mise skips the task if no source changed after the last run that passed.
 sources = [
   "pom.xml", "cli/pom.xml", "dashboard/pom.xml", ".mvn/**/*", "package-lock.json",
-  "cli/src/**/*", "dashboard/src/**/*", "dashboard/openapi.yaml", "compose.yaml", ".env.example",
+  "cli/src/**/*", "cli-go/**/*.go", "cli-go/go.mod", "cli-go/go.sum",
+  "dashboard/src/**/*", "dashboard/openapi.yaml", "compose.yaml", ".env.example",
 ]
 outputs = { auto = true }
-run =[{ task = "css" }, "./mvnw -q -T 2 clean verify"]
+run = [{ task = "css" }, "./mvnw -q -T 2 clean verify", { task = "cli:check" }]
 
 [tasks."test:unit"]
-description = "Run the unit tests of both modules, without Spring or Docker, while you work. Run check before you commit"
-run = "./mvnw -q -T 2 test -Dtest='*Test,!*ComponentTest' -Dsurefire.failIfNoSpecifiedTests=false"
+description = "Run Java unit tests and check the Go CLI, without Spring or Docker"
+run = [
+  "./mvnw -q -T 2 test -Dtest='*Test,!*ComponentTest' -Dsurefire.failIfNoSpecifiedTests=false",
+  { task = "cli:check" },
+]
 
 [tasks."test:component"]
 description = "Run the dashboard's component tests: the dashboard with fake Consul and Docker, without Docker"
 run = "./mvnw -q -pl dashboard test -Dtest='*ComponentTest' -Dsurefire.failIfNoSpecifiedTests=false"
+
+[tasks."cli:build"]
+description = "Build the Go lvh-yard executable in cli-go/target"
+dir = "{{config_root}}/cli-go"
+run = 'CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${VERSION:-dev}" -o target/lvh-yard ./cmd/lvh-yard'
+
+[tasks."cli:check"]
+description = "Run go vet and the Go CLI unit tests"
+dir = "{{config_root}}/cli-go"
+run = ["go vet ./...", "go test ./..."]
 
 [tasks.native]
 description = "Build the lvh-yard executable with GraalVM, and run the CLI's tests on it: cli/target/lvh-yard"

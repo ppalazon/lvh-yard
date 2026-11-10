@@ -8,7 +8,7 @@ defines the words, and [docs/adr/](adr/) records the design decisions.
 
 You need Docker with Compose, JDK 25 and [mise](https://mise.jdx.dev/). The
 build selects the JDK through a Maven toolchain. mise runs the tasks and
-installs Node for Tailwind CSS.
+installs Node for Tailwind CSS and Go for the CLI.
 
 ## Running from the sources
 
@@ -63,6 +63,11 @@ temporary folder for each test JVM, through the `lvh-yard.backups.path`
 setting.
 
 ## Building the CLI
+
+The Go CLI sources live in `cli-go/` until the Java CLI is removed.
+`mise run cli:build` builds `cli-go/target/lvh-yard` without C code and strips
+debug data. It reports `dev` unless `VERSION` is set at build time.
+The Java CLI stays in `cli/` until the cutover.
 
 To build the CLI as a jar or as the executable:
 
@@ -133,7 +138,9 @@ passing health check, the other Workstation's own dashboard, and Traefik.
 
 While you work, run `mise run test:unit` or `mise run test:component`. Both
 run in seconds, without Docker. Before you commit, run `mise run check`. It
-builds the stylesheet, builds both modules from scratch and runs every test.
+builds the stylesheet, builds both Java modules from scratch and runs every test.
+Both `test:unit` and `check` also run `go vet` and `go test ./...` in `cli-go/`.
+The `gofmt` pre-commit hook rejects Go files that need formatting.
 The dashboard tests log only warnings and errors. The full output of each test
 class is in `dashboard/target/surefire-reports/` and
 `dashboard/target/failsafe-reports/`.
@@ -162,8 +169,9 @@ After the tests pass, a manual check is needed in two cases only:
 
 If no source file changed after the last `mise run check` that passed, mise
 skips the task. The source files are the `pom.xml` files, `.mvn/`,
-`package-lock.json`, `dashboard/openapi.yaml`, `compose.yaml`, `.env.example`
-and the `src/` folders of both modules. mise compares change times, not contents, so a `git checkout` also
+`package-lock.json`, `dashboard/openapi.yaml`, `compose.yaml`, `.env.example`,
+the `src/` folders of both Java modules, and the Go sources and module files in
+`cli-go/`. mise compares change times, not contents, so a `git checkout` also
 starts a new run. A change outside these files does not start a new run, for
 example a new Java version. To run every test anyway, use
 `mise run --force check`.
