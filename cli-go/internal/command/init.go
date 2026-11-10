@@ -49,9 +49,9 @@ func NewInit(options *Options) *cobra.Command {
 				return upgradeInit(options, folder, cmd.OutOrStdout())
 			}
 			if flags.reinit {
-				return fmt.Errorf("this build does not support --reinit")
+				return flags.recreate(cmd, options, folder)
 			}
-			return flags.create(cmd, options, folder)
+			return flags.create(cmd, options, folder, nil)
 		},
 	}
 	f := cmd.Flags()
@@ -73,7 +73,13 @@ func NewInit(options *Options) *cobra.Command {
 	return cmd
 }
 
-func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string) error {
+func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string, old *envFile) error {
+	env := parseEnvFile(templates.Env())
+	if old != nil {
+		if err := carryInitSettings(env, old); err != nil {
+			return err
+		}
+	}
 	terminal := f.terminal || options.Process.IsTerminal()
 	answers := bufio.NewReader(options.Process.Input())
 	ask := func(question, flag string) (string, error) {
@@ -92,7 +98,10 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 		return strings.TrimSpace(line), nil
 	}
 	name := f.workstation
-	if !cmd.Flags().Changed("workstation") {
+	if !cmd.Flags().Changed("workstation") && old != nil {
+		name = old.get("YARD_WORKSTATION")
+	}
+	if !cmd.Flags().Changed("workstation") && name == "" {
 		hostname := f.hostname
 		if !cmd.Flags().Changed("hostname") {
 			hostname, _ = os.Hostname()
@@ -124,11 +133,10 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	if !workstationName.MatchString(name) {
 		return fmt.Errorf("--workstation %s is not a Workstation name: use lowercase letters, digits and -, at most 63, not starting or ending with -", name)
 	}
-	env := parseEnvFile(templates.Env())
 	domain := f.baseDomain
 	if !cmd.Flags().Changed("base-domain") {
 		domain = env.get("YARD_BASE_DOMAIN")
-		if terminal {
+		if terminal && old == nil {
 			for {
 				typed, err := ask("Base domain ["+env.get("YARD_BASE_DOMAIN")+"]: ", "--base-domain")
 				if err != nil {
@@ -145,17 +153,20 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 			}
 		}
 	}
-	if !baseDomainName.MatchString(domain) {
-		return fmt.Errorf("--base-domain %s is not a domain name such as lvh.me", domain)
+	checkedDomain := domain
+	if old != nil && !cmd.Flags().Changed("base-domain") {
+		checkedDomain = env.valueOrDefault("YARD_BASE_DOMAIN")
+	}
+	if !baseDomainName.MatchString(checkedDomain) {
+		return fmt.Errorf("--base-domain %s is not a domain name such as lvh.me", checkedDomain)
 	}
 	key := f.gossipKey
-	if cmd.Flags().Changed("gossip-key") {
-		decoded, err := base64.StdEncoding.DecodeString(key)
-		if err != nil && !strings.Contains(key, "=") {
-			decoded, err = base64.RawStdEncoding.DecodeString(key)
-		}
-		if err != nil || (len(decoded) != 16 && len(decoded) != 24 && len(decoded) != 32) {
-			return fmt.Errorf("--gossip-key is not a gossip key: copy the Yard's key, Base64 of 32 bytes, from another Workstation's .env")
+	if !cmd.Flags().Changed("gossip-key") && old != nil {
+		key = old.get("YARD_GOSSIP_KEY")
+	}
+	if cmd.Flags().Changed("gossip-key") || key != "" {
+		if err := checkInitGossipKey(key); err != nil {
+			return err
 		}
 	} else {
 		bytes := make([]byte, 32)
@@ -178,7 +189,11 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 			return err
 		}
 	}
-	for _, setting := range [][2]string{{"YARD_WORKSTATION", name}, {"YARD_BASE_DOMAIN", domain}, {"YARD_GOSSIP_KEY", key}, {"YARD_PEERS", strings.Join(peers, " ")}} {
+	settings := [][2]string{{"YARD_WORKSTATION", name}, {"YARD_BASE_DOMAIN", domain}, {"YARD_GOSSIP_KEY", key}}
+	if old == nil || cmd.Flags().Changed("peers") {
+		settings = append(settings, [2]string{"YARD_PEERS", strings.Join(peers, " ")})
+	}
+	for _, setting := range settings {
 		if err := env.set(setting[0], setting[1]); err != nil {
 			return err
 		}
@@ -186,6 +201,11 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	compose, err := templates.Compose(options.Version)
 	if err != nil {
 		return err
+	}
+	if old != nil {
+		if err := backUpInitFiles(cmd.OutOrStdout(), folder); err != nil {
+			return err
+		}
 	}
 	if err := writeWorkstationFiles(folder, compose, env.text(), f.force); err != nil {
 		return err
@@ -195,6 +215,17 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "Wrote compose.yaml, .env to %s.\n\nThe Yard's gossip key: %s\nGive this key to every other Workstation: lvh-yard init --gossip-key <key>.\n\n", folder, key)
 	printInitNextSteps(cmd.OutOrStdout(), folder, env)
+	return nil
+}
+
+func checkInitGossipKey(key string) error {
+	decoded, err := base64.StdEncoding.DecodeString(key)
+	if err != nil && !strings.Contains(key, "=") {
+		decoded, err = base64.RawStdEncoding.DecodeString(key)
+	}
+	if err != nil || (len(decoded) != 16 && len(decoded) != 24 && len(decoded) != 32) {
+		return fmt.Errorf("--gossip-key is not a gossip key: copy the Yard's key, Base64 of 32 bytes, from another Workstation's .env")
+	}
 	return nil
 }
 
