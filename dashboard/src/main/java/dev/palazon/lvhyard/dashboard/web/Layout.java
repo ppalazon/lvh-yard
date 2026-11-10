@@ -12,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.util.HtmlUtils;
 import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
+import org.xmlet.htmlapifaster.FlowContent;
 import org.xmlet.htmlapifaster.Main;
 import org.xmlet.htmlapifaster.PhrasingContent;
 import org.xmlet.htmlapifaster.Svg;
@@ -90,18 +91,16 @@ public final class Layout {
         .addAttr("hx-ext", "sse")
         .addAttr("hx-sse:connect", "/events")
         .header()
-        .attrClass("border-b")
+        .attrClass("yard-header border-b")
         .div()
-        .attrClass(
-            "mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4"
-                + " py-3")
+        .attrClass("mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3")
         .a()
         .attrHref("/")
-        .attrClass("font-semibold")
+        .attrClass("min-w-0 break-words font-semibold")
         .text("LVH Yard · " + workstation)
         .__()
         .div()
-        .attrClass("flex items-center gap-3 sm:order-last")
+        .attrClass("ml-auto flex items-center gap-2 lg:order-last")
         .of(Layout::statusDots)
         .of(Layout::themeToggle)
         .__()
@@ -121,7 +120,7 @@ public final class Layout {
   private static void navigation(Div<?> bar, Section current) {
     bar.nav()
         .addAttr("aria-label", "Main")
-        .attrClass("w-full sm:w-auto sm:flex-1")
+        .attrClass("order-last w-full lg:order-none lg:w-auto lg:flex-1")
         .ul()
         .attrClass("flex flex-wrap gap-1")
         .of(list -> {
@@ -147,9 +146,8 @@ public final class Layout {
   }
 
   /**
-   * Where the {@link StatusSummary} dots go. HTMX loads them once the page is shown, and again
-   * every 5 seconds, so a slow part never slows the page. An error answer swaps nothing, so the
-   * dots keep their last state, as in a {@link #refreshed} region.
+   * HTMX loads the Status summary after the page, so a slow part never slows the page. An error
+   * answer swaps nothing, so the summary keeps its last state, as in a {@link #refreshed} region.
    */
   private static void statusDots(Div<?> header) {
     header
@@ -247,7 +245,11 @@ public final class Layout {
    * refresh would stop for good.
    */
   public static void refreshed(
-      Main<?> main, String id, String path, List<String> events, Consumer<Div<?>> content) {
+      FlowContent<?, ?> main,
+      String id,
+      String path,
+      List<String> events,
+      Consumer<Div<?>> content) {
     String trigger;
     if (events == null || events.isEmpty()) {
       trigger = "every 5s";
@@ -269,7 +271,7 @@ public final class Layout {
   }
 
   public static void refreshed(
-      Main<?> main, String id, String path, String event, Consumer<Div<?>> content) {
+      FlowContent<?, ?> main, String id, String path, String event, Consumer<Div<?>> content) {
     refreshed(main, id, path, List.of(event), content);
   }
 

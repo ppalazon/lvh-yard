@@ -3,10 +3,10 @@ package dev.palazon.lvhyard.dashboard.web;
 import dev.palazon.lvhyard.dashboard.status.Part;
 import dev.palazon.lvhyard.dashboard.status.Status;
 import htmlflow.HtmlFlow;
-import org.xmlet.htmlapifaster.A;
+import org.xmlet.htmlapifaster.PhrasingContent;
 
 /**
- * The state shows as a symbol as well as a colour. The header loads the dots through HTMX, so a
+ * The state shows as a symbol as well as a colour. The header loads the summary through HTMX, so a
  * slow part never slows the page.
  */
 final class StatusSummary {
@@ -22,14 +22,34 @@ final class StatusSummary {
         .div()
         .a()
         .attrHref(StatusPage.PATH)
-        .attrClass("flex items-center gap-1")
-        .of(link -> status.parts().forEach(part -> dot(link, part)))
+        .attrClass("inline-flex min-h-9 items-center gap-3 rounded-sm text-sm")
+        .span()
+        .attrClass("inline-flex items-center gap-2 md:hidden")
+        .text("Status")
+        .of(label -> StatusViews.badge(label, status.overall()))
+        .__()
+        .span()
+        .attrClass("hidden items-center gap-3 md:inline-flex")
+        .of(parts ->
+            status
+                .parts()
+                .forEach(part ->
+                    parts
+                        .span()
+                        .attrClass("inline-flex items-center gap-1.5")
+                        .span()
+                        .addAttr("aria-hidden", "true")
+                        .text(part.name())
+                        .__()
+                        .of(label -> dot(label, part))
+                        .__()))
+        .__()
         .__()
         .__();
     return out.toString();
   }
 
-  private static void dot(A<?> link, Part part) {
+  private static void dot(PhrasingContent<?, ?> link, Part part) {
     StatusViews.Look look = StatusViews.look(part.state());
     String label = part.name() + ": " + look.label() + ". " + part.reason();
     link.span()

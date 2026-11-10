@@ -15,7 +15,6 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.xmlet.htmlapifaster.Div;
-import org.xmlet.htmlapifaster.Main;
 import org.xmlet.htmlapifaster.Tbody;
 
 /** The Services refresh themselves, with the filters. */
@@ -55,10 +54,16 @@ final class CatalogPage {
         workstation.name(),
         Layout.Section.CATALOG,
         main ->
-            main.h1()
+            main.div()
+                .attrClass("catalog-page flex flex-col gap-4")
+                .div()
+                .attrClass("grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1")
+                .h1()
                 .text("Catalog")
                 .__()
+                .of(content -> FormPage.openLink(content, NewServicePage.SPEC))
                 .p()
+                .attrClass("col-span-2 text-sm text-muted-foreground")
                 .text(
                     "Workstation "
                         + workstation.name()
@@ -66,7 +71,7 @@ final class CatalogPage {
                         + workstation.baseDomain()
                         + ".")
                 .__()
-                .of(content -> FormPage.openLink(content, NewServicePage.SPEC))
+                .__()
                 .of(content -> filterForm(content, yard, filters))
                 .of(content ->
                     Layout.refreshed(
@@ -74,7 +79,8 @@ final class CatalogPage {
                         "catalog",
                         filters.path(),
                         YARD_CHANGED,
-                        region -> workstations(region, yard, filters))));
+                        region -> workstations(region, yard, filters)))
+                .__());
   }
 
   private static void workstations(Div<?> region, Yard yard, Filters filters) {
@@ -90,13 +96,13 @@ final class CatalogPage {
   }
 
   /** After a change, the swapped catalog region refreshes with the new filters. */
-  private static void filterForm(Main<?> main, Yard yard, Filters filters) {
+  private static void filterForm(Div<?> main, Yard yard, Filters filters) {
     List<String> names =
         Stream.concat(
                 Stream.of(yard.home().name()), yard.remotes().stream().map(YardWorkstation::name))
             .toList();
     main.form()
-        .attrClass("form flex flex-nowrap items-end justify-end gap-4")
+        .attrClass("catalog-filters flex flex-wrap items-end gap-3")
         .addAttr("hx-get", "/")
         .addAttr("hx-trigger", "change")
         .addAttr("hx-target", "#catalog")
@@ -106,7 +112,7 @@ final class CatalogPage {
         .addAttr("hx-status:4xx", "swap:none")
         .addAttr("hx-status:5xx", "swap:none")
         .div()
-        .attrClass("field")
+        .attrClass("flex min-w-0 flex-col gap-1.5 md:flex-row md:items-center md:gap-3")
         .label()
         .attrFor("workstation")
         .text("Workstation")
@@ -130,7 +136,7 @@ final class CatalogPage {
         .__()
         .__()
         .div()
-        .attrClass("field")
+        .attrClass("flex min-w-0 flex-col gap-1.5 md:flex-row md:items-center md:gap-3")
         .label()
         .attrFor("state")
         .text("State")
@@ -158,24 +164,39 @@ final class CatalogPage {
   }
 
   private static void home(Div<?> region, HomeWorkstation home, Filters filters) {
-    heading(region, home.name(), "secondary", "This Workstation");
-    services(region, home.services(), filters, false);
+    region
+        .div()
+        .attrClass("catalog-workstation space-y-2")
+        .of(group -> {
+          heading(group, home.name(), "secondary", "This Workstation");
+          services(group, home.services(), filters, false);
+        })
+        .__();
   }
 
   private static void remote(Div<?> region, YardWorkstation remote, Filters filters) {
-    if (remote.unreachable()) {
-      heading(region, remote.name(), "destructive", "Workstation unreachable");
-      region.p().text("Its Consul does not answer. Its Services show again when it does.").__();
-      return;
-    }
-    heading(region, remote.name(), null, null);
-    services(region, remote.services(), filters, true);
+    region
+        .div()
+        .attrClass("catalog-workstation space-y-2")
+        .of(group -> {
+          if (remote.unreachable()) {
+            heading(group, remote.name(), "destructive", "Workstation unreachable");
+            group
+                .p()
+                .text("Its Consul does not answer. Its Services show again when it does.")
+                .__();
+          } else {
+            heading(group, remote.name(), null, null);
+            services(group, remote.services(), filters, true);
+          }
+        })
+        .__();
   }
 
   private static void heading(Div<?> region, String name, String variant, String badge) {
     region
         .div()
-        .attrClass("mt-4 flex flex-wrap items-center gap-3")
+        .attrClass("flex flex-wrap items-center gap-3")
         .h2()
         .text(name)
         .__()
@@ -198,9 +219,9 @@ final class CatalogPage {
     }
     region
         .div()
-        .attrClass("table-container")
+        .attrClass("catalog-services")
         .table()
-        .attrClass("table")
+        .attrClass("table catalog-table")
         .thead()
         .tr()
         .th()
@@ -217,7 +238,7 @@ final class CatalogPage {
         .__()
         .of(head -> {
           if (remote) {
-            head.th().__();
+            head.th().span().attrClass("sr-only").text("Actions").__().__();
           }
         })
         .__()
@@ -233,6 +254,7 @@ final class CatalogPage {
     body.tr()
         .td()
         .a()
+        .attrClass("catalog-service-link")
         .attrHref(Layout.attr(ServicePage.path(service)))
         .text(service.name())
         .__()
@@ -241,7 +263,13 @@ final class CatalogPage {
         .of(cell -> ServiceViews.state(cell, service.state()))
         .__()
         .td()
-        .of(cell -> ServiceViews.hostname(cell, service))
+        .of(cell -> {
+          if (service.hostname() == null) {
+            cell.span().attrClass("text-muted-foreground").text("No hostname").__();
+          } else {
+            ServiceViews.hostname(cell, service);
+          }
+        })
         .__()
         .td()
         .of(cell -> {

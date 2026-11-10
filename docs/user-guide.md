@@ -15,12 +15,14 @@ Each Workstation runs three things:
 
 Each page of the dashboard has a navigation bar at the top. It links to the
 Catalog, Route Profiles, Backups and Status pages, and it highlights the
-current page.
+current page. The header names Consul, Traefik and Docker with their Status.
+On a phone, it shows their worst Status. Open the summary to see the details.
 
 The Catalog shows one row for each Service, grouped by Workstation. Its columns
-are Service, State, Hostname and Instances. The Instances count says "2 of 3
-passing", for example, or "No Instances". Unpublished Services show the count
-too. Instance addresses are on the Service page. You can filter by Workstation
+are Service, State, Hostname and Instances. On a phone, each row stacks these
+facts without sideways scrolling. The Instances count says "2 of 3 passing",
+for example, or "No Instances". Unpublished Services show the count too.
+Instance addresses are on the Service page. You can filter by Workstation
 and state. The Catalog refreshes when something in the Yard changes, and at
 least every 30 seconds. It keeps your filters.
 

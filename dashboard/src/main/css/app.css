@@ -131,3 +131,92 @@
     @apply text-risk/90;
   }
 }
+
+@layer components {
+  .yard-header a:focus-visible,
+  .catalog-page a:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+
+  .catalog-page #catalog {
+    gap: 1.5rem;
+  }
+
+  .catalog-filters {
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .catalog-filters label {
+    font-size: 0.875rem;
+  }
+
+  .catalog-filters select {
+    width: 100%;
+    min-height: 2.5rem;
+    box-shadow: none;
+  }
+
+  .catalog-service-link {
+    font-weight: 600;
+    text-underline-offset: 3px;
+  }
+
+  .catalog-service-link:hover {
+    text-decoration: underline;
+  }
+
+  .catalog-table td {
+    padding-block: 0.75rem;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  @media (width < 48rem) {
+    .catalog-filters > div {
+      flex: 1 1 9rem;
+    }
+
+    /* Keep one table and one set of links when its rows stack on a phone. */
+    .catalog-table,
+    .catalog-table tbody {
+      display: block;
+      width: 100%;
+    }
+
+    .catalog-table thead {
+      @apply sr-only;
+    }
+
+    .catalog-table tbody tr {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.5rem 0.75rem;
+      padding: 1rem 0;
+    }
+
+    .catalog-table td {
+      min-width: 0;
+      padding: 0;
+    }
+
+    .catalog-table td:nth-child(2) {
+      justify-self: end;
+    }
+
+    .catalog-table td:nth-child(3) {
+      grid-column: 1 / -1;
+    }
+
+    .catalog-table td:nth-child(4) {
+      font-size: 0.875rem;
+      color: var(--muted-foreground);
+    }
+
+    .catalog-table td:nth-child(5) {
+      justify-self: end;
+    }
+  }
+}
