@@ -41,7 +41,9 @@ class RouteProfilesPageComponentTest extends DashboardComponentTest {
 
   @Test
   void withNoProfilesSaysSo() {
-    assertThat(getPage("/route-profiles").getBody()).contains("No Route Profiles yet.");
+    assertThat(getPage("/route-profiles").getBody())
+        .contains("No Route Profiles yet.")
+        .contains("Click New Route Profile to add one.");
   }
 
   @Test

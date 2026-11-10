@@ -114,7 +114,14 @@ final class InstanceSourcesCard {
         })
         .__();
     if (sources.isEmpty()) {
-      card.p().text("No Instance Sources yet.").__().__();
+      card.p()
+          .text(
+              own
+                  ? "No Instance Sources yet. Add a Static Instance, bind a container or add an"
+                      + " Alias."
+                  : "No Instance Sources yet.")
+          .__()
+          .__();
       return;
     }
     card.ol()

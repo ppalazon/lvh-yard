@@ -489,7 +489,11 @@ final class BackupsPage {
 
   private static void list(Div<?> main, List<BackupFile> backups) {
     if (backups.isEmpty()) {
-      main.p().text("No Backups yet.").__();
+      EmptyState.render(
+          main,
+          "No Backups yet.",
+          "Click New Backup to save the setup of this Workstation now. To add a file from"
+              + " another place, click Upload a Backup.");
       return;
     }
     main.table()

@@ -273,10 +273,20 @@ final class ServicePage {
           if (own && addable.isEmpty()) {
             card.p()
                 .attrClass("text-muted-foreground")
-                .text(
-                    profileNames.isEmpty()
-                        ? "This Workstation has no Route Profiles to add."
-                        : "Every Route Profile of this Workstation is in use here.")
+                .of(message -> {
+                  if (profileNames.isEmpty()) {
+                    message
+                        .text("This Workstation has no Route Profiles to add. Create one on the ")
+                        .a()
+                        .attrHref(RouteProfilesPage.PATH)
+                        .attrClass("underline")
+                        .text("Route Profiles page")
+                        .__()
+                        .text(".");
+                  } else {
+                    message.text("Every Route Profile of this Workstation is in use here.");
+                  }
+                })
                 .__();
           }
         })

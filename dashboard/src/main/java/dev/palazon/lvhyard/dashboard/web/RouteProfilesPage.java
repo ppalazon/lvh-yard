@@ -83,7 +83,11 @@ final class RouteProfilesPage {
 
   private static void list(Div<?> main, List<RouteProfile> profiles, String workstation) {
     if (profiles.isEmpty()) {
-      main.p().text("No Route Profiles yet.").__();
+      EmptyState.render(
+          main,
+          "No Route Profiles yet.",
+          "A Route Profile holds Route options, such as authentication. Click New Route Profile"
+              + " to add one. Then name it when you publish a Service.");
       return;
     }
     main.table()

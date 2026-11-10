@@ -214,7 +214,17 @@ final class CatalogPage {
   private static void services(Div<?> region, List<Service> all, Filters filters, boolean remote) {
     List<Service> services = filters.of(all);
     if (services.isEmpty()) {
-      region.p().text(all.isEmpty() ? "No Services yet." : "No Services in this state.").__();
+      if (all.isEmpty()) {
+        EmptyState.render(
+            region,
+            "No Services yet.",
+            remote
+                ? "Only the Workstation of a Service can add it."
+                : "Click New Service to add one.");
+      } else {
+        EmptyState.render(
+            region, "No Services in this state.", "Choose Every state to see all Services.");
+      }
       return;
     }
     region
