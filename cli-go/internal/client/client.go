@@ -86,7 +86,7 @@ func (c *Client) exchangeStatus(method, path, contentType, accept string, body i
 			Service string `json:"service"`
 		}
 		_ = json.Unmarshal(data, &problem)
-		return nil, response.StatusCode, &responseError{
+		return data, response.StatusCode, &responseError{
 			status:  response.StatusCode,
 			service: problem.Service,
 			reason:  problemReason(response.StatusCode, data),
