@@ -1140,9 +1140,11 @@ You can also type a target that does not exist yet. Type a container name,
 or a Compose project and service as `project/service`. A Docker container
 name has no `/`, so the two cannot mix.
 
-The Container Port field lists the Container Ports of your pick. You can also
-type any other port. Docker lists no ports for a stopped container, so then
-you type the port.
+The Container Port field is a list that you can also type in. It lists the open
+ports of your pick, each marked as published on a host port or not published.
+For a Compose service, it lists the ports of all its containers. You can type
+any other port. Docker lists no ports for a stopped container, so then you type
+the port.
 
 Click Bind. The page of the Service opens. If the binding fails, the form
 shows your input again with the error under its field. A typed target that

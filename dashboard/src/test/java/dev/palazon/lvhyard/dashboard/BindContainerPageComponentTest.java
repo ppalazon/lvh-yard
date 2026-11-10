@@ -79,6 +79,31 @@ class BindContainerPageComponentTest extends DashboardComponentTest {
   }
 
   @Test
+  void portsOfATargetNameTheHostPortsThatPublishThem() {
+    String name = newContainerName();
+    start(FakeDocker.container(name).published(80).port(9000));
+    String web = newServiceName("web");
+    create(web);
+
+    String page = getPage(bindPage(web)).getBody();
+
+    assertThat(option(page, name)).containsPattern("data-ports=\"80:4\\d{4} 9000\"");
+  }
+
+  @Test
+  void portFieldIsAListThatYouCanAlsoTypeIn() {
+    String web = newServiceName("web");
+    create(web);
+
+    String page = getPage(bindPage(web)).getBody();
+
+    assertThat(openingTag(page, "name=\"containerPort\""))
+        .contains("role=\"combobox\"")
+        .contains("aria-controls=\"containerPort-options\"");
+    assertThat(openingTag(page, "id=\"containerPort-options\"")).contains("role=\"listbox\"");
+  }
+
+  @Test
   void followedTargetShowsButCannotBeSelected() {
     String name = newContainerName();
     start(FakeDocker.container(name).port(80));
@@ -141,7 +166,7 @@ class BindContainerPageComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void refusedFormKeepsWhatWasTypedAndListsThePortsOfThePick() {
+  void refusedFormKeepsWhatWasTyped() {
     String name = newContainerName();
     start(FakeDocker.container(name).port(80).port(9000));
     String web = newServiceName("web");
@@ -154,9 +179,7 @@ class BindContainerPageComponentTest extends DashboardComponentTest {
     String page = response.getBody();
     assertThat(openingTag(page, "name=\"target\"")).contains("value=\"" + name + "\"");
     assertThat(openingTag(page, "name=\"containerPort\"")).contains("aria-invalid=\"true\"");
-    String ports = page.substring(page.indexOf("id=\"containerPort-options\""));
-    ports = ports.substring(0, ports.indexOf("</datalist>"));
-    assertThat(ports).contains("value=\"80\"").contains("value=\"9000\"");
+    assertThat(option(page, name)).contains("data-ports=\"80 9000\"");
   }
 
   @Test

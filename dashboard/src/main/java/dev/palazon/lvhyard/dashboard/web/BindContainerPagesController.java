@@ -17,6 +17,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -122,7 +124,7 @@ class BindContainerPagesController {
       } else {
         plain.add(
             new BindContainerPage.Target(
-                container.name(), false, container.containerPorts(), container.followedBy()));
+                container.name(), false, targetPorts(List.of(container)), container.followedBy()));
       }
     }
     List<BindContainerPage.Target> targets = new ArrayList<>();
@@ -132,17 +134,30 @@ class BindContainerPagesController {
           new BindContainerPage.Target(
               value,
               true,
-              members.stream()
-                  .flatMap(member -> member.containerPorts().stream())
-                  .distinct()
-                  .sorted()
-                  .toList(),
+              targetPorts(members),
               containerList.following(
                   ContainerBindingRequest.compose(
                       first.composeProject(), first.composeService(), null))));
     });
     targets.addAll(plain);
     return targets;
+  }
+
+  /** Each Container Port of the containers once, by number, with the host ports that publish it. */
+  private static List<BindContainerPage.TargetPort> targetPorts(List<ListedContainer> containers) {
+    Map<Integer, Set<Integer>> hostPorts = new TreeMap<>();
+    for (ListedContainer container : containers) {
+      for (ListedContainer.ContainerPort port : container.ports()) {
+        Set<Integer> published =
+            hostPorts.computeIfAbsent(port.containerPort(), number -> new TreeSet<>());
+        if (port.hostPort() != null) {
+          published.add(port.hostPort());
+        }
+      }
+    }
+    return hostPorts.entrySet().stream()
+        .map(port -> new BindContainerPage.TargetPort(port.getKey(), List.copyOf(port.getValue())))
+        .toList();
   }
 
   /** Only this Workstation changes its own Services. */

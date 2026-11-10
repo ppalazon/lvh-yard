@@ -1,23 +1,17 @@
-// The container field of the bind form: a list that you can also type in.
+// The two fields of the bind form are lists that you can also type in.
 // A typed value is sent as it is. An option with aria-disabled (a followed target) cannot be picked.
-// The port field lists the Container Ports of the pick.
-for (const form of document.querySelectorAll("[data-bind-form]")) {
-  const input = form.querySelector("#target");
-  const listbox = form.querySelector("#target-options");
-  const ports = form.querySelector("#containerPort-options");
-  const options = [...listbox.querySelectorAll('[role="option"]')];
+// The port field lists the open ports of the target in the container field.
+
+// A field with a listbox under it. It shows the options that match what you typed, or all of them
+// when the field holds one option exactly. onPick runs after a pick.
+const combobox = (input, listbox, onPick) => {
   let active = -1;
 
-  const visible = () => options.filter((option) => !option.hidden);
-
-  // Each option has an id, so aria-activedescendant on the field can name the marked option.
-  options.forEach((option, index) => {
-    option.id = `${listbox.id}-${index}`;
-  });
+  const options = () => [...listbox.querySelectorAll('[role="option"]')];
+  const visible = () => options().filter((option) => !option.hidden);
 
   const show = (open) => {
-    const hasOptions = visible().length > 0;
-    listbox.hidden = !(open && hasOptions);
+    listbox.hidden = !(open && visible().length > 0);
     input.setAttribute("aria-expanded", String(!listbox.hidden));
     if (listbox.hidden) {
       input.removeAttribute("aria-activedescendant");
@@ -26,9 +20,15 @@ for (const form of document.querySelectorAll("[data-bind-form]")) {
 
   const filter = () => {
     const typed = input.value.trim().toLowerCase();
-    for (const option of options) {
+    const all = options();
+    const exact = all.some(
+      (option) => option.dataset.value.toLowerCase() === typed,
+    );
+    for (const option of all) {
       option.hidden =
-        typed !== "" && !option.dataset.value.toLowerCase().includes(typed);
+        typed !== "" &&
+        !exact &&
+        !option.dataset.value.toLowerCase().includes(typed);
     }
     // A heading stays only while one of its options shows.
     for (const heading of listbox.querySelectorAll('[role="presentation"]')) {
@@ -42,23 +42,11 @@ for (const form of document.querySelectorAll("[data-bind-form]")) {
     }
   };
 
-  const fillPorts = () => {
-    const picked = options.find(
-      (option) => option.dataset.value === input.value.trim(),
-    );
-    ports.replaceChildren();
-    for (const port of (picked?.dataset.ports ?? "")
-      .split(" ")
-      .filter(Boolean)) {
-      const option = document.createElement("option");
-      option.value = port;
-      ports.append(option);
-    }
-  };
-
   const mark = (index) => {
     const shown = visible();
-    options.forEach((option) => option.setAttribute("aria-selected", "false"));
+    options().forEach((option) =>
+      option.setAttribute("aria-selected", "false"),
+    );
     active = Math.max(-1, Math.min(index, shown.length - 1));
     if (active >= 0) {
       shown[active].setAttribute("aria-selected", "true");
@@ -69,14 +57,22 @@ for (const form of document.querySelectorAll("[data-bind-form]")) {
     }
   };
 
+  // Each option has an id, so aria-activedescendant on the field can name the marked option.
+  const refresh = () => {
+    options().forEach((option, index) => {
+      option.id = `${listbox.id}-${index}`;
+    });
+    filter();
+    mark(-1);
+  };
+
   const pick = (option) => {
     if (!option || option.getAttribute("aria-disabled") === "true") {
       return;
     }
     input.value = option.dataset.value;
     show(false);
-    fillPorts();
-    form.querySelector("#containerPort").focus();
+    onPick();
   };
 
   input.addEventListener("focus", () => {
@@ -87,7 +83,6 @@ for (const form of document.querySelectorAll("[data-bind-form]")) {
     filter();
     mark(-1);
     show(true);
-    fillPorts();
   });
   input.addEventListener("blur", () => show(false));
   input.addEventListener("keydown", (event) => {
@@ -108,4 +103,55 @@ for (const form of document.querySelectorAll("[data-bind-form]")) {
     event.preventDefault();
     pick(event.target.closest('[role="option"]'));
   });
+
+  refresh();
+  return { refresh };
+};
+
+const portOption = (entry) => {
+  const [port, hostPorts] = entry.split(":");
+  const option = document.createElement("li");
+  option.setAttribute("role", "option");
+  option.className =
+    "flex cursor-default justify-between gap-2 rounded-sm px-2 py-1.5 text-sm aria-selected:bg-accent";
+  option.dataset.value = port;
+  const number = document.createElement("span");
+  number.textContent = port;
+  const detail = document.createElement("span");
+  detail.className = "text-muted-foreground";
+  detail.textContent = hostPorts
+    ? `published on ${hostPorts.split(",").join(", ")}`
+    : "not published";
+  option.append(number, detail);
+  return option;
+};
+
+for (const form of document.querySelectorAll("[data-bind-form]")) {
+  const target = form.querySelector("#target");
+  const targets = form.querySelector("#target-options");
+  const port = form.querySelector("#containerPort");
+  const ports = form.querySelector("#containerPort-options");
+
+  const portCombobox = combobox(port, ports, () => {});
+
+  // The ports of the target in the field. A target that is not in the list has none.
+  const fillPorts = () => {
+    const picked = [...targets.querySelectorAll('[role="option"]')].find(
+      (option) => option.dataset.value === target.value.trim(),
+    );
+    ports.replaceChildren(
+      ...(picked?.dataset.ports ?? "")
+        .split(" ")
+        .filter(Boolean)
+        .map(portOption),
+    );
+    portCombobox.refresh();
+  };
+
+  combobox(target, targets, () => {
+    fillPorts();
+    port.focus();
+  });
+  target.addEventListener("input", fillPorts);
+  fillPorts();
 }

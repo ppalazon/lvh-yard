@@ -6,7 +6,6 @@ import dev.palazon.lvhyard.dashboard.services.InvalidRegistrationException;
 import dev.palazon.lvhyard.dashboard.services.Registrations;
 import dev.palazon.lvhyard.dashboard.services.Service;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.xmlet.htmlapifaster.Div;
@@ -32,7 +31,12 @@ final class BindContainerPage {
    * @param ports its Container Ports
    * @param followedBy the Service of the Binding that already names it, or {@code null}
    */
-  record Target(String value, boolean compose, List<Integer> ports, String followedBy) {}
+  record Target(String value, boolean compose, List<TargetPort> ports, String followedBy) {}
+
+  /**
+   * @param hostPorts the host ports that publish it, none when it is only exposed
+   */
+  record TargetPort(int port, List<Integer> hostPorts) {}
 
   /**
    * What the form sends. Spring fills the fields by name. A field left out is empty.
@@ -90,8 +94,6 @@ final class BindContainerPage {
             path(service),
             action(service),
             "Bind");
-    Optional<Target> picked =
-        targets.stream().filter(target -> target.value().equals(bind.target().strip())).findFirst();
     return FormPage.render(
         workstation,
         spec,
@@ -122,9 +124,9 @@ final class BindContainerPage {
               section,
               PORT,
               "Container Port",
-              "The port inside the container.",
+              "The port inside the container. Pick one of its open ports, or type one.",
               error,
-              field -> portControl(field, picked, bind.containerPort(), error));
+              field -> portControl(field, bind.containerPort(), error));
           section.script().attrSrc("/bind.js").attrDefer(true).__();
         });
   }
@@ -180,7 +182,7 @@ final class BindContainerPage {
                   + " aria-disabled:opacity-50 aria-selected:bg-accent")
           .addAttr("role", "option")
           .addAttr("data-value", Layout.attr(target.value()))
-          .addAttr("data-ports", Layout.attr(ports(target.ports(), " ")))
+          .addAttr("data-ports", Layout.attr(dataPorts(target.ports())))
           .of(option -> {
             if (followed) {
               option.addAttr("aria-disabled", "true");
@@ -194,16 +196,17 @@ final class BindContainerPage {
           .text(
               followed
                   ? "followed by " + target.followedBy()
-                  : target.ports().isEmpty() ? "" : ports(target.ports(), ", "))
+                  : target.ports().isEmpty() ? "" : portNumbers(target.ports()))
           .__()
           .__();
     }
   }
 
-  /** The list holds the ports of the pick. bind.js fills it again when the pick changes. */
-  private static void portControl(
-      Div<?> field, Optional<Target> picked, String value, InvalidRegistrationException error) {
+  /** The list is empty until bind.js fills it with the ports of the target. */
+  private static void portControl(Div<?> field, String value, InvalidRegistrationException error) {
     field
+        .div()
+        .attrClass("relative")
         .input()
         .attrType(EnumTypeInputType.TEXT)
         .attrClass("input")
@@ -213,15 +216,21 @@ final class BindContainerPage {
         .attrPlaceholder("80")
         .addAttr("inputmode", "numeric")
         .addAttr("autocomplete", "off")
-        .addAttr("list", PORT + "-options")
+        .addAttr("role", "combobox")
+        .addAttr("aria-autocomplete", "list")
+        .addAttr("aria-expanded", "false")
+        .addAttr("aria-controls", PORT + "-options")
         .of(input -> invalid(input, PORT, error))
         .__()
-        .datalist()
+        .ul()
         .attrId(PORT + "-options")
-        .of(list ->
-            picked.stream()
-                .flatMap(target -> target.ports().stream())
-                .forEach(port -> list.option().attrValue(String.valueOf(port)).__()))
+        .attrClass(
+            "bg-popover text-popover-foreground absolute z-10 mt-1 max-h-72 w-full overflow-auto"
+                + " rounded-md border p-1 shadow-md")
+        .addAttr("role", "listbox")
+        .addAttr("aria-label", "Container Ports")
+        .addAttr("hidden", "")
+        .__()
         .__();
   }
 
@@ -229,6 +238,20 @@ final class BindContainerPage {
     if (error != null && error.field().equals(name)) {
       input.addAttr("aria-invalid", "true").addAttr("aria-describedby", name + "-error");
     }
+  }
+
+  /** Each port as {@code 80}, or {@code 80:8080,8081} when it is published on host ports. */
+  private static String dataPorts(List<TargetPort> ports) {
+    return ports.stream()
+        .map(port ->
+            port.hostPorts().isEmpty()
+                ? String.valueOf(port.port())
+                : port.port() + ":" + ports(port.hostPorts(), ","))
+        .collect(Collectors.joining(" "));
+  }
+
+  private static String portNumbers(List<TargetPort> ports) {
+    return ports(ports.stream().map(TargetPort::port).toList(), ", ");
   }
 
   private static String ports(List<Integer> ports, String separator) {
