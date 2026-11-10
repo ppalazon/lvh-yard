@@ -50,6 +50,7 @@ func NewRoot(options Options, groups ...func(*Options) *cobra.Command) *cobra.Co
 	root.PersistentFlags().StringVar(&options.dashboard, "dashboard", "", "Uses the dashboard at this URL.")
 	root.AddCommand(NewStatus(&options))
 	root.AddCommand(NewCatalog(&options))
+	root.AddCommand(NewReachability(&options))
 	for _, group := range groups {
 		root.AddCommand(group(&options))
 	}
@@ -66,7 +67,7 @@ func Run(root *cobra.Command, args []string) int {
 	}
 	root.SetArgs(args)
 	if err := root.Execute(); err != nil {
-		if err != errStatusFailed {
+		if err != errStatusFailed && err != errReachabilityFailed {
 			fmt.Fprintln(root.ErrOrStderr(), err)
 		}
 		return 1

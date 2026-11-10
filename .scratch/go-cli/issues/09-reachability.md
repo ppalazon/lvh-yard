@@ -1,6 +1,6 @@
 # 09: Reachability
 
-Status: ready-for-agent
+Status: done
 
 Blocked by: 03
 
@@ -17,3 +17,8 @@ Port the cases of `TestReachabilityTest` that test CLI behavior.
 - [ ] On a real test Yard, a passing Instance and a stopped one show different results.
 - [ ] An Out-of-range Instance is skipped with a reason.
 - [ ] `mise run check` passes, and the openapi test knows the new calls.
+
+## Comments
+
+- 2026-11-10: Implementation is complete. The integration owner reported that `go vet` and `cli:check` passed, including all Go tests.
+- Live verification and `mise run check` remain pending with the integration owner. No checks were run during the merge.
