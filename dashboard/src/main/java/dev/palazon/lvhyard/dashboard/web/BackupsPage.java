@@ -27,7 +27,12 @@ final class BackupsPage {
 
   private static final FormPage.Spec UPLOAD =
       new FormPage.Spec(
-          Layout.Section.BACKUPS, "Upload a Backup", null, UPLOAD_PATH, UPLOAD_PATH, "Upload");
+          Layout.Section.BACKUPS,
+          "Upload a Backup",
+          "The file joins the Backups folder. Nothing is imported yet.",
+          UPLOAD_PATH,
+          UPLOAD_PATH,
+          "Upload");
 
   private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm xxx");
 
@@ -73,6 +78,7 @@ final class BackupsPage {
                 .__()
                 .__()
                 .p()
+                .attrClass("text-muted-foreground")
                 .text(
                     "Copies of the setup of "
                         + workstation.name()
@@ -126,30 +132,36 @@ final class BackupsPage {
         "Delete " + backup,
         workstation.name(),
         Layout.Section.BACKUPS,
-        main ->
-            main.h1()
-                .text("Delete a Backup")
-                .__()
-                .p()
-                .text("Delete " + backup + " from the Backups folder? You cannot undo this.")
-                .__()
-                .form()
-                .attrClass("flex gap-2")
-                .addAttr("method", "post")
-                .addAttr("action", Layout.attr(deletePath(backup)))
-                .button()
-                .attrType(EnumTypeButtonType.SUBMIT)
-                .attrClass("btn")
-                .addAttr("data-variant", "destructive")
-                .text("Delete")
-                .__()
-                .a()
-                .attrHref(PATH)
-                .attrClass("btn")
-                .addAttr("data-variant", "outline")
-                .text("Cancel")
-                .__()
-                .__());
+        main -> {
+          header(
+              main,
+              "Delete a Backup",
+              "This removes the file from the Backups folder. You cannot undo this.");
+          main.form()
+              .attrClass("card flex max-w-xl flex-col gap-6 p-6")
+              .addAttr("method", "post")
+              .addAttr("action", Layout.attr(deletePath(backup)))
+              .p()
+              .attrClass("font-mono break-all")
+              .text(backup)
+              .__()
+              .div()
+              .attrClass("flex gap-3")
+              .button()
+              .attrType(EnumTypeButtonType.SUBMIT)
+              .attrClass("btn")
+              .addAttr("data-variant", "destructive")
+              .text("Delete")
+              .__()
+              .a()
+              .attrHref(PATH)
+              .attrClass("btn")
+              .addAttr("data-variant", "outline")
+              .text("Cancel")
+              .__()
+              .__()
+              .__();
+        });
   }
 
   /** Nothing when {@code problems} is empty. */
@@ -221,20 +233,34 @@ final class BackupsPage {
         "Plan a Backup importation: " + backup,
         workstation.name(),
         Layout.Section.BACKUPS,
-        main ->
-            main.h1()
-                .text("Plan a Backup importation")
-                .__()
-                .p()
-                .text("Plan the import of " + backup + " into " + workstation.name() + ".")
-                .__()
-                .of(content -> alert(content, alertTitle, alert))
-                .of(content -> modeForm(content, backup, mode == null ? ImportMode.ADD : mode))
-                .of(content -> {
-                  if (plan != null) {
-                    confirm(content, backup, plan, fingerprint);
-                  }
-                }));
+        main -> {
+          header(
+              main,
+              "Plan a Backup importation",
+              "Plan the import of " + backup + " into " + workstation.name() + ".");
+          alert(main, alertTitle, alert);
+          modeForm(main, backup, mode == null ? ImportMode.ADD : mode, plan == null);
+          if (plan != null) {
+            confirm(main, backup, plan, fingerprint);
+          }
+        });
+  }
+
+  /**
+   * @param description or {@code null}
+   */
+  private static void header(Main<?> main, String title, String description) {
+    main.div()
+        .attrClass("flex max-w-3xl flex-col gap-2")
+        .h1()
+        .text(title)
+        .__()
+        .of(header -> {
+          if (description != null) {
+            header.p().attrClass("text-muted-foreground").text(description).__();
+          }
+        })
+        .__();
   }
 
   /** A write failed halfway: what the import applied stays, and the safety Backup undoes it. */
@@ -243,32 +269,27 @@ final class BackupsPage {
         "Import of " + backup + " stopped",
         workstation.name(),
         Layout.Section.BACKUPS,
-        main ->
-            main.h1()
-                .text("Import of " + backup + " stopped")
-                .__()
-                .of(content -> alert(content, "Import stopped", List.of(failed.getMessage())))
-                .p()
-                .text(
-                    "Before the import, the dashboard saved the setup in "
-                        + failed.safetyBackup()
-                        + ". To go back, import that Backup.")
-                .__()
-                .h2()
-                .text("What the import applied")
-                .__()
-                .of(content -> {
-                  if (failed.applied().isEmpty()) {
-                    content.p().text("Nothing: it stopped at the first change.").__();
-                  } else {
-                    entries(content, failed.applied());
-                  }
-                })
-                .a()
-                .attrHref(PATH)
-                .attrClass("btn w-fit")
-                .text("Back to Backups")
-                .__());
+        main -> {
+          header(main, "Import of " + backup + " stopped", null);
+          alert(main, "Import stopped", List.of(failed.getMessage()));
+          main.p()
+              .text(
+                  "Before the import, the dashboard saved the setup in "
+                      + failed.safetyBackup()
+                      + ". To go back, import that Backup.")
+              .__();
+          main.h2().text("What the import applied").__();
+          if (failed.applied().isEmpty()) {
+            main.p().text("Nothing: it stopped at the first change.").__();
+          } else {
+            entries(main, failed.applied());
+          }
+          backLink(main);
+        });
+  }
+
+  private static void backLink(Main<?> main) {
+    main.a().attrHref(PATH).attrClass("btn w-fit").text("Back to Backups").__();
   }
 
   /** The result of a confirmed import. */
@@ -277,63 +298,61 @@ final class BackupsPage {
         "Imported " + backup,
         workstation.name(),
         Layout.Section.BACKUPS,
-        main ->
-            main.h1()
-                .text("Imported " + backup)
-                .__()
-                .p()
-                .text(
-                    result.safetyBackup() == null
-                        ? "Nothing changed, so the dashboard wrote no safety Backup."
-                        : "Before the import, the dashboard saved the setup in "
-                            + result.safetyBackup()
-                            + ". To go back, import that Backup.")
-                .__()
-                .h2()
-                .text("What the import did")
-                .__()
-                .of(content -> entryPanels(content, result))
-                .a()
-                .attrHref(PATH)
-                .attrClass("btn w-fit")
-                .text("Back to Backups")
-                .__());
+        main -> {
+          header(
+              main,
+              "Imported " + backup,
+              result.safetyBackup() == null
+                  ? "Nothing changed, so the dashboard wrote no safety Backup."
+                  : "Before the import, the dashboard saved the setup in "
+                      + result.safetyBackup()
+                      + ". To go back, import that Backup.");
+          main.h2().text("What the import did").__();
+          entryPanels(main, result);
+          backLink(main);
+        });
   }
 
-  private static void modeForm(Main<?> main, String backup, ImportMode chosen) {
+  private static void modeForm(Main<?> main, String backup, ImportMode chosen, boolean primary) {
     main.form()
-        .attrClass("flex flex-col gap-4")
+        .attrClass("card flex max-w-xl flex-col gap-6 p-6")
         .addAttr("method", "get")
         .addAttr("action", Layout.attr(importPath(backup)))
         .div()
-        .attrClass("flex flex-col gap-3")
+        .attrClass("flex flex-col gap-4")
         .addAttr("role", "radiogroup")
         .addAttr("aria-label", "Mode")
         .of(group ->
-            mode(group, ImportMode.ADD, "Add: add what is new and skip what exists.", chosen))
+            mode(group, ImportMode.ADD, "Add", "Add what is new and skip what exists.", chosen))
         .of(group ->
             mode(
                 group,
                 ImportMode.UPDATE,
-                "Update: add what is new and overwrite what exists with the file.",
+                "Update",
+                "Add what is new and overwrite what exists with the file.",
                 chosen))
         .__()
         .button()
         .attrType(EnumTypeButtonType.SUBMIT)
         .attrClass("btn w-fit")
-        .addAttr("data-variant", "outline")
+        .of(button -> {
+          if (!primary) {
+            button.addAttr("data-variant", "outline");
+          }
+        })
         .text("Show the plan")
         .__()
         .__();
   }
 
-  private static void mode(Div<?> group, ImportMode mode, String label, ImportMode chosen) {
+  private static void mode(
+      Div<?> group, ImportMode mode, String name, String help, ImportMode chosen) {
     group
         .label()
-        .attrClass("label gap-3")
+        .attrClass("flex cursor-pointer items-start gap-3")
         .input()
         .attrType(EnumTypeInputType.RADIO)
-        .attrClass("input")
+        .attrClass("input mt-1")
         .attrName("mode")
         .attrValue(mode.value())
         .of(input -> {
@@ -342,7 +361,17 @@ final class BackupsPage {
           }
         })
         .__()
-        .text(label)
+        .span()
+        .attrClass("flex flex-col")
+        .span()
+        .attrClass("font-medium")
+        .text(name)
+        .__()
+        .span()
+        .attrClass("text-muted-foreground text-sm")
+        .text(help)
+        .__()
+        .__()
         .__();
   }
 
