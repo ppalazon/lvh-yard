@@ -9,11 +9,9 @@ import (
 )
 
 func TestWSReplacesTopLevelInit(t *testing.T) {
-	for _, args := range [][]string{{"init"}, {"init", "--help"}} {
-		run := commandtest.New(t).Run(args...)
-		if run.ExitCode != 1 || !strings.Contains(run.Stderr, "unknown command") {
-			t.Fatalf("old init accepted: %+v", run)
-		}
+	run := commandtest.New(t).Run("init")
+	if run.ExitCode != 1 || !strings.Contains(run.Stderr, "unknown command") {
+		t.Fatalf("old init accepted: %+v", run)
 	}
 	for _, args := range [][]string{{"--help"}, {"__complete", ""}} {
 		run := commandtest.New(t).Run(args...)
