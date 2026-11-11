@@ -27,5 +27,6 @@ func NewWS(options *Options) *cobra.Command {
 		},
 	})
 	ws.AddCommand(newWSLifecycle(options, folder)...)
+	ws.AddCommand(newWSTLS(folder))
 	return ws
 }
