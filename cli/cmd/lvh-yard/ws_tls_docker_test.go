@@ -16,6 +16,8 @@ import (
  "strings"
  "testing"
  "time"
+
+ pkcs12 "software.sslmate.com/src/go-pkcs12"
 )
 
 // This Yard is also the seam for HTTPS, client certificates and Traefik-off tests.
@@ -91,6 +93,37 @@ func TestWorkstationTLSYard(t *testing.T) {
  noRedirect:=&http.Client{Timeout:5*time.Second,CheckRedirect:func(*http.Request,[]*http.Request)error{return http.ErrUseLastResponse}}
  response,err:=noRedirect.Do(request); if err!=nil { t.Fatal(err) }; response.Body.Close()
  if response.StatusCode!=200 { t.Fatalf("HTTP Route returned %d",response.StatusCode) }
+ profileFile := filepath.Join(folders[0], "profiles.yaml")
+ if err := os.WriteFile(profileFile, []byte("http:\n  middlewares:\n    certificate:\n      clientCertificate: {}\n"), 0600); err != nil { t.Fatal(err) }
+ dashboard := fmt.Sprintf("http://127.0.0.1:%d", ports[0][6])
+ run("--dashboard", dashboard, "profiles", "set", profileFile)
+ run("--dashboard", dashboard, "service", "create", "private")
+ run("--dashboard", dashboard, "register", "static", "private", "--host", "127.0.0.1", "--port", fmt.Sprint(ports[0][6]))
+ run("--dashboard", dashboard, "publish", "private", "--profile", "certificate")
+ run("ws", "tls", "client", "create", "alice", "--dir", folders[0], "--password", "integration-client")
+ p12, err := os.ReadFile(filepath.Join(folders[0], "certificates", "clients", "alice.p12")); if err != nil { t.Fatal(err) }
+ clientKey, clientCert, _, err := pkcs12.DecodeChain(p12, "integration-client"); if err != nil { t.Fatal(err) }
+ certificate := tls.Certificate{Certificate: [][]byte{clientCert.Raw}, PrivateKey: clientKey}
+ protectedTLS := &tls.Config{RootCAs: roots, ServerName: "private.lvh.me", Certificates: []tls.Certificate{certificate}}
+ protectedClient := &http.Client{Timeout: 5*time.Second, Transport: &http.Transport{TLSClientConfig: protectedTLS}}
+ protectedRequest := func(scheme string) *http.Request {
+  port := ports[0][9]; if scheme == "http" { port = ports[0][7] }
+  request, err := http.NewRequest("GET", fmt.Sprintf("%s://127.0.0.1:%d/", scheme, port), nil); if err != nil { t.Fatal(err) }
+  request.Host = "private.lvh.me"
+  return request
+ }
+ deadline = time.Now().Add(time.Minute)
+ for {
+  response, err := protectedClient.Do(protectedRequest("https"))
+  if err == nil { response.Body.Close(); if response.StatusCode == 200 { break } }
+  if time.Now().After(deadline) { t.Fatalf("Client Certificate Route did not accept the CLI certificate: %v", err) }; time.Sleep(time.Second)
+ }
+ withoutCertificate := &http.Client{Timeout: 5*time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, ServerName: "private.lvh.me"}}}
+ response, err = withoutCertificate.Do(protectedRequest("https"))
+ if response != nil { response.Body.Close() }
+ if err == nil || !strings.Contains(strings.ToLower(err.Error()), "certificate") { t.Fatalf("Route did not refuse the missing Client Certificate: response=%v error=%v", response, err) }
+ response, err = noRedirect.Do(protectedRequest("http")); if err != nil { t.Fatal(err) }; response.Body.Close()
+ if response.StatusCode != http.StatusNotFound { t.Fatalf("Client Certificate Route exposed HTTP: %d", response.StatusCode) }
  run("ws","set","--dir",folders[1],"traefik","off")
  project:=fmt.Sprintf("yard-tls-%d-1",os.Getpid())
  compose:=func(args ...string) string { t.Helper(); base:=[]string{"compose","-p",project,"--project-directory",folders[1]}; out,err:=exec.Command("docker",append(base,args...)...).CombinedOutput(); if err!=nil { t.Fatalf("compose %v: %v\\n%s",args,err,out) }; return string(out) }

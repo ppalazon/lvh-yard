@@ -166,6 +166,26 @@ class RouteProfilesOnRoutesComponentTest extends DashboardComponentTest {
   }
 
   @Test
+  void clientCertificateWithoutHttpsHasNoRouteAndHasAnErrorAtHome() {
+    putRouteProfiles(JSON.readTree("""
+        {"certificate": {"clientCertificate": {}},
+         "protected": {"chain": {"middlewares": ["certificate"]}}}
+        """));
+    for (String profile : List.of("certificate", "protected")) {
+      String service = newServiceName("no-https");
+      register(service, Map.of("host", "10.1.2.3", "port", 8080));
+      JsonNode saved = put(publicationPath(service), Map.of("profiles", List.of(profile))).getBody();
+      JsonNode http = get("/traefik/configuration").getBody().get("http");
+      assertThat(http.get("routers").has(service)).isFalse();
+      assertThat(http.get("routers").has(service + "__https")).isFalse();
+      assertThat(http.get("services").has(service)).isFalse();
+      assertThat(severity(saved, "client-certificate-unavailable")).isEqualTo("error");
+      assertThat(warning(saved, "client-certificate-unavailable"))
+          .contains("HTTPS", "Client Certificate");
+    }
+  }
+
+  @Test
   void servicePagePicksProfilesAndShowsTheAuthWarning() throws Exception {
     putRouteProfiles(PROFILES);
     String web = newServiceName("web");

@@ -1150,20 +1150,21 @@ Service.
 
 ### Route Profiles
 
-A Route Profile is a named set of Route options, such as basic auth or added
-headers. LVH Yard gives it to Traefik as a middleware.
+A Route Profile is a named set of Route options, such as basic auth, added
+headers or a required Client Certificate.
 The Consul KV of this Workstation holds its Route Profiles, under
 `lvh-yard/route-profiles/<name>`. Other Workstations read the profiles there.
 A profile is one middleware in the format of Traefik, such as
-`{"headers": {"customRequestHeaders": {"X-Forwarded-Proto": "https"}}}`.
+`{"headers": {"customRequestHeaders": {"X-Forwarded-Proto": "https"}}}`,
+or the reserved option `clientCertificate: {}`.
 
 The Route Profiles page of the dashboard lists each profile with its name, its
 Traefik type and the Services whose Publications name it. In **Used by**, click a
 Service to open its page.
 
-- To add a profile, click **New Route Profile**. Type its name and write one
-  middleware as YAML in **Route options**, such as `headers:` with its options
-  below it. Then click **Save Route Profile**.
+- To add a profile, click **New Route Profile**. Type its name and write its
+  options as YAML in **Route options**, such as `headers:` with its options
+  below it, or `clientCertificate: {}`. Then click **Save Route Profile**.
 - To use a reference, open an example in the **Examples** sidebar. Copy its YAML
   into **Route options** and adapt the values before you save. Each example has
   usage notes and a link to the Traefik documentation. Opening an example keeps
@@ -1215,6 +1216,29 @@ curl -X DELETE "$dashboard/protected"
 
 `lvh-yard profiles` lists the profiles, as the list of the API does.
 
+To require a Client Certificate signed by the Yard CA, save this profile with
+`lvh-yard profiles set profiles.yaml`:
+
+```yaml
+http:
+  middlewares:
+    certificate:
+      clientCertificate: {}
+```
+
+The Route Profiles page takes `clientCertificate: {}` in **Route options**.
+The API takes `{"clientCertificate": {}}` as the body of
+`PUT /api/workstation/route-profiles/certificate`.
+The reserved key has no settings and is not a Traefik middleware.
+Publish a Service with `lvh-yard publish admin --profile certificate`.
+A chain can name `certificate`, including through another chain.
+
+The Publication answers only on HTTPS. A request without a Client Certificate
+from the Yard CA is refused. There is no HTTP Route or redirect.
+A Workstation without HTTPS gives it no Route. On the Home Workstation, this
+causes a Service Warning of level **error**. See [Client Certificates](#client-certificates)
+to make a certificate for a browser.
+
 A profile must work on every Workstation, so the dashboard refuses a profile
 that:
 
@@ -1224,7 +1248,7 @@ that:
 - sends `forwardAuth` to `localhost` or to an out-of-range address
 - is a chain that names a middleware that is not a Route Profile of this
   Workstation, or that is refused
-- has a type that is not a Traefik middleware, such as a typo
+- has a type that is neither a Traefik middleware nor `clientCertificate`
 - has a name with other characters than letters, digits, `-` and `_`
 
 A refused save answers 400 with the reason, and nothing changes. So a bad save
@@ -1246,7 +1270,7 @@ lvh-yard publish admin --no-profiles                    # removes them all
 Without `--profile`, a Publication keeps its profiles. A name that is not a
 Route Profile of this Workstation is refused, with the names that exist.
 
-The Route gets each profile as a Traefik middleware named
+The Route gets each middleware profile as a Traefik middleware named
 `<workstation>_<profile>`, such as `ws-a_basic-auth`, in the order of the
 Publication. A chain's members get the same name in front. So the profiles of
 two Workstations never clash.
@@ -1258,7 +1282,8 @@ dashboard reads the profiles from your Consul KV, so nobody copies a file. When
 you change a profile, their Routes change within a few seconds. The Service's
 page on their dashboard shows the profile names.
 
-A profile with `basicAuth`, `digestAuth` or `forwardAuth`, also inside a chain,
+A profile with `basicAuth`, `digestAuth`, `forwardAuth` or `clientCertificate`,
+also inside a chain,
 protects only the hostname. A connection straight to the Instance's address and
 port does not go through Traefik, so it skips the profile. The Service page,
 the API and `lvh-yard publish` show a risk about it. The Service must check

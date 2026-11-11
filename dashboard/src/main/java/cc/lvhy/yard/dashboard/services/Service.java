@@ -82,7 +82,8 @@ public record Service(
       boolean instancePriority,
       boolean aliased,
       boolean home,
-      Map<String, RouteProfileDefinition> stored) {
+      Map<String, RouteProfileDefinition> stored,
+      boolean https) {
     this(
         workstation,
         name,
@@ -93,7 +94,7 @@ public record Service(
         hostname,
         instances,
         containerBindings,
-        ServiceWarning.of(publication, instances, sources, instancePriority, stored),
+        ServiceWarning.of(publication, instances, sources, instancePriority, stored, home && !https),
         sources,
         instancePriority,
         publication == null ? List.of() : publication.profiles(),
@@ -161,6 +162,11 @@ public record Service(
   /** Whatever the Health of its Instances. */
   public boolean published() {
     return publication != null;
+  }
+
+  public boolean requiresClientCertificate() {
+    return profileDefinitions.values().stream()
+        .anyMatch(RouteProfileDefinition::requiresClientCertificate);
   }
 
   /**

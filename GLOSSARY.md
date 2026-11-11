@@ -93,7 +93,7 @@ The certificate and key that the Yard CA signs for one Workstation. Consul uses 
 _Avoid_: Server certificate, TLS cert
 
 **Client Certificate**:
-A certificate that the Yard CA signs for a person. A Route Profile can require it, and then only a browser that holds it reaches the Route.
+A certificate that the Yard CA signs for a person. A Route Profile with `clientCertificate: {}` requires it. That Route answers only on HTTPS and has no Route on a Workstation without HTTPS.
 _Avoid_: User certificate, mTLS certificate
 
 **Base Domain**:

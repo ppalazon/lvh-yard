@@ -7,6 +7,7 @@ import cc.lvhy.yard.dashboard.consul.Consul.HealthEntry;
 import cc.lvhy.yard.dashboard.consul.ConsulSettings;
 import cc.lvhy.yard.dashboard.profiles.RouteProfileDefinition;
 import cc.lvhy.yard.dashboard.profiles.RouteProfiles;
+import cc.lvhy.yard.dashboard.reachability.TraefikSettings;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
@@ -66,6 +67,8 @@ public class YardReader {
 
   private final RouteProfiles routeProfiles;
 
+  private final TraefikSettings traefikSettings;
+
   /**
    * When another Workstation is not asked: after two reads in a row found it unreachable, for the
    * unreachable pause. Then one read tries it again, and the Workstation shows again by itself once
@@ -82,7 +85,8 @@ public class YardReader {
       ContainerBindings containerBindings,
       OutOfRange outOfRange,
       RouteProfiles routeProfiles,
-      ConsulSettings consulSettings) {
+      ConsulSettings consulSettings,
+      TraefikSettings traefikSettings) {
     this.workstation = workstation;
     this.consul = consul;
     this.records = records;
@@ -90,6 +94,7 @@ public class YardReader {
     this.containerBindings = containerBindings;
     this.outOfRange = outOfRange;
     this.routeProfiles = routeProfiles;
+    this.traefikSettings = traefikSettings;
     this.breakers =
         CircuitBreakerRegistry.of(
             CircuitBreakerConfig.custom()
@@ -342,7 +347,8 @@ public class YardReader {
             record == null || record.instancePriority(),
             record != null && !record.aliases().isEmpty(),
             workstation.is(home),
-            profiles));
+            profiles,
+            traefikSettings.enabled() && traefikSettings.httpsPort() != null));
   }
 
   private String hostname(String home, String name, Publication publication) {

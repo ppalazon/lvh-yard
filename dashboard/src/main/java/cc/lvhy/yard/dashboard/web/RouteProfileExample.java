@@ -2,6 +2,13 @@ package cc.lvhy.yard.dashboard.web;
 
 /** Middleware examples for reference, not editor presets. */
 enum RouteProfileExample {
+  CLIENT_CERTIFICATE(
+      "Client Certificate",
+      "Require a Yard CA Client Certificate over HTTPS.",
+      """
+      clientCertificate: {}
+      """,
+      "https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/tls/tls-options/#client-authentication-mtls"),
   BASIC_AUTH(
       "Basic auth",
       "Require a user and password. Replace the placeholder with htpasswd -nB alice output."
