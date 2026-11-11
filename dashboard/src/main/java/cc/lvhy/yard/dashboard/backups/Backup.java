@@ -14,14 +14,14 @@ import java.util.Map;
  * the API: an import does that.
  *
  * @param exportedFrom {@code null} when the file leaves it out
- * @param routeProfiles each Route Profile's middleware in Traefik's format, by name
+ * @param routeProfiles each Route Profile's definition, by name
  */
 public record Backup(
     ExportedFrom exportedFrom,
     Map<String, Map<String, Object>> routeProfiles,
     Map<String, Service> services) {
 
-  public static final int VERSION = 2;
+  public static final int VERSION = 3;
 
   public Backup {
     routeProfiles = Collections.unmodifiableMap(new LinkedHashMap<>(routeProfiles));
