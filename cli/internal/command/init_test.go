@@ -375,7 +375,7 @@ func TestInitPrintsNextSteps(t *testing.T) {
 		"cd " + folder + " && docker compose up -d",
 		"http://127.0.0.1:7780",
 		"lvh-yard status",
-		"lvh-yard ws init --reinit --peers <ip> --gossip-key <key>",
+		"lvh-yard ws join --peers <ip> --gossip-key <key>",
 	} {
 		if !strings.Contains(run.Stdout, next) {
 			t.Errorf("missing next step %q", next)

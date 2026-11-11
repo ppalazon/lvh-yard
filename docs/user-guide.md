@@ -68,10 +68,9 @@ Java or a copy of this repository.
    Yard of its own. To join a Yard, see [Joining a Yard](#joining-a-yard).
 
 3. Open TCP port 8300 and TCP and UDP port 8302 to the other Workstations.
-4. Start this Workstation: `cd ~/.config/lvh-yard && docker compose up -d`.
-   This starts Consul, the dashboard and Traefik, in that order. When one is
-   healthy, the next one starts. `docker compose ps` shows the
-   health of each one. If you gave `init` another folder, `cd` to that folder.
+4. Start this Workstation: `lvh-yard ws start`.
+   This starts Consul, the dashboard and Traefik. In the Workstation Folder,
+   `docker compose ps` shows the health of each one.
 5. Make sure that LVH Yard works: `lvh-yard status`.
 
 On its first start, the dashboard sets up three Services with Local Scope:
@@ -87,19 +86,28 @@ Services. You can change, unpublish or delete them, and they do not come back.
 The dashboard is always at `127.0.0.1:7780` too, also when Traefik is down or
 `yard` is unpublished.
 
-Run the other `docker compose` commands in the same folder. For example,
-`docker compose logs -f consul` shows the logs of Consul. Consul logs only
-errors.
+From any directory, `lvh-yard ws start`, `lvh-yard ws stop` and
+`lvh-yard ws restart` manage this Workstation's services. Each command prints
+the `docker compose` line it runs, with the Workstation Folder as the project
+directory. The commands work while the dashboard is down and return the exit
+code of `docker compose`. Docker with Compose must be on your `PATH`.
 
-`docker compose logs -f traefik` shows one line for each request that Traefik
+`lvh-yard ws logs` shows all service logs. Give `consul`, `traefik` or
+`dashboard` to show one service, and add `-f` to follow its logs. For example,
+`lvh-yard ws logs consul -f` follows Consul's logs. Consul logs only errors.
+Use `--dir <folder>` with any of these commands to select another Workstation
+Folder. You can also run `docker compose up -d`, `stop`, `restart` or `logs`
+directly in that folder.
+
+`lvh-yard ws logs traefik -f` shows one line for each request that Traefik
 sends on. The line ends with the Route, the address of the Instance that
 answered, and the time in milliseconds. The status of the response comes after
 the request. Traefik logs only the Services that you turn on, for example with
 `lvh-yard publish <service> --access-log on`.
 
-If a request to the dashboard fails, `docker compose logs dashboard` shows one
+If a request to the dashboard fails, `lvh-yard ws logs dashboard` shows one
 line for it, with no stack trace. To also log the stack trace, set
-`YARD_STACK_TRACES=true` in `.env`. Then run `docker compose up -d`.
+`YARD_STACK_TRACES=true` in `.env`. Then run `lvh-yard ws start`.
 
 If a page of the dashboard fails, the browser shows an error page. It names the
 error, says what failed, and links to the Status page. A failed page that you
@@ -110,8 +118,9 @@ and a request that tests it. The REST API still answers errors with JSON.
 
 The files that `ws init` writes are a reference setup, and they are yours. You
 can change `compose.yaml`, or run Consul, Traefik and the dashboard another
-way. The comments in `compose.yaml` and `.env` explain each value. `lvh-yard`
-only talks to the dashboard. It does not start or stop anything.
+way. The comments in `compose.yaml` and `.env` explain each value. The `ws`
+commands use local files and `docker compose`. Other `lvh-yard` commands talk
+to the dashboard.
 
 ### Joining a Yard
 
@@ -121,25 +130,45 @@ the key from `YARD_GOSSIP_KEY` in the `.env` of that Workstation. Then run
 these commands on the new Workstation:
 
 ```sh
-lvh-yard ws init --reinit --peers 192.168.1.10 --gossip-key <key>
+lvh-yard ws join --peers 192.168.1.10 --gossip-key <key>
 cd ~/.config/lvh-yard && docker compose up -d
 ```
 
 You can also give `--peers` and `--gossip-key` to the first `lvh-yard ws init`.
 
+### Changing settings
+
+`lvh-yard ws show` prints the active settings in `.env`, with the Gossip Key hidden.
+`lvh-yard ws set <name> <value>` checks a value and changes one setting. It keeps
+the comments. Neither `ws set` nor `ws join` restarts services. After either
+command, run `lvh-yard ws restart`.
+
+```sh
+lvh-yard ws set base-domain example.test
+lvh-yard ws set peers "192.168.1.10,192.168.1.11:8302"
+lvh-yard ws set dashboard-bind-address 0.0.0.0
+```
+
+The setting names are `base-domain`, `peers`, `bind-address`,
+`traefik-bind-address`, `dashboard-bind-address`, `http-port`,
+`traefik-admin-port`, `dashboard-port`, `consul-http-port`, `consul-dns-port`,
+`consul-grpc-tls-port`, `consul-server-port`, `consul-serf-lan-port`,
+`consul-serf-wan-port`, `out-of-range` and `stack-traces`.
+Addresses use IPv4. Ports run from 1 to 65535. `out-of-range` takes
+comma-separated CIDR ranges or an empty value. `stack-traces` takes `true` or `false`.
+An empty `bind-address` lets Consul choose its address.
+
+To change the Workstation name, export a Backup, run `lvh-yard ws init`
+under the new name, and import the Backup. There is no `ws rename`.
+To change the Gossip Key, use `ws join`. Without `--peers`, it keeps the Peers.
+Every `ws` command accepts `--dir <folder>`.
+
 ### Upgrading
 
-`lvh-yard ws init` does not overwrite a file unless you give `--force`. After you
-install a new `lvh-yard`, use one of these commands:
-
-- `lvh-yard ws upgrade` changes only the consul, traefik and dashboard
-  images in `compose.yaml`. Then run `docker compose up -d` again in the
-  folder of this Workstation.
-- `lvh-yard ws init --reinit` writes `compose.yaml` and `.env` again from the new
-  templates, with the values of the old `.env`. A flag that you give with it
-  replaces the old value. The old files stay as
-  `<file>.<yyyyMMdd-HHmmss>.bak`. If the `backups/` folder is missing, it
-  creates it. The new `compose.yaml` lets the dashboard write to this folder.
+`lvh-yard ws init` does not overwrite a file unless you give `--force`.
+After you install a new `lvh-yard`, run `lvh-yard ws upgrade`.
+It changes only the consul, traefik and dashboard images in `compose.yaml`.
+Then run `docker compose up -d` again in the Workstation Folder.
 
 ### Addresses and ports
 

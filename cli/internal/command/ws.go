@@ -6,7 +6,7 @@ func NewWS(options *Options) *cobra.Command {
 	var dir string
 	ws := &cobra.Command{
 		Use:   "ws",
-		Short: "Manages this Workstation's setup files.",
+		Short: "Manages this Workstation's files and services.",
 		Args:  cobra.NoArgs,
 	}
 	ws.PersistentFlags().StringVar(&dir, "dir", "", "Uses this Workstation Folder.")
@@ -17,6 +17,7 @@ func NewWS(options *Options) *cobra.Command {
 		return options.WorkstationFolder()
 	}
 	ws.AddCommand(newWSInit(options, folder))
+	ws.AddCommand(newWSShow(folder), newWSSet(folder), newWSJoin(folder))
 	ws.AddCommand(&cobra.Command{
 		Use:   "upgrade",
 		Short: "Updates the service images in compose.yaml.",
@@ -25,5 +26,6 @@ func NewWS(options *Options) *cobra.Command {
 			return upgradeInit(options, folder(), cmd.OutOrStdout())
 		},
 	})
+	ws.AddCommand(newWSLifecycle(options, folder)...)
 	return ws
 }

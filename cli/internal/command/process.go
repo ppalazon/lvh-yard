@@ -1,6 +1,7 @@
 package command
 
 import (
+	"errors"
 	"io"
 	"os"
 	"os/exec"
@@ -12,6 +13,7 @@ type Process interface {
 	Input() io.Reader
 	IsTerminal() bool
 	Edit(editor, path string) error
+	Run(name string, args []string, dir string, stdout, stderr io.Writer) (int, error)
 	// ID returns a number, or an empty string when id fails or prints other text.
 	ID(flag string) string
 }
@@ -57,4 +59,18 @@ func (systemProcess) ID(flag string) string {
 		}
 	}
 	return value
+}
+
+func (systemProcess) Run(name string, args []string, dir string, stdout, stderr io.Writer) (int, error) {
+	command := exec.Command(name, args...)
+	command.Dir = dir
+	command.Stdin = os.Stdin
+	command.Stdout = stdout
+	command.Stderr = stderr
+	err := command.Run()
+	var exit *exec.ExitError
+	if errors.As(err, &exit) {
+		return exit.ExitCode(), nil
+	}
+	return 0, err
 }

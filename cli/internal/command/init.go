@@ -26,7 +26,6 @@ type initOptions struct {
 	peers        []string
 	gossipKey    string
 	force        bool
-	reinit       bool
 	dockerSocket string
 	hostname     string
 	terminal     bool
@@ -39,11 +38,7 @@ func newWSInit(options *Options, folder func() string) *cobra.Command {
 		Short: "Writes the setup files for this Workstation.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			folder := folder()
-			if flags.reinit {
-				return flags.recreate(cmd, options, folder)
-			}
-			return flags.create(cmd, options, folder, nil)
+			return flags.create(cmd, options, folder())
 		},
 	}
 	f := cmd.Flags()
@@ -52,8 +47,6 @@ func newWSInit(options *Options, folder func() string) *cobra.Command {
 	f.StringArrayVar(&flags.peers, "peers", nil, "Sets the LAN addresses of other Workstations, separated by spaces or commas.")
 	f.StringVar(&flags.gossipKey, "gossip-key", "", "Uses the Yard's shared Gossip Key.")
 	f.BoolVar(&flags.force, "force", false, "Overwrites the files when they exist.")
-	f.BoolVar(&flags.reinit, "reinit", false, "Rewrites the setup files with the old settings and keeps .bak copies.")
-	cmd.MarkFlagsMutuallyExclusive("force", "reinit")
 	f.StringVar(&flags.dockerSocket, "docker-socket", "/var/run/docker.sock", "Reads the Docker group from this socket.")
 	f.StringVar(&flags.hostname, "hostname", "", "Offers this hostname as the Workstation name.")
 	f.BoolVar(&flags.terminal, "terminal", false, "Reads answers as if at a terminal.")
@@ -63,13 +56,8 @@ func newWSInit(options *Options, folder func() string) *cobra.Command {
 	return cmd
 }
 
-func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string, old *envFile) error {
+func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string) error {
 	env := parseEnvFile(templates.Env())
-	if old != nil {
-		if err := carryInitSettings(env, old); err != nil {
-			return err
-		}
-	}
 	terminal := f.terminal || options.Process.IsTerminal()
 	answers := bufio.NewReader(options.Process.Input())
 	ask := func(question, flag string) (string, error) {
@@ -88,9 +76,6 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 		return strings.TrimSpace(line), nil
 	}
 	name := f.workstation
-	if !cmd.Flags().Changed("workstation") && old != nil {
-		name = old.get("YARD_WORKSTATION")
-	}
 	if !cmd.Flags().Changed("workstation") && name == "" {
 		hostname := f.hostname
 		if !cmd.Flags().Changed("hostname") {
@@ -126,7 +111,7 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	domain := f.baseDomain
 	if !cmd.Flags().Changed("base-domain") {
 		domain = env.get("YARD_BASE_DOMAIN")
-		if terminal && old == nil {
+		if terminal {
 			for {
 				typed, err := ask("Base Domain ["+env.get("YARD_BASE_DOMAIN")+"]: ", "--base-domain")
 				if err != nil {
@@ -143,17 +128,10 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 			}
 		}
 	}
-	checkedDomain := domain
-	if old != nil && !cmd.Flags().Changed("base-domain") {
-		checkedDomain = env.valueOrDefault("YARD_BASE_DOMAIN")
-	}
-	if !baseDomainName.MatchString(checkedDomain) {
-		return fmt.Errorf("--base-domain %s is not a domain name such as lvh.me", checkedDomain)
+	if !baseDomainName.MatchString(domain) {
+		return fmt.Errorf("--base-domain %s is not a domain name such as lvh.me", domain)
 	}
 	key := f.gossipKey
-	if !cmd.Flags().Changed("gossip-key") && old != nil {
-		key = old.get("YARD_GOSSIP_KEY")
-	}
 	if cmd.Flags().Changed("gossip-key") || key != "" {
 		if err := checkInitGossipKey(key); err != nil {
 			return err
@@ -169,6 +147,10 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	for _, list := range f.peers {
 		peers = append(peers, strings.FieldsFunc(list, func(r rune) bool { return r == ',' || unicode.IsSpace(r) })...)
 	}
+	checkedPeers, err := checkWSSetting("peers", strings.Join(peers, " "))
+	if err != nil {
+		return err
+	}
 	for _, found := range [][2]string{
 		{"COMPOSE_PROFILES", "dashboard"},
 		{"YARD_UID", options.Process.ID("-u")},
@@ -180,9 +162,7 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 		}
 	}
 	settings := [][2]string{{"YARD_WORKSTATION", name}, {"YARD_BASE_DOMAIN", domain}, {"YARD_GOSSIP_KEY", key}}
-	if old == nil || cmd.Flags().Changed("peers") {
-		settings = append(settings, [2]string{"YARD_PEERS", strings.Join(peers, " ")})
-	}
+	settings = append(settings, [2]string{"YARD_PEERS", checkedPeers})
 	for _, setting := range settings {
 		if err := env.set(setting[0], setting[1]); err != nil {
 			return err
@@ -191,11 +171,6 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	compose, err := templates.Compose(options.Version)
 	if err != nil {
 		return err
-	}
-	if old != nil {
-		if err := backUpInitFiles(cmd.OutOrStdout(), folder); err != nil {
-			return err
-		}
 	}
 	if err := writeWorkstationFiles(folder, compose, env.text(), f.force); err != nil {
 		return err
@@ -350,5 +325,5 @@ func printInitNextSteps(out io.Writer, folder string, env *envFile) {
 		bind = "127.0.0.1"
 	}
 	fmt.Fprintf(out, "Next steps:\n  1. Open TCP port %s and TCP and UDP port %s to the other Workstations.\n  2. Start this Workstation: cd %s && docker compose up -d\n  3. Open the dashboard: http://%s:%s\n  4. Make sure that LVH Yard works: lvh-yard status\n\n", env.valueOrDefault("YARD_CONSUL_SERVER_PORT"), env.valueOrDefault("YARD_CONSUL_SERF_WAN_PORT"), folder, bind, env.valueOrDefault("YARD_DASHBOARD_PORT"))
-	fmt.Fprintln(out, "To join a Yard later, run this with the address of one of its Workstations:\n  lvh-yard ws init --reinit --peers <ip> --gossip-key <key>")
+	fmt.Fprintln(out, "To join a Yard later, run this with the address of one of its Workstations:\n  lvh-yard ws join --peers <ip> --gossip-key <key>")
 }
