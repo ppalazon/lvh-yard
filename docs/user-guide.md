@@ -118,25 +118,45 @@ the key from `YARD_GOSSIP_KEY` in the `.env` of that Workstation. Then run
 these commands on the new Workstation:
 
 ```sh
-lvh-yard ws init --reinit --peers 192.168.1.10 --gossip-key <key>
+lvh-yard ws join --peers 192.168.1.10 --gossip-key <key>
 cd ~/.config/lvh-yard && docker compose up -d
 ```
 
 You can also give `--peers` and `--gossip-key` to the first `lvh-yard ws init`.
 
+### Changing settings
+
+`lvh-yard ws show` prints the active settings in `.env`, with the Gossip Key hidden.
+`lvh-yard ws set <name> <value>` checks a value and changes one setting. It keeps
+the comments. Neither `ws set` nor `ws join` restarts services. After either
+command, run `lvh-yard ws restart`.
+
+```sh
+lvh-yard ws set base-domain example.test
+lvh-yard ws set peers "192.168.1.10,192.168.1.11:8302"
+lvh-yard ws set dashboard-bind-address 0.0.0.0
+```
+
+The setting names are `base-domain`, `peers`, `bind-address`,
+`traefik-bind-address`, `dashboard-bind-address`, `http-port`,
+`traefik-admin-port`, `dashboard-port`, `consul-http-port`, `consul-dns-port`,
+`consul-grpc-tls-port`, `consul-server-port`, `consul-serf-lan-port`,
+`consul-serf-wan-port`, `out-of-range` and `stack-traces`.
+Addresses use IPv4. Ports run from 1 to 65535. `out-of-range` takes
+comma-separated CIDR ranges or an empty value. `stack-traces` takes `true` or `false`.
+An empty `bind-address` lets Consul choose its address.
+
+To change the Workstation name, export a Backup, run `lvh-yard ws init`
+under the new name, and import the Backup. There is no `ws rename`.
+To change the Gossip Key, use `ws join`. Without `--peers`, it keeps the Peers.
+Every `ws` command accepts `--dir <folder>`.
+
 ### Upgrading
 
-`lvh-yard ws init` does not overwrite a file unless you give `--force`. After you
-install a new `lvh-yard`, use one of these commands:
-
-- `lvh-yard ws upgrade` changes only the consul, traefik and dashboard
-  images in `compose.yaml`. Then run `docker compose up -d` again in the
-  folder of this Workstation.
-- `lvh-yard ws init --reinit` writes `compose.yaml` and `.env` again from the new
-  templates, with the values of the old `.env`. A flag that you give with it
-  replaces the old value. The old files stay as
-  `<file>.<yyyyMMdd-HHmmss>.bak`. If the `backups/` folder is missing, it
-  creates it. The new `compose.yaml` lets the dashboard write to this folder.
+`lvh-yard ws init` does not overwrite a file unless you give `--force`.
+After you install a new `lvh-yard`, run `lvh-yard ws upgrade`.
+It changes only the consul, traefik and dashboard images in `compose.yaml`.
+Then run `docker compose up -d` again in the Workstation Folder.
 
 ### Addresses and ports
 
