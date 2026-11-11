@@ -41,6 +41,7 @@ func newWSTLS(folder func() string) *cobra.Command {
  create.Flags().IntVar(&days, "days", 3650, "Sets the CA validity in days.")
  ca.AddCommand(create); tls.AddCommand(ca)
  tls.AddCommand(newWSTLSCert(folder))
+ tls.AddCommand(newWSTLSClient(folder))
  return tls
 }
 
@@ -79,14 +80,7 @@ func newWSTLSCert(folder func() string) *cobra.Command {
   base := domain
   if !cmd.Flags().Changed("base-domain") { base = env.valueOrDefault("YARD_BASE_DOMAIN") }
   if _, err := checkWSSetting("base-domain", base); err != nil { return err }
-  caPEM, err := os.ReadFile(filepath.Join(folder(), "ca", "ca.crt")); if err != nil { return fmt.Errorf("this Workstation has no readable Yard CA: run lvh-yard ws tls ca create on the signing Workstation: %w", err) }
-  keyPEM, err := os.ReadFile(filepath.Join(folder(), "ca", "ca.key")); if err != nil { return fmt.Errorf("this Workstation has no readable Yard CA key: sign certificates on the Workstation that made the CA: %w", err) }
-  block, _ := pem.Decode(caPEM); if block == nil { return fmt.Errorf("invalid Yard CA certificate") }
-  ca, err := x509.ParseCertificate(block.Bytes); if err != nil { return err }
-  block, _ = pem.Decode(keyPEM); if block == nil { return fmt.Errorf("invalid Yard CA key") }
-  signer, err := x509.ParseECPrivateKey(block.Bytes); if err != nil { return err }
-  public, ok := ca.PublicKey.(*ecdsa.PublicKey)
-  if !ok || !public.Equal(&signer.PublicKey) || !ca.IsCA || ca.KeyUsage&x509.KeyUsageCertSign == 0 { return fmt.Errorf("Yard CA key and signing certificate do not match") }
+  ca, signer, caPEM, err := readYardCA(folder()); if err != nil { return err }
   leaf, key, err := newTLSCertificate(name, days); if err != nil { return err }
   leaf.DNSNames = []string{"server."+name+".consul", "localhost", "*."+base}
   leaf.IPAddresses = []net.IP{net.ParseIP("127.0.0.1")}
@@ -110,4 +104,16 @@ func newWSTLSCert(folder func() string) *cobra.Command {
  create.Flags().IntVar(&days, "days", 365, "Sets the certificate validity in days.")
  cert.AddCommand(create)
  return cert
+}
+
+func readYardCA(folder string) (*x509.Certificate, *ecdsa.PrivateKey, []byte, error) {
+ caPEM, err := os.ReadFile(filepath.Join(folder, "ca", "ca.crt")); if err != nil { return nil, nil, nil, fmt.Errorf("this Workstation has no readable Yard CA: run lvh-yard ws tls ca create on the signing Workstation: %w", err) }
+ keyPEM, err := os.ReadFile(filepath.Join(folder, "ca", "ca.key")); if err != nil { return nil, nil, nil, fmt.Errorf("this Workstation has no readable Yard CA key: sign certificates on the Workstation that made the CA: %w", err) }
+ block, _ := pem.Decode(caPEM); if block == nil { return nil, nil, nil, fmt.Errorf("invalid Yard CA certificate") }
+ ca, err := x509.ParseCertificate(block.Bytes); if err != nil { return nil, nil, nil, err }
+ block, _ = pem.Decode(keyPEM); if block == nil { return nil, nil, nil, fmt.Errorf("invalid Yard CA key") }
+ signer, err := x509.ParseECPrivateKey(block.Bytes); if err != nil { return nil, nil, nil, err }
+ public, ok := ca.PublicKey.(*ecdsa.PublicKey)
+ if !ok || !public.Equal(&signer.PublicKey) || !ca.IsCA || ca.KeyUsage&x509.KeyUsageCertSign == 0 { return nil, nil, nil, fmt.Errorf("Yard CA key and signing certificate do not match") }
+ return ca, signer, caPEM, nil
 }
