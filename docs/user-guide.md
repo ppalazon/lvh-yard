@@ -228,6 +228,29 @@ Import only `ca.crt`, never `ca.key` or a Workstation's private key.
 Trusting the CA lets the browser trust any website certificate it signs.
 To remove that trust, remove the CA from the same certificate store.
 
+#### Client Certificates
+
+On the Workstation with the Yard CA key, run
+`lvh-yard ws tls client create alice`. It writes
+`certificates/clients/alice.p12` in the Workstation Folder with mode 600.
+The file holds Alice's private key, Client Certificate and Yard CA certificate.
+The command prints a random password once. Save it before closing the terminal.
+To choose a password instead, add `--password <password>`. The command does
+not print a password that you give.
+
+A Client Certificate uses ECDSA P-256 and lasts 365 days. It allows client
+authentication only. Use `--days <number>` to change its validity, within
+the Yard CA's validity. Use `--dir <folder>` for another Workstation Folder.
+
+In Firefox, open Settings, Privacy & Security, Certificates, View Certificates,
+then Your Certificates. Choose Import, select `alice.p12` and enter its
+password. In Chromium-based browsers, open the certificate manager from
+Settings and import the file into personal certificates. The operating
+system may manage this store. Follow its import instructions if so.
+When a Route asks for a Client Certificate, select Alice's certificate.
+Import the Yard CA for website trust as described above, too.
+Share the `.p12` file and its password only with the person it identifies.
+
 ### A host without Traefik
 
 On a shared host with no direct users, turn Traefik off:
