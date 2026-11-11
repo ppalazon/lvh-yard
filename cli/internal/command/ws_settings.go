@@ -31,6 +31,7 @@ var wsSettings = map[string]string{
 	"consul-serf-wan-port": "YARD_CONSUL_SERF_WAN_PORT",
 	"out-of-range": "YARD_OUT_OF_RANGE",
 	"stack-traces": "YARD_STACK_TRACES",
+	"traefik": "YARD_TRAEFIK_ENABLED",
 }
 
 func newWSShow(folder func() string) *cobra.Command {
@@ -57,13 +58,26 @@ func newWSSet(folder func() string) *cobra.Command {
 			name, value := args[0], args[1]
 			if name == "workstation" || name == "workstation-name" || name == "YARD_WORKSTATION" { return fmt.Errorf("%s", renameWorkstationHint) }
 			key, ok := wsSettings[name]
-			if !ok { return fmt.Errorf("unknown setting %q: use base-domain, peers, bind-address, traefik-bind-address, dashboard-bind-address, http-port, traefik-admin-port, dashboard-port, consul-http-port, consul-dns-port, consul-grpc-tls-port, consul-server-port, consul-serf-lan-port, consul-serf-wan-port, out-of-range or stack-traces", name) }
+			if !ok { return fmt.Errorf("unknown setting %q: use base-domain, peers, bind-address, traefik-bind-address, dashboard-bind-address, http-port, traefik-admin-port, dashboard-port, consul-http-port, consul-dns-port, consul-grpc-tls-port, consul-server-port, consul-serf-lan-port, consul-serf-wan-port, out-of-range, stack-traces or traefik", name) }
 			checked, err := checkWSSetting(name, value)
 			if err != nil { return err }
 			env, err := readWSEnv(folder())
 			if err != nil { return err }
 			if err := env.set(key, checked); err != nil { return err }
-			return saveWSEnv(cmd, folder(), env)
+			if name == "traefik" {
+				profiles := strings.FieldsFunc(strings.Trim(env.get("COMPOSE_PROFILES"), "\"'"), func(r rune) bool { return r == ',' || unicode.IsSpace(r) })
+				kept := make([]string, 0, len(profiles)+1)
+				for _, profile := range profiles {
+					if profile != "traefik" { kept = append(kept, profile) }
+				}
+				if checked == "true" { kept = append(kept, "traefik") }
+				if err := env.set("COMPOSE_PROFILES", strings.Join(kept, ",")); err != nil { return err }
+			}
+			if err := saveWSEnv(cmd, folder(), env); err != nil { return err }
+			if name == "traefik" && checked == "false" {
+				fmt.Fprintln(cmd.OutOrStdout(), "If this Workstation has traefik-admin, run lvh-yard remove traefik-admin.")
+			}
+			return nil
 		},
 	}
 }
@@ -102,6 +116,9 @@ func checkWSSetting(name, value string) (string, error) {
 	valid := false
 	rule := ""
 	switch {
+	case name == "traefik":
+		valid, rule = value == "on" || value == "off", "on or off"
+		if valid { value = strconv.FormatBool(value == "on") }
 	case name == "base-domain":
 		valid, rule = baseDomainName.MatchString(value), "a domain name such as lvh.me"
 	case name == "peers":

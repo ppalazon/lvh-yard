@@ -24,7 +24,7 @@ it has focus. The Container field of the bind form is a list: Down and Up mark
 an entry, Enter picks it, and Escape closes the list. The pages keep a contrast
 of at least 4.5 to 1 for text in both themes.
 
-The Status page shows one box for each of Consul, Traefik and Docker. Each box
+The Status page shows one box for each of Consul, Traefik (when on) and Docker. Each box
 gives the state and the reason. Its Technical details list the facts behind the
 state. When a part is not OK, its details start open. When a part is OK, they
 start closed. The page refreshes by itself and keeps the details that you open
@@ -150,15 +150,43 @@ The setting names are `base-domain`, `peers`, `bind-address`,
 `traefik-bind-address`, `dashboard-bind-address`, `http-port`,
 `traefik-admin-port`, `dashboard-port`, `consul-http-port`, `consul-dns-port`,
 `consul-grpc-tls-port`, `consul-server-port`, `consul-serf-lan-port`,
-`consul-serf-wan-port`, `out-of-range` and `stack-traces`.
+`consul-serf-wan-port`, `out-of-range`, `stack-traces` and `traefik`.
 Addresses use IPv4. Ports run from 1 to 65535. `out-of-range` takes
 comma-separated CIDR ranges or an empty value. `stack-traces` takes `true` or `false`.
+`traefik` takes `on` or `off`.
 An empty `bind-address` lets Consul choose its address.
 
 To change the Workstation name, export a Backup, run `lvh-yard ws init`
 under the new name, and import the Backup. There is no `ws rename`.
 To change the Gossip Key, use `ws join`. Without `--peers`, it keeps the Peers.
 Every `ws` command accepts `--dir <folder>`.
+
+### A host without Traefik
+
+On a shared host with no direct users, turn Traefik off:
+
+```sh
+lvh-yard ws stop
+lvh-yard ws set traefik off
+lvh-yard ws start
+```
+
+The command sets `YARD_TRAEFIK_ENABLED=false` in `.env` and removes only
+`traefik` from `COMPOSE_PROFILES`. Consul and the dashboard still run and
+publish Instances. Other Workstations can route to those Instances through
+their own Traefik.
+
+Status has no Traefik Status Part. Reachability still tests Instances directly,
+and says that this Workstation has no Traefik for a test through a Route.
+On the first setup, the dashboard registers `yard` and `consul-ui`, but skips
+`traefik-admin`. It keeps the setup marker, so turning Traefik on later does
+not register `traefik-admin`.
+
+If the Service already exists, remove it with `lvh-yard remove traefik-admin`.
+To turn Traefik back on, stop the Workstation, run
+`lvh-yard ws set traefik on`, then run `lvh-yard ws start`.
+A dashboard run from the sources reads the same
+`YARD_TRAEFIK_ENABLED` setting.
 
 ### Upgrading
 
@@ -190,7 +218,7 @@ The folder that `lvh-yard ws init` writes runs the dashboard from its image,
 `ghcr.io/ppalazon/lvh-yard-dashboard`. The image tag is the version of
 `lvh-yard`. `ws init` sets these values in `.env`:
 
-- `COMPOSE_PROFILES=dashboard`, which turns on the dashboard in Compose
+- `COMPOSE_PROFILES=dashboard,traefik`, which turns on both services in Compose
 - `YARD_DOCKER_GID`, the group that owns the Docker socket
   (`stat -c %g /var/run/docker.sock`)
 - `YARD_UID` and `YARD_GID`, your user and group

@@ -51,6 +51,7 @@ lvh-yard:
   # The Traefik of this Workstation. Its entry point listens where compose.yaml binds it. A Reachability test sends
   # requests for the hostnames of a Service through it.
   traefik:
+    enabled: ${YARD_TRAEFIK_ENABLED:true}
     bind-address: ${YARD_TRAEFIK_BIND_ADDRESS:127.0.0.1}
     port: ${YARD_HTTP_PORT:80}
     # Its admin entry point, with its admin page and ping, on loopback only.

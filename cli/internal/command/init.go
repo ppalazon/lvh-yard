@@ -152,7 +152,7 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 		return err
 	}
 	for _, found := range [][2]string{
-		{"COMPOSE_PROFILES", "dashboard"},
+		{"COMPOSE_PROFILES", "dashboard,traefik"},
 		{"YARD_UID", options.Process.ID("-u")},
 		{"YARD_GID", options.Process.ID("-g")},
 		{"YARD_DOCKER_GID", dockerGroup(f.dockerSocket)},
