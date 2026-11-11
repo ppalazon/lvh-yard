@@ -10,6 +10,13 @@ computers a hostname such as `http://grafana.lvh.me`. It works for services on
 your own computer and on every other computer in your Yard. You do not remember
 ports, and you do not edit `/etc/hosts`.
 
+How's that?, is it magic?. Well, no. It takes advantages of whatever public DNS
+domain which points towards localhost `127.0.0.1` address. For example, any
+request that you perform to `*.lvh.me` will point to your localhost, and that's
+it. You can even create your custom wildcard DNS entry to your localhost.
+However, there could be some problems for specific ISP or DNS servers because
+they're block this kind of DNS.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/site/assets/dashboard-catalog-dark.png">
   <img alt="The Catalog page of the LVH Yard dashboard. It lists the Services of two Workstations, each with its state, hostname and passing Instances." src="docs/site/assets/dashboard-catalog-light.png">
