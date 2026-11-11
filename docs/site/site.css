@@ -1,0 +1,69 @@
+/* The landing page's stylesheet. It uses the dashboard's Basecoat components and its colors, so the page looks like
+   the product. `mise run site:build` writes it to docs/site/dist/site.css. */
+@import "tailwindcss" source(none);
+@import "basecoat-css";
+@import "../../dashboard/src/main/css/theme.css";
+
+@source "./index.html";
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+
+  h1 {
+    @apply text-4xl font-semibold tracking-tight text-balance sm:text-5xl;
+  }
+
+  h2 {
+    @apply text-2xl font-semibold tracking-tight text-balance sm:text-3xl;
+  }
+
+  h3 {
+    @apply text-lg font-semibold;
+  }
+
+  code {
+    @apply font-mono;
+  }
+
+  a:focus-visible,
+  button:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+}
+
+/* Terminal blocks. They stay dark in both themes, as terminals do. */
+@layer components {
+  .terminal {
+    @apply overflow-x-auto rounded-lg border border-zinc-700 bg-zinc-950 p-4 text-sm leading-relaxed text-zinc-100;
+  }
+
+  .terminal .prompt {
+    @apply text-amber-300 select-none;
+  }
+
+  .terminal .comment {
+    @apply text-zinc-400;
+  }
+
+  .screenshot {
+    @apply border-border w-full rounded-lg border shadow-lg;
+  }
+
+  .diagram text {
+    fill: currentColor;
+    font-family: var(--font-sans);
+  }
+}

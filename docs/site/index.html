@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LVH Yard: reach your development services by name</title>
+    <meta
+      name="description"
+      content="LVH Yard gives each development service on your LAN a hostname, such as grafana.lvh.me. It runs Consul and Traefik for you."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="LVH Yard" />
+    <meta
+      property="og:description"
+      content="Reach any development service on your LAN by name, not by IP and port."
+    />
+    <meta
+      property="og:image"
+      content="https://ppalazon.github.io/lvh-yard/assets/dashboard-catalog-light.png"
+    />
+    <meta property="og:url" content="https://ppalazon.github.io/lvh-yard/" />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="site.css" />
+    <!-- Loaded in the head, so the page is drawn in its theme. It is the dashboard's own theme.js. -->
+    <script src="theme.js"></script>
+  </head>
+  <body>
+    <a
+      href="#main"
+      class="bg-background focus:border-border sr-only rounded-md px-3 py-2 focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:border"
+      >Skip to the main content</a
+    >
+
+    <header class="border-border border-b">
+      <div
+        class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-3"
+      >
+        <a href="#" class="text-lg font-semibold tracking-tight">LVH Yard</a>
+        <nav
+          aria-label="Main"
+          class="flex items-center gap-1 text-sm font-medium"
+        >
+          <a
+            class="btn hidden sm:inline-flex"
+            data-variant="ghost"
+            href="#how-it-works"
+            >How it works</a
+          >
+          <a
+            class="btn hidden sm:inline-flex"
+            data-variant="ghost"
+            href="#features"
+            >Features</a
+          >
+          <a
+            class="btn"
+            data-variant="ghost"
+            href="https://github.com/ppalazon/lvh-yard/blob/main/docs/user-guide.md"
+            >User guide</a
+          >
+          <a
+            class="btn"
+            data-variant="ghost"
+            href="https://github.com/ppalazon/lvh-yard"
+            >GitHub</a
+          >
+          <button
+            type="button"
+            id="theme-toggle"
+            class="btn"
+            data-variant="ghost"
+            data-size="icon"
+            aria-label="Dark theme"
+            aria-pressed="false"
+          >
+            <svg
+              class="dark:hidden"
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+            </svg>
+            <svg
+              class="hidden dark:block"
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path
+                d="M12 2v2M12 20v2m-7.07-17.07 1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41M8 12a4 4 0 1 0 8 0a4 4 0 1 0-8 0"
+              />
+            </svg>
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <!-- Hero -->
+      <section class="mx-auto max-w-5xl px-6 pt-16 pb-12 sm:pt-24">
+        <p class="text-muted-foreground mb-4 text-sm font-medium">
+          Local virtual host, for your whole LAN
+        </p>
+        <h1 class="max-w-4xl">
+          Reach any development service on your LAN by name, not by IP and port.
+        </h1>
+        <p class="text-muted-foreground mt-6 max-w-2xl text-lg">
+          LVH Yard gives each service that you run on your computers a hostname,
+          such as <code class="text-foreground">http://grafana.lvh.me</code>. It
+          works for your own computer and for every other computer in your
+          Yard. It runs Consul and Traefik for you, in Docker.
+        </p>
+        <div class="mt-8 flex flex-wrap gap-3">
+          <a
+            class="btn"
+            href="https://github.com/ppalazon/lvh-yard/releases"
+            data-size="lg"
+            >Download</a
+          >
+          <a
+            class="btn"
+            data-variant="outline"
+            data-size="lg"
+            href="https://github.com/ppalazon/lvh-yard"
+            >View on GitHub</a
+          >
+        </div>
+
+        <pre
+          class="terminal mt-10 max-w-2xl"
+        ><code><span class="comment"># Download the archive of your platform from the releases page, then:</span>
+<span class="prompt">$ </span>sha256sum -c SHA256SUMS --ignore-missing
+<span class="prompt">$ </span>tar -xzf lvh-yard-&lt;version&gt;-linux-amd64.tar.gz lvh-yard
+<span class="prompt">$ </span>sudo mv lvh-yard /usr/local/bin/
+<span class="prompt">$ </span>lvh-yard init
+<span class="prompt">$ </span>cd ~/.config/lvh-yard &amp;&amp; docker compose up -d
+<span class="prompt">$ </span>lvh-yard status</code></pre>
+      </section>
+
+      <section class="mx-auto max-w-5xl px-6 pb-20">
+        <img
+          class="screenshot dark:hidden"
+          src="assets/dashboard-catalog-light.png"
+          width="1200"
+          height="900"
+          alt="The Catalog page of the LVH Yard dashboard. It lists the Services of two Workstations, each with its state, hostname and passing Instances."
+        />
+        <img
+          class="screenshot hidden dark:block"
+          src="assets/dashboard-catalog-dark.png"
+          width="1200"
+          height="900"
+          alt="The Catalog page of the LVH Yard dashboard. It lists the Services of two Workstations, each with its state, hostname and passing Instances."
+        />
+      </section>
+
+      <!-- How it works -->
+      <section
+        id="how-it-works"
+        class="border-border bg-muted/40 border-y py-20"
+      >
+        <div class="mx-auto max-w-5xl px-6">
+          <h2>How it works</h2>
+          <p class="text-muted-foreground mt-3 max-w-2xl">
+            A wildcard domain such as <code>lvh.me</code> points every
+            hostname to <code>127.0.0.1</code>. Traefik on your computer reads
+            the hostname and sends the request to the right service.
+          </p>
+
+          <ol class="mt-10 grid gap-6 md:grid-cols-3">
+            <li class="card">
+              <header>
+                <h3>1. Install</h3>
+                <p>
+                  Download <code>lvh-yard</code>. It writes the setup files and
+                  Docker starts Consul, the dashboard and Traefik.
+                </p>
+              </header>
+            </li>
+            <li class="card">
+              <header>
+                <h3>2. Publish</h3>
+                <p>
+                  Create a Service. Add its Instances: a fixed address, or a
+                  Docker container that LVH Yard follows. Publish it.
+                </p>
+              </header>
+            </li>
+            <li class="card">
+              <header>
+                <h3>3. Open</h3>
+                <p>
+                  <code>front.lvh.me</code> works in your browser. Share it with
+                  the Yard, and every computer can open it.
+                </p>
+              </header>
+            </li>
+          </ol>
+
+          <pre
+            class="terminal mt-10"
+          ><code><span class="comment"># On ws-a: publish a process and a Docker container.</span>
+<span class="prompt">$ </span>lvh-yard service create front
+<span class="prompt">$ </span>lvh-yard register static front --port 3000
+<span class="prompt">$ </span>lvh-yard publish front
+<span class="prompt">$ </span>lvh-yard service create mailpit
+<span class="prompt">$ </span>lvh-yard register container mailpit-1 --port 8025 --service mailpit
+<span class="prompt">$ </span>lvh-yard publish mailpit
+
+<span class="comment"># Any Workstation in the Yard sees every Service.</span>
+<span class="prompt">$ </span>lvh-yard catalog
+ws-a (this Workstation)
+  front          healthy    front.lvh.me          1 of 1 passing
+  mailpit        healthy    mailpit.lvh.me        1 of 1 passing
+ws-b
+  grafana        healthy    grafana.ws-b.lvh.me   1 of 1 passing</code></pre>
+        </div>
+      </section>
+
+      <!-- The Yard -->
+      <section class="mx-auto max-w-5xl px-6 py-20">
+        <h2>One Yard, many computers</h2>
+        <p class="text-muted-foreground mt-3 max-w-2xl">
+          Every Workstation on your LAN joins the same Yard with one shared
+          key. Each one learns the Services of the others. A Service that you
+          publish with Yard Scope gets a hostname on every Workstation:
+          <code>grafana.ws-b.lvh.me</code> opens the Grafana that runs on
+          <code>ws-b</code>.
+        </p>
+
+        <svg
+          class="diagram mt-10 w-full"
+          viewBox="0 0 760 300"
+          role="img"
+          aria-labelledby="yard-title yard-desc"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <title id="yard-title">Two Workstations in one Yard</title>
+          <desc id="yard-desc">
+            A browser on ws-a asks Traefik on ws-a for grafana.ws-b.lvh.me.
+            Traefik sends the request to the Grafana Instance on ws-b. The
+            Consul servers of both Workstations share their Services.
+          </desc>
+          <defs>
+            <marker
+              id="arrow"
+              viewBox="0 0 10 10"
+              refX="9"
+              refY="5"
+              markerWidth="7"
+              markerHeight="7"
+              orient="auto-start-reverse"
+            >
+              <path d="M0 0L10 5L0 10z" fill="currentColor" />
+            </marker>
+          </defs>
+
+          <!-- ws-a -->
+          <rect x="20" y="20" width="280" height="260" rx="12" fill="var(--card)" stroke="var(--border)" />
+          <text x="40" y="52" font-size="16" font-weight="600">ws-a</text>
+          <rect x="40" y="70" width="110" height="40" rx="8" fill="none" stroke="currentColor" />
+          <text x="95" y="95" font-size="14" text-anchor="middle">Browser</text>
+          <rect x="170" y="70" width="110" height="40" rx="8" fill="none" stroke="currentColor" />
+          <text x="225" y="95" font-size="14" text-anchor="middle">Consul</text>
+          <rect x="40" y="150" width="110" height="40" rx="8" fill="none" stroke="currentColor" />
+          <text x="95" y="175" font-size="14" text-anchor="middle">Traefik :80</text>
+          <rect x="190" y="220" width="90" height="40" rx="8" fill="none" stroke="currentColor" />
+          <text x="235" y="245" font-size="14" text-anchor="middle">front :3000</text>
+          <line x1="95" y1="110" x2="95" y2="148" stroke="currentColor" marker-end="url(#arrow)" />
+          <path d="M95 190 V240 H188" fill="none" stroke="currentColor" marker-end="url(#arrow)" />
+          <text x="104" y="232" font-size="11" fill="var(--muted-foreground)">front.lvh.me</text>
+
+          <!-- ws-b -->
+          <rect x="460" y="20" width="280" height="260" rx="12" fill="var(--card)" stroke="var(--border)" />
+          <text x="480" y="52" font-size="16" font-weight="600">ws-b</text>
+          <rect x="610" y="70" width="110" height="40" rx="8" fill="none" stroke="currentColor" />
+          <text x="665" y="95" font-size="14" text-anchor="middle">Consul</text>
+          <rect x="480" y="150" width="110" height="40" rx="8" fill="none" stroke="currentColor" />
+          <text x="535" y="175" font-size="14" text-anchor="middle">Traefik :80</text>
+          <rect x="610" y="220" width="110" height="40" rx="8" fill="none" stroke="currentColor" />
+          <text x="665" y="245" font-size="14" text-anchor="middle">grafana :3000</text>
+
+          <!-- Between them -->
+          <line x1="280" y1="90" x2="610" y2="90" stroke="var(--muted-foreground)" stroke-dasharray="4 4" />
+          <text x="445" y="82" font-size="12" text-anchor="middle" fill="var(--muted-foreground)">Consul shares the Services</text>
+          <path d="M150 170 H400 V240 H608" fill="none" stroke="var(--primary)" stroke-width="2" marker-end="url(#arrow)" />
+          <text x="160" y="162" font-size="12" fill="var(--muted-foreground)">grafana.ws-b.lvh.me</text>
+        </svg>
+      </section>
+
+      <!-- Features -->
+      <section
+        id="features"
+        class="border-border bg-muted/40 border-y py-20"
+      >
+        <div class="mx-auto max-w-5xl px-6">
+          <h2>What it does</h2>
+          <ul class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <li class="card">
+              <header>
+                <h3>A name for each Service</h3>
+                <p>
+                  Publish a Service on one Workstation, or share it with the
+                  whole Yard.
+                </p>
+              </header>
+            </li>
+            <li class="card">
+              <header>
+                <h3>Routes that check health</h3>
+                <p>
+                  A Service can have many Instances. The Route uses only the
+                  ones that pass, so you can test replicas as in production.
+                </p>
+              </header>
+            </li>
+            <li class="card">
+              <header>
+                <h3>Docker containers follow their Service</h3>
+                <p>
+                  Bind a container or a Compose service to a name. The port that
+                  Docker gives it does not matter.
+                </p>
+              </header>
+            </li>
+            <li class="card">
+              <header>
+                <h3>Route Profiles</h3>
+                <p>
+                  Add Traefik middlewares to a Route: basic auth, IP allow
+                  lists, headers, CORS.
+                </p>
+              </header>
+            </li>
+            <li class="card">
+              <header>
+                <h3>A dashboard and a CLI</h3>
+                <p>
+                  Both show the state, the Instances, the warnings and the
+                  reachability tests of every Service.
+                </p>
+              </header>
+            </li>
+            <li class="card">
+              <header>
+                <h3>Backups</h3>
+                <p>
+                  Export the setup of a Workstation to one YAML file. Import it
+                  on the same Workstation or on another one.
+                </p>
+              </header>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- The Service page -->
+      <section class="mx-auto max-w-5xl px-6 py-20">
+        <h2>See every Instance behind a name</h2>
+        <p class="text-muted-foreground mt-3 max-w-2xl">
+          The Service page shows the state of a Service, its Publication, and
+          the order of its Instance Sources. Here, one of the two Instances of
+          <code>back</code> does not answer, so the Service is degraded and the
+          Route uses the other one.
+        </p>
+        <img
+          class="screenshot dark:hidden mt-10"
+          src="assets/dashboard-service-light.png"
+          width="1200"
+          height="900"
+          loading="lazy"
+          alt="The Service page of back. It is degraded: one of two Instances passes. The page shows its Publication settings and its Instance Sources."
+        />
+        <img
+          class="screenshot mt-10 hidden dark:block"
+          src="assets/dashboard-service-dark.png"
+          width="1200"
+          height="900"
+          loading="lazy"
+          alt="The Service page of back. It is degraded: one of two Instances passes. The page shows its Publication settings and its Instance Sources."
+        />
+      </section>
+
+      <!-- Requirements -->
+      <section class="border-border bg-muted/40 border-y py-20">
+        <div class="mx-auto grid max-w-5xl gap-10 px-6 md:grid-cols-2">
+          <div>
+            <h2>What you need</h2>
+            <ul class="text-muted-foreground mt-6 list-disc space-y-2 pl-5">
+              <li>Docker with Compose on every Workstation.</li>
+              <li>
+                <code>lvh-yard</code> for Linux (amd64, arm64) or macOS
+                (arm64). It needs no Java.
+              </li>
+              <li>
+                Docker is the only container runtime that LVH Yard supports.
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h2>Use it on a network that you trust</h2>
+            <p class="text-muted-foreground mt-6">
+              LVH Yard is a development tool. The dashboard has no login:
+              anyone who reaches it can change the Services of that Workstation
+              and reach its containers through the Docker socket. By default it
+              listens on <code>127.0.0.1</code> only.
+              <a
+                class="text-foreground underline"
+                href="https://github.com/ppalazon/lvh-yard/blob/main/SECURITY.md"
+                >Read the security policy.</a
+              >
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Call to action -->
+      <section class="mx-auto max-w-5xl px-6 py-20 text-center">
+        <h2>Give your services a name</h2>
+        <p class="text-muted-foreground mx-auto mt-3 max-w-xl">
+          LVH Yard is open source, under the Apache License 2.0.
+        </p>
+        <div class="mt-8 flex flex-wrap justify-center gap-3">
+          <a
+            class="btn"
+            data-size="lg"
+            href="https://github.com/ppalazon/lvh-yard/releases"
+            >Download</a
+          >
+          <a
+            class="btn"
+            data-variant="outline"
+            data-size="lg"
+            href="https://github.com/ppalazon/lvh-yard/blob/main/docs/user-guide.md"
+            >Read the user guide</a
+          >
+        </div>
+      </section>
+    </main>
+
+    <footer class="border-border text-muted-foreground border-t text-sm">
+      <div
+        class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-8"
+      >
+        <p>
+          LVH Yard is licensed under the
+          <a
+            class="underline"
+            href="https://github.com/ppalazon/lvh-yard/blob/main/LICENSE"
+            >Apache License 2.0</a
+          >. It was developed with the help of AI tools. The maintainer reviews
+          every change.
+        </p>
+        <nav aria-label="Project" class="flex gap-4">
+          <a
+            class="underline"
+            href="https://github.com/ppalazon/lvh-yard/issues"
+            >Issues</a
+          >
+          <a
+            class="underline"
+            href="https://github.com/ppalazon/lvh-yard/blob/main/CONTRIBUTING.md"
+            >Contributing</a
+          >
+          <a
+            class="underline"
+            href="https://github.com/ppalazon/lvh-yard/tree/main/docs/adr"
+            >Decisions</a
+          >
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>
