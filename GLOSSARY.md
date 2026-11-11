@@ -11,7 +11,7 @@ All the Workstations on one LAN that can see each other's Services.
 _Avoid_: Cluster, network, mesh
 
 **Workstation**:
-A computer in the Yard that hosts Instances and opens hostnames for Services. It is yours, a coworker's, or the team's.
+A computer in the Yard that hosts Instances and opens hostnames for Services, unless its Traefik is off. It is yours, a coworker's, or the team's.
 _Avoid_: Machine, host, node, server, client
 
 **Service**:
@@ -84,6 +84,18 @@ _Avoid_: Cluster, federation list, Yard (the Yard is every Workstation, but the 
 The Yard's shared secret. Every Workstation in the Yard needs the same one to join it.
 _Avoid_: Yard key, encryption key, secret
 
+**Yard CA**:
+The one certificate authority of a Yard. It signs every Workstation Certificate and Client Certificate. LVH Yard can make it, or you bring your own. Its key stays on the Workstation that made it.
+_Avoid_: Private CA, root certificate
+
+**Workstation Certificate**:
+The certificate and key that the Yard CA signs for one Workstation. Consul uses it between Workstations, and Traefik uses it for HTTPS on that Workstation's Routes.
+_Avoid_: Server certificate, TLS cert
+
+**Client Certificate**:
+A certificate that the Yard CA signs for a person. A Route Profile can require it, and then only a browser that holds it reaches the Route.
+_Avoid_: User certificate, mTLS certificate
+
 **Base Domain**:
 The domain that every hostname on one Workstation ends with, such as `lvh.me`. Each Workstation picks its own, and it can be a public domain.
 _Avoid_: Yard domain, TLD, suffix, zone
@@ -103,7 +115,7 @@ How LVH Yard itself works on one Workstation: each Status Part, and the worst of
 _Avoid_: Health, state, availability
 
 **Status Part**:
-One piece of LVH Yard with a Status of its own: Consul, Traefik or Docker.
+One piece of LVH Yard with a Status of its own: Consul, Traefik or Docker. A Workstation with Traefik off has no Traefik Status Part.
 _Avoid_: Component, subsystem, check
 
 **Reachability**:
@@ -131,7 +143,7 @@ The order of a Service's Instance Sources. Its Route uses only the first Instanc
 _Avoid_: Alias priority, weight, preference, kind order
 
 **Route Profile**:
-A named, reusable set of Route options, such as authentication or added headers, that a Publication can use. It is written on the Home Workstation, and every Workstation that routes the Publication applies it. A Route that uses the Instances of an Alias applies the Route Profiles of its own Service, not those of the Remote Service.
+A named, reusable set of Route options, such as authentication, added headers or a required Client Certificate, that a Publication can use. It is written on the Home Workstation, and every Workstation that routes the Publication applies it. A Route that uses the Instances of an Alias applies the Route Profiles of its own Service, not those of the Remote Service.
 _Avoid_: Middleware, Traefik profile, policy
 
 **Route**:
