@@ -1,4 +1,4 @@
-# The landing page in docs/site, at https://ppalazon.github.io/lvh-yard/.
+# The landing page in docs/site, at https://pablo.palazon.dev/lvh-yard/ (the custom domain of the account's Pages).
 # One-time setup: in the repository settings, set Pages > Source to "GitHub Actions".
 name: Pages
 

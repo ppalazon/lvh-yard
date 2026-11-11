@@ -213,7 +213,7 @@ mise run site:serve    # builds it and serves http://localhost:8800
 ```
 
 The Pages workflow (`.github/workflows/pages.yml`) builds the page and
-deploys it to `https://ppalazon.github.io/lvh-yard/` when `docs/site/` changes
+deploys it to `https://pablo.palazon.dev/lvh-yard/` when `docs/site/` changes
 on `main`. Once, in the repository settings, set **Pages > Source** to
 **GitHub Actions**.
 
