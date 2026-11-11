@@ -74,10 +74,11 @@ description = "Run the dashboard's component tests: the dashboard with fake Cons
 run = "./mvnw -q -pl dashboard test -Dtest='*ComponentTest' -Dsurefire.failIfNoSpecifiedTests=false"
 
 [tasks."cli:templates"]
-description = "Refresh the Go CLI's embedded copies of compose.yaml and .env.example"
+description = "Refresh the Go CLI's embedded Workstation templates"
 run = [
   "cp config/compose.yaml cli/internal/templates/compose.yaml",
   "cp config/.env.example cli/internal/templates/.env.example",
+  "cp config/lvh-yard.yaml cli/internal/templates/lvh-yard.yaml",
 ]
 
 [tasks."cli:build"]
