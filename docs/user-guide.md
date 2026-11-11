@@ -167,8 +167,18 @@ Every `ws` command accepts `--dir <folder>`.
 
 `lvh-yard ws init` does not overwrite a file unless you give `--force`.
 After you install a new `lvh-yard`, run `lvh-yard ws upgrade`.
-It changes only the consul, traefik and dashboard images in `compose.yaml`.
+It changes only the consul, traefik and dashboard image lines in `compose.yaml`
+and rewrites `consul.d/00-lvh-yard.hcl`.
 Then run `docker compose up -d` again in the Workstation Folder.
+
+LVH Yard owns `consul.d/00-lvh-yard.hcl`, `consul.d/10-tls.hcl` and
+`traefik/dynamic/10-tls.yaml`. Generated files start with
+`# Generated, do not edit.` The TLS files exist only when TLS is set up.
+You own `compose.yaml`, `.env`, `lvh-yard.yaml` and every other file you add
+to `consul.d/` or `traefik/dynamic/`. Put custom options in your own files.
+`ws upgrade` keeps their contents unchanged.
+Consul reads `consul.d/` read-only. Traefik watches `traefik/dynamic/`
+read-only for routing options.
 
 ### Addresses and ports
 

@@ -94,10 +94,11 @@ Java CLI, built as a native executable:
 | Go (this CLI) | 9.19 MB | 1.44 ms                               |
 | Java, native  | 49 MB   | 7.3 ms                                |
 
-The source templates are `config/compose.yaml` and `config/.env.example`.
-The CLI embeds copies from `cli/internal/templates/`. After you edit either
-source, run `mise run cli:templates` to refresh the copies. Commit both copies
-with the source files. A unit test compares the raw bytes. When `init` writes
+The source templates are `config/compose.yaml`, `config/.env.example` and
+`config/00-lvh-yard.hcl`. The CLI embeds copies from
+`cli/internal/templates/`. After you edit a source, run
+`mise run cli:templates` to refresh the copies. Commit the copies with the
+source files. A unit test compares the raw bytes. When `ws init` writes
 the Workstation Folder, it pins the dashboard image to the CLI version, or
 `latest` for `dev`. The user template has no build setting.
 
