@@ -152,22 +152,26 @@ usage = 'arg "<host>" help="The ssh destination, for example user@host"'
 run = 'docker save ghcr.io/ppalazon/lvh-yard-dashboard:latest | ssh -C "$usage_host" docker load'
 
 [tasks."dev:up"]
-description = "Start a Yard of two test Workstations, ws-a and ws-b, on this computer (dev/*.env)"
-run = [
-  "docker compose --project-directory . -f config/compose.yaml -f dev/compose.yaml -p ws-a --env-file dev/ws-a.env up -d",
-  "docker compose --project-directory . -f config/compose.yaml -f dev/compose.yaml -p ws-b --env-file dev/ws-b.env up -d",
-]
+description = "Start Consul and Traefik for two test Workstation Folders"
+depends = ["cli:build"]
+run = 'bash dev/workstations.sh up "$PWD/cli/target/lvh-yard" "$PWD"'
 
 [tasks."dev:down"]
 description = "Stop the two test Workstations"
-run = [
-  "docker compose --project-directory . -f config/compose.yaml -f dev/compose.yaml -p ws-a --env-file dev/ws-a.env down",
-  "docker compose --project-directory . -f config/compose.yaml -f dev/compose.yaml -p ws-b --env-file dev/ws-b.env down",
-]
+depends = ["cli:build"]
+run = 'bash dev/workstations.sh down "$PWD/cli/target/lvh-yard" "$PWD"'
 
 [tasks."dev:dashboard"]
 description = "Run the dashboard of test Workstation ws-a or ws-b: mise run dev:dashboard ws-b"
 depends = ["css"]
 usage = 'arg "<workstation>" help="ws-a or ws-b"'
-# Each test Workstation has its own Backups folder, apart from the Workstation Folder that lvh-yard ws init writes.
-run = "set -a; . dev/${usage_workstation}.env; YARD_BACKUPS=$PWD/dev/backups/${usage_workstation}; set +a; ./mvnw -q -pl dashboard spring-boot:run"
+run = """
+case "$usage_workstation" in ws-a|ws-b) ;; *) echo "Use ws-a or ws-b." >&2; exit 1 ;; esac
+folder="$PWD/dev/$usage_workstation"
+set -a
+. "$folder/.env"
+YARD_BACKUPS="$folder/backups"
+SPRING_CONFIG_ADDITIONAL_LOCATION="optional:file:$folder/lvh-yard.yaml"
+set +a
+./mvnw -q -pl dashboard spring-boot:run
+"""
