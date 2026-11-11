@@ -1,0 +1,20 @@
+name: Feature request
+description: Ask for a new feature or a change.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can you not do now? Use the words of GLOSSARY.md, such as Workstation, Service and Publication.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Idea
+      description: How could LVH Yard solve it? Name the commands or pages that you expect.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do today instead

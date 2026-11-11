@@ -1,0 +1,46 @@
+name: Bug report
+description: Something does not work as the user guide says.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For a security problem, do not open an issue. Follow [SECURITY.md](https://github.com/ppalazon/lvh-yard/blob/main/SECURITY.md).
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Say what you did, what you expected, and what you got.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The shortest list of commands or clicks that shows the problem.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Output of `lvh-yard --version`
+    validations:
+      required: true
+  - type: textarea
+    id: status
+    attributes:
+      label: Output of `lvh-yard status`
+      render: text
+  - type: input
+    id: system
+    attributes:
+      label: Operating system and Docker version
+      placeholder: Ubuntu 24.04, Docker 28.0
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: The output of `docker compose logs dashboard`, `consul` or `traefik`, if it helps. Remove secrets first.
+      render: text

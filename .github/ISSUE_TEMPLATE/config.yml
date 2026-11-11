@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: User guide
+    url: https://github.com/ppalazon/lvh-yard/blob/main/docs/user-guide.md
+    about: Read this first. It explains how to install and use LVH Yard.
+  - name: Report a security problem
+    url: https://github.com/ppalazon/lvh-yard/security/advisories/new
+    about: Report it in private. Do not open an issue.
