@@ -117,9 +117,12 @@ abstract class DockerContract {
     assertThat(docker().runningContainers()).noneMatch(container -> container.isNamed(spec.name()));
     try (ContainerEvents events = docker().containerEvents(before)) {
       List<String> actions = new ArrayList<>();
+      // Events do not name their container, and other tests share this Docker. So another
+      // container's die can come first, and the loop reads on until both actions have come.
       CompletableFuture.runAsync(
               () -> {
-                while (!actions.contains("die") && events.hasNext()) {
+                while (!(actions.contains("start") && actions.contains("die"))
+                    && events.hasNext()) {
                   Event event = events.next();
                   assertThat(event.type()).isEqualTo("container");
                   actions.add(event.action());
