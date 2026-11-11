@@ -17,7 +17,8 @@ and installs Node for Tailwind CSS and Go for the CLI.
 2. Run `mise run up` to start Consul and Traefik.
 3. Run `mise run dashboard:run` to start the dashboard from the sources.
 
-To run the dashboard image instead, add `COMPOSE_PROFILES=dashboard` and
+To run the dashboard image instead, copy `config/lvh-yard.yaml` to
+`lvh-yard.yaml` and add `COMPOSE_PROFILES=dashboard` and
 `YARD_DOCKER_GID` to `.env`. Then run `mise run up`. To pin a version,
 set `YARD_DASHBOARD_IMAGE`, for example to
 `ghcr.io/ppalazon/lvh-yard-dashboard:0.1.0`.
@@ -44,10 +45,13 @@ default image of `compose.yaml`. On the other Workstation, unset
 
 ## A Yard on one computer
 
-Two test Workstations, ws-a and ws-b, can run side by side on loopback. Their
-settings are in `dev/ws-a.env` and `dev/ws-b.env`. Each one is a full `.env`,
-and ws-b uses the Base Domain `localhost`. `dev:up` uses the same template and
-development Compose layer as `mise run up`.
+Two test Workstations, ws-a and ws-b, can run side by side on loopback.
+`dev:up` builds the CLI and uses `ws init` and `ws set` to make
+`dev/ws-a/` and `dev/ws-b/`. They use the same Gossip Key and join each
+other through their loopback WAN ports. ws-b uses the Base Domain `localhost`.
+Later runs keep the folders and their settings, including certificates.
+`ws start` starts Consul and Traefik. The task leaves the dashboard for
+`dev:dashboard`, which runs it from the sources.
 
 ```sh
 mise run dev:up                 # Consul and Traefik for both
@@ -64,10 +68,11 @@ lvh-yard --dashboard http://127.0.0.1:17780 profiles set profiles.yaml   # ws-a
 lvh-yard --dashboard http://127.0.0.1:17790 profiles set profiles.yaml   # ws-b
 ```
 
-Each one writes its Backups to its own folder, `dev/backups/ws-a` or
-`dev/backups/ws-b`. Git ignores these folders. The dashboard tests use a new
-temporary folder for each test JVM, through the `lvh-yard.backups.path`
-setting.
+Each Workstation Folder holds its own `backups/`, Consul data and TLS files.
+Git ignores both folders. `dev:dashboard` reads that Workstation's `.env`
+and `lvh-yard.yaml`. `dev:down` uses `ws stop` and keeps the files.
+The dashboard tests use a new temporary folder for each test JVM, through
+the `lvh-yard.backups.path` setting.
 
 ## Building the CLI
 
@@ -94,10 +99,11 @@ Java CLI, built as a native executable:
 | Go (this CLI) | 9.19 MB | 1.44 ms                               |
 | Java, native  | 49 MB   | 7.3 ms                                |
 
-The source templates are `config/compose.yaml` and `config/.env.example`.
-The CLI embeds copies from `cli/internal/templates/`. After you edit either
-source, run `mise run cli:templates` to refresh the copies. Commit both copies
-with the source files. A unit test compares the raw bytes. When `init` writes
+The source templates are `config/compose.yaml`, `config/.env.example`,
+`config/00-lvh-yard.hcl` and `config/lvh-yard.yaml`. The CLI embeds copies from
+`cli/internal/templates/`. After you edit a source, run
+`mise run cli:templates` to refresh the copies. Commit the copies with the
+source files. A unit test compares the raw bytes. When `ws init` writes
 the Workstation Folder, it pins the dashboard image to the CLI version, or
 `latest` for `dev`. The user template has no build setting.
 
@@ -207,8 +213,9 @@ It runs in three places, all with the rules of `.gitleaks.toml`:
 - `mise run secrets` scans the working tree and the whole git history.
 - The `secrets` job of CI runs the same task.
 
-`.gitleaks.toml` allows the throwaway gossip keys of `dev/*.env` and of the CLI
-tests. They only join the test Workstations on loopback. Never put a gossip key
+`.gitleaks.toml` allows the throwaway gossip key in `dev/workstations.sh`
+and the CLI tests, including old files in Git history. They only join the
+test Workstations on loopback. Never put a gossip key
 of a real Yard in a file of this repository. `.env` is ignored by Git for this
 reason. If gitleaks finds a real secret, remove it, rotate it, and do not just
 allow it.

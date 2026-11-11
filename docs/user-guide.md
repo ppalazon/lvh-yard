@@ -54,7 +54,7 @@ Java or a copy of this repository.
    lvh-yard ws init --workstation ws-a --base-domain lvh.me
    ```
 
-   `ws init` writes `compose.yaml` and `.env` to
+   `ws init` writes `compose.yaml`, `.env` and `lvh-yard.yaml` to
    `~/.config/lvh-yard`. If `XDG_CONFIG_HOME` is set, it writes to
    `$XDG_CONFIG_HOME/lvh-yard`. `--dir` picks another folder for any `ws` command.
    You can put it before or after the subcommand. It also creates
@@ -121,6 +121,26 @@ can change `compose.yaml`, or run Consul, Traefik and the dashboard another
 way. The comments in `compose.yaml` and `.env` explain each value. The `ws`
 commands use local files and `docker compose`. Other `lvh-yard` commands talk
 to the dashboard.
+
+### Dashboard settings
+
+`lvh-yard.yaml` holds structured dashboard settings in the Workstation Folder.
+Every line starts as a comment and shows the dashboard's defaults. The file
+is readable only by its owner. The dashboard container reads it through a
+read-only mount.
+
+To change a setting, uncomment its parent sections and its value. Keep the
+`YARD_*` placeholders so that `.env` values still win. For example:
+
+```yaml
+lvh-yard:
+  events:
+    debounce-window: ${YARD_EVENTS_DEBOUNCE_WINDOW:500ms}
+```
+
+After saving the file, run `docker compose restart dashboard` in the Workstation
+Folder. `lvh-yard ws upgrade` and `lvh-yard ws set` leave the file unchanged.
+A dashboard run from the sources keeps reading `.env` as before.
 
 ### Joining a Yard
 
@@ -211,8 +231,18 @@ To remove that trust, remove the CA from the same certificate store.
 
 `lvh-yard ws init` does not overwrite a file unless you give `--force`.
 After you install a new `lvh-yard`, run `lvh-yard ws upgrade`.
-It changes only the consul, traefik and dashboard images in `compose.yaml`.
+It changes only the consul, traefik and dashboard image lines in `compose.yaml`
+and rewrites `consul.d/00-lvh-yard.hcl`.
 Then run `docker compose up -d` again in the Workstation Folder.
+
+LVH Yard owns `consul.d/00-lvh-yard.hcl`, `consul.d/10-tls.hcl` and
+`traefik/dynamic/10-tls.yaml`. Generated files start with
+`# Generated, do not edit.` The TLS files exist only when TLS is set up.
+You own `compose.yaml`, `.env`, `lvh-yard.yaml` and every other file you add
+to `consul.d/` or `traefik/dynamic/`. Put custom options in your own files.
+`ws upgrade` keeps their contents unchanged.
+Consul reads `consul.d/` read-only. Traefik watches `traefik/dynamic/`
+read-only for routing options.
 
 ### Addresses and ports
 

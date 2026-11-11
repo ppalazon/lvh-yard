@@ -6,6 +6,8 @@ target/
 
 # Each Workstation's settings and the Yard's gossip key
 .env
+/dev/ws-a/
+/dev/ws-b/
 
 # The Backups of the test Workstations and of a dashboard image run from this folder. They hold basic-auth hashes.
 /dev/backups/

@@ -10,6 +10,7 @@ useDefault = true
 description = "Throwaway gossip keys of the test Workstations and of the CLI tests"
 paths = [
   '''^dev/(ws-a|ws-b|yard)\.env$''',
+  '''^dev/workstations\.sh$''',
   '''^cli/internal/command/init(_reinit)?_test\.go$''',
   '''^cli-go/internal/command/init(_reinit)?_test\.go$''',
 ]
