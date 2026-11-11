@@ -42,6 +42,20 @@ func upgradeInit(options *Options, folder string, out io.Writer) error {
 		return err
 	}
 	desired := composeImages(template)
+	if err := protectWorkstationFolder(folder); err != nil {
+		return err
+	}
+	for _, name := range []string{"consul.d", "traefik/dynamic"} {
+		if err := os.MkdirAll(filepath.Join(folder, name), 0700); err != nil {
+			return fmt.Errorf("could not create %s: %w", name, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(folder, "consul.d/00-lvh-yard.hcl"), []byte(templates.Consul()), 0600); err != nil {
+		return fmt.Errorf("could not write fixed Consul options: %w", err)
+	}
+	if err := protectWorkstationFolder(folder); err != nil {
+		return err
+	}
 	changed := false
 	for _, service := range services {
 		from, _ := findComposeImage(images, service)
@@ -75,7 +89,7 @@ func upgradeInit(options *Options, folder string, out io.Writer) error {
 		start = image.end
 	}
 	updated.WriteString(text[start:])
-	if err := os.WriteFile(file, []byte(updated.String()), 0644); err != nil {
+	if err := os.WriteFile(file, []byte(updated.String()), 0600); err != nil {
 		return fmt.Errorf("Could not write %s: %w", file, err)
 	}
 	fmt.Fprintf(out, "Upgraded %s. Start the new images: cd %s && docker compose up -d\n", file, folder)

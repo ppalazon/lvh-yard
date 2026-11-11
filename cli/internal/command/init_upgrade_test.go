@@ -38,6 +38,7 @@ func TestInitUpgradeChangesOnlyImageValues(t *testing.T) {
 			writeUpgradeFile(t, folder, "compose.yaml", before)
 			writeUpgradeFile(t, folder, ".env", "YARD_WORKSTATION=mine\n")
 			writeUpgradeFile(t, folder, "route-profiles.yaml", "# mine\n")
+			writeUpgradeFile(t, folder, "lvh-yard.yaml", "# my dashboard settings\nlvh-yard:\n  events:\n    debounce-window: 500ms\n")
 			yard := commandtest.New(t)
 			yard.Version = tc.version
 			run := yard.Run("ws", "upgrade", "--dir", folder)
@@ -49,6 +50,9 @@ func TestInitUpgradeChangesOnlyImageValues(t *testing.T) {
 			}
 			if readInitFile(t, folder, ".env") != "YARD_WORKSTATION=mine\n" || readInitFile(t, folder, "route-profiles.yaml") != "# mine\n" {
 				t.Fatal("upgrade changed another setup file")
+			}
+			if readInitFile(t, folder, "lvh-yard.yaml") != "# my dashboard settings\nlvh-yard:\n  events:\n    debounce-window: 500ms\n" {
+				t.Fatal("upgrade changed dashboard settings")
 			}
 			for _, change := range []string{"consul: hashicorp/consul:1.0.0 -> hashicorp/consul:2.1.0", "traefik: traefik:v3.0.0 -> traefik:v3.7.16", "dashboard: ${YARD_DASHBOARD_IMAGE:-ghcr.io/ppalazon/lvh-yard-dashboard:0.1.0} -> ${YARD_DASHBOARD_IMAGE:-ghcr.io/ppalazon/lvh-yard-dashboard:" + tc.tag + "}", "docker compose up -d"} {
 				if !strings.Contains(run.Stdout, change) {

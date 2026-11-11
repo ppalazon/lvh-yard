@@ -12,6 +12,16 @@ var compose string
 //go:embed .env.example
 var env string
 
+//go:embed 00-lvh-yard.hcl
+var consul string
+
+func Consul() string {
+	return consul
+}
+
+//go:embed lvh-yard.yaml
+var dashboard string
+
 func Compose(version string) (string, error) {
 	const image = "ghcr.io/ppalazon/lvh-yard-dashboard:"
 	if !strings.Contains(compose, image+"latest}") {
@@ -25,4 +35,8 @@ func Compose(version string) (string, error) {
 
 func Env() string {
 	return env
+}
+
+func Dashboard() string {
+	return dashboard
 }

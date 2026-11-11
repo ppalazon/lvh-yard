@@ -35,6 +35,11 @@ func TestInitWritesNewWorkstationFolder(t *testing.T) {
 	if strings.Contains(compose, "    build: .\n") || !strings.Contains(compose, "ghcr.io/ppalazon/lvh-yard-dashboard:latest}") || !strings.Contains(compose, "./backups:") {
 		t.Fatalf("wrong compose template: %s", compose)
 	}
+	if !strings.Contains(compose, `user: "${YARD_UID:?set YARD_UID in .env}:${YARD_GID:?set YARD_GID in .env}"`) ||
+		!strings.Contains(compose, "./consul-data:/consul/data") ||
+		strings.Contains(compose, "\nvolumes:\n") {
+		t.Fatalf("Consul must use the Workstation user and local data folder: %s", compose)
+	}
 	info, err := os.Stat(filepath.Join(folder, "backups"))
 	if err != nil || !info.IsDir() {
 		t.Fatalf("backups folder: %v", err)
@@ -42,6 +47,19 @@ func TestInitWritesNewWorkstationFolder(t *testing.T) {
 	info, err = os.Stat(filepath.Join(folder, ".env"))
 	if err != nil || info.Mode().Perm() != 0600 {
 		t.Fatalf(".env permissions: %v, %v", info, err)
+	}
+	settings := readInitFile(t, folder, "lvh-yard.yaml")
+	for _, line := range strings.Split(strings.TrimSuffix(settings, "\n"), "\n") {
+		if !strings.HasPrefix(line, "#") {
+			t.Fatalf("dashboard setting is not commented: %q", line)
+		}
+	}
+	info, err = os.Stat(filepath.Join(folder, "lvh-yard.yaml"))
+	if err != nil || info.Mode().Perm() != 0600 {
+		t.Fatalf("lvh-yard.yaml permissions: %v, %v", info, err)
+	}
+	if !strings.Contains(compose, "./lvh-yard.yaml:/app/config/application.yaml:ro") {
+		t.Fatalf("dashboard settings are not mounted read-only: %s", compose)
 	}
 	if _, err := os.Stat(filepath.Join(folder, "route-profiles.yaml")); !os.IsNotExist(err) {
 		t.Fatalf("unexpected Route Profiles file: %v", err)
@@ -147,7 +165,7 @@ func TestInitGeneratesAndSharesNewGossipKey(t *testing.T) {
 }
 
 func TestInitRefusesOverwriteBeforeWritingAnything(t *testing.T) {
-	for _, existing := range []string{"compose.yaml", ".env"} {
+	for _, existing := range []string{"compose.yaml", ".env", "lvh-yard.yaml"} {
 		t.Run(existing, func(t *testing.T) {
 			folder := t.TempDir()
 			if err := os.WriteFile(filepath.Join(folder, existing), []byte("mine\n"), 0644); err != nil {
