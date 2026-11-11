@@ -571,7 +571,7 @@ curl -H 'Accept: application/yaml' http://127.0.0.1:7780/api/workstation/backup
 A Backup looks like this:
 
 ```yaml
-version: 2
+version: 3
 exported-from:
   workstation: ws-a
   at: "2026-11-05T10:00:00+01:00"
@@ -580,6 +580,8 @@ route-profiles:
     basicAuth:
       users:
         - ana:$2y$05$abc
+  certificate:
+    clientCertificate: {}
 services:
   grafana:
     publication:
@@ -629,6 +631,9 @@ services:
 - If the host of a Static Instance is the LAN address of this Workstation, the
   Backup leaves the host out. So the Static Instance fits another computer.
 - The Backup leaves out empty tags and meta.
+
+Exports use version 3. Imports accept versions 2 and 3. Version 3 holds
+Client Certificate Route Profiles, such as `certificate` above.
 
 A Backup holds the basic-auth hashes of your Route Profiles. Anyone who can
 read the file can read them. Keep a Backup as private as a password file.
@@ -703,7 +708,7 @@ services.grafana.sources[0].static-instance.port: The port 70000 is not a TCP po
 services.grafana.publication.route-profiles[0]: The Route Profile login is not in the file, and this Workstation does not have it.
 ```
 
-The import refuses a key that a Backup does not have, a version other than 2,
+The import refuses a key that a Backup does not have, a version other than 2 or 3,
 and an unknown Route Profile. It also refuses an Alias to this Workstation.
 
 The import writes Route Profiles first, then Services, then Static Instances

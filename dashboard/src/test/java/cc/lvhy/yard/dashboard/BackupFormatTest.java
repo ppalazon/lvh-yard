@@ -10,12 +10,12 @@ import cc.lvhy.yard.dashboard.backups.RefusedBackupException;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-/** The YAML of a Backup file, version 2: what an export writes and an import reads. */
+/** The YAML of a Backup file: what an export writes and an import reads. */
 class BackupFormatTest {
 
   private static final String BACKUP =
       """
-      version: 2
+      version: 3
       exported-from:
         workstation: ws-a
         at: '2026-11-05T10:00:00Z'
@@ -24,6 +24,8 @@ class BackupFormatTest {
           basicAuth:
             users:
               - me:$apr1$x$y
+        certificate:
+          clientCertificate: {}
       services:
         grafana:
           publication:
@@ -73,6 +75,14 @@ class BackupFormatTest {
 
     assertThat(BackupFormat.read(BackupFormat.write(backup))).isEqualTo(backup);
     assertThat(BackupFormat.write(backup)).isEqualTo(BACKUP);
+  }
+
+  @Test
+  void versionTwoStillReadsAndWritesTheCurrentFormat() {
+    Backup backup = BackupFormat.read("version: 2\nroute-profiles:\n  zip:\n    compress: {}\n");
+
+    assertThat(backup.routeProfiles()).containsKey("zip");
+    assertThat(BackupFormat.write(backup)).startsWith("version: 3\n");
   }
 
   @Test
@@ -164,19 +174,19 @@ class BackupFormatTest {
         .containsExactly(
             new BackupProblem(
                 "version",
-                "The version 1 is an older Backup format. This dashboard reads only version 2."));
+                "The version 1 is an older Backup format. This dashboard reads versions 2 and 3."));
   }
 
   @Test
   void anotherVersionIsRefused() {
     RefusedBackupException refused =
         catchThrowableOfType(
-            RefusedBackupException.class, () -> BackupFormat.read("version: 3\nservices: {}\n"));
+            RefusedBackupException.class, () -> BackupFormat.read("version: 4\nservices: {}\n"));
 
     assertThat(refused.problems())
         .containsExactly(
             new BackupProblem(
-                "version", "The version 3 is not one this dashboard reads. It reads version 2."));
+                "version", "The version 4 is not one this dashboard reads. It reads versions 2 and 3."));
   }
 
   @Test
