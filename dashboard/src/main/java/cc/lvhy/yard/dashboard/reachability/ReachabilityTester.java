@@ -40,15 +40,18 @@ public class ReachabilityTester {
 
   private final URI traefik;
 
+  private final boolean traefikEnabled;
+
   private final Aliases aliases;
 
   ReachabilityTester(TraefikSettings settings, Aliases aliases) {
     this.traefik = settings.url();
+    this.traefikEnabled = settings.enabled();
     this.aliases = aliases;
   }
 
   public Reachability test(Service service) {
-    List<String> hostnames = hostnames(service);
+    List<String> hostnames = traefikEnabled ? hostnames(service) : List.of();
     Routing routing = service.routing();
     try (ExecutorService checks = Executors.newVirtualThreadPerTaskExecutor()) {
       List<Future<InstanceReachability>> instances =
@@ -83,7 +86,10 @@ public class ReachabilityTester {
     return service.routed() ? List.of(service.hostname()) : List.of();
   }
 
-  private static String noRoute(Service service) {
+  private String noRoute(Service service) {
+    if (!traefikEnabled) {
+      return "No Traefik on this Workstation, so only its Instances are tested.";
+    }
     if (!service.published()) {
       return "Not published, so only its Instances are tested.";
     }

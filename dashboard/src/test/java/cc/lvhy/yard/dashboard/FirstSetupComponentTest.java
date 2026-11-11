@@ -139,6 +139,73 @@ class FirstSetupComponentTest extends DashboardComponentTest {
   }
 
   @Test
+  void turningTraefikOffLeavesAnExistingTraefikAdminServiceAlone() {
+    String marker = remote.consulValue(RemoteWorkstation.FIRST_SETUP);
+    remote.whileDashboardRunsWith(
+        () -> {
+          JsonNode service = remote.service("traefik-admin").getBody();
+          assertThat(service.get("instances")).hasSize(1);
+          assertThat(service.get("publication").get("scope").asString()).isEqualTo("local");
+          assertThat(remote.consulValue(RemoteWorkstation.FIRST_SETUP)).isEqualTo(marker);
+        },
+        "--YARD_TRAEFIK_ENABLED=false");
+  }
+
+  @Test
+  void firstSetupWithoutTraefikWritesOnlyYardAndConsulAndDoesNotRunAgainWhenEnabled() {
+    try {
+      setUpAgain("--YARD_TRAEFIK_ENABLED=false");
+
+      for (String name : List.of("yard", "consul-ui")) {
+        JsonNode service = remote.service(name).getBody();
+        assertThat(service.get("instances")).as(name).hasSize(1);
+        assertThat(service.get("publication").get("scope").asString()).isEqualTo("local");
+      }
+      assertThat(remote.get(servicePath("traefik-admin")).getStatusCode())
+          .isEqualTo(HttpStatus.NOT_FOUND);
+      String marker = remote.consulValue(RemoteWorkstation.FIRST_SETUP);
+      assertThat(Instant.parse(marker)).isBefore(Instant.now());
+      assertThat(remote.consulValue(RemoteWorkstation.FIRST_SETUP_NAMES)).isNull();
+
+      remote.whileDashboardIsStopped(() -> {}, "--YARD_TRAEFIK_ENABLED=true");
+
+      assertThat(remote.consulValue(RemoteWorkstation.FIRST_SETUP)).isEqualTo(marker);
+      assertThat(remote.get(servicePath("traefik-admin")).getStatusCode())
+          .isEqualTo(HttpStatus.NOT_FOUND);
+    } finally {
+      setUpAgain();
+    }
+  }
+
+  @Test
+  void resumedFirstSetupWithoutTraefikDoesNotRegisterTraefikAdmin() {
+    List<String> ids = new ArrayList<>();
+    OWN_SERVICES.forEach(name -> ids.addAll(instanceIds(name)));
+    try {
+      remote.whileDashboardIsStopped(
+          () -> {
+            ids.forEach(remote::deregisterInConsul);
+            OWN_SERVICES.forEach(name -> {
+              remote.deleteConsulValue("lvh-yard/publications/" + name);
+              remote.deleteConsulValue("lvh-yard/services/" + name);
+            });
+            remote.deleteConsulValue(RemoteWorkstation.FIRST_SETUP);
+            remote.putConsulValue(RemoteWorkstation.FIRST_SETUP_NAMES, String.join(",", OWN_SERVICES));
+          },
+          "--YARD_TRAEFIK_ENABLED=false");
+
+      assertThat(remote.service("yard").getBody().get("instances")).hasSize(1);
+      assertThat(remote.service("consul-ui").getBody().get("instances")).hasSize(1);
+      assertThat(remote.get(servicePath("traefik-admin")).getStatusCode())
+          .isEqualTo(HttpStatus.NOT_FOUND);
+      assertThat(remote.consulValue(RemoteWorkstation.FIRST_SETUP)).isNotNull();
+      assertThat(remote.consulValue(RemoteWorkstation.FIRST_SETUP_NAMES)).isNull();
+    } finally {
+      setUpAgain();
+    }
+  }
+
+  @Test
   void unpublishedYardHasNoRoute() {
     try {
       remote.unpublish("yard");

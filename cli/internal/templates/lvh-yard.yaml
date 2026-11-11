@@ -19,6 +19,7 @@
 #     url: http://127.0.0.1:${YARD_CONSUL_HTTP_PORT:8500}
 #     peers: ${YARD_PEERS:}
 #   traefik:
+#     enabled: ${YARD_TRAEFIK_ENABLED:true}
 #     bind-address: ${YARD_TRAEFIK_BIND_ADDRESS:127.0.0.1}
 #     port: ${YARD_HTTP_PORT:80}
 #     admin-port: ${YARD_TRAEFIK_ADMIN_PORT:8080}

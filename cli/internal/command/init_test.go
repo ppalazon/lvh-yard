@@ -26,7 +26,7 @@ func TestInitWritesNewWorkstationFolder(t *testing.T) {
 		t.Fatalf("init: %+v", run)
 	}
 	env := readInitFile(t, folder, ".env")
-	for _, setting := range []string{"YARD_WORKSTATION=ws-a", "YARD_BASE_DOMAIN=lvh.me", "YARD_PEERS=", "COMPOSE_PROFILES=dashboard", "YARD_UID=1234", "YARD_GID=2345"} {
+	for _, setting := range []string{"YARD_WORKSTATION=ws-a", "YARD_BASE_DOMAIN=lvh.me", "YARD_PEERS=", "COMPOSE_PROFILES=dashboard,traefik", "YARD_TRAEFIK_ENABLED=true", "YARD_UID=1234", "YARD_GID=2345"} {
 		if !strings.Contains(env, "\n"+setting+"\n") {
 			t.Errorf("missing %s in .env", setting)
 		}

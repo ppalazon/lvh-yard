@@ -116,3 +116,44 @@ func TestWSSetRefusesUnknownSettingAndBadPorts(t *testing.T) {
 		}
 	}
 }
+
+func TestWSSetTraefikKeepsProfilesAndChangesBothSettings(t *testing.T) {
+	for _, profiles := range []string{"dashboard,traefik,metrics", "dashboard,metrics", "traefik", ""} {
+		t.Run(profiles, func(t *testing.T) {
+			folder := t.TempDir()
+			writeEnv(t, folder, "# Keep my profiles\nCOMPOSE_PROFILES="+profiles+"\nYARD_TRAEFIK_ENABLED=true\nYARD_WORKSTATION=ws-a\n")
+			yard := commandtest.New(t)
+			before := readInitFile(t, folder, ".env")
+			bad := yard.Run("ws", "set", "--dir", folder, "traefik", "false")
+			if bad.ExitCode != 1 || !strings.Contains(bad.Stderr, "on or off") || readInitFile(t, folder, ".env") != before {
+				t.Fatalf("invalid toggle changed settings: %+v", bad)
+			}
+			off := yard.Run("ws", "set", "--dir", folder, "traefik", "off")
+			if off.ExitCode != 0 || !strings.Contains(off.Stdout, "lvh-yard remove traefik-admin") || !strings.Contains(off.Stdout, "ws restart") {
+				t.Fatalf("off: %+v", off)
+			}
+			wantProfiles := "dashboard,metrics"
+			if profiles == "traefik" || profiles == "" { wantProfiles = "" }
+			want := "# Keep my profiles\nCOMPOSE_PROFILES="+wantProfiles+"\nYARD_TRAEFIK_ENABLED=false\nYARD_WORKSTATION=ws-a\n"
+			if got := readInitFile(t, folder, ".env"); got != want { t.Fatalf("off settings: %q, want %q", got, want) }
+			for range 2 {
+				on := yard.Run("ws", "set", "--dir", folder, "traefik", "on")
+				if on.ExitCode != 0 { t.Fatalf("on: %+v", on) }
+				wantOn := "traefik"
+				if wantProfiles != "" { wantOn = wantProfiles+",traefik" }
+				want = "# Keep my profiles\nCOMPOSE_PROFILES="+wantOn+"\nYARD_TRAEFIK_ENABLED=true\nYARD_WORKSTATION=ws-a\n"
+				if got := readInitFile(t, folder, ".env"); got != want { t.Fatalf("on settings: %q, want %q", got, want) }
+			}
+		})
+	}
+}
+
+func TestWSSetTraefikDoesNotWriteHalfAChange(t *testing.T) {
+	folder := t.TempDir()
+	const before = "YARD_TRAEFIK_ENABLED=true\nYARD_WORKSTATION=ws-a\n"
+	writeEnv(t, folder, before)
+	run := commandtest.New(t).Run("ws", "set", "--dir", folder, "traefik", "off")
+	if run.ExitCode != 1 || readInitFile(t, folder, ".env") != before {
+		t.Fatalf("partial Traefik toggle: %+v", run)
+	}
+}
