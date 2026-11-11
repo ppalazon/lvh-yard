@@ -87,7 +87,7 @@ func TestInitPreservesTemplateCommentsAndOrder(t *testing.T) {
 	if run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
-	root, err := os.ReadFile(filepath.Join("..", "..", "..", ".env.example"))
+	root, err := os.ReadFile(filepath.Join("..", "..", "..", "config", ".env.example"))
 	if err != nil {
 		t.Fatal(err)
 	}

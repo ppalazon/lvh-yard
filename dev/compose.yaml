@@ -1,0 +1,4 @@
+# Layer this file on config/compose.yaml with the repository as the project directory.
+services:
+  dashboard:
+    build: .

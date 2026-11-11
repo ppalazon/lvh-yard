@@ -118,7 +118,7 @@ class TraefikAdminIT {
   private static GenericContainer<?> composeService(String name, Map<String, String> env)
       throws IOException {
     Map<String, Object> compose;
-    try (InputStream file = Files.newInputStream(Path.of("..", "compose.yaml"))) {
+    try (InputStream file = Files.newInputStream(Path.of("..", "config", "compose.yaml"))) {
       compose = new Yaml().load(file);
     }
     Map<String, Object> service =

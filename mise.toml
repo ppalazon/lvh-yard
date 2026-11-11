@@ -57,7 +57,7 @@ description = "Build app.css, build the dashboard from scratch, check the Go CLI
 sources = [
   "pom.xml", "dashboard/pom.xml", ".mvn/**/*", "package-lock.json",
   "cli/**/*.go", "cli/go.mod", "cli/go.sum",
-  "dashboard/src/**/*", "dashboard/openapi.yaml", "compose.yaml", ".env.example",
+  "dashboard/src/**/*", "dashboard/openapi.yaml", "config/**/*", "config/.env.example",
 ]
 outputs = { auto = true }
 run = [{ task = "css" }, "./mvnw -q clean verify", { task = "cli:check" }, { task = "cli:smoke" }]
@@ -76,8 +76,8 @@ run = "./mvnw -q -pl dashboard test -Dtest='*ComponentTest' -Dsurefire.failIfNoS
 [tasks."cli:templates"]
 description = "Refresh the Go CLI's embedded copies of compose.yaml and .env.example"
 run = [
-  "cp compose.yaml cli/internal/templates/compose.yaml",
-  "cp .env.example cli/internal/templates/.env.example",
+  "cp config/compose.yaml cli/internal/templates/compose.yaml",
+  "cp config/.env.example cli/internal/templates/.env.example",
 ]
 
 [tasks."cli:build"]
@@ -128,11 +128,11 @@ run = 'node dev/audit.mjs ${usage_check:+--check}'
 
 [tasks.up]
 description = "Start this Workstation's Consul and Traefik, as .env sets them up"
-run = "docker compose up -d"
+run = "docker compose --project-directory . --env-file .env -f config/compose.yaml -f dev/compose.yaml up -d"
 
 [tasks.down]
 description = "Stop this Workstation's Consul and Traefik"
-run = "docker compose down"
+run = "docker compose --project-directory . --env-file .env -f config/compose.yaml -f dev/compose.yaml down"
 
 [tasks."dashboard:run"]
 description = "Run the dashboard on this Workstation, as .env sets it up"
@@ -154,13 +154,16 @@ run = 'docker save ghcr.io/ppalazon/lvh-yard-dashboard:latest | ssh -C "$usage_h
 [tasks."dev:up"]
 description = "Start a Yard of two test Workstations, ws-a and ws-b, on this computer (dev/*.env)"
 run = [
-  "docker compose -p ws-a --env-file dev/ws-a.env up -d",
-  "docker compose -p ws-b --env-file dev/ws-b.env up -d",
+  "docker compose --project-directory . -f config/compose.yaml -f dev/compose.yaml -p ws-a --env-file dev/ws-a.env up -d",
+  "docker compose --project-directory . -f config/compose.yaml -f dev/compose.yaml -p ws-b --env-file dev/ws-b.env up -d",
 ]
 
 [tasks."dev:down"]
 description = "Stop the two test Workstations"
-run = ["docker compose -p ws-a down", "docker compose -p ws-b down"]
+run = [
+  "docker compose --project-directory . -f config/compose.yaml -f dev/compose.yaml -p ws-a --env-file dev/ws-a.env down",
+  "docker compose --project-directory . -f config/compose.yaml -f dev/compose.yaml -p ws-b --env-file dev/ws-b.env down",
+]
 
 [tasks."dev:dashboard"]
 description = "Run the dashboard of test Workstation ws-a or ws-b: mise run dev:dashboard ws-b"
