@@ -7,8 +7,8 @@ defines the words, and [docs/adr/](adr/) records the design decisions.
 ## Requirements
 
 You need Docker with Compose, JDK 25 and [mise](https://mise.jdx.dev/). The
-build selects the JDK through a Maven toolchain. mise runs the tasks and
-installs Node for Tailwind CSS.
+dashboard build selects the JDK through a Maven toolchain. mise runs the tasks
+and installs Node for Tailwind CSS and Go for the CLI.
 
 ## Running from the sources
 
@@ -64,51 +64,34 @@ setting.
 
 ## Building the CLI
 
-To build the CLI as a jar or as the executable:
+The CLI is a Go program in `cli/`. It uses the standard library, Cobra and one
+YAML module.
 
 ```sh
-./mvnw -q -pl cli package
-java -jar cli/target/cli-0.0.1-SNAPSHOT.jar --help
-mise run native                 # builds cli/target/lvh-yard with GraalVM and tests it
-mise run native:optimize        # the same, built for speed (-O3)
-mise run native:optimize --for size   # the same, built for size (-Os)
+mise run cli:build      # builds cli/target/lvh-yard
+mise run install        # builds it and copies it to ~/.local/bin/lvh-yard
+mise run install --dir ~/bin   # copies it to ~/bin/lvh-yard
 ```
 
-On this computer, the three builds compare like this:
+`mise run cli:build` builds without C code and strips debug data. The
+executable reports `dev` unless `VERSION` is set at build time. `install`
+writes a new file and then moves it, because the system does not let you
+overwrite a running executable.
 
-| Build              | Size  | Size in tar.gz | `lvh-yard --help` |
-| ------------------ | ----- | -------------- | ----------------- |
-| `native` (-O2)     | 51 MB | 17 MB          | 7.9 ms            |
-| `native:optimize`  | 49 MB | 16 MB          | 7.3 ms            |
-| `--for size` (-Os) | 40 MB | 14 MB          | 9.7 ms            |
+On Linux amd64, the stripped executable compares like this with the former
+Java CLI, built as a native executable:
 
-The release workflow builds with the default -O2. To set another level, use
-`-Dnative.optimization`. Do not use `-DbuildArgs`, because it replaces the
-build arguments of `cli/pom.xml`.
+| Build         | Size    | `lvh-yard --help`, median of 100 runs |
+| ------------- | ------- | ------------------------------------- |
+| Go (this CLI) | 9.19 MB | 1.44 ms                               |
+| Java, native  | 49 MB   | 7.3 ms                                |
 
-To copy the executable to a folder on this computer:
-
-```sh
-mise run native:install                          # to ~/.local/bin/lvh-yard
-mise run native:install --dir ~/bin              # to ~/bin/lvh-yard
-```
-
-To copy the executable to another computer through ssh:
-
-```sh
-mise run native:copy user@host                   # to ~/.local/bin/lvh-yard
-mise run native:copy user@host --dir bin         # to ~/bin/lvh-yard
-```
-
-The other computer must have the same OS and CPU type as this one. Neither
-task builds the executable, so run `mise run native` first.
-
-To build the dashboard image and the executable, and copy the executable to
-`~/.local/bin/lvh-yard`, run one task:
-
-```sh
-mise run install
-```
+The CLI embeds copies of `compose.yaml` and `.env.example` from
+`cli/internal/templates/`. After you edit either root file, run
+`mise run cli:templates` to refresh the copies. Commit both copies with the
+root files. A unit test compares the raw bytes. When `init` writes the
+Workstation Folder, it removes the dashboard build line and pins the image
+to the CLI version, or `latest` for `dev`.
 
 ## Tests
 
@@ -122,6 +105,14 @@ There are three kinds of tests, as `docs/adr/0008` explains:
 - An integration test uses at least one real system: Docker, Consul, Traefik,
   or another process such as `lvh-yard`. Its class name ends in `IT`.
 
+The Go CLI in `cli/` has no component tests. Its kinds are:
+
+- `go test ./...` runs the unit tests. They go through the command seam or the
+  client seam, with no real process and no Docker.
+- The integration test builds the executable and runs it against a fake
+  dashboard. It has the build tag `integration` and runs with
+  `mise run cli:smoke`.
+
 Surefire runs unit and component tests. Failsafe runs integration tests.
 `DockerContract` and `ConsulContract` run the same cases against each fake
 and against the real system, so a fake cannot drift from the real one.
@@ -133,7 +124,13 @@ passing health check, the other Workstation's own dashboard, and Traefik.
 
 While you work, run `mise run test:unit` or `mise run test:component`. Both
 run in seconds, without Docker. Before you commit, run `mise run check`. It
-builds the stylesheet, builds both modules from scratch and runs every test.
+builds the stylesheet, builds the dashboard from scratch and runs every test.
+Both `test:unit` and `check` also run `go vet` and `go test ./...` in `cli/`.
+`check` also runs `mise run cli:smoke`. This one integration test builds the Go
+CLI, runs the executable against a fake dashboard, and checks the output, the
+version and the exit codes. Its file has the build tag `integration`, so
+`go test ./...` skips it.
+The `gofmt` pre-commit hook rejects Go files that need formatting.
 The dashboard tests log only warnings and errors. The full output of each test
 class is in `dashboard/target/surefire-reports/` and
 `dashboard/target/failsafe-reports/`.
@@ -161,9 +158,9 @@ After the tests pass, a manual check is needed in two cases only:
   `ws-a` and `ws-b` with `mise run dev:up` and try the change there.
 
 If no source file changed after the last `mise run check` that passed, mise
-skips the task. The source files are the `pom.xml` files, `.mvn/`,
-`package-lock.json`, `dashboard/openapi.yaml`, `compose.yaml`, `.env.example`
-and the `src/` folders of both modules. mise compares change times, not contents, so a `git checkout` also
+skips the task. The source files are the two `pom.xml` files, `.mvn/`,
+`package-lock.json`, `dashboard/openapi.yaml`, `compose.yaml`, `.env.example`,
+the dashboard's `src/` folder, and the Go sources and module files in `cli/`. mise compares change times, not contents, so a `git checkout` also
 starts a new run. A change outside these files does not start a new run, for
 example a new Java version. To run every test anyway, use
 `mise run --force check`.
@@ -205,9 +202,22 @@ The Release workflow (`.github/workflows/release.yml`) then does these steps:
    version.
 2. It pushes the image to `ghcr.io/ppalazon/lvh-yard-dashboard` as `0.1.0`,
    `0.1` and `latest`.
-3. It builds `lvh-yard` for each platform and runs the CLI tests against it.
-4. It attaches the executables and their `SHA256SUMS` to a GitHub release. The
+3. It runs the CLI tests and builds `lvh-yard` for each platform.
+4. It attaches the archives and their `SHA256SUMS` to a GitHub release. The
    release notes list the commits since the last tag.
 
-When the image and every executable are ready, the release appears. After the
+When the image and every archive are ready, the release appears. After the
 first release, make the package public once in its settings on GitHub.
+
+The `cli` job runs on one `ubuntu-latest` runner, without C code. It
+cross-compiles stripped executables for `linux-amd64`, `linux-arm64` and
+`macos-arm64`, then checks `--version` on the Linux amd64 executable. The
+version drops the tag's leading `v`, so tag `v0.1.0` prints `lvh-yard 0.1.0`.
+
+The `lvh-yard-archives` workflow artifact holds
+`lvh-yard-<version>-<platform>.tar.gz` for each platform. Each archive holds
+`lvh-yard` and `LICENSE`. The `release` job downloads the artifacts that match
+`lvh-yard-*`, and writes `SHA256SUMS` for the three archives.
+
+No run on a hosted test tag has checked the release workflow. The Linux arm64
+and macOS arm64 executables need separate runtime checks.
