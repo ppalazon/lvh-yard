@@ -12,16 +12,22 @@ and installs Node for Tailwind CSS and Go for the CLI.
 
 ## Running from the sources
 
-1. Copy `.env.example` to `.env`. Set `YARD_WORKSTATION`, `YARD_GOSSIP_KEY`
+1. Copy `config/.env.example` to `.env`. Set `YARD_WORKSTATION`, `YARD_GOSSIP_KEY`
    and `YARD_PEERS`.
 2. Run `mise run up` to start Consul and Traefik.
 3. Run `mise run dashboard:run` to start the dashboard from the sources.
 
 To run the dashboard image instead, add `COMPOSE_PROFILES=dashboard` and
-`YARD_DOCKER_GID` to `.env`. Then run `docker compose up -d`. To pin a version,
+`YARD_DOCKER_GID` to `.env`. Then run `mise run up`. To pin a version,
 set `YARD_DASHBOARD_IMAGE`, for example to
-`ghcr.io/ppalazon/lvh-yard-dashboard:0.1.0`. `docker compose build dashboard`
-builds the image from this repository.
+`ghcr.io/ppalazon/lvh-yard-dashboard:0.1.0`.
+
+The source tasks layer `dev/compose.yaml` on `config/compose.yaml`. The
+development file adds the dashboard build. To build it through Compose, run:
+
+```sh
+docker compose --project-directory . --env-file .env -f config/compose.yaml -f dev/compose.yaml build dashboard
+```
 
 To try the image from your sources on another Workstation, build it and copy it
 there through ssh. The other Workstation needs Docker and ssh, but no registry.
@@ -40,7 +46,8 @@ default image of `compose.yaml`. On the other Workstation, unset
 
 Two test Workstations, ws-a and ws-b, can run side by side on loopback. Their
 settings are in `dev/ws-a.env` and `dev/ws-b.env`. Each one is a full `.env`,
-and ws-b uses the Base Domain `localhost`.
+and ws-b uses the Base Domain `localhost`. `dev:up` uses the same template and
+development Compose layer as `mise run up`.
 
 ```sh
 mise run dev:up                 # Consul and Traefik for both
@@ -87,12 +94,12 @@ Java CLI, built as a native executable:
 | Go (this CLI) | 9.19 MB | 1.44 ms                               |
 | Java, native  | 49 MB   | 7.3 ms                                |
 
-The CLI embeds copies of `compose.yaml` and `.env.example` from
-`cli/internal/templates/`. After you edit either root file, run
-`mise run cli:templates` to refresh the copies. Commit both copies with the
-root files. A unit test compares the raw bytes. When `init` writes the
-Workstation Folder, it removes the dashboard build line and pins the image
-to the CLI version, or `latest` for `dev`.
+The source templates are `config/compose.yaml` and `config/.env.example`.
+The CLI embeds copies from `cli/internal/templates/`. After you edit either
+source, run `mise run cli:templates` to refresh the copies. Commit both copies
+with the source files. A unit test compares the raw bytes. When `init` writes
+the Workstation Folder, it pins the dashboard image to the CLI version, or
+`latest` for `dev`. The user template has no build setting.
 
 ## Tests
 
@@ -160,7 +167,7 @@ After the tests pass, a manual check is needed in two cases only:
 
 If no source file changed after the last `mise run check` that passed, mise
 skips the task. The source files are the two `pom.xml` files, `.mvn/`,
-`package-lock.json`, `dashboard/openapi.yaml`, `compose.yaml`, `.env.example`,
+`package-lock.json`, `dashboard/openapi.yaml`, the templates in `config/`,
 the dashboard's `src/` folder, and the Go sources and module files in `cli/`. mise compares change times, not contents, so a `git checkout` also
 starts a new run. A change outside these files does not start a new run, for
 example a new Java version. To run every test anyway, use

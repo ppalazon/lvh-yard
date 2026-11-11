@@ -14,14 +14,13 @@ var env string
 
 func Compose(version string) (string, error) {
 	const image = "ghcr.io/ppalazon/lvh-yard-dashboard:"
-	const build = "    build: .\n"
-	if !strings.Contains(compose, image+"latest}") || !strings.Contains(compose, build) {
-		return "", fmt.Errorf("compose.yaml no longer has the dashboard image or build line that init edits")
+	if !strings.Contains(compose, image+"latest}") {
+		return "", fmt.Errorf("compose.yaml no longer has the dashboard image that init edits")
 	}
 	if version == "" || version == "dev" {
 		version = "latest"
 	}
-	return strings.ReplaceAll(strings.ReplaceAll(compose, image+"latest}", image+version+"}"), build, ""), nil
+	return strings.ReplaceAll(compose, image+"latest}", image+version+"}"), nil
 }
 
 func Env() string {

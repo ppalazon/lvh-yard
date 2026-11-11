@@ -10,7 +10,7 @@ import (
 func TestCommittedTemplatesMatchRepositoryBytes(t *testing.T) {
 	for _, name := range []string{"compose.yaml", ".env.example"} {
 		t.Run(name, func(t *testing.T) {
-			root, err := os.ReadFile(filepath.Join("..", "..", "..", name))
+			root, err := os.ReadFile(filepath.Join("..", "..", "..", "config", name))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -19,7 +19,7 @@ func TestCommittedTemplatesMatchRepositoryBytes(t *testing.T) {
 				t.Fatal(err)
 			}
 			if !bytes.Equal(root, copy) {
-				t.Fatalf("%s differs from the repository root; run mise run cli:templates", name)
+				t.Fatalf("%s differs from config/; run mise run cli:templates", name)
 			}
 		})
 	}

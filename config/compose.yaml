@@ -108,7 +108,6 @@ services:
   dashboard:
     profiles: [dashboard]
     image: ${YARD_DASHBOARD_IMAGE:-ghcr.io/ppalazon/lvh-yard-dashboard:latest}
-    build: .
     # Host networking: it listens on YARD_DASHBOARD_BIND_ADDRESS, where Traefik reads its Routes. It reaches Consul
     # on 127.0.0.1 and Traefik on YARD_TRAEFIK_BIND_ADDRESS.
     network_mode: host

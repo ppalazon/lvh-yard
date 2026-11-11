@@ -4,13 +4,19 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 Spec: [../spec.md](../spec.md)
 
-- [ ] The root has no `compose.yaml` or `.env.example`. `config/` holds both.
+- [x] The root has no `compose.yaml` or `.env.example`. `config/` holds both.
 - [ ] The mise task that embeds the templates in the CLI copies them from `config/`, and the byte-comparison unit test still passes.
-- [ ] The check task lists the `config/` files as sources, so a change to one of them starts a new run.
+- [x] The check task lists the `config/` files as sources, so a change to one of them starts a new run.
 - [ ] Every test and script that read the root `compose.yaml` reads the new place, and `mise run check` passes.
 - [ ] `mise run dev:up` still starts the two test Workstations, from the `dev/` compose file.
-- [ ] `docs/development.md` names the new places.
+- [x] `docs/development.md` names the new places.
+
+## Comments
+
+The template task, template comparison test, init comment test and Traefik integration test now read `config/`. The development tasks layer `dev/compose.yaml` on that template, with the repository as the project directory so relative mounts and the build context stay in place.
+
+Implementation is complete. The unchecked boxes need the integration owner's checks: `mise run check` and `mise run dev:up`. No tests, builds, linters or formatters ran in this ticket worktree, as assigned.
