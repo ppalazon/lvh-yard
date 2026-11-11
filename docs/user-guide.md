@@ -183,6 +183,50 @@ under the new name, and import the Backup. There is no `ws rename`.
 To change the Gossip Key, use `ws join`. Without `--peers`, it keeps the Peers.
 Every `ws` command accepts `--dir <folder>`.
 
+### Yard CA and Workstation Certificates
+
+One Yard CA signs the certificates for every Workstation in a Yard. Keep its
+key on the Workstation that made it. The key can sign certificates for anyone
+in the Yard, so never copy it to another Workstation or a container.
+
+`lvh-yard ws tls ca create` writes `ca/ca.crt` and `ca/ca.key` in the
+Workstation Folder. The CA uses ECDSA P-256 and lasts 3650 days. Its key has
+mode 600, and the `ca/` folder is not mounted by the reference Compose setup.
+The command refuses to replace either CA file unless you give `--force`.
+Replacing the CA does not update certificates that it already signed.
+
+`lvh-yard ws tls cert create` signs for this Workstation. It writes
+`tls/ca.crt`, `tls/workstation.crt` and `tls/workstation.key`. It does not
+start TLS or change running services. A Workstation Certificate uses ECDSA
+P-256, lasts 365 days, and supports both server and client authentication.
+The private key has mode 600.
+
+With `--workstation ws-b`, the command instead writes the three files to
+`certificates/ws-b/` in the Workstation Folder. Copy only that bundle to the
+other Workstation. Signing needs the Yard CA key, so it works only on the
+Workstation that made the CA.
+
+The certificate includes `server.<name>.consul`, `localhost`, `127.0.0.1`
+and `*.<Base Domain>`. Each `--address` adds one IP address or DNS name.
+`--base-domain` defaults to the signing Workstation's Base Domain.
+For example, the arguments for another Workstation can be
+`--workstation ws-b --base-domain example.test --address 192.168.1.11`.
+Both create commands accept `--days <number>` to change the validity.
+A certificate must expire before or with its CA. All these commands accept
+`--dir <folder>` and repair the Workstation Folder's private file modes.
+
+#### Browser trust
+
+The CLI does not change browser trust. In your browser's certificate settings,
+import `ca/ca.crt` as a trusted certificate authority for websites. Firefox
+has an Authorities tab in its certificate manager. Browsers that use the
+operating system's trust store need the CA certificate installed there instead.
+Use your browser or operating system's instructions for that step.
+
+Import only `ca.crt`, never `ca.key` or a Workstation's private key.
+Trusting the CA lets the browser trust any website certificate it signs.
+To remove that trust, remove the CA from the same certificate store.
+
 ### Upgrading
 
 `lvh-yard ws init` does not overwrite a file unless you give `--force`.
