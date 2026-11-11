@@ -8,7 +8,7 @@ import (
 )
 
 func TestCommittedTemplatesMatchRepositoryBytes(t *testing.T) {
-	for _, name := range []string{"compose.yaml", ".env.example"} {
+	for _, name := range []string{"compose.yaml", ".env.example", "lvh-yard.yaml"} {
 		t.Run(name, func(t *testing.T) {
 			root, err := os.ReadFile(filepath.Join("..", "..", "..", "config", name))
 			if err != nil {
