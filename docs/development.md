@@ -172,6 +172,56 @@ After you change the API, run `mise run openapi` to write it again. The task
 runs that test with `-Dopenapi.update=true`, so it writes the file instead of
 comparing it.
 
+## Continuous integration
+
+The CI workflow (`.github/workflows/ci.yml`) runs on each pull request and on
+each push to `main`. It has three jobs, on `ubuntu-latest`:
+
+- `check` runs `mise run check`.
+- `format` runs `mise run fmt`.
+- `secrets` runs `mise run secrets` on the whole history.
+
+macOS and Windows have no job. The only macOS file is the CLI, and the release
+workflow cross-compiles it.
+
+## Secrets
+
+[gitleaks](https://github.com/gitleaks/gitleaks) looks for keys and tokens.
+It runs in three places, all with the rules of `.gitleaks.toml`:
+
+- The pre-commit hook scans the staged changes. Install it once with
+  `mise run hooks`.
+- `mise run secrets` scans the working tree and the whole git history.
+- The `secrets` job of CI runs the same task.
+
+`.gitleaks.toml` allows the throwaway gossip keys of `dev/*.env` and of the CLI
+tests. They only join the test Workstations on loopback. Never put a gossip key
+of a real Yard in a file of this repository. `.env` is ignored by Git for this
+reason. If gitleaks finds a real secret, remove it, rotate it, and do not just
+allow it.
+
+## The landing page
+
+The landing page is one static page in `docs/site/`: `index.html`, `site.css`
+and `assets/`. `site.css` uses Tailwind CSS and Basecoat with the colors of
+`dashboard/src/main/css/theme.css`, so the page and the dashboard look alike.
+The page also loads the dashboard's `theme.js` for its dark theme.
+
+```sh
+mise run site:build    # writes docs/site/dist
+mise run site:serve    # builds it and serves http://localhost:8800
+```
+
+The Pages workflow (`.github/workflows/pages.yml`) builds the page and
+deploys it to `https://ppalazon.github.io/lvh-yard/` when `docs/site/` changes
+on `main`. Once, in the repository settings, set **Pages > Source** to
+**GitHub Actions**.
+
+The screenshots in `docs/site/assets/` are of the dashboard of a test Yard
+with demo Services. The README uses them too. To take them again, start the
+test Workstations with `mise run dev:up`, create the Services with
+`lvh-yard`, and take the pictures in the light and the dark theme.
+
 ## Consolidation audit
 
 After a large redesign, or about once a month, run `mise run audit`. It lists
@@ -220,5 +270,13 @@ The `lvh-yard-archives` workflow artifact holds
 `lvh-yard` and `LICENSE`. The `release` job downloads the artifacts that match
 `lvh-yard-*`, and writes `SHA256SUMS` for the three archives.
 
-No run on a hosted test tag has checked the release workflow. The Linux arm64
-and macOS arm64 executables need separate runtime checks.
+Before the first public release, prove this workflow on a private repository.
+Push a test tag such as `v0.0.0-rc.1`, and check the image, the three
+archives and `SHA256SUMS` of the release. Then run `--version` on the Linux
+arm64 and macOS arm64 executables on their own platforms. Delete the test
+release, the tag and the test image before you tag `v0.1.0`.
+
+Versions follow [Semantic Versioning](https://semver.org/). Before 1.0.0, a
+minor release can change how LVH Yard works. The release notes are the
+generated list of commits, so write each commit message to say what the
+commit does.

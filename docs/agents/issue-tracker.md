@@ -1,6 +1,6 @@
-# Issue tracker: Local Markdown
+# Issue tracker: Local Markdown, and GitHub Issues for users
 
-Issues and specs for this repo live as markdown files in `.scratch/`.
+Specs and tickets for planned work live as markdown files in `.scratch/`. Bugs and feature requests from users live in [GitHub Issues](https://github.com/ppalazon/lvh-yard/issues). When the maintainer plans work from a GitHub issue, the spec or ticket in `.scratch/` names the issue number, and the pull request closes the issue.
 
 ## Conventions
 

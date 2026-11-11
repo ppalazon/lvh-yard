@@ -2,7 +2,7 @@
 
 ### Issue tracker
 
-Issues live as local markdown files under `.scratch/<feature>/`. See `docs/agents/issue-tracker.md`.
+Bugs and feature requests from users live in GitHub Issues. Specs and tickets for planned work live as local markdown files under `.scratch/<feature>/`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
@@ -20,11 +20,11 @@ Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/ag
 
 ### Checks
 
-While you work, run `mise run test:unit` (unit tests only, a few seconds). Run `mise run check` before committing. To try a change across Workstations, `mise run dev:up` starts two test Workstations on this computer. See `docs/development.md`.
+While you work, run `mise run test:unit` (unit tests only, a few seconds). Run `mise run check` before committing. The pre-commit hook (`mise run hooks`) also scans for secrets with gitleaks. To try a change across Workstations, `mise run dev:up` starts two test Workstations on this computer. See `docs/development.md`.
 
 ### Docs
 
-When a change affects how people install or use LVH Yard, update `docs/user-guide.md`. When it affects building, testing or releasing, update `docs/development.md`. The maintainer writes `README.md` by hand, so leave it to them.
+When a change affects how people install or use LVH Yard, update `docs/user-guide.md`. When it affects building, testing or releasing, update `docs/development.md`. `README.md` and the landing page in `docs/site/` are short: they link to the user guide, and do not repeat it. Update them when a change alters what LVH Yard is or how it installs. The maintainer reviews them.
 
 ### Writing
 

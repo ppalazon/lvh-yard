@@ -1,60 +1,133 @@
 # LVH Yard
 
-LVH Yard is a local centric development tool to enabled access to any of your
-http services using DNS domains. When you are developing or using local http
-services, the usual way to access is through `localhost:port` combination. The
-usual ports are `8080`, `3000`, `8000`, etc, but if you have so many of them or
-even in different hosts, these combinations are getting pretty complex to
-remember.
+[![CI](https://github.com/ppalazon/lvh-yard/actions/workflows/ci.yml/badge.svg)](https://github.com/ppalazon/lvh-yard/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-With this tool you would be able to create a environment configuration for all
-these services using any domain in a very simple way. The trick is using
-wildcard domain that points directly to `localhost`. There are some domain like
-`*.lvh.me` that points towards `127.0.0.1`. If you don't trust this domains,
-you can create your own wildcard subdomain.
+Reach any development service on your LAN by name, not by IP and port.
 
-This application is supported by
-[HashiCorp Consul](https://www.hashicorp.com/en/products/consul) and
-[Traefik](https://doc.traefik.io/traefik/). Consul provides with service
-discovery and a standard service networking, and Traefik is a reverse-proxy
-service in front of your http services.
+LVH Yard (local virtual host) gives each service that you run on your computers
+a hostname such as `http://grafana.lvh.me`. It works for services on your own
+computer and on every other computer in your Yard. You do not remember ports,
+and you do not edit `/etc/hosts`.
 
-What could you do with this application?:
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/site/assets/dashboard-catalog-dark.png">
+  <img alt="The Catalog page of the LVH Yard dashboard. It lists the Services of two Workstations, each with its state, hostname and passing Instances." src="docs/site/assets/dashboard-catalog-light.png">
+</picture>
 
-- Have a DNS domain for each service that you have deployed into:
-  - Your workstation.
-  - Any workstation in your LAN or HomeLab.
-- Bind docker container or compose services to a single name service without
-  worry the port number where they're exposed.
-- Test your service behind a reverse-proxy.
-- Configure the reverse-proxy with TLS, mTLS, CORS, Authentication, Header
-  Validation, etc
-  ([Traefik Proxy Middleware Overview](https://doc.traefik.io/traefik/reference/routing-configuration/http/middlewares/overview/)).
-- Validate your microservices architecture with multiples replicas in a
-  production-like environment.
+## How it works
 
-## Example Scenario
+- A **Workstation** is a computer that runs LVH Yard. It runs
+  [Consul](https://developer.hashicorp.com/consul), [Traefik](https://doc.traefik.io/traefik/)
+  and the LVH Yard dashboard, in Docker.
+- A **Service** is a name for something that you want to reach, such as
+  `grafana`. Its **Instances** are the host and port where it runs: a fixed
+  address, or a Docker container that LVH Yard follows.
+- When you **publish** a Service, Traefik on your Workstation sends requests for
+  `grafana.lvh.me` to the Instances that pass their health checks.
+- All the Workstations on one LAN form a **Yard**. They see each other's
+  Services. With Yard Scope, a Service gets a hostname on every Workstation.
 
-Just imagine that you're working in a microservices architecture with a
-FrontEnd application based on JavaScript (port `3000`), a Backend application
-based on Spring Boot (port `8080`), your project documents on MkDocs (port
-`8000`), and any other docker compose service that you need such as Mailpit
-(port `8025`). This situation could be very easy to remember, but this
-configuration could be repeat again in just another project. So, you can use
-any other fixed port for these services and use DNS domains to access to them.
+The trick is a wildcard domain that points to `127.0.0.1`. `lvh.me` is one. If
+you do not trust a public domain, set your own wildcard domain as the Base
+Domain of your Workstation.
 
-With LVH Yard you could create these service:
+## Demo
 
-- `front.lvh.me` -> `localhost:3000`
-- `back.lvh.me` -> `localhost:8080`
-- `mkdocs.lvh.me` -> `localhost:8000`
-- `mailpit.lvh.me` -> `localhost:34556` (Docker Service)
+On `ws-a`, publish two Services. `front` runs on this computer. `mailpit` is a
+Docker container, and LVH Yard follows it, whatever host port Docker gives
+it:
 
-All the request will go to `localhost:80` where Traefik listens, and it
-forwards the http request to the declared services by `Host`.
+```sh
+lvh-yard service create front
+lvh-yard register static front --port 3000
+lvh-yard publish front
+
+lvh-yard service create mailpit
+lvh-yard register container mailpit-1 --port 8025 --service mailpit
+lvh-yard publish mailpit
+```
+
+Then `http://front.lvh.me` and `http://mailpit.lvh.me` work in your browser.
+`lvh-yard catalog` shows every Service in the Yard, grouped by Workstation:
+
+```text
+ws-a (this Workstation)
+  front          healthy    front.lvh.me          1 of 1 passing
+  mailpit        healthy    mailpit.lvh.me        1 of 1 passing
+ws-b
+  grafana        healthy    grafana.ws-b.lvh.me   1 of 1 passing
+```
+
+`grafana` runs on `ws-b`, and `ws-a` reaches it at `grafana.ws-b.lvh.me`.
+
+## Features
+
+- A hostname for each Service, on one Workstation or on all of them.
+- Several Instances for one Service. The Route uses only the Instances that
+  pass their health checks, so you can test replicas in a production-like
+  setup.
+- Docker containers and Compose services follow their Service, whatever host
+  port Docker gives them.
+- Route Profiles add Traefik middlewares to a Route, such as basic auth, IP
+  allow lists, headers and CORS
+  ([Traefik middlewares](https://doc.traefik.io/traefik/reference/routing-configuration/http/middlewares/overview/)).
+- A web dashboard and the `lvh-yard` command show the same things: state,
+  Instances, Service Warnings and reachability tests.
+- Backups of one Workstation's setup, as one YAML file, to restore or copy.
+- One `lvh-yard` executable, with no Java. The dashboard runs as a Docker image.
+
+## Install
+
+You need Docker with Compose on every Workstation. The `lvh-yard` executable
+is available for Linux (amd64, arm64) and macOS (arm64). Docker is the only
+container runtime that LVH Yard supports. Podman is not supported.
+
+Download the archive of your platform from the
+[releases](https://github.com/ppalazon/lvh-yard/releases), check it, and put
+`lvh-yard` on your `PATH`:
+
+```sh
+sha256sum -c SHA256SUMS --ignore-missing
+tar -xzf lvh-yard-<version>-linux-amd64.tar.gz lvh-yard
+sudo mv lvh-yard /usr/local/bin/
+```
+
+## Quick start
+
+```sh
+lvh-yard init                                  # writes ~/.config/lvh-yard
+cd ~/.config/lvh-yard && docker compose up -d  # starts Consul, the dashboard and Traefik
+lvh-yard status                                # checks that it all works
+```
+
+Open [yard.lvh.me](http://yard.lvh.me), the dashboard. To add a second
+Workstation to your Yard, see
+[Joining a Yard](docs/user-guide.md#joining-a-yard).
+
+> [!WARNING]
+> The dashboard has no login. Anyone who reaches it can change the Services of
+> that Workstation and reach its containers through the Docker socket. By
+> default it listens on `127.0.0.1` only. Read [SECURITY.md](SECURITY.md)
+> before you open it to your LAN.
+
+## Documentation
 
 - [User guide](docs/user-guide.md): install and use LVH Yard.
 - [Development](docs/development.md): build, test and release LVH Yard.
+- [GLOSSARY.md](GLOSSARY.md): the words that LVH Yard uses.
+- [Decisions](docs/adr/): why LVH Yard is built this way.
+- [Contributing](CONTRIBUTING.md), [Code of Conduct](CODE_OF_CONDUCT.md) and
+  [Support](SUPPORT.md).
+
+## Versioning and releases
+
+LVH Yard follows [Semantic Versioning](https://semver.org/). Before 1.0.0, any
+minor release can change how it works. The version comes from the Git tag.
+Pushing a tag such as `v0.1.0` builds the dashboard image, the `lvh-yard`
+archives and `SHA256SUMS`. The notes of each
+[GitHub release](https://github.com/ppalazon/lvh-yard/releases) list the
+commits since the last release.
 
 ## AI-assisted development
 
