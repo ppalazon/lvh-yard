@@ -1,0 +1,16 @@
+# Rules for gitleaks, which runs as a pre-commit hook, as `mise run secrets` and in CI.
+
+[extend]
+useDefault = true
+
+# These files hold throwaway gossip keys. They only join the test Workstations on loopback, and the tests
+# only check how `lvh-yard init` writes a key. No real Yard uses them. The old Java CLI and `cli-go/` paths
+# are in the history only.
+[[allowlists]]
+description = "Throwaway gossip keys of the test Workstations and of the CLI tests"
+paths = [
+  '''^dev/(ws-a|ws-b|yard)\.env$''',
+  '''^cli/internal/command/init(_reinit)?_test\.go$''',
+  '''^cli-go/internal/command/init(_reinit)?_test\.go$''',
+  '''^cli/src/test/java/dev/palazon/lvhyard/cli/(InitTest|YardTest)\.java$''',
+]

@@ -2,6 +2,7 @@
 node = "24"
 prek = "0.3.10"
 go = "1.27.3"
+gitleaks = "8.30.1"
 
 [tasks."css:install"]
 description = "Install Tailwind CSS and Basecoat into node_modules/, as package-lock.json pins them"
@@ -19,6 +20,23 @@ description = "Rebuild app.css whenever a web view or app.css's source changes"
 depends = ["css:install"]
 run = "npx tailwindcss -i dashboard/src/main/css/app.css -o dashboard/src/main/resources/static/app.css --minify --watch"
 
+[tasks."site:build"]
+description = "Build the landing page of docs/site into docs/site/dist"
+depends = ["css:install"]
+run = [
+  "rm -rf docs/site/dist",
+  "mkdir -p docs/site/dist",
+  "npx tailwindcss -i docs/site/site.css -o docs/site/dist/site.css --minify",
+  "cp docs/site/index.html docs/site/dist/",
+  "cp dashboard/src/main/resources/static/theme.js docs/site/dist/",
+  "cp -r docs/site/assets docs/site/dist/assets",
+]
+
+[tasks."site:serve"]
+description = "Build the landing page and serve it at http://localhost:8800"
+depends = ["site:build"]
+run = "python3 -m http.server 8800 --directory docs/site/dist"
+
 [tasks.hooks]
 description = "Install the git hook that formats and checks files before each commit (.pre-commit-config.yaml)"
 run = "prek install"
@@ -26,6 +44,10 @@ run = "prek install"
 [tasks.fmt]
 description = "Format and check every file, as the pre-commit hook does"
 run = "prek run --all-files"
+
+[tasks.secrets]
+description = "Scan the working tree and the whole git history for secrets, with the rules of .gitleaks.toml"
+run = ["gitleaks dir --no-banner --redact .", "gitleaks git --no-banner --redact ."]
 
 [tasks.check]
 description = "Build app.css, build the dashboard from scratch, check the Go CLI and smoke-test it"

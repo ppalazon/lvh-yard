@@ -22,3 +22,12 @@ target/
 # CSS build tools, installed by `mise run css:install`, and the stylesheet they build
 node_modules/
 /dashboard/src/main/resources/static/app.css
+
+# Local tool settings: absolute paths of one machine, and agent worktrees and locks
+/.omp/
+/.claude/settings.local.json
+/.claude/worktrees/
+/.claude/scheduled_tasks.lock
+
+# The built landing page
+/docs/site/dist/

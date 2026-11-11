@@ -23,6 +23,12 @@ repos:
       - id: check-added-large-files
       - id: detect-private-key
 
+  # Secrets: scans the staged changes. The rules are in .gitleaks.toml. `mise run secrets` scans the whole history.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
   # Java: Google Java Format. It needs version 2.0.0 or later to run on Java 27. Older versions and Palantir Java
   # Format crash on it.
   # TOML has only check-toml above, because the TOML formatter sorts keys and scrambles the task order of mise.toml.
