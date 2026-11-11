@@ -178,7 +178,7 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	if strings.TrimSpace(env.get("YARD_DOCKER_GID")) == "" {
 		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: no Docker socket at %s, so YARD_DOCKER_GID in .env is empty. Set it to the group of /var/run/docker.sock, or the dashboard will not start.\n", f.dockerSocket)
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "Wrote compose.yaml, .env to %s.\n\nThe Yard's Gossip Key: %s\nGive this key to every other Workstation: lvh-yard ws init --gossip-key <key>.\n\n", folder, key)
+	fmt.Fprintf(cmd.OutOrStdout(), "Wrote compose.yaml, .env, lvh-yard.yaml to %s.\n\nThe Yard's Gossip Key: %s\nGive this key to every other Workstation: lvh-yard ws init --gossip-key <key>.\n\n", folder, key)
 	printInitNextSteps(cmd.OutOrStdout(), folder, env)
 	return nil
 }
@@ -228,7 +228,7 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 		name string
 		text string
 		mode os.FileMode
-	}{{"compose.yaml", compose, 0600}, {".env", env, 0600}}
+	}{{"compose.yaml", compose, 0600}, {".env", env, 0600}, {"lvh-yard.yaml", templates.Dashboard(), 0600}}
 	if !force {
 		for _, file := range files {
 			path := filepath.Join(folder, file.name)

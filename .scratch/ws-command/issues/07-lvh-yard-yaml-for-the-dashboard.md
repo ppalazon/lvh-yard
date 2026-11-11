@@ -4,13 +4,13 @@
 
 **Blocked by:** 02: `ws init` and `ws upgrade` replace `init`
 
-**Status:** ready-for-agent
+**Status:** done
 
 Spec: [../spec.md](../spec.md)
 
-- [ ] `ws init` writes `lvh-yard.yaml` with mode 600, every line commented out.
-- [ ] The dashboard container mounts it read-only where Spring Boot looks for an external config file, and starts with no change in behaviour.
-- [ ] A value that the user uncomments in `lvh-yard.yaml` changes the dashboard after a restart, and `.env` values still win through their placeholders (shown by a component or integration test).
-- [ ] Compose keeps its explicit `environment:` list. No `env_file` hands the Gossip Key to the dashboard.
-- [ ] `ws upgrade` and `ws set` never change the file.
-- [ ] A dashboard run from the sources is unchanged. `docs/user-guide.md` describes the file.
+- [x] `ws init` writes `lvh-yard.yaml` with mode 600, every line commented out.
+- [x] The dashboard container mounts it read-only where Spring Boot looks for an external config file, and starts with no change in behaviour.
+- [x] A value that the user uncomments in `lvh-yard.yaml` changes the dashboard after a restart, and `.env` values still win through their placeholders (shown by a component or integration test).
+- [x] Compose keeps its explicit `environment:` list. No `env_file` hands the Gossip Key to the dashboard.
+- [x] `ws upgrade` and `ws set` never change the file.
+- [x] A dashboard run from the sources is unchanged. `docs/user-guide.md` describes the file.

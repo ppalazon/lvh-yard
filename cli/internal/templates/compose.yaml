@@ -152,4 +152,5 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./backups:/var/lib/lvh-yard/backups
+      - ./lvh-yard.yaml:/app/config/application.yaml:ro
 

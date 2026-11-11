@@ -17,7 +17,8 @@ and installs Node for Tailwind CSS and Go for the CLI.
 2. Run `mise run up` to start Consul and Traefik.
 3. Run `mise run dashboard:run` to start the dashboard from the sources.
 
-To run the dashboard image instead, add `COMPOSE_PROFILES=dashboard` and
+To run the dashboard image instead, copy `config/lvh-yard.yaml` to
+`lvh-yard.yaml` and add `COMPOSE_PROFILES=dashboard` and
 `YARD_DOCKER_GID` to `.env`. Then run `mise run up`. To pin a version,
 set `YARD_DASHBOARD_IMAGE`, for example to
 `ghcr.io/ppalazon/lvh-yard-dashboard:0.1.0`.
@@ -98,10 +99,11 @@ Java CLI, built as a native executable:
 | Go (this CLI) | 9.19 MB | 1.44 ms                               |
 | Java, native  | 49 MB   | 7.3 ms                                |
 
-The source templates are `config/compose.yaml` and `config/.env.example`.
-The CLI embeds copies from `cli/internal/templates/`. After you edit either
-source, run `mise run cli:templates` to refresh the copies. Commit both copies
-with the source files. A unit test compares the raw bytes. When `init` writes
+The source templates are `config/compose.yaml`, `config/.env.example` and
+`config/lvh-yard.yaml`. The CLI embeds copies from `cli/internal/templates/`.
+After you edit a source, run `mise run cli:templates` to refresh the copies.
+Commit both copies with the source files. A unit test compares the raw bytes.
+When `init` writes
 the Workstation Folder, it pins the dashboard image to the CLI version, or
 `latest` for `dev`. The user template has no build setting.
 
