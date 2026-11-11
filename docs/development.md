@@ -69,12 +69,13 @@ YAML module.
 
 ```sh
 mise run cli:build      # builds cli/target/lvh-yard
-mise run install        # builds it and copies it to ~/.local/bin/lvh-yard
-mise run install --dir ~/bin   # copies it to ~/bin/lvh-yard
+mise run cli:install    # builds it and copies it to ~/.local/bin/lvh-yard
+mise run cli:install --dir ~/bin   # copies it to ~/bin/lvh-yard
+mise run install        # runs cli:install, then builds the dashboard image
 ```
 
 `mise run cli:build` builds without C code and strips debug data. The
-executable reports `dev` unless `VERSION` is set at build time. `install`
+executable reports `dev` unless `VERSION` is set at build time. `cli:install`
 writes a new file and then moves it, because the system does not let you
 overwrite a running executable.
 

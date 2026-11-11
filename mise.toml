@@ -72,8 +72,8 @@ description = "Run the Go CLI smoke test: the built executable against a fake da
 dir = "{{config_root}}/cli"
 run = "go test -tags integration -count=1 ./cmd/lvh-yard"
 
-[tasks.install]
-description = "Build the lvh-yard executable and copy it to a folder on this computer: mise run install [--dir ~/.local/bin]"
+[tasks."cli:install"]
+description = "Build the lvh-yard executable and copy it to a folder on this computer: mise run cli:install [--dir ~/.local/bin]"
 # A new file, then mv: a running lvh-yard cannot be overwritten in place ("Text file busy").
 usage = 'flag "--dir <dir>" default="~/.local/bin" help="The folder for lvh-yard"'
 depends = ["cli:build"]
@@ -84,6 +84,14 @@ cp cli/target/lvh-yard "$dir/lvh-yard.new"
 mv "$dir/lvh-yard.new" "$dir/lvh-yard"
 echo "Installed lvh-yard to $dir/lvh-yard"
 """
+
+[tasks.install]
+description = "Install the CLI and build the dashboard image: mise run install [--dir ~/.local/bin]"
+usage = 'flag "--dir <dir>" default="~/.local/bin" help="The folder for lvh-yard"'
+run = [
+  { task = "cli:install", args = ["--dir", "{{usage.dir}}"] },
+  { task = "dashboard:image" },
+]
 
 [tasks.openapi]
 description = "Rewrite dashboard/openapi.yaml from the running dashboard's OpenAPI document"
