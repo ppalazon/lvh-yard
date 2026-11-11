@@ -34,9 +34,10 @@ The Catalog shows one row for each Service, grouped by Workstation. Its columns
 are Service, State, Hostname and Instances. On a phone, each row stacks these
 facts without sideways scrolling. The Instances count says "2 of 3 passing",
 for example, or "No Instances". Unpublished Services show the count too.
-Instance addresses are on the Service page. You can filter by Workstation
-and state. The Catalog refreshes when something in the Yard changes, and at
-least every 30 seconds. It keeps your filters.
+Instance addresses are on the Service page. You can filter by Workstation,
+state and Scope. A Scope filter hides Services that are not published. The
+Catalog refreshes when something in the Yard changes, and at least every 30
+seconds. It keeps your filters.
 
 ## Running on a Workstation
 

@@ -5,6 +5,7 @@ import static cc.lvhy.yard.dashboard.events.EventBroadcaster.YARD_CHANGED;
 import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.services.Health;
 import cc.lvhy.yard.dashboard.services.HomeWorkstation;
+import cc.lvhy.yard.dashboard.services.Scope;
 import cc.lvhy.yard.dashboard.services.Service;
 import cc.lvhy.yard.dashboard.services.ServiceState;
 import cc.lvhy.yard.dashboard.services.Yard;
@@ -23,25 +24,32 @@ final class CatalogPage {
   private CatalogPage() {}
 
   /**
-   * A {@code null} filter does not filter. Both stay in the page's address, as {@code
-   * ?workstation=<name>&state=<state>}.
+   * A {@code null} filter does not filter. All stay in the page's address, as {@code
+   * ?workstation=<name>&state=<state>&scope=<scope>}. A Service that is not published has no Scope,
+   * so a Scope filter hides it.
    */
-  record Filters(String workstation, ServiceState state) {
+  record Filters(String workstation, ServiceState state, Scope scope) {
 
     boolean shows(String name) {
       return workstation == null || workstation.equals(name);
     }
 
     List<Service> of(List<Service> services) {
-      return state == null
-          ? services
-          : services.stream().filter(service -> service.state() == state).toList();
+      return services.stream()
+          .filter(service -> state == null || service.state() == state)
+          .filter(service -> scope == null || scopeOf(service) == scope)
+          .toList();
+    }
+
+    private static Scope scopeOf(Service service) {
+      return service.published() ? service.publication().scope() : null;
     }
 
     String path() {
       return UriComponentsBuilder.fromPath("/")
           .queryParamIfPresent("workstation", Optional.ofNullable(workstation))
           .queryParamIfPresent("state", Optional.ofNullable(state).map(ServiceState::value))
+          .queryParamIfPresent("scope", Optional.ofNullable(scope).map(Scope::value))
           .encode()
           .build()
           .toUriString();
@@ -160,6 +168,31 @@ final class CatalogPage {
                         .__()))
         .__()
         .__()
+        .div()
+        .attrClass("flex min-w-0 flex-col gap-1.5 md:flex-row md:items-center md:gap-3")
+        .label()
+        .attrFor("scope")
+        .text("Scope")
+        .__()
+        .select()
+        .attrClass("select")
+        .attrId("scope")
+        .attrName("scope")
+        .option()
+        .attrValue("")
+        .text("Every scope")
+        .__()
+        .of(select ->
+            Arrays.stream(Scope.values())
+                .forEach(scope ->
+                    select
+                        .option()
+                        .attrValue(scope.value())
+                        .of(option -> option.attrSelected(scope == filters.scope()))
+                        .text(scopeLabel(scope))
+                        .__()))
+        .__()
+        .__()
         .__();
   }
 
@@ -223,7 +256,9 @@ final class CatalogPage {
                 : "Click New Service to add one.");
       } else {
         EmptyState.render(
-            region, "No Services in this state.", "Choose Every state to see all Services.");
+            region,
+            "No Services match the filters.",
+            "Choose Every state and Every scope to see all Services.");
       }
       return;
     }
@@ -246,11 +281,7 @@ final class CatalogPage {
         .th()
         .text("Instances")
         .__()
-        .of(head -> {
-          if (remote) {
-            head.th().span().attrClass("sr-only").text("Actions").__().__();
-          }
-        })
+        .of(head -> head.th().span().attrClass("sr-only").text("Actions").__().__())
         .__()
         .__()
         .tbody()
@@ -298,17 +329,29 @@ final class CatalogPage {
           }
         })
         .__()
-        .of(tr -> {
-          if (remote) {
-            tr.td()
-                .of(cell -> {
-                  if (service.sharedWithYard()) {
-                    AliasRemoteServicePage.button(cell, service);
-                  }
-                })
+        .td()
+        .of(cell -> {
+          if (!remote) {
+            cell.a()
+                .attrClass("btn")
+                .addAttr("data-variant", "outline")
+                .attrHref(Layout.attr(ServicePage.path(service)))
+                .text("View")
                 .__();
+          } else if (service.sharedWithYard()) {
+            AliasRemoteServicePage.button(cell, service);
+          } else {
+            cell.attrClass("catalog-spare");
           }
         })
+        .__()
         .__();
+  }
+
+  private static String scopeLabel(Scope scope) {
+    return switch (scope) {
+      case LOCAL -> "Local";
+      case YARD -> "Yard";
+    };
   }
 }

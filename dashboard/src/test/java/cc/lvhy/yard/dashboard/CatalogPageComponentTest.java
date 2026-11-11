@@ -48,7 +48,8 @@ class CatalogPageComponentTest extends DashboardComponentTest {
         .untilAsserted(() -> {
           String page = getPage("/").getBody();
           assertThat(page)
-              .containsOnlyOnce("href=\"/services/ws-test/" + grafana + "\"")
+              .containsOnlyOnce(
+                  "class=\"catalog-service-link\" href=\"/services/ws-test/" + grafana + "\"")
               .contains("<th>Service</th><th>State</th><th>Hostname</th><th>Instances</th>")
               .doesNotContain("<th>Instance</th>", "<th>Health</th>")
               .doesNotContain("10.1.2.3:3001");
@@ -137,6 +138,26 @@ class CatalogPageComponentTest extends DashboardComponentTest {
     assertThat(page)
         .contains("href=\"/services/ws-test/" + api + "\"")
         .doesNotContain("href=\"/services/ws-test/" + web + "\"");
+  }
+
+  @Test
+  void filtersByScopeAndHidesUnpublishedServices() {
+    String local = newServiceName("web");
+    String shared = newServiceName("api");
+    String unpublished = newServiceName("db");
+    register(local, Map.of("host", "10.1.2.3", "port", 8080));
+    register(shared, Map.of("host", "10.1.2.3", "port", 9090));
+    register(unpublished, Map.of("host", "10.1.2.3", "port", 5432));
+    publish(local);
+    put(publicationPath(shared), Map.of("scope", "yard"));
+
+    String page = getPage("/?scope=yard").getBody();
+
+    assertThat(page)
+        .contains("href=\"/services/ws-test/" + shared + "\"")
+        .contains("<option value=\"yard\" selected=\"selected\">Yard</option>")
+        .doesNotContain("href=\"/services/ws-test/" + local + "\"")
+        .doesNotContain("href=\"/services/ws-test/" + unpublished + "\"");
   }
 
   @Test

@@ -92,17 +92,26 @@ class PagesController {
   @ResponseBody
   String catalog(
       @RequestParam(required = false) String workstation,
-      @RequestParam(required = false) String state) {
+      @RequestParam(required = false) String state,
+      @RequestParam(required = false) String scope) {
     ServiceState only;
     try {
       only = blank(state) ? null : ServiceState.parse(state);
     } catch (UnknownStateException e) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
     }
+    Scope shared =
+        blank(scope)
+            ? null
+            : Scope.named(scope)
+                .orElseThrow(() ->
+                    new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "The Scope " + scope + " is unknown. Use local or yard."));
     return CatalogPage.render(
         this.workstation,
         yard.yard(),
-        new CatalogPage.Filters(blank(workstation) ? null : workstation, only));
+        new CatalogPage.Filters(blank(workstation) ? null : workstation, only, shared));
   }
 
   private static boolean blank(String value) {

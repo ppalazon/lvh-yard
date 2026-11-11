@@ -80,9 +80,37 @@
     white-space: normal;
   }
 
+  /* Every Workstation has its own table. Fixed columns keep them aligned with each other. */
+  @media (width >= 48rem) {
+    .catalog-table {
+      table-layout: fixed;
+      width: 100%;
+    }
+
+    .catalog-table th:nth-child(1) {
+      width: 28%;
+    }
+
+    .catalog-table th:nth-child(2) {
+      width: 8rem;
+    }
+
+    .catalog-table th:nth-child(4) {
+      width: 10rem;
+    }
+
+    .catalog-table th:nth-child(5) {
+      width: 6rem;
+    }
+  }
+
   @media (width < 48rem) {
     .catalog-filters > div {
       flex: 1 1 9rem;
+    }
+
+    .catalog-table .catalog-spare {
+      display: none;
     }
 
     /* Keep one table and one set of links when its rows stack on a phone. */
