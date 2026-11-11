@@ -112,6 +112,8 @@ main() {
     say "  export PATH=\"$dir:\$PATH\""
     ;;
   esac
+  say ""
+  say "Set up this Workstation: lvh-yard ws init"
 }
 
 # The whole script is read before main runs, so a cut download runs nothing.

@@ -21,33 +21,25 @@ var workstationName = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
 var baseDomainName = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$`)
 
 type initOptions struct {
-	dir          string
 	workstation  string
 	baseDomain   string
 	peers        []string
 	gossipKey    string
 	force        bool
-	upgrade      bool
 	reinit       bool
 	dockerSocket string
 	hostname     string
 	terminal     bool
 }
 
-func NewInit(options *Options) *cobra.Command {
+func newWSInit(options *Options, folder func() string) *cobra.Command {
 	flags := &initOptions{}
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Writes the setup files for this Workstation.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			folder := flags.dir
-			if !cmd.Flags().Changed("dir") {
-				folder = options.WorkstationFolder()
-			}
-			if flags.upgrade {
-				return upgradeInit(options, folder, cmd.OutOrStdout())
-			}
+			folder := folder()
 			if flags.reinit {
 				return flags.recreate(cmd, options, folder)
 			}
@@ -55,15 +47,13 @@ func NewInit(options *Options) *cobra.Command {
 		},
 	}
 	f := cmd.Flags()
-	f.StringVar(&flags.dir, "dir", "", "Writes the files to this Workstation Folder.")
 	f.StringVar(&flags.workstation, "workstation", "", "Sets this Workstation's unique name in the Yard.")
 	f.StringVar(&flags.baseDomain, "base-domain", "", "Sets the Base Domain at the end of this Workstation's hostnames.")
 	f.StringArrayVar(&flags.peers, "peers", nil, "Sets the LAN addresses of other Workstations, separated by spaces or commas.")
 	f.StringVar(&flags.gossipKey, "gossip-key", "", "Uses the Yard's shared Gossip Key.")
 	f.BoolVar(&flags.force, "force", false, "Overwrites the files when they exist.")
-	f.BoolVar(&flags.upgrade, "upgrade", false, "Updates only the Consul, Traefik and dashboard images in compose.yaml.")
 	f.BoolVar(&flags.reinit, "reinit", false, "Rewrites the setup files with the old settings and keeps .bak copies.")
-	cmd.MarkFlagsMutuallyExclusive("force", "upgrade", "reinit")
+	cmd.MarkFlagsMutuallyExclusive("force", "reinit")
 	f.StringVar(&flags.dockerSocket, "docker-socket", "/var/run/docker.sock", "Reads the Docker group from this socket.")
 	f.StringVar(&flags.hostname, "hostname", "", "Offers this hostname as the Workstation name.")
 	f.BoolVar(&flags.terminal, "terminal", false, "Reads answers as if at a terminal.")
@@ -213,7 +203,7 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	if strings.TrimSpace(env.get("YARD_DOCKER_GID")) == "" {
 		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: no Docker socket at %s, so YARD_DOCKER_GID in .env is empty. Set it to the group of /var/run/docker.sock, or the dashboard will not start.\n", f.dockerSocket)
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "Wrote compose.yaml, .env to %s.\n\nThe Yard's Gossip Key: %s\nGive this key to every other Workstation: lvh-yard init --gossip-key <key>.\n\n", folder, key)
+	fmt.Fprintf(cmd.OutOrStdout(), "Wrote compose.yaml, .env to %s.\n\nThe Yard's Gossip Key: %s\nGive this key to every other Workstation: lvh-yard ws init --gossip-key <key>.\n\n", folder, key)
 	printInitNextSteps(cmd.OutOrStdout(), folder, env)
 	return nil
 }
@@ -357,5 +347,5 @@ func printInitNextSteps(out io.Writer, folder string, env *envFile) {
 		bind = "127.0.0.1"
 	}
 	fmt.Fprintf(out, "Next steps:\n  1. Open TCP port %s and TCP and UDP port %s to the other Workstations.\n  2. Start this Workstation: cd %s && docker compose up -d\n  3. Open the dashboard: http://%s:%s\n  4. Make sure that LVH Yard works: lvh-yard status\n\n", env.valueOrDefault("YARD_CONSUL_SERVER_PORT"), env.valueOrDefault("YARD_CONSUL_SERF_WAN_PORT"), folder, bind, env.valueOrDefault("YARD_DASHBOARD_PORT"))
-	fmt.Fprintln(out, "To join a Yard later, run this with the address of one of its Workstations:\n  lvh-yard init --reinit --peers <ip> --gossip-key <key>")
+	fmt.Fprintln(out, "To join a Yard later, run this with the address of one of its Workstations:\n  lvh-yard ws init --reinit --peers <ip> --gossip-key <key>")
 }

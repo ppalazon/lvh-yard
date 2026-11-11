@@ -169,5 +169,5 @@ run = [
 description = "Run the dashboard of test Workstation ws-a or ws-b: mise run dev:dashboard ws-b"
 depends = ["css"]
 usage = 'arg "<workstation>" help="ws-a or ws-b"'
-# Each test Workstation has its own Backups folder, apart from the Workstation Folder that lvh-yard init writes.
+# Each test Workstation has its own Backups folder, apart from the Workstation Folder that lvh-yard ws init writes.
 run = "set -a; . dev/${usage_workstation}.env; YARD_BACKUPS=$PWD/dev/backups/${usage_workstation}; set +a; ./mvnw -q -pl dashboard spring-boot:run"

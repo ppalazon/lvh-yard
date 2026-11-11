@@ -40,7 +40,7 @@ lvh-yard:
     heartbeat-interval: ${YARD_EVENTS_HEARTBEAT_INTERVAL:15s}
     debounce-window: ${YARD_EVENTS_DEBOUNCE_WINDOW:300ms}
   # The Backups folder, where the Backups page keeps its files and each import writes its safety Backup. The default
-  # is the backups/ folder of the Workstation Folder that lvh-yard init writes.
+  # is the backups/ folder of the Workstation Folder that lvh-yard ws init writes.
   backups:
     path: ${YARD_BACKUPS:${XDG_CONFIG_HOME:${user.home}/.config}/lvh-yard/backups}
   # The Consul agent of this Workstation. Its HTTP API listens on loopback only (compose.yaml).
