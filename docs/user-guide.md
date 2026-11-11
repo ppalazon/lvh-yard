@@ -161,7 +161,10 @@ You can also give `--peers` and `--gossip-key` to the first `lvh-yard ws init`.
 `lvh-yard ws show` prints the active settings in `.env`, with the Gossip Key hidden.
 `lvh-yard ws set <name> <value>` checks a value and changes one setting. It keeps
 the comments. Neither `ws set` nor `ws join` restarts services. After either
-command, run `lvh-yard ws restart`.
+command, run the printed `docker compose` commands to recreate the containers.
+`ws restart` restarts existing containers without applying changed environment
+variables. When Traefik is off, the printed commands stop its existing container
+before they recreate the enabled services.
 
 ```sh
 lvh-yard ws set base-domain example.test
