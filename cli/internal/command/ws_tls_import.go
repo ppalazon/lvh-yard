@@ -17,9 +17,14 @@ func writeConsulTLS(folder string) error {
  return os.WriteFile(filepath.Join(folder,"consul.d","10-tls.hcl"), []byte(templates.ConsulTLS()),0600)
 }
 
+func writeTraefikTLS(folder string) error {
+ if err := os.MkdirAll(filepath.Join(folder,"traefik","dynamic"),0700); err != nil { return err }
+ return os.WriteFile(filepath.Join(folder,"traefik","dynamic","10-tls.yaml"), []byte(templates.TraefikTLS()),0600)
+}
+
 func newWSTLSImport(folder func() string) *cobra.Command {
  var caFile, certFile, keyFile string
- cmd := &cobra.Command{Use:"import", Short:"Installs a Workstation Certificate and enables Consul TLS.", Args:cobra.NoArgs, RunE:func(cmd *cobra.Command, args []string) error {
+ cmd := &cobra.Command{Use:"import", Short:"Installs a Workstation Certificate and enables TLS.", Args:cobra.NoArgs, RunE:func(cmd *cobra.Command, args []string) error {
   env, err := readWSEnv(folder()); if err != nil { return err }
   caPEM, err := os.ReadFile(caFile); if err != nil { return fmt.Errorf("read CA: %w",err) }
   certPEM, err := os.ReadFile(certFile); if err != nil { return fmt.Errorf("read certificate: %w",err) }
@@ -41,8 +46,13 @@ func newWSTLSImport(folder func() string) *cobra.Command {
    if err := os.WriteFile(filepath.Join(dir,name),data,0600); err != nil { return err }
   }
   if err := writeConsulTLS(folder()); err != nil { return err }
+  if env.get("YARD_TRAEFIK_ENABLED") != "false" {
+   if err := writeTraefikTLS(folder()); err != nil { return err }
+   if err := env.set("YARD_HTTPS_PORT","443"); err != nil { return err }
+   if err := saveWSEnv(cmd,folder(),env); err != nil { return err }
+  }
   if err := protectWorkstationFolder(folder()); err != nil { return err }
-  fmt.Fprintln(cmd.OutOrStdout(),"Consul TLS is installed. Every Workstation in the Yard needs TLS. A Workstation without TLS cannot federate.\nApply it with lvh-yard ws start. Import tls/ca.crt into your browser's trusted certificate authorities.")
+  fmt.Fprintln(cmd.OutOrStdout(),"Consul TLS is installed. Every Workstation in the Yard needs TLS. A Workstation without TLS cannot federate.\nApply it with docker compose up -d --force-recreate in the Workstation Folder. Import tls/ca.crt into your browser's trusted certificate authorities.")
   return nil
  }}
  cmd.Flags().StringVar(&caFile,"ca","","Reads this CA certificate.")

@@ -56,6 +56,13 @@ func upgradeInit(options *Options, folder string, out io.Writer) error {
 	if _, err := os.Stat(filepath.Join(folder, "consul.d", "10-tls.hcl")); err == nil {
 		if err := writeConsulTLS(folder); err != nil { return err }
 	} else if !os.IsNotExist(err) { return err }
+	env, err := readWSEnv(folder)
+	if err != nil { return err }
+	if env.get("YARD_TRAEFIK_ENABLED") != "false" {
+		if _, err := os.Stat(filepath.Join(folder, "traefik/dynamic/10-tls.yaml")); err == nil {
+			if err := writeTraefikTLS(folder); err != nil { return err }
+		} else if !os.IsNotExist(err) { return err }
+	}
 	if err := protectWorkstationFolder(folder); err != nil {
 		return err
 	}

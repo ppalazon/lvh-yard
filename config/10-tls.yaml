@@ -1,0 +1,14 @@
+# Generated, do not edit.
+tls:
+  certificates:
+    - certFile: /etc/traefik/tls/workstation.crt
+      keyFile: /etc/traefik/tls/workstation.key
+  options:
+    default:
+      minVersion: VersionTLS12
+    yard-client-certificate:
+      minVersion: VersionTLS12
+      clientAuth:
+        caFiles:
+          - /etc/traefik/tls/ca.crt
+        clientAuthType: RequireAndVerifyClientCert

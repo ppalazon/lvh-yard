@@ -3,6 +3,8 @@
 package main_test
 
 import (
+ "crypto/tls"
+ "crypto/x509"
  "encoding/json"
  "fmt"
  "io"
@@ -26,7 +28,7 @@ func TestWorkstationTLSYard(t *testing.T) {
  folders := []string{t.TempDir(),t.TempDir()}
  ports := make([][]int,2)
  var sockets []net.Listener
- for i := range ports { for range 9 { socket,err := net.Listen("tcp","127.0.0.1:0"); if err != nil { t.Fatal(err) }; sockets=append(sockets,socket); ports[i]=append(ports[i],socket.Addr().(*net.TCPAddr).Port) } }
+ for i := range ports { for range 10 { socket,err := net.Listen("tcp","127.0.0.1:0"); if err != nil { t.Fatal(err) }; sockets=append(sockets,socket); ports[i]=append(ports[i],socket.Addr().(*net.TCPAddr).Port) } }
  for _,socket := range sockets { socket.Close() }
  settings := []string{"consul-http-port","consul-dns-port","consul-grpc-tls-port","consul-server-port","consul-serf-lan-port","consul-serf-wan-port","dashboard-port","http-port","traefik-admin-port"}
  key := ""
@@ -48,6 +50,7 @@ func TestWorkstationTLSYard(t *testing.T) {
   run("ws","tls","cert","create","--dir",folders[0],"--workstation",name)
   bundle:=filepath.Join(folders[0],"certificates",name)
   run("ws","tls","import","--dir",folder,"--ca",filepath.Join(bundle,"ca.crt"),"--cert",filepath.Join(bundle,"workstation.crt"),"--key",filepath.Join(bundle,"workstation.key"))
+  run("ws","set","--dir",folder,"https-port",fmt.Sprint(ports[i][9]))
  }
  for i,folder := range folders {
   project:=fmt.Sprintf("yard-tls-%d-%d",os.Getpid(),i)
@@ -70,5 +73,35 @@ func TestWorkstationTLSYard(t *testing.T) {
    if !visible { ready=false }
   }
   if ready { break }; if time.Now().After(deadline) { t.Fatal("TLS Consuls did not federate or dashboards did not see each other") }; time.Sleep(time.Second)
+ }
+ caPEM,err:=os.ReadFile(filepath.Join(folders[0],"tls","ca.crt")); if err!=nil { t.Fatal(err) }
+ roots:=x509.NewCertPool(); if !roots.AppendCertsFromPEM(caPEM) { t.Fatal("invalid Yard CA") }
+ httpsClient:=&http.Client{Timeout:5*time.Second,Transport:&http.Transport{TLSClientConfig:&tls.Config{RootCAs:roots,ServerName:"yard.lvh.me"}}}
+ deadline=time.Now().Add(time.Minute)
+ for {
+  request,_:=http.NewRequest("GET",fmt.Sprintf("https://127.0.0.1:%d/",ports[0][9]),nil); request.Host="yard.lvh.me"
+  response,err:=httpsClient.Do(request)
+  if err==nil {
+   response.Body.Close()
+   if response.StatusCode==200 && response.TLS!=nil && len(response.TLS.VerifiedChains)>0 { break }
+  }
+  if time.Now().After(deadline) { t.Fatalf("HTTPS Route did not answer with a Yard CA certificate: %v",err) }; time.Sleep(time.Second)
+ }
+ request,_:=http.NewRequest("GET",fmt.Sprintf("http://127.0.0.1:%d/",ports[0][7]),nil); request.Host="yard.lvh.me"
+ noRedirect:=&http.Client{Timeout:5*time.Second,CheckRedirect:func(*http.Request,[]*http.Request)error{return http.ErrUseLastResponse}}
+ response,err:=noRedirect.Do(request); if err!=nil { t.Fatal(err) }; response.Body.Close()
+ if response.StatusCode!=200 { t.Fatalf("HTTP Route returned %d",response.StatusCode) }
+ run("ws","set","--dir",folders[1],"traefik","off")
+ project:=fmt.Sprintf("yard-tls-%d-1",os.Getpid())
+ compose:=func(args ...string) string { t.Helper(); base:=[]string{"compose","-p",project,"--project-directory",folders[1]}; out,err:=exec.Command("docker",append(base,args...)...).CombinedOutput(); if err!=nil { t.Fatalf("compose %v: %v\\n%s",args,err,out) }; return string(out) }
+ compose("--profile","traefik","stop","traefik")
+ compose("up","-d","--force-recreate")
+ running:=strings.Fields(compose("ps","--services","--status","running"))
+ if len(running)!=2 || !strings.Contains(strings.Join(running," "),"consul") || !strings.Contains(strings.Join(running," "),"dashboard") { t.Fatalf("Traefik-off services: %v",running) }
+ deadline=time.Now().Add(3*time.Minute)
+ for {
+  var datacenters []string
+  if json.Unmarshal([]byte(get(fmt.Sprintf("http://127.0.0.1:%d/v1/catalog/datacenters",ports[1][0]))),&datacenters)==nil && len(datacenters)==2 && get(fmt.Sprintf("http://127.0.0.1:%d/actuator/health",ports[1][6]))!="" { break }
+  if time.Now().After(deadline) { t.Fatal("Traefik-off Workstation lost federation or dashboard health") }; time.Sleep(time.Second)
  }
 }

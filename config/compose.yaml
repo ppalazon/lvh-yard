@@ -65,6 +65,7 @@ services:
     environment:
       YARD_TRAEFIK_BIND_ADDRESS: ${YARD_TRAEFIK_BIND_ADDRESS:-127.0.0.1}
       YARD_DASHBOARD_BIND_ADDRESS: ${YARD_DASHBOARD_BIND_ADDRESS:-127.0.0.1}
+      YARD_HTTPS_PORT: ${YARD_HTTPS_PORT:-}
     healthcheck:
       test:
         [
@@ -89,6 +90,10 @@ services:
       - |
         dashboard="$${YARD_DASHBOARD_BIND_ADDRESS}"
         [ "$$dashboard" != 0.0.0.0 ] || dashboard=127.0.0.1
+        set --
+        if [ -n "$${YARD_HTTPS_PORT}" ]; then
+          set -- "--entryPoints.websecure.address=$${YARD_TRAEFIK_BIND_ADDRESS}:$${YARD_HTTPS_PORT}"
+        fi
         exec traefik \
           --entryPoints.web.address="$${YARD_TRAEFIK_BIND_ADDRESS}:${YARD_HTTP_PORT:-80}" \
           --entryPoints.traefik.address=127.0.0.1:${YARD_TRAEFIK_ADMIN_PORT:-8080} \
@@ -99,9 +104,10 @@ services:
           --providers.file.directory=/etc/traefik/dynamic \
           --providers.file.watch=true \
           --log.level=INFO \
-          --accesslog=true
+          --accesslog=true "$$@"
     volumes:
       - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      - ./tls:/etc/traefik/tls:ro
 
   # The dashboard image, for a Workstation without Java. It is off unless you turn it on: set
   # COMPOSE_PROFILES=dashboard in .env, or run docker compose --profile dashboard up -d.
@@ -140,6 +146,7 @@ services:
       YARD_BASE_DOMAIN: ${YARD_BASE_DOMAIN:-lvh.me}
       YARD_OUT_OF_RANGE: ${YARD_OUT_OF_RANGE-127.0.0.0/8,::1/128,172.17.0.0/16,172.18.0.0/15,172.20.0.0/14,172.24.0.0/13}
       YARD_HTTP_PORT: ${YARD_HTTP_PORT:-80}
+      YARD_HTTPS_PORT: ${YARD_HTTPS_PORT:-}
       YARD_TRAEFIK_BIND_ADDRESS: ${YARD_TRAEFIK_BIND_ADDRESS:-127.0.0.1}
       YARD_TRAEFIK_ADMIN_PORT: ${YARD_TRAEFIK_ADMIN_PORT:-8080}
       YARD_TRAEFIK_ENABLED: ${YARD_TRAEFIK_ENABLED:-true}

@@ -21,7 +21,7 @@ final class RouteBuilder {
   private RouteBuilder() {}
 
   /** Unreachable Workstations are not among {@code services}, so their Services get no Route. */
-  static TraefikConfiguration build(Workstation workstation, List<Service> services) {
+  static TraefikConfiguration build(Workstation workstation, List<Service> services, boolean https) {
     Map<String, Router> routers = new LinkedHashMap<>();
     Map<String, TraefikConfiguration.Service> backends = new LinkedHashMap<>();
     Map<String, Map<String, Object>> middlewares = new LinkedHashMap<>();
@@ -40,6 +40,12 @@ final class RouteBuilder {
                   name,
                   profiles(service, middlewares),
                   service.publication().accessLog()));
+          if (https) {
+            routers.put(name + "__https", new Router(
+                "Host(`" + service.hostname() + "`)", List.of("websecure"), name,
+                profiles(service, middlewares),
+                service.publication().accessLog() ? null : new Observability(false), Map.of()));
+          }
           backends.put(name, new TraefikConfiguration.Service(new LoadBalancer(servers)));
         });
     return new TraefikConfiguration(new Http(routers, backends, middlewares));
@@ -102,6 +108,6 @@ final class RouteBuilder {
         List.of(HTTP_ENTRY_POINT),
         name,
         middlewares,
-        accessLog ? null : new Observability(false));
+        accessLog ? null : new Observability(false), null);
   }
 }

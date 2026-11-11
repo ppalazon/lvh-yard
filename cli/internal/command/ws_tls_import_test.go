@@ -36,6 +36,18 @@ func TestWSTLSImport(t *testing.T) {
   if err != nil || string(got) != string(want) { t.Fatalf("imported %s: %v", name, err) }
  }
  assertPrivateWorkstation(t, other)
+ envText := readInitFile(t, other, ".env")
+ if !strings.Contains(envText, "YARD_HTTPS_PORT=443\n") { t.Fatal("import did not enable HTTPS") }
+ tlsConfig := readInitFile(t, other, "traefik/dynamic/10-tls.yaml")
+ for _, want := range []string{"yard-client-certificate:", "RequireAndVerifyClientCert", "/etc/traefik/tls/ca.crt", "/etc/traefik/tls/workstation.crt", "default:"} {
+  if !strings.Contains(tlsConfig, want) { t.Fatalf("missing TLS contract %s", want) }
+ }
+ run("ws", "set", "--dir", other, "https-port", "")
+ run("ws", "set", "--dir", other, "https-port", "8443")
+ run("ws", "set", "--dir", other, "traefik", "off")
+ if err := os.Remove(filepath.Join(other, "traefik/dynamic/10-tls.yaml")); err != nil { t.Fatal(err) }
+ run("ws", "tls", "import", "--dir", other, "--ca", source+"/tls/ca.crt", "--cert", source+"/tls/workstation.crt", "--key", source+"/tls/workstation.key")
+ if _, err := os.Stat(filepath.Join(other, "traefik/dynamic/10-tls.yaml")); !os.IsNotExist(err) { t.Fatal("Traefik-off import wrote HTTPS configuration") }
  configPath := filepath.Join(other,"consul.d","10-tls.hcl")
  config, err := os.ReadFile(configPath); if err != nil { t.Fatal(err) }
  for _, setting := range []string{"verify_incoming = true", "verify_outgoing = true", "verify_server_hostname = true", "http", "verify_incoming = false"} { if !strings.Contains(string(config), setting) { t.Fatalf("missing %s",setting) } }
