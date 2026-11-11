@@ -219,6 +219,21 @@ Both create commands accept `--days <number>` to change the validity.
 A certificate must expire before or with its CA. All these commands accept
 `--dir <folder>` and repair the Workstation Folder's private file modes.
 
+To enable Consul TLS, import the bundle on its Workstation:
+
+```sh
+lvh-yard ws tls import --ca ca.crt --cert workstation.crt --key workstation.key
+lvh-yard ws start
+```
+
+Turn TLS on everywhere in the Yard in one go. A Workstation without TLS
+cannot federate with one that requires it. Import checks the key, the CA
+chain and `server.<this Workstation>.consul` before writing any files.
+It installs the bundle in `tls/` and writes the generated
+`consul.d/10-tls.hcl`. Consul verifies certificates in both directions for
+RPC. Its local HTTP API stays plain HTTP. `ws upgrade` rewrites the
+generated TLS options and keeps the installed certificates.
+
 #### Browser trust
 
 The CLI does not change browser trust. In your browser's certificate settings,

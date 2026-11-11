@@ -150,6 +150,17 @@ Both `test:unit` and `check` also run `go vet` and `go test ./...` in `cli/`.
 CLI, runs the executable against a fake dashboard, and checks the output, the
 version and the exit codes. Its file has the build tag `integration`, so
 `go test ./...` skips it.
+
+The real-Docker TLS Yard test builds the CLI and creates two Workstation
+Folders with `ws init` and `ws tls`. Build the dashboard image from this
+checkout, then run from `cli/`:
+
+```sh
+YARD_TEST_DASHBOARD_IMAGE=lvh-yard-dashboard:test go test -tags dockerintegration -count=1 -run TestWorkstationTLSYard ./cmd/lvh-yard
+```
+
+The test starts the generated Compose projects and removes them when it
+finishes. It needs Docker Compose and free local TCP and UDP ports.
 The `gofmt` pre-commit hook rejects Go files that need formatting.
 The dashboard tests log only warnings and errors. The full output of each test
 class is in `dashboard/target/surefire-reports/` and

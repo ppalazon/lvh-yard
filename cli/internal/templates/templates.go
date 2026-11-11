@@ -19,6 +19,13 @@ func Consul() string {
 	return consul
 }
 
+//go:embed 10-tls.hcl
+var consulTLS string
+
+func ConsulTLS() string {
+	return consulTLS
+}
+
 //go:embed lvh-yard.yaml
 var dashboard string
 

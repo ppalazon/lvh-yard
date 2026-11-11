@@ -44,6 +44,7 @@ services:
     volumes:
       - ./consul-data:/consul/data
       - ./consul.d:/consul/config:ro
+      - ./tls:/consul/tls:ro
 
   # Reads its Routes from the dashboard on this Workstation (ADR-0002). While the dashboard is down, it keeps the
   # last Routes.
