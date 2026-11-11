@@ -1,18 +1,19 @@
 ---
 title: The Backups page imports only the plan the person confirmed
 author: Pablo
-date: 2026-11-10
-branch: go-cli-ticket-17
-id: l-b2d40af5
+date: 2026-11-11
+branch: go-cli
+id: l-a16c8c0b
 scope: repo
 status: active
-replaces: l-696db081
+replaces: l-b2d40af5
 src: agent
 touches:
   - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/backups/BackupImport.java
   - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/BackupsPagesController.java
   - cli/internal/client/backup.go
   - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/backups/BackupsFolder.java
+  - dashboard/src/test/java/dev/palazon/lvhyard/dashboard/BackupsPageComponentTest.java
 ---
 
 ## Decided
@@ -22,5 +23,5 @@ touches:
 - BackupsFolder.nameProblem(name) is the one name rule; it answers why a name cannot name a Backup file, or null. The upload shows that reason.
 
 ## Watch out
-- Page tests must confirm as a browser does: GET ?mode= first, then post the hidden fields of that form (BackupsPageTest.confirm and fields). A POST without plan is a 400.
+- Page tests must confirm as a browser does: GET ?mode= first, then post the hidden fields of that form (BackupsPageComponentTest.confirm and fields). A POST without plan is a 400.
 - A write that fails halfway still has no dashboard test; only a CLI test covers the 500 answer, through a fake dashboard.

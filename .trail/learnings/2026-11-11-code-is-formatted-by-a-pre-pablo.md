@@ -1,12 +1,12 @@
 ---
 title: Code is formatted by a pre-commit hook with Google Java Format and Prettier
 author: Pablo
-date: 2026-11-02
-branch: main
-cost: { minutes: 7, tokens: 67543 }
-id: l-cbcaa6a2
+date: 2026-11-11
+branch: go-cli
+id: l-9326ee51
 scope: repo
 status: active
+replaces: l-cbcaa6a2
 src: agent
 touches:
   - ".pre-commit-config.yaml"
@@ -25,7 +25,7 @@ touches:
 - The TOML formatter sorts every key and table, which scrambles the task order in mise.toml. Only the TOML syntax check stays.
 
 ## Watch out
-- dashboard/openapi.yaml must stay out of every formatter: OpenApiTest compares it byte for byte with what the dashboard serves.
+- dashboard/openapi.yaml must stay out of every formatter: OpenApiComponentTest compares it byte for byte with what the dashboard serves.
 - .trail/ and package-lock.json are written by tools, so they are excluded too.
 
 In the code: .pre-commit-config.yaml; mise.toml tasks `hooks` (prek install) and `fmt` (prek run --all-files).

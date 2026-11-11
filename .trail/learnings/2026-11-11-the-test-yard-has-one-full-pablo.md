@@ -1,13 +1,12 @@
 ---
 title: The test Yard has one full .env per Workstation and gives each Workstation its own Base Domain
 author: Pablo
-date: 2026-11-09
-branch: main
-cost: { minutes: 11, tokens: 96003 }
-id: l-09f5e5c2
+date: 2026-11-11
+branch: go-cli
+id: l-3fae8204
 scope: repo
 status: active
-replaces: l-cb23554d
+replaces: l-09f5e5c2
 src: agent
 touches:
   - dev/ws-a.env
@@ -25,4 +24,4 @@ The user asked for test Workstation files that look like a real .env. There is n
 In the code:
 - dev/ws-a.env: YARD_BASE_DOMAIN=lvh.me, pages at http://yard.lvh.me:10080
 - dev/ws-b.env: YARD_BASE_DOMAIN=localhost, pages at http://yard.localhost:10090
-- mise.toml dev:up and dev:dashboard load one --env-file per Workstation
+- mise.toml: dev:up gives docker compose one --env-file per Workstation. dev:dashboard sources dev/<workstation>.env.

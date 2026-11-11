@@ -1,18 +1,19 @@
 ---
 title: "Compose starts Consul, then the dashboard, then Traefik, each one after the one before it is healthy"
 author: Pablo
-date: 2026-11-04
-branch: main
-cost: { minutes: 2, tokens: 5714 }
-id: l-5d3bec87
+date: 2026-11-11
+branch: go-cli
+id: l-38de4790
 scope: repo
 status: active
-replaces: l-d3a5e65a
+replaces: l-5d3bec87
 src: agent
 touches:
   - Dockerfile
   - compose.yaml
   - mise.toml
+  - cli/internal/templates/templates_test.go
+  - dashboard/src/test/java/dev/palazon/lvhyard/dashboard/TraefikAdminIT.java
 ---
 
 ## Decided
@@ -25,9 +26,9 @@ A bash /dev/tcp request with grep for "status":"UP": it worked without curl, but
 ## Watch out
 Consul's leader is the string "" until Consul elects itself, so the check looks for a digit, not for a 200 answer.
 After a restart of the Docker daemon, restart: unless-stopped starts the containers again with no order. depends_on works only for docker compose up.
-The check task of mise must list compose.yaml and .env.example as sources: the CLI build copies them as templates, and TraefikAdminTest reads compose.yaml.
+The check task of mise must list compose.yaml and .env.example as sources. cli/internal/templates holds committed copies of both, refreshed by `mise run cli:templates` and compared with the originals by templates_test.go. TraefikAdminIT also reads compose.yaml.
 
 In the code:
 - Dockerfile: apt-get install curl in the last stage.
 - compose.yaml: healthcheck on consul (wget /v1/status/leader), dashboard (curl -f /actuator/health), traefik (wget /ping); depends_on with condition service_healthy, and required: false on traefik's dashboard dependency.
-- mise.toml: tasks.check sources.
+- mise.toml: tasks.check sources, task cli:templates.

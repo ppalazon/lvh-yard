@@ -1,12 +1,12 @@
 ---
 title: "Each Publication says whether Traefik logs its requests, and it is off by default"
 author: Pablo
-date: 2026-11-05
-branch: main
-cost: { minutes: 9, tokens: 19695 }
-id: l-1b1e7a1d
+date: 2026-11-11
+branch: go-cli
+id: l-1f9ce2c1
 scope: repo
 status: active
+replaces: l-1b1e7a1d
 src: agent
 touches:
   - compose.yaml
@@ -20,8 +20,5 @@ touches:
 ## Tried and ruled out
 - A hidden rule that turns the log off for Routes whose Instance is this Workstation's dashboard, Consul or Traefik admin address. LVH Yard has no Core Services, and a hidden rule would surprise the user.
 - On by default, with the first setup turning it off for yard, consul-ui and traefik-admin. The user preferred off for every Service.
-
-## Watch out
-- The page buttons say "Show in the access log" and "Hide from the access log". Do not use "Turn off" there: ServicePageTest finds the Instance Priority button by that text.
 
 In the code: Publication.accessLog, PublicationRequest.accessLog (null keeps), StoredPublication.accessLog (written only when true), TraefikConfiguration.Router.observability ({accessLogs: false} unless on), RouteBuilder.router, Backup.Published.accessLog (file key access-log, missing means false), lvh-yard publish --access-log on|off, compose.yaml --accesslog=true and Consul -log-level=error.

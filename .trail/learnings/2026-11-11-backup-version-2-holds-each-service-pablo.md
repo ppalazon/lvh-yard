@@ -1,19 +1,19 @@
 ---
 title: "Backup version 2 holds each Service's sources as one ordered list"
 author: Pablo
-date: 2026-11-10
-branch: main
-cost: { minutes: 25, tokens: 169279 }
-id: l-ea9e3a85
+date: 2026-11-11
+branch: go-cli
+id: l-3377abe7
 scope: repo
 status: active
-replaces: l-2df4ab92
+replaces: l-ea9e3a85
 src: agent
 touches:
   - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/backups/Backup.java
   - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/backups/BackupFormat.java
   - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/backups/BackupExport.java
   - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/backups/ImportPlanner.java
+  - cli/internal/client/backup.go
 ---
 
 ## Decided
@@ -27,6 +27,6 @@ touches:
 - An order key with source IDs beside separate lists: Static Instance IDs differ on each Workstation.
 
 ## Watch out
-- The CLI's Dashboard.PlanEntry.line() switches on the kind text, so a new kind needs a case there too.
+- The CLI's PlanEntry.Line() switches on the kind text, so a new kind needs a case there too.
 
-In the code: backups/Backup.java (VERSION, Source), ImportPlanner.java, cli Dashboard.java (PlanEntry).
+In the code: backups/Backup.java (VERSION, Source), ImportPlanner.java, cli/internal/client/backup.go (PlanEntry.Line).
