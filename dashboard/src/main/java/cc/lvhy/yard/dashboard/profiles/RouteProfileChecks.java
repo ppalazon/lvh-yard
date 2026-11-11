@@ -33,6 +33,7 @@ public class RouteProfileChecks {
           "basicAuth",
           "buffering",
           "chain",
+          "clientCertificate",
           "circuitBreaker",
           "compress",
           "contentType",
@@ -171,6 +172,8 @@ public class RouteProfileChecks {
         return name + " must give its " + type + " settings as a map.";
       }
       return switch (type) {
+        case "clientCertificate" ->
+            settings.isEmpty() ? null : name + " must give clientCertificate no settings.";
         case "basicAuth", "digestAuth" ->
             settings.containsKey("usersFile")
                 ? name

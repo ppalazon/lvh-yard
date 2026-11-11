@@ -8,7 +8,7 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
 import org.yaml.snakeyaml.error.YAMLException;
 import org.yaml.snakeyaml.representer.Representer;
 
-/** The text of one Route Profile in the page's text box: its middleware in Traefik's format. */
+/** The text of one Route Profile in the page's text box. */
 final class RouteProfileYaml {
 
   private RouteProfileYaml() {}

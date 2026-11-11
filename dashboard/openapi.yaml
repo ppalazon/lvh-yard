@@ -265,9 +265,9 @@ paths:
       tags:
       - route-profiles-controller
     put:
-      description: The body maps each name to its middleware in Traefik's format.
-        A chain may name a profile of the set or one that exists. The profiles that
-        the body does not name stay. Answers the whole list.
+      description: "The body maps each name to its middleware in Traefik's format,\
+        \ or {\"clientCertificate\": {}}. A chain may name either kind. The profiles\
+        \ that the body does not name stay. Answers the whole list."
       operationId: putRouteProfiles
       requestBody:
         content:
@@ -349,8 +349,8 @@ paths:
       tags:
       - route-profiles-controller
     put:
-      description: "The body is its middleware in Traefik's format, such as {\"headers\"\
-        : {...}}."
+      description: "The body is its middleware in Traefik's format, or {\"clientCertificate\"\
+        : {}}."
       operationId: putRouteProfile
       parameters:
       - in: path
@@ -870,11 +870,12 @@ paths:
     put:
       description: "With Yard Scope, the other Workstations also route it, at <service>.<workstation>.<base-domain>.\
         \ With no Scope, a new Publication gets Local Scope and an existing one keeps\
-        \ its own. The Route applies the Route Profiles in order, as Traefik middlewares\
-        \ named <workstation>_<profile>. With no profiles, a Publication keeps its\
-        \ own. Empty profiles remove them all. With accessLog true, Traefik logs the\
-        \ requests to the Route. With no accessLog, a new Publication does not log\
-        \ them and an existing one keeps its own."
+        \ its own. The Route applies the Route Profiles in order. Middleware profiles\
+        \ are named <workstation>_<profile>. A clientCertificate profile requires\
+        \ HTTPS and a Yard CA Client Certificate. With no profiles, a Publication\
+        \ keeps its own. Empty profiles remove them all. With accessLog true, Traefik\
+        \ logs the requests to the Route. With no accessLog, a new Publication does\
+        \ not log them and an existing one keeps its own."
       operationId: publish
       parameters:
       - in: path
@@ -1431,8 +1432,8 @@ components:
             type: string
         type:
           type: string
-          description: "Its Traefik middleware type, such as headers or basicAuth.\
-            \ Missing when it has more or none."
+          description: Its Traefik middleware type or clientCertificate. Missing when
+            it has more or none.
       required:
       - name
       - services
@@ -1442,8 +1443,8 @@ components:
         definition:
           type: object
           additionalProperties: {}
-          description: "The middleware in Traefik's format, such as {\"basicAuth\"\
-            : {\"users\": [...]}}."
+          description: "The middleware in Traefik's format, or {\"clientCertificate\"\
+            : {}}."
         name:
           type: string
         services:
@@ -1453,8 +1454,8 @@ components:
             type: string
         type:
           type: string
-          description: "Its Traefik middleware type, such as headers or basicAuth.\
-            \ Missing when it has more or none."
+          description: Its Traefik middleware type or clientCertificate. Missing when
+            it has more or none.
       required:
       - definition
       - name
@@ -1580,6 +1581,7 @@ components:
           - unpublished-container-port
           - route-profile-auth
           - unknown-route-profile
+          - client-certificate-unavailable
           - foreign-instance
           - alias-above-source
         message:

@@ -63,6 +63,18 @@ class RouteProfilesPageComponentTest extends DashboardComponentTest {
   }
 
   @Test
+  void savingClientCertificateProfileThroughThePageKeepsItsReservedKey() {
+    ResponseEntity<String> response = postForm("/route-profiles",
+        Map.of("name", "page-certificate", "definition", "clientCertificate: {}\n"));
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    assertThat(row(getPage("/route-profiles").getBody(), "page-certificate"))
+        .contains("clientCertificate");
+    assertThat(get(ROUTE_PROFILES_PATH + "/page-certificate").getBody().get("definition"))
+        .isEqualTo(JSON.readTree("{\"clientCertificate\": {}}"));
+    assertThat(getPage("/route-profiles/new").getBody()).contains("clientCertificate: {}");
+  }
+
+  @Test
   void refusedSaveShowsTheReasonAndKeepsTheText() {
     String text = "basicAuth:\n  usersFile: /etc/users\n";
 
