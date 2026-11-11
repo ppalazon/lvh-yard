@@ -12,6 +12,13 @@ var compose string
 //go:embed .env.example
 var env string
 
+//go:embed 00-lvh-yard.hcl
+var consul string
+
+func Consul() string {
+	return consul
+}
+
 //go:embed lvh-yard.yaml
 var dashboard string
 

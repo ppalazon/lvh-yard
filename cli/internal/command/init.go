@@ -228,7 +228,7 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 		name string
 		text string
 		mode os.FileMode
-	}{{"compose.yaml", compose, 0600}, {".env", env, 0600}, {"lvh-yard.yaml", templates.Dashboard(), 0600}}
+	}{{"compose.yaml", compose, 0600}, {".env", env, 0600}, {"lvh-yard.yaml", templates.Dashboard(), 0600}, {"consul.d/00-lvh-yard.hcl", templates.Consul(), 0600}}
 	if !force {
 		for _, file := range files {
 			path := filepath.Join(folder, file.name)
@@ -240,7 +240,7 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 		}
 	}
 	// Create these before Compose starts, or Docker creates them owned by root.
-	for _, name := range []string{"backups", "consul-data"} {
+	for _, name := range []string{"backups", "consul-data", "consul.d", "traefik/dynamic"} {
 		if err := os.MkdirAll(filepath.Join(folder, name), 0700); err != nil {
 			return fmt.Errorf("could not create %s: %w", folder, err)
 		}

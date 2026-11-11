@@ -23,18 +23,12 @@ services:
         [ -n "$$bind" ] || bind='{{ GetDefaultInterfaces | include "type" "IPv4" | attr "address" }}'
         set -f -- # -f: a Peer such as [fd00::1]:8302 is not a file pattern
         for peer in $$(printf '%s' "$${YARD_PEERS}" | tr ',' ' '); do set -- "$$@" "-retry-join-wan=$$peer"; done
-        # -disable-keyring-file: Consul otherwise keeps its first gossip key in /consul/data and ignores a new one.
-        # check_update_interval 0s: the new output of a check reaches the catalog at once. Otherwise it waits 5
-        # minutes while the status stays the same. So every Workstation reads the last output of each check.
-        exec consul agent -server -bootstrap-expect=1 -ui \
+        exec consul agent -config-dir=/consul/config \
           -datacenter="$${YARD_WORKSTATION}" -node="$${YARD_WORKSTATION}" \
-          -data-dir=/consul/data -encrypt="$${YARD_GOSSIP_KEY}" -disable-keyring-file \
-          -bind="$$bind" -client=127.0.0.1 \
+          -encrypt="$${YARD_GOSSIP_KEY}" -bind="$$bind" \
           -http-port=${YARD_CONSUL_HTTP_PORT:-8500} -dns-port=${YARD_CONSUL_DNS_PORT:-8600} \
           -grpc-tls-port=${YARD_CONSUL_GRPC_TLS_PORT:-8503} -server-port=${YARD_CONSUL_SERVER_PORT:-8300} \
           -serf-lan-port=${YARD_CONSUL_SERF_LAN_PORT:-8301} -serf-wan-port=${YARD_CONSUL_SERF_WAN_PORT:-8302} \
-          -hcl='check_update_interval = "0s"' \
-          -log-level=error \
           "$$@"
     # Healthy once this Workstation has a Raft leader. The leader is "" until Consul elects itself.
     healthcheck:
@@ -49,6 +43,7 @@ services:
       start_interval: 1s
     volumes:
       - ./consul-data:/consul/data
+      - ./consul.d:/consul/config:ro
 
   # Reads its Routes from the dashboard on this Workstation (ADR-0002). While the dashboard is down, it keeps the
   # last Routes.
@@ -99,8 +94,12 @@ services:
           --ping=true --ping.entryPoint=traefik \
           --providers.http.endpoint="http://$$dashboard:${YARD_DASHBOARD_PORT:-7780}/traefik/configuration" \
           --providers.http.pollInterval=5s \
+          --providers.file.directory=/etc/traefik/dynamic \
+          --providers.file.watch=true \
           --log.level=INFO \
           --accesslog=true
+    volumes:
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
 
   # The dashboard image, for a Workstation without Java. It is off unless you turn it on: set
   # COMPOSE_PROFILES=dashboard in .env, or run docker compose --profile dashboard up -d.
