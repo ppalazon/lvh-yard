@@ -41,6 +41,7 @@ func newWSTLS(folder func() string) *cobra.Command {
  create.Flags().IntVar(&days, "days", 3650, "Sets the CA validity in days.")
  ca.AddCommand(create); tls.AddCommand(ca)
  tls.AddCommand(newWSTLSCert(folder))
+ tls.AddCommand(newWSTLSImport(folder))
  return tls
 }
 

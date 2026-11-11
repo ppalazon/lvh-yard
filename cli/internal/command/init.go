@@ -240,7 +240,7 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 		}
 	}
 	// Create these before Compose starts, or Docker creates them owned by root.
-	for _, name := range []string{"backups", "consul-data", "consul.d", "traefik/dynamic"} {
+	for _, name := range []string{"backups", "consul-data", "consul.d", "traefik/dynamic", "tls"} {
 		if err := os.MkdirAll(filepath.Join(folder, name), 0700); err != nil {
 			return fmt.Errorf("could not create %s: %w", folder, err)
 		}

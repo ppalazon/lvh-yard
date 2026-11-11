@@ -45,7 +45,7 @@ func upgradeInit(options *Options, folder string, out io.Writer) error {
 	if err := protectWorkstationFolder(folder); err != nil {
 		return err
 	}
-	for _, name := range []string{"consul.d", "traefik/dynamic"} {
+	for _, name := range []string{"consul.d", "traefik/dynamic", "tls"} {
 		if err := os.MkdirAll(filepath.Join(folder, name), 0700); err != nil {
 			return fmt.Errorf("could not create %s: %w", name, err)
 		}
@@ -53,6 +53,9 @@ func upgradeInit(options *Options, folder string, out io.Writer) error {
 	if err := os.WriteFile(filepath.Join(folder, "consul.d/00-lvh-yard.hcl"), []byte(templates.Consul()), 0600); err != nil {
 		return fmt.Errorf("could not write fixed Consul options: %w", err)
 	}
+	if _, err := os.Stat(filepath.Join(folder, "consul.d", "10-tls.hcl")); err == nil {
+		if err := writeConsulTLS(folder); err != nil { return err }
+	} else if !os.IsNotExist(err) { return err }
 	if err := protectWorkstationFolder(folder); err != nil {
 		return err
 	}
