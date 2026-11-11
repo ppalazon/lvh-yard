@@ -149,7 +149,7 @@ services:
       YARD_STACK_TRACES: ${YARD_STACK_TRACES:-false}
       YARD_BACKUPS: /var/lib/lvh-yard/backups
     # The Container Bindings follow the containers of this Workstation. The dashboard writes Backups to backups/, and
-    # lvh-yard init creates that folder, so that it belongs to the user and not to root.
+    # lvh-yard ws init creates that folder, so that it belongs to the user and not to root.
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./backups:/var/lib/lvh-yard/backups

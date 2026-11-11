@@ -104,7 +104,7 @@ To install by hand, or to set the version and the folder, read
 ## Quick start
 
 ```sh
-lvh-yard init                                  # writes ~/.config/lvh-yard
+lvh-yard ws init                             # writes ~/.config/lvh-yard
 cd ~/.config/lvh-yard && docker compose up -d  # starts Consul, the dashboard and Traefik
 lvh-yard status                                # checks that it all works
 ```

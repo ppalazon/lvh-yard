@@ -25,7 +25,7 @@ func TestInitReinitKeepsSettingsAndReplacesExplicitFlags(t *testing.T) {
 	yard.Version = "0.2.0"
 	yard.Process.Terminal = true
 	yard.Process.Identity = func(string) string { return "999" }
-	run := yard.Run("init", "--dir", folder, "--reinit", "--peers", "10.0.0.2,10.0.0.3:8302", "--gossip-key", newKey)
+	run := yard.Run("ws", "init", "--dir", folder, "--reinit", "--peers", "10.0.0.2,10.0.0.3:8302", "--gossip-key", newKey)
 	if run.ExitCode != 0 {
 		t.Fatalf("reinit: %+v", run)
 	}
@@ -98,7 +98,7 @@ func TestInitReinitKeepsOldSettingsWithoutFlags(t *testing.T) {
 		"YARD_CONSUL_SERF_WAN_PORT=8402",
 	}
 	writeEnv(t, folder, strings.Join(settings, "\n")+"\nYARD_WORKSTATION=ignored\nYARD_GONE=1\nYARD_ALSO_GONE=a=b c\n")
-	run := commandtest.New(t).Run("init", "--dir", folder, "--reinit")
+	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--reinit")
 	if run.ExitCode != 0 {
 		t.Fatalf("reinit: %+v", run)
 	}
@@ -135,7 +135,7 @@ func TestInitReinitFillsOldEmptyDiscoverySettings(t *testing.T) {
 		}
 		return "2345"
 	}
-	run := yard.Run("init", "--dir", folder, "--reinit", "--docker-socket", socket)
+	run := yard.Run("ws", "init", "--dir", folder, "--reinit", "--docker-socket", socket)
 	if run.ExitCode != 0 || run.Stderr != "" {
 		t.Fatalf("reinit: %+v", run)
 	}
@@ -170,7 +170,7 @@ func TestInitReinitRejectsBadFlagsBeforeBackingUp(t *testing.T) {
 			if err := os.WriteFile(filepath.Join(folder, "compose.yaml"), []byte("old compose\n"), 0644); err != nil {
 				t.Fatal(err)
 			}
-			args := append([]string{"init", "--dir", folder, "--reinit"}, flags...)
+			args := append([]string{"ws", "init", "--dir", folder, "--reinit"}, flags...)
 			run := commandtest.New(t).Run(args...)
 			if run.ExitCode != 1 {
 				t.Fatalf("bad flags accepted: %+v", run)
@@ -192,7 +192,7 @@ func TestInitReinitRejectsInvalidOldSettingsBeforeBackingUp(t *testing.T) {
 			if err := os.WriteFile(filepath.Join(folder, "compose.yaml"), []byte("old compose\n"), 0644); err != nil {
 				t.Fatal(err)
 			}
-			run := commandtest.New(t).Run("init", "--dir", folder, "--reinit")
+			run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--reinit")
 			if run.ExitCode != 1 {
 				t.Fatalf("bad settings accepted: %+v", run)
 			}
@@ -220,7 +220,7 @@ func TestInitReinitWithoutOldEnvWritesNothing(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(folder, "compose.yaml"), []byte("old compose\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	run := commandtest.New(t).Run("init", "--dir", folder, "--reinit", "--workstation", "ws-a")
+	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--reinit", "--workstation", "ws-a")
 	if run.ExitCode != 1 || !strings.Contains(run.Stderr, "No "+filepath.Join(folder, ".env")+" to carry values from") || !strings.Contains(run.Stderr, "without --reinit") {
 		t.Fatalf("missing .env not explained: %+v", run)
 	}
@@ -236,7 +236,7 @@ func TestInitReinitWithoutOldEnvWritesNothing(t *testing.T) {
 func TestInitReinitReplacesNamesOnlyWhenExplicit(t *testing.T) {
 	folder := t.TempDir()
 	writeEnv(t, folder, "YARD_WORKSTATION=ws-a\nYARD_BASE_DOMAIN=lvh.me\nYARD_PEERS=10.0.0.1\n")
-	run := commandtest.New(t).Run("init", "--dir", folder, "--reinit", "--workstation", "ws-b", "--base-domain", "localhost", "--peers", "")
+	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--reinit", "--workstation", "ws-b", "--base-domain", "localhost", "--peers", "")
 	if run.ExitCode != 0 {
 		t.Fatalf("reinit: %+v", run)
 	}
@@ -264,7 +264,7 @@ func TestInitReinitLeavesOtherFilesAndBackupsUntouched(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			run := commandtest.New(t).Run("init", "--dir", folder, "--reinit")
+			run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--reinit")
 			if run.ExitCode != 0 {
 				t.Fatalf("reinit: %+v", run)
 			}

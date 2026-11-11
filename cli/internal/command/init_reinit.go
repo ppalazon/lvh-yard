@@ -18,7 +18,7 @@ func (f *initOptions) recreate(cmd *cobra.Command, options *Options, folder stri
 	path := filepath.Join(folder, ".env")
 	text, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
-		return fmt.Errorf("No %s to carry values from: nothing was written. Run lvh-yard init without --reinit to write new files", path)
+		return fmt.Errorf("No %s to carry values from: nothing was written. Run lvh-yard ws init without --reinit to write new files", path)
 	}
 	if err != nil {
 		return fmt.Errorf("could not read %s: %w", path, err)

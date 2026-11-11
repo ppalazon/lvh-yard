@@ -45,18 +45,19 @@ Java or a copy of this repository.
 
 1. Download `lvh-yard` and put it on your `PATH`, as
    [Installing the CLI](#installing-the-cli) shows.
-2. Run `lvh-yard init`. It asks for the name of this Workstation and for its
+2. Run `lvh-yard ws init`. It asks for the name of this Workstation and for its
    Base Domain. Press Enter to take the default: the hostname of this computer
    as the name, and `lvh.me` as the Base Domain. You can give both as flags
    instead:
 
    ```sh
-   lvh-yard init --workstation ws-a --base-domain lvh.me
+   lvh-yard ws init --workstation ws-a --base-domain lvh.me
    ```
 
-   `init` writes `compose.yaml` and `.env` to
+   `ws init` writes `compose.yaml` and `.env` to
    `~/.config/lvh-yard`. If `XDG_CONFIG_HOME` is set, it writes to
-   `$XDG_CONFIG_HOME/lvh-yard`. `--dir` picks another folder. It also creates
+   `$XDG_CONFIG_HOME/lvh-yard`. `--dir` picks another folder for any `ws` command.
+   You can put it before or after the subcommand. It also creates
    the empty [Backups folder](#the-backups-folder-and-the-safety-backup),
    `backups/`.
 
@@ -104,7 +105,7 @@ the Catalog. The dashboard talks to Consul only through the Consul HTTP API,
 whatever runs Consul. If that API does not answer, the page shows its address
 and a request that tests it. The REST API still answers errors with JSON.
 
-The files that `init` writes are a reference setup, and they are yours. You
+The files that `ws init` writes are a reference setup, and they are yours. You
 can change `compose.yaml`, or run Consul, Traefik and the dashboard another
 way. The comments in `compose.yaml` and `.env` explain each value. `lvh-yard`
 only talks to the dashboard. It does not start or stop anything.
@@ -117,21 +118,21 @@ the key from `YARD_GOSSIP_KEY` in the `.env` of that Workstation. Then run
 these commands on the new Workstation:
 
 ```sh
-lvh-yard init --reinit --peers 192.168.1.10 --gossip-key <key>
+lvh-yard ws init --reinit --peers 192.168.1.10 --gossip-key <key>
 cd ~/.config/lvh-yard && docker compose up -d
 ```
 
-You can also give `--peers` and `--gossip-key` to the first `lvh-yard init`.
+You can also give `--peers` and `--gossip-key` to the first `lvh-yard ws init`.
 
 ### Upgrading
 
-`lvh-yard init` does not overwrite a file unless you give `--force`. After you
-install a new `lvh-yard`, use one of these flags:
+`lvh-yard ws init` does not overwrite a file unless you give `--force`. After you
+install a new `lvh-yard`, use one of these commands:
 
-- `lvh-yard init --upgrade` changes only the consul, traefik and dashboard
+- `lvh-yard ws upgrade` changes only the consul, traefik and dashboard
   images in `compose.yaml`. Then run `docker compose up -d` again in the
   folder of this Workstation.
-- `lvh-yard init --reinit` writes `compose.yaml` and `.env` again from the new
+- `lvh-yard ws init --reinit` writes `compose.yaml` and `.env` again from the new
   templates, with the values of the old `.env`. A flag that you give with it
   replaces the old value. The old files stay as
   `<file>.<yyyyMMdd-HHmmss>.bak`. If the `backups/` folder is missing, it
@@ -156,9 +157,9 @@ The admin page of Traefik is at `127.0.0.1:8080/dashboard/`, and its ping is at
 
 ### The dashboard image
 
-The folder that `lvh-yard init` writes runs the dashboard from its image,
+The folder that `lvh-yard ws init` writes runs the dashboard from its image,
 `ghcr.io/ppalazon/lvh-yard-dashboard`. The image tag is the version of
-`lvh-yard`. `init` sets these values in `.env`:
+`lvh-yard`. `ws init` sets these values in `.env`:
 
 - `COMPOSE_PROFILES=dashboard`, which turns on the dashboard in Compose
 - `YARD_DOCKER_GID`, the group that owns the Docker socket
@@ -539,7 +540,7 @@ curl -X POST -H 'Content-Type: application/yaml' --data-binary @ws-a.yaml \
 ### The Backups folder and the safety Backup
 
 The Backups folder is `backups/` in the folder of this Workstation, such as
-`~/.config/lvh-yard/backups`. `lvh-yard init` creates it. `compose.yaml` lets
+`~/.config/lvh-yard/backups`. `lvh-yard ws init` creates it. `compose.yaml` lets
 the dashboard write to this folder, and to no other folder of this
 Workstation. Each Backup in it is a plain YAML file. You can copy, move or
 delete the files with normal tools. The dashboard never deletes them by itself.

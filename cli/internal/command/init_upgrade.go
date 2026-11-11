@@ -20,7 +20,7 @@ func upgradeInit(options *Options, folder string, out io.Writer) error {
 	file := filepath.Join(folder, "compose.yaml")
 	data, err := os.ReadFile(file)
 	if os.IsNotExist(err) {
-		return fmt.Errorf("%s does not exist: nothing to upgrade. Write it first with lvh-yard init", file)
+		return fmt.Errorf("%s does not exist: nothing to upgrade. Write it first with lvh-yard ws init", file)
 	}
 	if err != nil {
 		return fmt.Errorf("Could not read %s: %w", file, err)
