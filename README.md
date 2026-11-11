@@ -3,12 +3,12 @@
 [![CI](https://github.com/ppalazon/lvh-yard/actions/workflows/ci.yml/badge.svg)](https://github.com/ppalazon/lvh-yard/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-Reach any development service on your LAN by name, not by IP and port.
+Reach any development service on your HomeLab by name, not by IP and port.
 
-LVH Yard (local virtual host) gives each service that you run on your computers
-a hostname such as `http://grafana.lvh.me`. It works for services on your own
-computer and on every other computer in your Yard. You do not remember ports,
-and you do not edit `/etc/hosts`.
+LVH Yard (Local Virtual Host Yard) gives each service that you run on your
+computers a hostname such as `http://grafana.lvh.me`. It works for services on
+your own computer and on every other computer in your Yard. You do not remember
+ports, and you do not edit `/etc/hosts`.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/site/assets/dashboard-catalog-dark.png">
@@ -18,13 +18,14 @@ and you do not edit `/etc/hosts`.
 ## How it works
 
 - A **Workstation** is a computer that runs LVH Yard. It runs
-  [Consul](https://developer.hashicorp.com/consul), [Traefik](https://doc.traefik.io/traefik/)
-  and the LVH Yard dashboard, in Docker.
+  [Consul](https://developer.hashicorp.com/consul),
+  [Traefik](https://doc.traefik.io/traefik/) and the LVH Yard dashboard, in
+  Docker.
 - A **Service** is a name for something that you want to reach, such as
   `grafana`. Its **Instances** are the host and port where it runs: a fixed
   address, or a Docker container that LVH Yard follows.
-- When you **publish** a Service, Traefik on your Workstation sends requests for
-  `grafana.lvh.me` to the Instances that pass their health checks.
+- When you **publish** a Service, Traefik on your Workstation sends requests
+  for `grafana.lvh.me` to the Instances that pass their health checks.
 - All the Workstations on one LAN form a **Yard**. They see each other's
   Services. With Yard Scope, a Service gets a hostname on every Workstation.
 
@@ -35,8 +36,7 @@ Domain of your Workstation.
 ## Demo
 
 On `ws-a`, publish two Services. `front` runs on this computer. `mailpit` is a
-Docker container, and LVH Yard follows it, whatever host port Docker gives
-it:
+Docker container, and LVH Yard follows it, whatever host port Docker gives it:
 
 ```sh
 lvh-yard service create front
@@ -75,12 +75,13 @@ ws-b
 - A web dashboard and the `lvh-yard` command show the same things: state,
   Instances, Service Warnings and reachability tests.
 - Backups of one Workstation's setup, as one YAML file, to restore or copy.
-- One `lvh-yard` executable, with no Java. The dashboard runs as a Docker image.
+- One `lvh-yard` executable, with no Java. The dashboard runs as a Docker
+  image.
 
 ## Install
 
-You need Docker with Compose on every Workstation. The `lvh-yard` executable
-is available for Linux (amd64, arm64) and macOS (arm64). Docker is the only
+You need Docker with Compose on every Workstation. The `lvh-yard` executable is
+available for Linux (amd64, arm64) and macOS (arm64). Docker is the only
 container runtime that LVH Yard supports. Podman is not supported.
 
 Download the archive of your platform from the
@@ -105,11 +106,10 @@ Open [yard.lvh.me](http://yard.lvh.me), the dashboard. To add a second
 Workstation to your Yard, see
 [Joining a Yard](docs/user-guide.md#joining-a-yard).
 
-> [!WARNING]
-> The dashboard has no login. Anyone who reaches it can change the Services of
-> that Workstation and reach its containers through the Docker socket. By
-> default it listens on `127.0.0.1` only. Read [SECURITY.md](SECURITY.md)
-> before you open it to your LAN.
+> [!WARNING] The dashboard has no login. Anyone who reaches it can change the
+> Services of that Workstation and reach its containers through the Docker
+> socket. By default it listens on `127.0.0.1` only. Read
+> [SECURITY.md](SECURITY.md) before you open it to your LAN.
 
 ## Documentation
 
@@ -131,8 +131,7 @@ commits since the last release.
 
 ## AI-assisted development
 
-This project was developed with assistance from AI coding tools, including
-Anthropic Claude.
+This project was developed with assistance from AI coding tools.
 
 The project maintainer is responsible for its architecture, implementation
 decisions, code review, testing, and maintenance.
