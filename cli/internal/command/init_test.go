@@ -35,6 +35,11 @@ func TestInitWritesNewWorkstationFolder(t *testing.T) {
 	if strings.Contains(compose, "    build: .\n") || !strings.Contains(compose, "ghcr.io/ppalazon/lvh-yard-dashboard:latest}") || !strings.Contains(compose, "./backups:") {
 		t.Fatalf("wrong compose template: %s", compose)
 	}
+	if !strings.Contains(compose, `user: "${YARD_UID:?set YARD_UID in .env}:${YARD_GID:?set YARD_GID in .env}"`) ||
+		!strings.Contains(compose, "./consul-data:/consul/data") ||
+		strings.Contains(compose, "\nvolumes:\n") {
+		t.Fatalf("Consul must use the Workstation user and local data folder: %s", compose)
+	}
 	info, err := os.Stat(filepath.Join(folder, "backups"))
 	if err != nil || !info.IsDir() {
 		t.Fatalf("backups folder: %v", err)

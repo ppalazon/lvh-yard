@@ -59,7 +59,10 @@ Java or a copy of this repository.
    `$XDG_CONFIG_HOME/lvh-yard`. `--dir` picks another folder for any `ws` command.
    You can put it before or after the subcommand. It also creates
    the empty [Backups folder](#the-backups-folder-and-the-safety-backup),
-   `backups/`.
+   `backups/`, and `consul-data/` for Consul's data. The Workstation Folder
+   and all folders inside it have mode 700. All files have mode 600.
+   Only your user can read them. `ws init`, `ws upgrade` and `ws set`
+   fix these modes on an existing Workstation Folder.
 
    `init` makes a new gossip key and prints it. This Workstation then starts a
    Yard of its own. To join a Yard, see [Joining a Yard](#joining-a-yard).
@@ -166,7 +169,7 @@ The folder that `lvh-yard ws init` writes runs the dashboard from its image,
   (`stat -c %g /var/run/docker.sock`)
 - `YARD_UID` and `YARD_GID`, your user and group
 
-The dashboard runs as your user, not as root. It joins the socket group so that
+Consul and the dashboard run as your user, not as root. The dashboard joins the socket group so that
 it can read the Docker socket. It uses host networking. On Docker Desktop, turn
 on host networking in the settings.
 
