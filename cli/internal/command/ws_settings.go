@@ -21,6 +21,7 @@ var wsSettings = map[string]string{
 	"traefik-bind-address":   "YARD_TRAEFIK_BIND_ADDRESS",
 	"dashboard-bind-address": "YARD_DASHBOARD_BIND_ADDRESS",
 	"http-port":              "YARD_HTTP_PORT",
+	"https-port":             "YARD_HTTPS_PORT",
 	"traefik-admin-port":     "YARD_TRAEFIK_ADMIN_PORT",
 	"dashboard-port":         "YARD_DASHBOARD_PORT",
 	"consul-http-port":       "YARD_CONSUL_HTTP_PORT",
@@ -67,7 +68,7 @@ func newWSSet(folder func() string) *cobra.Command {
 			}
 			key, ok := wsSettings[name]
 			if !ok {
-				return fmt.Errorf("unknown setting %q: use base-domain, peers, bind-address, traefik-bind-address, dashboard-bind-address, http-port, traefik-admin-port, dashboard-port, consul-http-port, consul-dns-port, consul-grpc-tls-port, consul-server-port, consul-serf-lan-port, consul-serf-wan-port, out-of-range, stack-traces or traefik", name)
+				return fmt.Errorf("unknown setting %q: use base-domain, peers, bind-address, traefik-bind-address, dashboard-bind-address, http-port, https-port, traefik-admin-port, dashboard-port, consul-http-port, consul-dns-port, consul-grpc-tls-port, consul-server-port, consul-serf-lan-port, consul-serf-wan-port, out-of-range, stack-traces or traefik", name)
 			}
 			checked, err := checkWSSetting(name, value)
 			if err != nil {
@@ -187,6 +188,7 @@ func checkWSSetting(name, value string) (string, error) {
 	case strings.HasSuffix(name, "-port"):
 		n, err := strconv.Atoi(value)
 		valid, rule = err == nil && n >= 1 && n <= 65535, "a port from 1 to 65535"
+		if name == "https-port" && value == "" { valid = true }
 	case name == "out-of-range":
 		valid, rule = true, "CIDR ranges separated by commas, or an empty value"
 		if value != "" {

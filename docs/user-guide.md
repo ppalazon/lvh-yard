@@ -296,6 +296,25 @@ To turn Traefik back on, stop the Workstation, run
 A dashboard run from the sources reads the same
 `YARD_TRAEFIK_ENABLED` setting.
 
+### HTTPS Routes
+
+HTTPS is off by default. When Traefik is on, `lvh-yard ws tls import`
+sets `YARD_HTTPS_PORT=443` and installs the Workstation Certificate for Traefik.
+Apply the settings with `docker compose up -d --force-recreate` in the
+Workstation Folder. Every Route then answers on HTTP and HTTPS. HTTP does not
+redirect to HTTPS. Import `tls/ca.crt` into your browser's trusted certificate
+authorities to trust the HTTPS certificate.
+
+Use `lvh-yard ws set https-port 8443` to choose another port, or
+`lvh-yard ws set https-port ''` to turn HTTPS off. The HTTPS entry point uses
+`traefik-bind-address`. The dashboard reads `YARD_HTTPS_PORT` in Compose and
+when run from the sources. With Traefik off, importing a certificate enables
+only Consul TLS and writes no Traefik TLS configuration.
+
+The generated `traefik/dynamic/10-tls.yaml` defines the default TLS option and
+the fixed option `yard-client-certificate@file`. The latter requires a Client
+Certificate signed by the Yard CA. The default option does not require one.
+
 ### Upgrading
 
 `lvh-yard ws init` does not overwrite a file unless you give `--force`.

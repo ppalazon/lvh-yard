@@ -80,6 +80,7 @@ run = [
   "cp config/.env.example cli/internal/templates/.env.example",
   "cp config/00-lvh-yard.hcl cli/internal/templates/00-lvh-yard.hcl",
   "cp config/10-tls.hcl cli/internal/templates/10-tls.hcl",
+  "cp config/10-tls.yaml cli/internal/templates/10-tls.yaml",
   "cp config/lvh-yard.yaml cli/internal/templates/lvh-yard.yaml",
 ]
 

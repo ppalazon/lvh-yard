@@ -9,7 +9,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * YARD_TRAEFIK_ADMIN_PORT}. The admin entry point listens on loopback only (compose.yaml).
  */
 @ConfigurationProperties("lvh-yard.traefik")
-public record TraefikSettings(boolean enabled, String bindAddress, int port, int adminPort) {
+public record TraefikSettings(boolean enabled, String bindAddress, int port, int adminPort, Integer httpsPort) {
+
 
   public URI url() {
     return URI.create("http://" + BindAddress.host(bindAddress) + ":" + port);

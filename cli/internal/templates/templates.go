@@ -26,6 +26,11 @@ func ConsulTLS() string {
 	return consulTLS
 }
 
+//go:embed 10-tls.yaml
+var traefikTLS string
+
+func TraefikTLS() string { return traefikTLS }
+
 //go:embed lvh-yard.yaml
 var dashboard string
 

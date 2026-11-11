@@ -24,7 +24,7 @@ class RouteBuilderTest {
     Service second = serviceWithProfile("a-b", "second", "c", "bob");
 
     TraefikConfiguration configuration =
-        RouteBuilder.build(new Workstation("a", "a.lvh.me"), List.of(first, second));
+        RouteBuilder.build(new Workstation("a", "a.lvh.me"), List.of(first, second), false);
 
     var middlewares = configuration.http().middlewares();
     assertThat(middlewares).hasSize(2);

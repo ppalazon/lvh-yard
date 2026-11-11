@@ -54,6 +54,7 @@ lvh-yard:
     enabled: ${YARD_TRAEFIK_ENABLED:true}
     bind-address: ${YARD_TRAEFIK_BIND_ADDRESS:127.0.0.1}
     port: ${YARD_HTTP_PORT:80}
+    https-port: ${YARD_HTTPS_PORT:}
     # Its admin entry point, with its admin page and ping, on loopback only.
     admin-port: ${YARD_TRAEFIK_ADMIN_PORT:8080}
   # The Docker of this Workstation, whose containers the Container Bindings follow. DOCKER_HOST, as the docker

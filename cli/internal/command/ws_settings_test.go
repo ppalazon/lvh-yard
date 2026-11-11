@@ -21,7 +21,7 @@ func TestWSSetValues(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) { checkWSSetting(t, test.name, test.key, test.good, test.bad, test.want) })
 	}
-	for _, name := range []string{"http-port", "traefik-admin-port", "dashboard-port", "consul-http-port", "consul-dns-port", "consul-grpc-tls-port", "consul-server-port", "consul-serf-lan-port", "consul-serf-wan-port"} {
+	for _, name := range []string{"http-port", "https-port", "traefik-admin-port", "dashboard-port", "consul-http-port", "consul-dns-port", "consul-grpc-tls-port", "consul-server-port", "consul-serf-lan-port", "consul-serf-wan-port"} {
 		t.Run(name, func(t *testing.T) {
 			checkWSSetting(t, name, "YARD_"+strings.ToUpper(strings.ReplaceAll(name, "-", "_")), "1234", "65536", "1234")
 		})

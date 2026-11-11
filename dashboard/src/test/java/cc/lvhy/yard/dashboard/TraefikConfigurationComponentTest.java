@@ -62,6 +62,8 @@ class TraefikConfigurationComponentTest extends DashboardComponentTest {
     assertThat(router.get("rule").asString()).isEqualTo("Host(`yard.lvh.test`)");
     assertThat(router.get("entryPoints").get(0).asString()).isEqualTo("web");
     assertThat(router.get("service").asString()).isEqualTo("yard");
+    assertThat(router.has("tls")).isFalse();
+    assertThat(http.get("routers").has("yard__https")).isFalse();
     JsonNode server = http.get("services").get("yard").get("loadBalancer").get("servers").get(0);
     assertThat(server.get("url").asString()).isEqualTo("http://127.0.0.1:" + port);
   }
