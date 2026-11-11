@@ -76,3 +76,43 @@ func TestWSRefusesRename(t *testing.T) {
 		if run.ExitCode != 1 || !strings.Contains(run.Stderr, "export a Backup") || !strings.Contains(run.Stderr, "ws init") || !strings.Contains(run.Stderr, "import") { t.Fatalf("rename: %+v", run) }
 	}
 }
+
+func TestWSSetEmptyAndBoundaryValues(t *testing.T) {
+	for _, test := range []struct{ name, key, value string }{
+		{"peers", "YARD_PEERS", ""},
+		{"bind-address", "YARD_BIND_ADDRESS", ""},
+		{"out-of-range", "YARD_OUT_OF_RANGE", ""},
+		{"http-port", "YARD_HTTP_PORT", "1"},
+		{"http-port", "YARD_HTTP_PORT", "65535"},
+		{"stack-traces", "YARD_STACK_TRACES", "true"},
+	} {
+		t.Run(test.name+"/"+test.value, func(t *testing.T) {
+			folder := t.TempDir()
+			writeEnv(t, folder, test.key+"=old\n")
+			yard := commandtest.New(t)
+			run := yard.Run("ws", "set", "--dir", folder, test.name, test.value)
+			if run.ExitCode != 0 || readInitFile(t, folder, ".env") != test.key+"="+test.value+"\n" {
+				t.Fatalf("set: %+v", run)
+			}
+			if len(yard.Process.Commands) != 0 {
+				t.Fatalf("set ran a process: %v", yard.Process.Commands)
+			}
+		})
+	}
+}
+
+func TestWSSetRefusesUnknownSettingAndBadPorts(t *testing.T) {
+	for _, args := range [][]string{
+		{"gossip-key", "secret"}, {"unknown", "value"},
+		{"http-port", "0"}, {"http-port", "-1"}, {"http-port", "abc"},
+		{"peers", "10.0.0.1:0"}, {"peers", "10.0.0.1:65536"},
+	} {
+		folder := t.TempDir()
+		const before = "YARD_HTTP_PORT=80\nYARD_PEERS=\n"
+		writeEnv(t, folder, before)
+		run := commandtest.New(t).Run(append([]string{"ws", "set", "--dir", folder}, args...)...)
+		if run.ExitCode != 1 || readInitFile(t, folder, ".env") != before {
+			t.Fatalf("bad setting: %+v", run)
+		}
+	}
+}
