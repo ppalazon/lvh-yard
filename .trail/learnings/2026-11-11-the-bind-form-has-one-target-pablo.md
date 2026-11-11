@@ -9,8 +9,8 @@ status: active
 replaces: l-e65fc8b4
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/ContainerList.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/BindContainerPage.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ContainerList.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/web/BindContainerPage.java
   - dashboard/src/main/resources/static/bind.js
   - cli/internal/command/register_container.go
 ---

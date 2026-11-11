@@ -9,8 +9,8 @@ status: active
 replaces: l-b61a4d1a
 src: agent
 touches:
-  - "dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/YardReader.java#routableYard"
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/routes/TraefikController.java
+  - "dashboard/src/main/java/cc/lvhy/yard/dashboard/services/YardReader.java#routableYard"
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/routes/TraefikController.java
 ---
 
 ## Decided

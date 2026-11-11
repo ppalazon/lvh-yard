@@ -10,9 +10,9 @@ status: active
 replaces: l-7c8b73f0
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/Layout.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/CatalogPage.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/ServicePage.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/web/Layout.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/web/CatalogPage.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/web/ServicePage.java
 ---
 
 ## Decided

@@ -10,9 +10,9 @@ status: active
 replaces: l-f6040c14
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/profiles/RouteProfiles.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/profiles/RouteProfileEditor.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/profiles/RouteProfileChecks.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/profiles/RouteProfiles.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/profiles/RouteProfileEditor.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/profiles/RouteProfileChecks.java
 ---
 
 ## Decided

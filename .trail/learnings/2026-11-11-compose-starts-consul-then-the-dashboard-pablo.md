@@ -13,7 +13,7 @@ touches:
   - compose.yaml
   - mise.toml
   - cli/internal/templates/templates_test.go
-  - dashboard/src/test/java/dev/palazon/lvhyard/dashboard/TraefikAdminIT.java
+  - dashboard/src/test/java/cc/lvhy/yard/dashboard/TraefikAdminIT.java
 ---
 
 ## Decided

@@ -11,9 +11,9 @@ src: agent
 touches:
   - dashboard/pom.xml
   - mise.toml
-  - dashboard/src/test/java/dev/palazon/lvhyard/dashboard/DashboardComponentTest.java
-  - dashboard/src/test/java/dev/palazon/lvhyard/dashboard/consul/FakeConsul.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/events/EventDebouncer.java
+  - dashboard/src/test/java/cc/lvhy/yard/dashboard/DashboardComponentTest.java
+  - dashboard/src/test/java/cc/lvhy/yard/dashboard/consul/FakeConsul.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/events/EventDebouncer.java
 ---
 
 ## Decided

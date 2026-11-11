@@ -10,8 +10,8 @@ status: active
 replaces: l-9d914557
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/BackupsPagesController.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/BackupsPage.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/web/BackupsPagesController.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/web/BackupsPage.java
 ---
 
 ## Decided

@@ -9,11 +9,11 @@ status: active
 replaces: l-374eb69a
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/Publications.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/ServiceWarning.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/routes/RouteBuilder.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/Publications.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ServiceWarning.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/routes/RouteBuilder.java
   - cli/internal/command/publication.go
-  - dashboard/src/test/java/dev/palazon/lvhyard/dashboard/TraefikConfigurationComponentTest.java
+  - dashboard/src/test/java/cc/lvhy/yard/dashboard/TraefikConfigurationComponentTest.java
 ---
 
 ## Decided

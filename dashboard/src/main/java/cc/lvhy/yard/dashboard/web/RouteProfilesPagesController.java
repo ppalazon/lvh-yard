@@ -1,0 +1,135 @@
+package cc.lvhy.yard.dashboard.web;
+
+import cc.lvhy.yard.dashboard.Workstation;
+import cc.lvhy.yard.dashboard.profiles.NoRouteProfileException;
+import cc.lvhy.yard.dashboard.profiles.RefusedRouteProfilesException;
+import cc.lvhy.yard.dashboard.profiles.RouteProfileChecks;
+import cc.lvhy.yard.dashboard.profiles.RouteProfileDetail;
+import cc.lvhy.yard.dashboard.profiles.RouteProfileEditor;
+import cc.lvhy.yard.dashboard.profiles.RouteProfileInUseException;
+import cc.lvhy.yard.dashboard.profiles.TooManyRouteProfileWritesException;
+import java.net.URI;
+import java.util.List;
+import java.util.Map;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.server.ResponseStatusException;
+
+/** The Route Profiles page. It only translates to views. */
+@Controller
+class RouteProfilesPagesController {
+
+  private final Workstation workstation;
+
+  private final RouteProfileEditor profiles;
+
+  RouteProfilesPagesController(Workstation workstation, RouteProfileEditor profiles) {
+    this.workstation = workstation;
+    this.profiles = profiles;
+  }
+
+  @GetMapping(path = RouteProfilesPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
+  @ResponseBody
+  String routeProfiles() {
+    return RouteProfilesPage.render(workstation, profiles.list(), null);
+  }
+
+  @GetMapping(path = RouteProfileEditorPage.NEW_PATH, produces = MediaType.TEXT_HTML_VALUE)
+  @ResponseBody
+  String newForm() {
+    return RouteProfileEditorPage.render(workstation, RouteProfileEditorPage.Form.EMPTY, false);
+  }
+
+  /** Adds the profile, or replaces the one of the same name. */
+  @PostMapping(path = RouteProfilesPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
+  ResponseEntity<String> save(@RequestParam String name, @RequestParam("definition") String yaml) {
+    String profile = name.strip();
+    List<String> errors;
+    if (profile.isEmpty()) {
+      errors = List.of("A Route Profile needs a name.");
+    } else {
+      try {
+        profiles.save(Map.of(profile, RouteProfileYaml.read(yaml)));
+        return seeOther(RouteProfilesPage.PATH);
+      } catch (IllegalArgumentException e) {
+        errors = List.of(e.getMessage());
+      } catch (RefusedRouteProfilesException e) {
+        errors = e.problems().stream().map(RouteProfileChecks.Problem::reason).toList();
+      } catch (TooManyRouteProfileWritesException e) {
+        errors = List.of(e.getMessage());
+      }
+    }
+    return ResponseEntity.badRequest()
+        .contentType(Layout.HTML)
+        .body(
+            RouteProfileEditorPage.render(
+                workstation,
+                new RouteProfileEditorPage.Form(name, yaml, errors),
+                profiles.list().stream().anyMatch(existing -> existing.name().equals(profile))));
+  }
+
+  @GetMapping(
+      path = RouteProfilesPage.PATH + "/{profile}/view",
+      produces = MediaType.TEXT_HTML_VALUE)
+  @ResponseBody
+  String view(@PathVariable String profile) {
+    try {
+      return RouteProfileViewPage.render(workstation, profiles.find(profile));
+    } catch (NoRouteProfileException e) {
+      throw notFound(e);
+    }
+  }
+
+  @GetMapping(
+      path = RouteProfilesPage.PATH + "/{profile}/edit",
+      produces = MediaType.TEXT_HTML_VALUE)
+  @ResponseBody
+  String editForm(@PathVariable String profile) {
+    RouteProfileDetail found;
+    try {
+      found = profiles.find(profile);
+    } catch (NoRouteProfileException e) {
+      throw notFound(e);
+    }
+    return RouteProfileEditorPage.render(
+        workstation,
+        new RouteProfileEditorPage.Form(
+            found.name(), RouteProfileYaml.write(found.definition()), List.of()),
+        true);
+  }
+
+  @PostMapping(
+      path = RouteProfilesPage.PATH + "/{profile}/remove",
+      produces = MediaType.TEXT_HTML_VALUE)
+  ResponseEntity<String> remove(@PathVariable String profile) {
+    try {
+      profiles.remove(profile);
+    } catch (NoRouteProfileException e) {
+      throw notFound(e);
+    } catch (RouteProfileInUseException e) {
+      return ResponseEntity.status(HttpStatus.CONFLICT)
+          .contentType(Layout.HTML)
+          .body(RouteProfilesPage.render(workstation, profiles.list(), e.getMessage()));
+    }
+    return seeOther(RouteProfilesPage.PATH);
+  }
+
+  private static ResponseStatusException notFound(NoRouteProfileException e) {
+    return new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+  }
+
+  /**
+   * After a form is posted, the browser loads {@code path} with a GET, so a reload does not post
+   * again.
+   */
+  private static ResponseEntity<String> seeOther(String path) {
+    return ResponseEntity.status(HttpStatus.SEE_OTHER).location(URI.create(path)).build();
+  }
+}

@@ -10,9 +10,9 @@ status: active
 replaces: l-fa3791e2
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/Instance.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/SourceKind.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/ServiceWarning.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/Instance.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/SourceKind.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ServiceWarning.java
 ---
 
 ## Decided

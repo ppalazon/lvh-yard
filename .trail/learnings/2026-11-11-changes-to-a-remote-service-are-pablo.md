@@ -9,7 +9,7 @@ status: active
 replaces: l-c3ab1ad4
 src: agent
 touches:
-  - "dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/ServicesController.java#change"
+  - "dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ServicesController.java#change"
   - docs/user-guide.md
 ---
 

@@ -10,7 +10,7 @@ status: active
 replaces: l-85e37d8f
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/FormPage.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/web/FormPage.java
 ---
 
 ## Decided

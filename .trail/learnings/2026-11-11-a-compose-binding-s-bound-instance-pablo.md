@@ -9,10 +9,10 @@ status: active
 replaces: l-2f6c98cd
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/ContainerBindingRequest.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/ContainerBinding.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/ContainerBindings.java
-  - dashboard/src/test/java/dev/palazon/lvhyard/dashboard/DashboardClient.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ContainerBindingRequest.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ContainerBinding.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ContainerBindings.java
+  - dashboard/src/test/java/cc/lvhy/yard/dashboard/DashboardClient.java
 ---
 
 ## Decided

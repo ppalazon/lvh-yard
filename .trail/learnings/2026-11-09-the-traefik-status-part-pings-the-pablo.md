@@ -10,8 +10,8 @@ status: active
 replaces: l-ea603c87
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/status/TraefikStatus.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/routes/TraefikFetches.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/status/TraefikStatus.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/routes/TraefikFetches.java
 ---
 
 ## Decided

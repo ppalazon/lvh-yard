@@ -10,8 +10,8 @@ status: active
 replaces: l-14222377
 src: agent
 touches:
-  - dashboard/src/test/java/dev/palazon/lvhyard/dashboard/ContainerBindingsComponentTest.java
-  - dashboard/src/test/java/dev/palazon/lvhyard/dashboard/ServicePageComponentTest.java
+  - dashboard/src/test/java/cc/lvhy/yard/dashboard/ContainerBindingsComponentTest.java
+  - dashboard/src/test/java/cc/lvhy/yard/dashboard/ServicePageComponentTest.java
   - GLOSSARY.md
 ---
 

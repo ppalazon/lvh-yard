@@ -12,10 +12,10 @@ src: agent
 touches:
   - ".env.example"
   - compose.yaml
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/Problems.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/ApiProblems.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/Problems.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ApiProblems.java
   - dashboard/src/main/resources/application.yaml
-  - dashboard/src/test/java/dev/palazon/lvhyard/dashboard/ProblemsTest.java
+  - dashboard/src/test/java/cc/lvhy/yard/dashboard/ProblemsTest.java
   - docs/user-guide.md
 ---
 

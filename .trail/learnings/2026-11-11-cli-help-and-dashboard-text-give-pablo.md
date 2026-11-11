@@ -11,7 +11,7 @@ src: agent
 touches:
   - cli/internal/command/root.go
   - cli/internal/command/status.go
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/Layout.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/web/Layout.java
 ---
 
 ## Decided
@@ -22,4 +22,4 @@ touches:
 ## Watch out
 - Cobra shows only Short in the command list. So Short must make sense alone.
 
-In the code: the Short text of each command in cli/internal/command/, and the page text in dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/.
+In the code: the Short text of each command in cli/internal/command/, and the page text in dashboard/src/main/java/cc/lvhy/yard/dashboard/web/.

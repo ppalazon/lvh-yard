@@ -10,8 +10,8 @@ status: active
 replaces: l-aaee5484
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/profiles/RouteProfileEditor.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/consul/Consul.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/profiles/RouteProfileEditor.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/consul/Consul.java
 ---
 
 ## Decided

@@ -9,10 +9,10 @@ status: active
 replaces: l-17306754
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/consul/ConsulAgent.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/Registrations.java
-  - dashboard/src/test/java/dev/palazon/lvhyard/dashboard/TestcontainersConfiguration.java
-  - dashboard/src/test/java/dev/palazon/lvhyard/dashboard/DashboardIT.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/consul/ConsulAgent.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/Registrations.java
+  - dashboard/src/test/java/cc/lvhy/yard/dashboard/TestcontainersConfiguration.java
+  - dashboard/src/test/java/cc/lvhy/yard/dashboard/DashboardIT.java
 ---
 
 ## Decided

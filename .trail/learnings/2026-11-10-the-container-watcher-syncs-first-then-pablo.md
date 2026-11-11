@@ -10,11 +10,11 @@ status: active
 replaces: l-7093947e
 src: agent
 touches:
-  - dashboard/src/test/java/dev/palazon/lvhyard/dashboard/ContainerBindingsComponentTest.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/docker/DockerSettings.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/docker/Docker.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/ContainerBindings.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/ContainerWatcher.java
+  - dashboard/src/test/java/cc/lvhy/yard/dashboard/ContainerBindingsComponentTest.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/docker/DockerSettings.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/docker/Docker.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ContainerBindings.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ContainerWatcher.java
 ---
 
 ## Decided

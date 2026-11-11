@@ -9,8 +9,8 @@ status: active
 replaces: l-8d6ee766
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/YardReader.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/consul/ConsulSettings.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/YardReader.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/consul/ConsulSettings.java
 ---
 
 ## Decided

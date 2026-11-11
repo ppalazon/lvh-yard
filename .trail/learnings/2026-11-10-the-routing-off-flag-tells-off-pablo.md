@@ -9,7 +9,7 @@ status: active
 replaces: l-140ef392
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/Routing.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/Routing.java
   - cli/internal/command/reachability.go
 ---
 

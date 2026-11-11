@@ -10,10 +10,10 @@ status: active
 replaces: l-5f4b6632
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/Routing.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/ServiceRecords.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/InstanceSource.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/AliasTarget.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/Routing.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ServiceRecords.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/InstanceSource.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/AliasTarget.java
 ---
 
 ## Decided

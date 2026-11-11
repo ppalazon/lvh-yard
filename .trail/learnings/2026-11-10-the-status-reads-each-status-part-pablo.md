@@ -10,9 +10,9 @@ status: active
 replaces: l-d6c40262
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/status/StatusReader.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/status/ConsulStatus.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/status/Peer.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/status/StatusReader.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/status/ConsulStatus.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/status/Peer.java
 ---
 
 ## Decided

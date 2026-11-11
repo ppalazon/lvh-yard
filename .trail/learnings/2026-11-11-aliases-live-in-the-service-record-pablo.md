@@ -9,11 +9,11 @@ status: active
 replaces: l-5aa071bd
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/Aliases.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/ServiceRecords.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/YardReader.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/AliasTarget.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/backups/Backup.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/Aliases.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ServiceRecords.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/YardReader.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/AliasTarget.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/backups/Backup.java
 ---
 
 ## Decided

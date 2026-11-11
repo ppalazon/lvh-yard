@@ -9,9 +9,9 @@ status: active
 replaces: l-da51cbb5
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/OutOfRange.java
-  - "dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/Routing.java#inRange"
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/YardReader.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/OutOfRange.java
+  - "dashboard/src/main/java/cc/lvhy/yard/dashboard/services/Routing.java#inRange"
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/YardReader.java
   - dashboard/src/main/resources/application.yaml
   - dev/ws-a.env
 ---

@@ -1,0 +1,82 @@
+package cc.lvhy.yard.dashboard;
+
+import static cc.lvhy.yard.dashboard.StatusIT.detail;
+import static cc.lvhy.yard.dashboard.StatusIT.part;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+
+import java.time.Duration;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Test;
+import org.testcontainers.containers.GenericContainer;
+import tools.jackson.databind.JsonNode;
+
+/**
+ * The Traefik part of the status, with a real Traefik: whether it answers its ping, and when it
+ * last fetched its Routes from the dashboard.
+ */
+class TraefikStatusIT extends DashboardIT {
+
+  /** Long enough for a status kept for 5 s to be read again, and for Traefik to start polling. */
+  private static final Duration CHANGE = Duration.ofSeconds(20);
+
+  private static GenericContainer<?> traefik;
+
+  @AfterAll
+  static void stopTraefik() {
+    if (traefik != null) {
+      traefik.stop();
+      traefik = null;
+    }
+  }
+
+  private void startTraefik() {
+    if (traefik == null) {
+      traefik = TestcontainersConfiguration.traefik(port);
+      traefik.start();
+    }
+  }
+
+  @Test
+  void traefikThatAnswersItsPingAndFetchesItsRoutesIsOk() {
+    startTraefik();
+
+    JsonNode traefikPart =
+        await()
+            .atMost(CHANGE)
+            .until(
+                () -> part(get("/api/status").getBody(), "Traefik"),
+                part -> part.get("state").asString().equals("ok"));
+
+    assertThat(detail(traefikPart, "ping").get("state").asString()).isEqualTo("ok");
+    assertThat(detail(traefikPart, "last fetch").get("value").asString()).endsWith(" s ago");
+    assertThat(traefikPart.get("reason").asString()).contains("answers");
+  }
+
+  @Test
+  void traefikThatFetchesItsRoutesElsewhereIsAWarning() {
+    int[] ports = TestcontainersConfiguration.freePorts(3);
+    String nowhere = "http://127.0.0.1:" + ports[2] + "/traefik/configuration";
+    GenericContainer<?> elsewhere =
+        TestcontainersConfiguration.traefik(ports[0], ports[1], nowhere);
+    elsewhere.start();
+    try {
+      remote.whileDashboardRunsWith(
+          () -> {
+            JsonNode traefikPart =
+                await()
+                    .atMost(CHANGE)
+                    .until(
+                        () -> part(remote.status(), "Traefik"),
+                        part -> detail(part, "ping").get("state").asString().equals("ok"));
+            assertThat(traefikPart.get("state").asString()).isEqualTo("warning");
+            assertThat(traefikPart.get("reason").asString()).contains("has not fetched its Routes");
+            assertThat(detail(traefikPart, "last fetch").get("state").asString())
+                .isEqualTo("warning");
+          },
+          "--lvh-yard.traefik.admin-port=" + ports[1]);
+    } finally {
+      elsewhere.stop();
+    }
+  }
+}

@@ -11,11 +11,11 @@ src: agent
 touches:
   - ".env.example"
   - cli/internal/command/publication.go
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/Workstation.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/Service.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/YardReader.java
-  - dashboard/src/test/java/dev/palazon/lvhyard/dashboard/PublicationsComponentTest.java
-  - dashboard/src/test/java/dev/palazon/lvhyard/dashboard/ServicePageComponentTest.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/Workstation.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/Service.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/YardReader.java
+  - dashboard/src/test/java/cc/lvhy/yard/dashboard/PublicationsComponentTest.java
+  - dashboard/src/test/java/cc/lvhy/yard/dashboard/ServicePageComponentTest.java
   - dashboard/openapi.yaml
 ---
 

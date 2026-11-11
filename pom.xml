@@ -8,7 +8,7 @@
         <version>4.1.2</version>
         <relativePath/>
     </parent>
-    <groupId>dev.palazon</groupId>
+    <groupId>cc.lvhy</groupId>
     <artifactId>lvh-yard</artifactId>
     <version>${revision}</version>
     <packaging>pom</packaging>

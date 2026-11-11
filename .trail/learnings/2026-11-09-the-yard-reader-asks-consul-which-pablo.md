@@ -10,8 +10,8 @@ status: active
 replaces: l-ed6a8610
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/YardReader.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/Workstation.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/YardReader.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/Workstation.java
 ---
 
 ## Decided

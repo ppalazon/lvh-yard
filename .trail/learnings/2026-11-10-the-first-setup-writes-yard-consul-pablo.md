@@ -10,10 +10,10 @@ status: active
 replaces: l-62e9dbd3
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/FirstSetup.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/Registrations.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/consul/Consul.java
-  - dashboard/src/test/java/dev/palazon/lvhyard/dashboard/FirstSetupComponentTest.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/FirstSetup.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/Registrations.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/consul/Consul.java
+  - dashboard/src/test/java/cc/lvhy/yard/dashboard/FirstSetupComponentTest.java
 ---
 
 ## Decided

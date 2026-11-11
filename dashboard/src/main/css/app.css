@@ -3,7 +3,7 @@
 @import "basecoat-css";
 @import "./theme.css";
 
-@source "../java/dev/palazon/lvhyard/dashboard/web";
+@source "../java/cc/lvhy/yard/dashboard/web";
 
 /* Tailwind resets every element, so the page text gets plain styles here, and the views add classes only for layout
    and Basecoat components. */

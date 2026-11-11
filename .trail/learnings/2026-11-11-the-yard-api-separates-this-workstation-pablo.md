@@ -9,9 +9,9 @@ status: active
 replaces: l-e6d6a8a6
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/YardController.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/Yard.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/YardWorkstation.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/YardController.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/Yard.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/YardWorkstation.java
   - cli/internal/command/catalog.go
 ---
 

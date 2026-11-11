@@ -9,8 +9,8 @@ status: active
 replaces: l-07efc0d9
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/Aliases.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/AliasRemoteServicePage.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/Aliases.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/web/AliasRemoteServicePage.java
   - cli/internal/command/alias.go
 ---
 

@@ -9,8 +9,8 @@ status: active
 replaces: l-d8f86e99
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/WorkstationServicesController.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/ServicesController.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/WorkstationServicesController.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ServicesController.java
   - cli/internal/command/remove.go
   - cli/internal/client/clienttest/contract.go
 ---

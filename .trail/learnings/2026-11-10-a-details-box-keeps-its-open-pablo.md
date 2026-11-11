@@ -10,8 +10,8 @@ replaces: l-9b3f4ece
 src: agent
 touches:
   - dashboard/src/main/resources/static/disclosures.js
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/ServicePage.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/InstanceSourcesCard.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/web/ServicePage.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/web/InstanceSourcesCard.java
 ---
 
 ## Decided

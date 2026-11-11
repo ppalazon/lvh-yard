@@ -10,7 +10,7 @@ status: active
 replaces: l-44be6b21
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/BindAddress.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/BindAddress.java
   - compose.yaml
 ---
 

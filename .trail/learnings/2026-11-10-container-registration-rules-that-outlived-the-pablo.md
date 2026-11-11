@@ -9,8 +9,8 @@ status: active
 replaces: l-2f604883
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/ApiProblems.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/docker/DockerFailures.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ApiProblems.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/docker/DockerFailures.java
   - cli/internal/command/register_container.go
   - dashboard/src/main/css/app.css
 ---

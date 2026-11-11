@@ -9,11 +9,11 @@ status: active
 replaces: l-2a223619
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/RouteProfilesPagesController.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/RouteProfileEditorPage.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/RouteProfileExample.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/RouteProfileYaml.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/ServicePage.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/web/RouteProfilesPagesController.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/web/RouteProfileEditorPage.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/web/RouteProfileExample.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/web/RouteProfileYaml.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/web/ServicePage.java
 ---
 
 ## Decided

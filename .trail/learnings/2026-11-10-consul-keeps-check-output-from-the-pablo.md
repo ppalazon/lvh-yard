@@ -10,8 +10,8 @@ status: active
 replaces: l-dd6b03b1
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/Registrations.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/InstanceForm.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/Registrations.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/web/InstanceForm.java
   - compose.yaml
 ---
 

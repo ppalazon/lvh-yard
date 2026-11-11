@@ -10,8 +10,8 @@ status: active
 replaces: l-860240f4
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/ServicePage.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/BackupsPage.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/web/ServicePage.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/web/BackupsPage.java
 ---
 
 ## Decided

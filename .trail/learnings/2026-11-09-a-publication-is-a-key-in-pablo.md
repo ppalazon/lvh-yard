@@ -10,9 +10,9 @@ status: active
 replaces: l-202f8cea
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/Publications.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/YardReader.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/routes/RouteBuilder.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/Publications.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/YardReader.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/routes/RouteBuilder.java
 ---
 
 ## Decided

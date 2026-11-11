@@ -18,7 +18,7 @@ touches:
   - docs/adr/0006-lvh-yard-sets-up-its-own-services-once.md
   - docs/adr/0007-reactive-dashboard-with-sse-and-htmx.md
   - docs/adr/0008-unit-component-and-integration-tests.md
-  - dashboard/src/test/java/dev/palazon/lvhyard/dashboard/CreateAndDeleteServicesComponentTest.java
+  - dashboard/src/test/java/cc/lvhy/yard/dashboard/CreateAndDeleteServicesComponentTest.java
 ---
 
 ## Decided

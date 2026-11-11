@@ -9,8 +9,8 @@ status: active
 replaces: l-8e0ead7e
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/services/ServiceWarning.java
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/ServicePage.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ServiceWarning.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/web/ServicePage.java
   - dashboard/src/main/resources/static/disclosures.js
 ---
 

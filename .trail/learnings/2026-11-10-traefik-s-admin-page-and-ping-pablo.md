@@ -11,8 +11,8 @@ replaces: l-7aee7b36
 src: agent
 touches:
   - compose.yaml
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/reachability/TraefikSettings.java
-  - dashboard/src/test/java/dev/palazon/lvhyard/dashboard/TraefikAdminIT.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/reachability/TraefikSettings.java
+  - dashboard/src/test/java/cc/lvhy/yard/dashboard/TraefikAdminIT.java
 ---
 
 ## Decided

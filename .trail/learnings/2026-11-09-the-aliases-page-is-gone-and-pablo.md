@@ -10,7 +10,7 @@ status: active
 replaces: l-2659dced
 src: agent
 touches:
-  - dashboard/src/main/java/dev/palazon/lvhyard/dashboard/web/InstanceSourcesCard.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/web/InstanceSourcesCard.java
 ---
 
 ## Decided
