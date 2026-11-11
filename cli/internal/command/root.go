@@ -1,6 +1,7 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -76,6 +77,10 @@ func Run(root *cobra.Command, args []string) int {
 	}
 	root.SetArgs(args)
 	if err := root.Execute(); err != nil {
+		var exit *processExit
+		if errors.As(err, &exit) {
+			return exit.code
+		}
 		if err != errStatusFailed && err != errReachabilityFailed {
 			fmt.Fprintln(root.ErrOrStderr(), err)
 		}
