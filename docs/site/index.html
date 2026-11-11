@@ -16,9 +16,9 @@
     />
     <meta
       property="og:image"
-      content="https://pablo.palazon.dev/lvh-yard/assets/dashboard-catalog-light.png"
+      content="https://lvhy.cc/assets/dashboard-catalog-light.png"
     />
-    <meta property="og:url" content="https://pablo.palazon.dev/lvh-yard/" />
+    <meta property="og:url" content="https://lvhy.cc/" />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="site.css" />
     <!-- Loaded in the head, so the page is drawn in its theme. It is the dashboard's own theme.js. -->
@@ -144,10 +144,8 @@
 
         <pre
           class="terminal mt-10 max-w-2xl"
-        ><code><span class="comment"># Download the archive of your platform from the releases page, then:</span>
-<span class="prompt">$ </span>sha256sum -c SHA256SUMS --ignore-missing
-<span class="prompt">$ </span>tar -xzf lvh-yard-&lt;version&gt;-linux-amd64.tar.gz lvh-yard
-<span class="prompt">$ </span>sudo mv lvh-yard /usr/local/bin/
+        ><code><span class="comment"># Install lvh-yard in ~/.local/bin:</span>
+<span class="prompt">$ </span>curl -fsSL https://lvhy.cc/install.sh | sh
 <span class="prompt">$ </span>lvh-yard init
 <span class="prompt">$ </span>cd ~/.config/lvh-yard &amp;&amp; docker compose up -d
 <span class="prompt">$ </span>lvh-yard status</code></pre>
@@ -188,8 +186,9 @@
               <header>
                 <h3>1. Install</h3>
                 <p>
-                  Download <code>lvh-yard</code>. It writes the setup files and
-                  Docker starts Consul, the dashboard and Traefik.
+                  Run the install script. Then <code>lvh-yard</code> writes the
+                  setup files and Docker starts Consul, the dashboard and
+                  Traefik.
                 </p>
               </header>
             </li>

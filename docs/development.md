@@ -205,7 +205,8 @@ allow it.
 The landing page is one static page in `docs/site/`: `index.html`, `site.css`
 and `assets/`. `site.css` uses Tailwind CSS and Basecoat with the colors of
 `dashboard/src/main/css/theme.css`, so the page and the dashboard look alike.
-The page also loads the dashboard's `theme.js` for its dark theme.
+The page also loads the dashboard's `theme.js` for its dark theme. The site
+also serves `install.sh`, at `https://lvhy.cc/install.sh`.
 
 ```sh
 mise run site:build    # writes docs/site/dist
@@ -213,9 +214,10 @@ mise run site:serve    # builds it and serves http://localhost:8800
 ```
 
 The Pages workflow (`.github/workflows/pages.yml`) builds the page and
-deploys it to `https://pablo.palazon.dev/lvh-yard/` when `docs/site/` changes
-on `main`. Once, in the repository settings, set **Pages > Source** to
-**GitHub Actions**.
+deploys it to `https://lvhy.cc/` when `docs/site/` changes on `main`. Once, in
+the repository settings, set **Pages > Source** to **GitHub Actions** and
+**Pages > Custom domain** to `lvhy.cc`. The DNS records are in Cloudflare, set
+to DNS only.
 
 The screenshots in `docs/site/assets/` are of the dashboard of a test Yard
 with demo Services. The README uses them too. To take them again, start the
@@ -269,6 +271,10 @@ The `lvh-yard-archives` workflow artifact holds
 `lvh-yard-<version>-<platform>.tar.gz` for each platform. Each archive holds
 `lvh-yard` and `LICENSE`. The `release` job downloads the artifacts that match
 `lvh-yard-*`, and writes `SHA256SUMS` for the three archives.
+
+`docs/site/install.sh` reads `SHA256SUMS` to find the archive name and the
+version, so it needs no GitHub API. If you rename the archives or the platforms
+in the `cli` job, change `platform()` in it too.
 
 Before the first public release, prove this workflow on a private repository.
 Push a test tag such as `v0.0.0-rc.1`, and check the image, the three

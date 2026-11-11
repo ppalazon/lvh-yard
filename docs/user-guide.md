@@ -172,9 +172,31 @@ on host networking in the settings.
 ## Installing the CLI
 
 Each release has `lvh-yard` as one executable for Linux (amd64, arm64) and
-macOS (arm64). It needs no Java. Download it from the
-[releases](https://github.com/ppalazon/lvh-yard/releases). Make sure that it
-matches `SHA256SUMS`, and put it on your `PATH`:
+macOS (arm64). It needs no Java.
+
+The install script downloads the archive of your platform from the
+[releases](https://github.com/ppalazon/lvh-yard/releases), checks it against
+`SHA256SUMS`, and copies `lvh-yard` to `~/.local/bin`. As root, it uses
+`/usr/local/bin`.
+
+```sh
+curl -fsSL https://lvhy.cc/install.sh | sh
+```
+
+If `~/.local/bin` is not on your `PATH`, the script tells you the line to add.
+Two environment variables change what it does:
+
+- `LVH_YARD_VERSION`, a release such as `0.1.0`. The default is the latest
+  release.
+- `LVH_YARD_INSTALL_DIR`, the folder for `lvh-yard`.
+
+```sh
+curl -fsSL https://lvhy.cc/install.sh \
+  | LVH_YARD_VERSION=0.1.0 LVH_YARD_INSTALL_DIR=/usr/local/bin sudo -E sh
+```
+
+To install by hand, download the archive from the releases page. Make sure that
+it matches `SHA256SUMS`, and put `lvh-yard` on your `PATH`:
 
 ```sh
 sha256sum -c SHA256SUMS --ignore-missing

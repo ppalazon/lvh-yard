@@ -28,6 +28,7 @@ run = [
   "mkdir -p docs/site/dist",
   "npx tailwindcss -i docs/site/site.css -o docs/site/dist/site.css --minify",
   "cp docs/site/index.html docs/site/dist/",
+  "cp docs/site/install.sh docs/site/dist/",
   "cp dashboard/src/main/resources/static/theme.js docs/site/dist/",
   "cp -r docs/site/assets docs/site/dist/assets",
 ]

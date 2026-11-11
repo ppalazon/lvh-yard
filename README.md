@@ -91,15 +91,15 @@ You need Docker with Compose on every Workstation. The `lvh-yard` executable is
 available for Linux (amd64, arm64) and macOS (arm64). Docker is the only
 container runtime that LVH Yard supports. Podman is not supported.
 
-Download the archive of your platform from the
-[releases](https://github.com/ppalazon/lvh-yard/releases), check it, and put
-`lvh-yard` on your `PATH`:
+Run the install script. It downloads the archive of your platform, checks it
+against `SHA256SUMS`, and puts `lvh-yard` in `~/.local/bin`:
 
 ```sh
-sha256sum -c SHA256SUMS --ignore-missing
-tar -xzf lvh-yard-<version>-linux-amd64.tar.gz lvh-yard
-sudo mv lvh-yard /usr/local/bin/
+curl -fsSL https://lvhy.cc/install.sh | sh
 ```
+
+To install by hand, or to set the version and the folder, read
+[Installing the CLI](docs/user-guide.md#installing-the-cli).
 
 ## Quick start
 
