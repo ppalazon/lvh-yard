@@ -64,6 +64,26 @@ func TestWSUpgradeRepairsExistingFolderModesEvenWhenImagesAreCurrent(t *testing.
 	}
 }
 
+func TestWSSetRepairsExistingFolderModes(t *testing.T) {
+	folder := t.TempDir()
+	yard := commandtest.New(t)
+	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); run.ExitCode != 0 {
+		t.Fatalf("init: %+v", run)
+	}
+	for _, name := range []string{".env", "compose.yaml"} {
+		if err := os.Chmod(filepath.Join(folder, name), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Chmod(folder, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if run := yard.Run("ws", "set", "--dir", folder, "base-domain", "example.test"); run.ExitCode != 0 {
+		t.Fatalf("set: %+v", run)
+	}
+	assertPrivateWorkstation(t, folder)
+}
+
 func assertPrivateWorkstation(t *testing.T, folder string) {
 	t.Helper()
 	if err := filepath.WalkDir(folder, func(path string, entry fs.DirEntry, err error) error {
