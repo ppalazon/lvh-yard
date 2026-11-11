@@ -2,7 +2,6 @@
 title: "Out-of-range Instance is the term, never Unreachable Instance"
 author: Pablo
 date: 2026-10-30
-standing: true
 id: l-2a382d5b
 scope: repo
 status: active

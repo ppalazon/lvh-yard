@@ -2,7 +2,6 @@
 title: "One failing teammate Workstation drops only its own Routes, never the whole configuration"
 author: Pablo
 date: 2026-10-30
-standing: true
 id: l-b61a4d1a
 scope: repo
 status: active

@@ -2,7 +2,6 @@
 title: "Write the spec with the spec skill, not by hand, so seams and stories exist"
 author: Pablo
 date: 2026-10-30
-standing: true
 id: l-a1f797cc
 scope: repo
 status: active

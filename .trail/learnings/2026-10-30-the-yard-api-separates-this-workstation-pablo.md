@@ -2,7 +2,6 @@
 title: "The Yard API separates this Workstation from the others, and plain list shows the whole Yard"
 author: Pablo
 date: 2026-10-30
-standing: true
 id: l-e6d6a8a6
 scope: repo
 status: active

@@ -2,7 +2,6 @@
 title: Changes to a Remote Service are refused with an explained client error
 author: Pablo
 date: 2026-10-30
-standing: true
 id: l-c3ab1ad4
 scope: repo
 status: active

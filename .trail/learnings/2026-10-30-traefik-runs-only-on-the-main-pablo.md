@@ -2,7 +2,6 @@
 title: "Traefik runs only on the main Workstation, and there is no Machine concept"
 author: Pablo
 date: 2026-10-30
-standing: true
 id: l-4cb7de95
 scope: repo
 status: active

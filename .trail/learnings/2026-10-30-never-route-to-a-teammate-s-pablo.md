@@ -2,7 +2,6 @@
 title: "Never route to a teammate's loopback or Docker container address"
 author: Pablo
 date: 2026-10-30
-standing: true
 id: l-da51cbb5
 scope: repo
 status: active

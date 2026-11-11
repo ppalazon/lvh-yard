@@ -2,7 +2,6 @@
 title: Remote reads use a circuit breaker so a switched-off Workstation does not slow every page
 author: Pablo
 date: 2026-10-30
-standing: true
 id: l-8d6ee766
 scope: repo
 status: active
