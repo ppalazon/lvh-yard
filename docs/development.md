@@ -101,6 +101,12 @@ with the source files. A unit test compares the raw bytes. When `init` writes
 the Workstation Folder, it pins the dashboard image to the CLI version, or
 `latest` for `dev`. The user template has no build setting.
 
+The CLI creates Workstation Folders with mode 700 and files with mode 600.
+It creates `backups/` and `consul-data/` before Compose starts, so Docker
+does not create them as root. Consul uses the user and group in `.env`
+(`YARD_UID` and `YARD_GID`) and stores its data in `consul-data/`.
+The CLI mode tests cover new folders and repair of existing folders.
+
 ## Tests
 
 There are three kinds of tests, as `docs/adr/0008` explains:

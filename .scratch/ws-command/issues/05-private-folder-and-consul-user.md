@@ -4,13 +4,15 @@
 
 **Blocked by:** 02: `ws init` and `ws upgrade` replace `init`
 
-**Status:** ready-for-agent
+**Status:** done
 
 Spec: [../spec.md](../spec.md)
 
-- [ ] `ws init` makes every folder with mode 700 and every file with mode 600, `compose.yaml` and the backups folder included.
-- [ ] `ws init` creates `consul-data/` as the user before Compose starts, and always fills `YARD_UID` and `YARD_GID`.
-- [ ] `ws upgrade` and `ws set` fix the modes of an existing folder.
-- [ ] The Consul service runs as `YARD_UID:YARD_GID` and mounts `consul-data/`. The `consul-data` named volume is gone.
+- [x] `ws init` makes every folder with mode 700 and every file with mode 600, `compose.yaml` and the backups folder included.
+- [x] `ws init` creates `consul-data/` as the user before Compose starts, and always fills `YARD_UID` and `YARD_GID`.
+- [x] `ws upgrade` and `ws set` fix the modes of an existing folder.
+- [x] The Consul service runs as `YARD_UID:YARD_GID` and mounts `consul-data/`. The `consul-data` named volume is gone.
 - [ ] On a new Workstation, Consul starts with a Raft leader and the dashboard works, with the folder at 700 (shown by the integration test).
-- [ ] CLI unit tests check the modes and the filled settings. `docs/user-guide.md` and `docs/development.md` describe the folder and its modes.
+- [x] CLI unit tests check the modes and the filled settings. `docs/user-guide.md` and `docs/development.md` describe the folder and its modes.
+
+The new-Workstation Docker proof remains pending in the shared test from ticket 10.

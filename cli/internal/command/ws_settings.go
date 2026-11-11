@@ -148,13 +148,9 @@ func readWSEnv(folder string) (*envFile, error) {
 }
 
 func saveWSEnv(cmd *cobra.Command, folder string, env *envFile) error {
-	if err := filepath.WalkDir(folder, func(path string, entry os.DirEntry, err error) error {
-		if err != nil { return err }
-		if entry.Type()&os.ModeSymlink != 0 { return nil }
-		mode := os.FileMode(0600)
-		if entry.IsDir() { mode = 0700 }
-		return os.Chmod(path, mode)
-	}); err != nil { return fmt.Errorf("could not protect %s: %w", folder, err) }
+	if err := protectWorkstationFolder(folder); err != nil {
+		return err
+	}
 	if err := os.WriteFile(filepath.Join(folder, ".env"), []byte(env.text()), 0600); err != nil { return err }
 	fmt.Fprintf(cmd.OutOrStdout(), "Saved .env. Next, run lvh-yard ws restart --dir %q.\n", folder)
 	return nil

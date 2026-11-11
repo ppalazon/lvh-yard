@@ -9,8 +9,7 @@ services:
     image: hashicorp/consul:2.1.0
     network_mode: host
     restart: unless-stopped
-    # The consul user and group of the image. Its entrypoint switches to them, but the shell below replaces it.
-    user: "100:1000"
+    user: "${YARD_UID:?set YARD_UID in .env}:${YARD_GID:?set YARD_GID in .env}"
     environment:
       YARD_WORKSTATION: ${YARD_WORKSTATION:?set YARD_WORKSTATION in .env}
       YARD_GOSSIP_KEY: ${YARD_GOSSIP_KEY:?set YARD_GOSSIP_KEY in .env}
@@ -49,7 +48,7 @@ services:
       start_period: 60s
       start_interval: 1s
     volumes:
-      - consul-data:/consul/data
+      - ./consul-data:/consul/data
 
   # Reads its Routes from the dashboard on this Workstation (ADR-0002). While the dashboard is down, it keeps the
   # last Routes.
@@ -154,5 +153,3 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./backups:/var/lib/lvh-yard/backups
 
-volumes:
-  consul-data:

@@ -228,7 +228,7 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 		name string
 		text string
 		mode os.FileMode
-	}{{"compose.yaml", compose, 0644}, {".env", env, 0600}}
+	}{{"compose.yaml", compose, 0600}, {".env", env, 0600}}
 	if !force {
 		for _, file := range files {
 			path := filepath.Join(folder, file.name)
@@ -239,9 +239,14 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 			}
 		}
 	}
-	// Create this before Compose starts, or Docker creates it owned by root.
-	if err := os.MkdirAll(filepath.Join(folder, "backups"), 0755); err != nil {
-		return fmt.Errorf("could not create %s: %w", folder, err)
+	// Create these before Compose starts, or Docker creates them owned by root.
+	for _, name := range []string{"backups", "consul-data"} {
+		if err := os.MkdirAll(filepath.Join(folder, name), 0700); err != nil {
+			return fmt.Errorf("could not create %s: %w", folder, err)
+		}
+	}
+	if err := protectWorkstationFolder(folder); err != nil {
+		return err
 	}
 	for _, file := range files {
 		path := filepath.Join(folder, file.name)
@@ -253,11 +258,9 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 		if err != nil {
 			return fmt.Errorf("could not write %s: %w", path, err)
 		}
-		if file.name == ".env" {
-			if err := output.Chmod(0600); err != nil {
-				_ = output.Close()
-				return fmt.Errorf("could not protect %s: %w", path, err)
-			}
+		if err := output.Chmod(0600); err != nil {
+			_ = output.Close()
+			return fmt.Errorf("could not protect %s: %w", path, err)
 		}
 		_, writeErr := io.WriteString(output, file.text)
 		closeErr := output.Close()
@@ -268,7 +271,7 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 			return fmt.Errorf("could not write %s: %w", path, closeErr)
 		}
 	}
-	return nil
+	return protectWorkstationFolder(folder)
 }
 
 type envFile struct {
