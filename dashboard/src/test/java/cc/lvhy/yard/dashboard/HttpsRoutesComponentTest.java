@@ -10,7 +10,8 @@ import org.springframework.test.context.TestPropertySource;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-@TestPropertySource(properties = "lvh-yard.traefik.https-port=8443")
+@TestPropertySource(
+    properties = {"lvh-yard.traefik.https-port=8443", "lvh-yard.traefik.port=8088"})
 class HttpsRoutesComponentTest extends DashboardComponentTest {
   @AfterEach
   void removeProfiles() throws Exception {
@@ -55,6 +56,7 @@ class HttpsRoutesComponentTest extends DashboardComponentTest {
         assertThat(secure.has("middlewares")).isFalse();
       }
       assertThat(saved.get("warnings").toString()).doesNotContain("client-certificate-unavailable");
+      assertPublicationLink("ws-test", service, "https://" + service + ".lvh.test:8443");
     }
   }
 
@@ -64,22 +66,27 @@ class HttpsRoutesComponentTest extends DashboardComponentTest {
         new JsonMapper()
             .readTree(
                 """
-                {"remote-certificate": {"clientCertificate": {}}}
+                {"remote-certificate": {"clientCertificate": {}},
+                 "remote-chain": {"chain": {"middlewares": ["remote-certificate"]}}}
                 """));
-    String service = newServiceName("remote-certificate");
-    remote.register(service, Map.of("host", "10.9.8.7", "port", 8080));
-    remote.publish(service, Map.of("scope", "yard", "profiles", List.of("remote-certificate")));
-    org.awaitility.Awaitility.await()
-        .atMost(java.time.Duration.ofSeconds(10))
-        .untilAsserted(() -> {
-          JsonNode http = get("/traefik/configuration").getBody().get("http");
-          String router = service + "." + RemoteWorkstation.NAME;
-          assertThat(http.get("routers").has(router)).isFalse();
-          assertThat(
-                  http.get("routers").get(router + "__https").get("tls").get("options").asString())
-              .isEqualTo("yard-client-certificate@file");
-          assertThat(http.path("middlewares").has("ws-remote_remote-certificate")).isFalse();
-        });
+    for (String profile : List.of("remote-certificate", "remote-chain")) {
+      String service = newServiceName("remote-certificate");
+      remote.register(service, Map.of("host", "10.9.8.7", "port", 8080));
+      remote.publish(service, Map.of("scope", "yard", "profiles", List.of(profile)));
+      org.awaitility.Awaitility.await()
+          .atMost(java.time.Duration.ofSeconds(10))
+          .untilAsserted(() -> {
+            JsonNode http = get("/traefik/configuration").getBody().get("http");
+            String router = service + "." + RemoteWorkstation.NAME;
+            assertThat(http.get("routers").has(router)).isFalse();
+            assertThat(
+                    http.get("routers").get(router + "__https").get("tls").get("options").asString())
+                .isEqualTo("yard-client-certificate@file");
+            assertThat(http.path("middlewares").has("ws-remote_remote-certificate")).isFalse();
+            assertPublicationLink(
+                "ws-remote", service, "https://" + service + ".ws-remote.lvh.test:8443");
+          });
+    }
   }
 
   @Test
@@ -97,5 +104,12 @@ class HttpsRoutesComponentTest extends DashboardComponentTest {
     assertThat(secure.get("rule")).isEqualTo(plain.get("rule"));
     assertThat(secure.get("service")).isEqualTo(plain.get("service"));
     assertThat(plain.has("middlewares")).isFalse();
+    assertPublicationLink("ws-test", service, "http://" + service + ".lvh.test:8088");
+  }
+
+  private void assertPublicationLink(String home, String service, String url) {
+    for (String path : List.of("/", "/services/" + home + "/" + service)) {
+      assertThat(getPage(path).getBody()).contains("href=\"" + url + "\"");
+    }
   }
 }

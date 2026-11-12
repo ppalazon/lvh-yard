@@ -3,6 +3,7 @@ package cc.lvhy.yard.dashboard.web;
 import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.profiles.RouteProfiles;
 import cc.lvhy.yard.dashboard.reachability.ReachabilityTester;
+import cc.lvhy.yard.dashboard.reachability.TraefikSettings;
 import cc.lvhy.yard.dashboard.services.Alias;
 import cc.lvhy.yard.dashboard.services.AliasTarget;
 import cc.lvhy.yard.dashboard.services.Aliases;
@@ -67,6 +68,8 @@ class PagesController {
 
   private final Services services;
 
+  private final TraefikSettings traefik;
+
   PagesController(
       Workstation workstation,
       YardReader yard,
@@ -76,7 +79,8 @@ class PagesController {
       ContainerBindings containerBindings,
       ReachabilityTester reachability,
       RouteProfiles routeProfiles,
-      Services services) {
+      Services services,
+      TraefikSettings traefik) {
     this.workstation = workstation;
     this.yard = yard;
     this.registrations = registrations;
@@ -86,6 +90,7 @@ class PagesController {
     this.reachability = reachability;
     this.routeProfiles = routeProfiles;
     this.services = services;
+    this.traefik = traefik;
   }
 
   @GetMapping(path = "/", produces = MediaType.TEXT_HTML_VALUE)
@@ -102,7 +107,8 @@ class PagesController {
     return CatalogPage.render(
         this.workstation,
         yard.yard(),
-        new CatalogPage.Filters(blank(workstation) ? null : workstation, only));
+        new CatalogPage.Filters(blank(workstation) ? null : workstation, only),
+        traefik);
   }
 
   private static boolean blank(String value) {
@@ -139,7 +145,7 @@ class PagesController {
   @ResponseBody
   String service(@PathVariable("workstation") String home, @PathVariable String service) {
     Service found = anyService(home, service);
-    return ServicePage.render(workstation, found, aliasesOf(found), routeProfiles.names());
+    return ServicePage.render(workstation, found, aliasesOf(found), routeProfiles.names(), traefik);
   }
 
   /** Only this Workstation reads the Aliases of its own Services. */

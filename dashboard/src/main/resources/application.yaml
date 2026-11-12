@@ -4,11 +4,6 @@ spring:
   threads:
     virtual:
       enabled: true
-  config:
-    # The settings of the Workstation are in the .env at the repository root, which git ignores and compose.yaml
-    # also reads. spring-boot:run starts in dashboard/, and a packaged jar starts where you launch it. Environment
-    # variables also work.
-    import: optional:file:../.env[.properties],optional:file:.env[.properties]
 
 server:
   # Loopback by default: Traefik on the same Workstation is the way in, at yard.<base-domain>. The dashboard has no

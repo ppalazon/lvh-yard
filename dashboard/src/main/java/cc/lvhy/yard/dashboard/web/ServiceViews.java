@@ -1,5 +1,6 @@
 package cc.lvhy.yard.dashboard.web;
 
+import cc.lvhy.yard.dashboard.reachability.TraefikSettings;
 import cc.lvhy.yard.dashboard.services.Service;
 import cc.lvhy.yard.dashboard.services.ServiceState;
 import org.xmlet.htmlapifaster.PhrasingContent;
@@ -30,11 +31,16 @@ final class ServiceViews {
     };
   }
 
-  /** Nothing when this Workstation has no Route for it. */
-  static void hostname(PhrasingContent<?, ?> parent, Service service) {
+  /** No link when this Workstation cannot serve a certificate-only Route. */
+  static void hostname(PhrasingContent<?, ?> parent, Service service, TraefikSettings settings) {
     if (service.hostname() == null) {
       return;
     }
-    Layout.externalLink(parent, service.hostname());
+    String url = settings.publicationUrl(service);
+    if (url == null) {
+      parent.text(service.hostname());
+    } else {
+      Layout.externalLink(parent, service.hostname(), url);
+    }
   }
 }
