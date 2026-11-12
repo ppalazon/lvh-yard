@@ -140,7 +140,8 @@ class TestcontainersConfiguration {
 
   /**
    * As {@link #listener}, but it answers every HTTP request on {@code port} with 200 and the text
-   * {@code body}.
+   * {@code body}. One {@code nc} serves every connection at once, so connections that come
+   * together, such as a check and a request, do not refuse each other.
    */
   static GenericContainer<?> httpListener(String name, int port, String body) {
     String response =
@@ -153,13 +154,7 @@ class TestcontainersConfiguration {
             command
                 .withName(name)
                 .withEntrypoint(
-                    "sh",
-                    "-c",
-                    "while true; do printf '"
-                        + response
-                        + "' | nc -l -p "
-                        + port
-                        + " >/dev/null; done")
+                    "sh", "-c", "nc -ll -p " + port + " -e sh -c \"printf '" + response + "'\"")
                 .withCmd())
         .waitingFor(Wait.forListeningPort());
   }

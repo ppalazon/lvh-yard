@@ -16,6 +16,7 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -47,6 +48,9 @@ public class ContainerBindings {
    */
   private static final List<String> EVERY_ADDRESS = List.of("", "0.0.0.0", "::");
 
+  /** Where a Bound Instance is for a loopback target: the Workstation itself. */
+  private static final String LOOPBACK = "127.0.0.1";
+
   private static final ObjectMapper JSON = JsonMapper.builder().build();
 
   private final Workstation workstation;
@@ -59,12 +63,16 @@ public class ContainerBindings {
 
   private final ServiceRecords records;
 
+  private final Publications publications;
+
   ContainerBindings(
       Workstation workstation,
       Consul consul,
       Docker docker,
       Registrations registrations,
-      ServiceRecords records) {
+      ServiceRecords records,
+      Publications publications) {
+    this.publications = publications;
     this.records = records;
     this.workstation = workstation;
     this.consul = consul;
@@ -233,6 +241,7 @@ public class ContainerBindings {
   public synchronized void sync() {
     List<Container> running = docker.runningContainers();
     String lanAddress = registrations.defaultHost();
+    Map<String, Publication> published = publications.all();
     List<BoundInstance> wanted = new ArrayList<>();
     all(null)
         .forEach((service, bindings) ->
@@ -240,7 +249,16 @@ public class ContainerBindings {
                 running.stream()
                     .filter(container -> matches(binding, container))
                     .forEach(container ->
-                        wanted.add(boundInstance(service, id, binding, container, lanAddress)))));
+                        wanted.add(
+                            boundInstance(
+                                service,
+                                id,
+                                binding,
+                                container,
+                                lanAddress,
+                                published.containsKey(service)
+                                    ? published.get(service).scope()
+                                    : null)))));
     registrations.keepBoundInstances(wanted);
   }
 
@@ -248,6 +266,12 @@ public class ContainerBindings {
     return binding.followsCompose()
         ? container.isOfComposeService(binding.composeProject(), binding.composeService())
         : container.isNamed(binding.container());
+  }
+
+  /** The Bound Instances follow a Publication that was added, changed or removed. */
+  @EventListener
+  void onPublicationsChanged(PublicationsChanged changed) {
+    syncIfDockerAnswers();
   }
 
   /** A Docker that does not answer leaves the sync to the watcher. */
@@ -261,16 +285,22 @@ public class ContainerBindings {
 
   /**
    * Where {@code container} gives {@code service} its Bound Instance. A container port published on
-   * every host address is at the LAN address and the host port, so other Workstations reach it; one
-   * published on one address only is at that address. Otherwise it is at the container's own
-   * address and the container port, or, for a container on the host's network, at the LAN address.
+   * one address only is at that address and its host port. One published on every host address is
+   * at the host port and, for a Local Publication, loopback, else the LAN address, so other
+   * Workstations reach it. Otherwise it is at the container's own address and the container port,
+   * or, for a container on the host's network, at loopback for a Local Publication, else the LAN
+   * address.
+   *
+   * @param scope that of the Service's Publication, or {@code null} when it has none
    */
   private static BoundInstance boundInstance(
       String service,
       String id,
       ContainerBindingRequest binding,
       Container container,
-      String lanAddress) {
+      String lanAddress,
+      Scope scope) {
+    String hostAddress = scope == Scope.LOCAL ? LOOPBACK : lanAddress;
     int containerPort = binding.port();
     Optional<Port> published =
         container.published(containerPort).stream()
@@ -281,10 +311,10 @@ public class ContainerBindings {
     int port;
     if (published.isPresent()) {
       String ip = published.get().ip() == null ? "" : published.get().ip();
-      host = EVERY_ADDRESS.contains(ip) ? lanAddress : ip;
+      host = EVERY_ADDRESS.contains(ip) ? hostAddress : ip;
       port = published.get().publicPort();
     } else {
-      host = container.address().orElse(lanAddress);
+      host = container.address().orElse(hostAddress);
       port = containerPort;
     }
     return new BoundInstance(

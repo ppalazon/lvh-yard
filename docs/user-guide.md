@@ -1509,13 +1509,24 @@ A container or Compose service can give Instances to several Services.
 Each Service keeps its own Container Bindings.
 
 Each running container that matches is a Bound Instance with a TCP check.
-When a Container Port has a Host Port, the Bound Instance uses that Host Port.
-For a port published on every host address, it uses the LAN address.
-For a port published on one address, it uses that address.
-A container on the host network uses the LAN address and its Container Port as
-the Host Port. With no Host Port, the Bound Instance uses the container's own
-address and Container Port. A Bound Instance comes and goes with its container.
-You cannot edit or remove it alone.
+Its address depends on the Scope of the Service's Publication:
+
+| The container                         | Local Scope                                    | Yard Scope                         | No Publication                     |
+| ------------------------------------- | ---------------------------------------------- | ---------------------------------- | ---------------------------------- |
+| Has a Host Port on every host address | `127.0.0.1` and the Host Port                  | LAN address and the Host Port      | LAN address and the Host Port      |
+| Has a Host Port on one address        | That address and the Host Port                 | That address and the Host Port     | That address and the Host Port     |
+| Has no Host Port                      | The container's own address and Container Port | The same                           | The same                           |
+| Is on the host network                | `127.0.0.1` and the Container Port             | LAN address and the Container Port | LAN address and the Container Port |
+
+When you publish, change the Scope or unpublish, the Bound Instances change at
+once. You do not restart the container. Each Service that follows a container
+has its own addresses. A Bound Instance comes and goes with its container. You
+cannot edit or remove it alone.
+
+Local Scope decides who gets a Route. It does not make a Host Port private, and
+it does not change the Docker binding or where the process listens. A port that
+Docker publishes on every address stays open on the LAN. A process that listens
+only on loopback does not accept connections at the LAN address.
 
 Each source on the Instance Sources card has a box with its Instances, such as
 "1 Instance, 1 passing". Open it to read each Instance's address and Health.

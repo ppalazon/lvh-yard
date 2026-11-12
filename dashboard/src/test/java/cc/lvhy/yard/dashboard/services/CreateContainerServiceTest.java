@@ -31,10 +31,12 @@ class CreateContainerServiceTest {
   private final Registrations registrations =
       new Registrations(workstation, consul, records, Duration.ofSeconds(10));
 
-  private final ContainerBindings bindings =
-      new ContainerBindings(workstation, consul, new FakeDocker(), registrations, records);
+  private final Publications publications =
+      new Publications(workstation, consul, records, null, event -> {});
 
-  private final Publications publications = new Publications(workstation, consul, records, null);
+  private final ContainerBindings bindings =
+      new ContainerBindings(
+          workstation, consul, new FakeDocker(), registrations, records, publications);
 
   private final Services services =
       new Services(workstation, records, publications, registrations, bindings);

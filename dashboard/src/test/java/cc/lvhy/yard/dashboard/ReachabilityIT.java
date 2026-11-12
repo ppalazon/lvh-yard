@@ -78,6 +78,93 @@ class ReachabilityIT extends DashboardIT {
   }
 
   @Test
+  void wildcardHostPortIsRoutedAtLoopbackForLocalScopeAndAtTheLanAddressForYardScope()
+      throws IOException, InterruptedException {
+    String web = newServiceName("web");
+    String name = "yard-test-" + web;
+    GenericContainer<?> container =
+        start(
+            TestcontainersConfiguration.httpListener(name, 8080, "hello from " + web)
+                .withExposedPorts(8080));
+    int hostPort = container.getMappedPort(8080);
+    // The Consul container stands for the Workstation: its address is the LAN address, and its
+    // checks run there. So it reaches the Host Port at its own addresses, as Consul on the host
+    // does, by passing connections on to where Docker publishes it.
+    forwardToHostPort(hostPort);
+    try {
+      bind(web, name, 8080);
+      await()
+          .atMost(Duration.ofSeconds(15))
+          .until(() -> get(servicePath(web)).getBody().get("instances").size() == 1);
+
+      publish(web);
+      assertReachedAt(web, "127.0.0.1:" + hostPort);
+
+      put(publicationPath(web), Map.of("scope", "yard"));
+      assertReachedAt(web, lanAddress() + ":" + hostPort);
+    } finally {
+      consulContainer.execInContainer("pkill", "-f", "nc -ll -p " + hostPort + " ");
+    }
+  }
+
+  /**
+   * Waits until the one Instance of {@code web} is at {@code address}, passes its check, and a
+   * request through Traefik reaches the container.
+   */
+  private void assertReachedAt(String web, String address) {
+    JsonNode result =
+        await()
+            .atMost(Duration.ofSeconds(30))
+            .until(
+                () -> get(reachabilityPath(WORKSTATION, web)).getBody(),
+                tested ->
+                    tested.get("passed").asBoolean()
+                        && tested.get("instances").get(0).get("address").asString().equals(address)
+                        && tested.get("routes").get(0).path("status").asInt() == 200);
+    assertThat(result.get("instances")).hasSize(1);
+    assertThat(result.get("routes")).hasSize(1);
+    assertThat(result.get("routes").get(0).get("status").asInt()).isEqualTo(200);
+    await()
+        .atMost(Duration.ofSeconds(15))
+        .untilAsserted(() -> {
+          JsonNode instance = get(servicePath(web)).getBody().get("instances").get(0);
+          assertThat(instance.get("host").asString() + ":" + instance.get("port").asInt())
+              .isEqualTo(address);
+          assertThat(instance.get("health").asString()).isEqualTo("passing");
+        });
+  }
+
+  /**
+   * Starts, inside the Consul container, a loop that accepts each connection on {@code hostPort}
+   * and passes it on to that port on the Docker host, where the container's Host Port is.
+   */
+  private void forwardToHostPort(int hostPort) throws IOException, InterruptedException {
+    String gateway =
+        consulContainer
+            .getContainerInfo()
+            .getNetworkSettings()
+            .getNetworks()
+            .values()
+            .iterator()
+            .next()
+            .getGateway();
+    // One process serves every connection at once, so the checks, the direct tests and Traefik
+    // never wait for each other. The name in the command line is what the test stops it by.
+    consulContainer.execInContainer(
+        "sh",
+        "-c",
+        "nc -ll -p "
+            + hostPort
+            + " -e sh -c 'nc "
+            + gateway
+            + " "
+            + hostPort
+            + " # forward-"
+            + hostPort
+            + "' >/dev/null 2>&1 &");
+  }
+
+  @Test
   void serviceThatStreamsItsAnswerIsReachedOnceItsHeadersCome() throws IOException {
     String events = newServiceName("events");
     HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
