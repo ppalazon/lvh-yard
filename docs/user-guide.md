@@ -1036,8 +1036,9 @@ show this risk.
 Traefik does not log the requests to a new Publication. To see them in the
 Traefik access log, turn the access log on. Use the Service page or
 `lvh-yard publish <service> --access-log on`. Then Traefik writes one line for
-each request to the Route. If you publish again without `--access-log`, the
-setting does not change.
+each request to the Route. To read the log, run `lvh-yard ws compose logs traefik`;
+the Service page shows this command while the access log is on. If you publish
+again without `--access-log`, the setting does not change.
 
 You can see a Remote Service, but only its Home Workstation can change it. Its
 page has no forms, and the API answers 405 to a change under `/api/services`.

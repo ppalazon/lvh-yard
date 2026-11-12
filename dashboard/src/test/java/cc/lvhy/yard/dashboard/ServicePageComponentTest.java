@@ -144,12 +144,18 @@ class ServicePageComponentTest extends DashboardComponentTest {
     String page = "/services/ws-test/" + web;
     assertThat(getPage(page).getBody())
         .contains("Show in the access log")
-        .contains("name=\"accessLog\" value=\"true\"");
+        .contains("name=\"accessLog\" value=\"true\"")
+        .doesNotContain("lvh-yard ws compose logs traefik");
 
     ResponseEntity<String> response = postForm(page + "/publish", Map.of("accessLog", "true"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
-    assertThat(getPage(page).getBody()).contains("name=\"accessLog\" value=\"false\"");
+    assertThat(getPage(page).getBody())
+        .contains("name=\"accessLog\" value=\"false\"")
+        .contains(
+            "Traefik logs each request to the Route. To see the log, run this command:"
+                + "<code class=\"mt-1 block w-fit max-w-full break-all rounded bg-muted px-2 py-1"
+                + " font-mono\">lvh-yard ws compose logs traefik</code>");
 
     postForm(page + "/publish", Map.of("accessLog", "false"));
 

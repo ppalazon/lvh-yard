@@ -27,6 +27,22 @@ final class SwitchForm {
       boolean on,
       String label,
       String hint) {
+    render(parent, action, field, value, on, label, hint, null);
+  }
+
+  /**
+   * @param command a command that follows the hint on a line of its own, shown as code, or {@code
+   *     null}. The hint then leads into it, such as {@code To see the log, run this command:}.
+   */
+  static void render(
+      FlowContent<?, ?> parent,
+      String action,
+      String field,
+      String value,
+      boolean on,
+      String label,
+      String hint,
+      String command) {
     parent
         .form()
         .addAttr("method", "post")
@@ -57,8 +73,21 @@ final class SwitchForm {
         .text(label)
         .__()
         .of(form -> {
-          if (hint != null) {
+          if (hint == null) {
+            return;
+          }
+          if (command == null) {
             form.p().attrClass("text-muted-foreground text-sm").text(hint).__();
+          } else {
+            form.p()
+                .attrClass("text-muted-foreground text-sm")
+                .text(hint)
+                .code()
+                .attrClass(
+                    "mt-1 block w-fit max-w-full break-all rounded bg-muted px-2 py-1 font-mono")
+                .text(command)
+                .__()
+                .__();
           }
         })
         .__();

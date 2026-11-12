@@ -192,8 +192,9 @@ final class ServicePage {
                 logged,
                 "Show in the access log",
                 logged
-                    ? "Traefik logs each request to the Route."
-                    : "Traefik does not log requests to the Route.");
+                    ? "Traefik logs each request to the Route. To see the log, run this command:"
+                    : "Traefik does not log requests to the Route.",
+                logged ? "lvh-yard ws compose logs traefik" : null);
           }
         })
         .__();
