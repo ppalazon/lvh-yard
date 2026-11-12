@@ -113,6 +113,15 @@ abstract class DashboardClient {
     return container.published(containerPort).getFirst().publicPort();
   }
 
+  /** The host port of the mapping of {@code containerPort} on {@code hostIp}. */
+  static int hostPortOn(Container container, int containerPort, String hostIp) {
+    return container.published(containerPort).stream()
+        .filter(port -> hostIp.equals(port.ip()))
+        .findFirst()
+        .orElseThrow()
+        .publicPort();
+  }
+
   /** Stops the fake {@code container}, as {@code docker stop} does. */
   void stopContainer(Container container) {
     docker.stop(container.name());

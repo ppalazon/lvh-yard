@@ -230,4 +230,161 @@ class BoundInstanceTargetsComponentTest extends DashboardComponentTest {
         .untilAsserted(() ->
             assertThat(targetsNow(web)).containsExactly(LOOPBACK + ":" + hostPort(container, 80)));
   }
+
+  @Test
+  void separateLoopbackAndLanMappingsAreChosenByScopeAndUnpublishedKeepsTheOriginalChoice() {
+    String web = newServiceName("web");
+    String name = newContainerName();
+    Container container =
+        start(
+            FakeDocker.container(name).publishedOn(lanAddress(), 80).alsoPublishedOn(LOOPBACK, 80));
+    String lan = lanAddress() + ":" + hostPortOn(container, 80, lanAddress());
+    String loopback = LOOPBACK + ":" + hostPortOn(container, 80, LOOPBACK);
+    bind(web, name, 80);
+    assertThat(targets(web, 1)).containsExactly(lan);
+
+    publish(web);
+    assertThat(targetsNow(web)).containsExactly(loopback);
+    assertThat(routeTargets(web)).containsExactly("http://" + loopback);
+    assertThat(onlyInstance(web).get("hostPort").asInt())
+        .isEqualTo(hostPortOn(container, 80, LOOPBACK));
+
+    scope(web, "yard");
+    assertThat(targetsNow(web)).containsExactly(lan);
+    assertThat(get(servicePath(web)).getBody().get("warnings")).isEmpty();
+
+    scope(web, "local");
+    assertThat(targetsNow(web)).containsExactly(loopback);
+
+    delete(publicationPath(web));
+    assertThat(targetsNow(web)).containsExactly(lan);
+  }
+
+  @Test
+  void equallyRankedPreferredMappingsKeepTheirOrderAndAWildcardComesFirst() {
+    String yard = newServiceName("yard");
+    String local = newServiceName("local");
+    String ties = newContainerName();
+    Container tied =
+        start(
+            FakeDocker.container(ties)
+                .publishedOn(LOOPBACK, 80)
+                .alsoPublishedOn("10.9.8.7", 80)
+                .alsoPublishedOn("10.9.8.8", 80)
+                .alsoPublishedOn("127.0.0.2", 80));
+    bind(yard, ties, 80);
+    scope(yard, "yard");
+    assertThat(targets(yard, 1)).containsExactly("10.9.8.7:" + hostPortOn(tied, 80, "10.9.8.7"));
+    bind(local, ties, 80);
+    publish(local);
+    assertThat(targets(local, 1)).containsExactly(LOOPBACK + ":" + hostPortOn(tied, 80, LOOPBACK));
+
+    String name = newContainerName();
+    Container withWildcard =
+        start(
+            FakeDocker.container(name)
+                .publishedOn(LOOPBACK, 90)
+                .alsoPublishedOn("10.9.8.7", 90)
+                .alsoPublishedOn("0.0.0.0,::", 90));
+    int wildcardPort = hostPortOn(withWildcard, 90, "0.0.0.0");
+    String mixedYard = newServiceName("mixed-yard");
+    String mixedLocal = newServiceName("mixed-local");
+    bind(mixedYard, name, 90);
+    bind(mixedLocal, name, 90);
+    scope(mixedYard, "yard");
+    publish(mixedLocal);
+    assertThat(targets(mixedYard, 1)).containsExactly(lanAddress() + ":" + wildcardPort);
+    assertThat(targets(mixedLocal, 1)).containsExactly(LOOPBACK + ":" + wildcardPort);
+  }
+
+  @Test
+  void whenNoMappingSuitsTheScopeTheFirstOfAllMappingsIsUsedWithItsOwnPort() {
+    String yard = newServiceName("yard");
+    String local = newServiceName("local");
+    String loopbackOnly = newContainerName();
+    Container loopbacks =
+        start(
+            FakeDocker.container(loopbackOnly)
+                .publishedOn("127.0.0.2", 80)
+                .alsoPublishedOn(LOOPBACK, 80));
+    bind(yard, loopbackOnly, 80);
+    scope(yard, "yard");
+
+    String expected = "127.0.0.2:" + hostPortOn(loopbacks, 80, "127.0.0.2");
+    assertThat(targets(yard, 1)).containsExactly(expected);
+    assertThat(
+            get(servicePath(yard))
+                .getBody()
+                .get("warnings")
+                .valueStream()
+                .map(warning -> warning.get("kind").asString()))
+        .containsExactly("loopback-instance");
+
+    String lanOnly = newContainerName();
+    Container lans =
+        start(
+            FakeDocker.container(lanOnly)
+                .publishedOn("10.9.8.8", 80)
+                .alsoPublishedOn(lanAddress(), 80));
+    bind(local, lanOnly, 80);
+    publish(local);
+    assertThat(targets(local, 1)).containsExactly("10.9.8.8:" + hostPortOn(lans, 80, "10.9.8.8"));
+  }
+
+  @Test
+  void eachContainerOfAComposeServiceChoosesFromItsOwnMappings() {
+    String web = newServiceName("web");
+    String project = newComposeProject();
+    Container both =
+        start(
+            FakeDocker.container(newContainerName())
+                .compose(project, "web")
+                .publishedOn(lanAddress(), 80)
+                .alsoPublishedOn(LOOPBACK, 80));
+    Container lanOnly =
+        start(
+            FakeDocker.container(newContainerName())
+                .compose(project, "web")
+                .publishedOn(lanAddress(), 80));
+    Container loopbackOnly =
+        start(
+            FakeDocker.container(newContainerName())
+                .compose(project, "web")
+                .publishedOn(LOOPBACK, 80));
+    bindCompose(web, project, "web", 80);
+
+    publish(web);
+    assertThat(targets(web, 3))
+        .containsExactlyInAnyOrder(
+            LOOPBACK + ":" + hostPortOn(both, 80, LOOPBACK),
+            lanAddress() + ":" + hostPortOn(lanOnly, 80, lanAddress()),
+            LOOPBACK + ":" + hostPortOn(loopbackOnly, 80, LOOPBACK));
+
+    scope(web, "yard");
+    assertThat(targetsNow(web))
+        .containsExactlyInAnyOrder(
+            lanAddress() + ":" + hostPortOn(both, 80, lanAddress()),
+            lanAddress() + ":" + hostPortOn(lanOnly, 80, lanAddress()),
+            LOOPBACK + ":" + hostPortOn(loopbackOnly, 80, LOOPBACK));
+  }
+
+  @Test
+  void servicesFollowingOneContainerWithSeveralMappingsChooseByTheirOwnScope() {
+    String local = newServiceName("local");
+    String yard = newServiceName("yard");
+    String name = newContainerName();
+    Container container =
+        start(
+            FakeDocker.container(name).publishedOn(lanAddress(), 80).alsoPublishedOn(LOOPBACK, 80));
+    bind(local, name, 80);
+    bind(yard, name, 80);
+
+    publish(local);
+    scope(yard, "yard");
+
+    assertThat(targets(local, 1))
+        .containsExactly(LOOPBACK + ":" + hostPortOn(container, 80, LOOPBACK));
+    assertThat(targets(yard, 1))
+        .containsExactly(lanAddress() + ":" + hostPortOn(container, 80, lanAddress()));
+  }
 }

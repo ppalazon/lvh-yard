@@ -16,6 +16,7 @@ import cc.lvhy.yard.dashboard.consul.Consul;
 import cc.lvhy.yard.dashboard.consul.FakeConsul;
 import cc.lvhy.yard.dashboard.docker.FakeDocker;
 import java.time.Duration;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class CreateContainerServiceTest {
@@ -36,7 +37,13 @@ class CreateContainerServiceTest {
 
   private final ContainerBindings bindings =
       new ContainerBindings(
-          workstation, consul, new FakeDocker(), registrations, records, publications);
+          workstation,
+          consul,
+          new FakeDocker(),
+          registrations,
+          records,
+          publications,
+          new OutOfRange(List.of()));
 
   private final Services services =
       new Services(workstation, records, publications, registrations, bindings);

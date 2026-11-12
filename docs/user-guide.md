@@ -1518,6 +1518,18 @@ Its address depends on the Scope of the Service's Publication:
 | Has no Host Port                      | The container's own address and Container Port | The same                           | The same                           |
 | Is on the host network                | `127.0.0.1` and the Container Port             | LAN address and the Container Port | LAN address and the Container Port |
 
+A container port can have several Host Port mappings, for example one on
+`127.0.0.1` and one on the LAN address, each with its own Host Port. The Scope
+picks the mapping. Local Scope prefers a mapping on loopback or on every
+address. Yard Scope prefers a mapping on every address, or on an address that
+is not Out of range. Among the preferred mappings, one on every address comes
+first. Then the first in Docker's order wins. If no mapping suits the Scope,
+the same rule picks from all mappings, so an explicit address and its Host Port
+stay as Docker gives them, with the usual warning. The container's own address
+is used only when the container port has no Host Port at all. The address and
+Host Port always come from the same mapping. With no Publication, the mapping
+is chosen as if no Scope preferred any.
+
 When you publish, change the Scope or unpublish, the Bound Instances change at
 once. You do not restart the container. Each Service that follows a container
 has its own addresses. A Bound Instance comes and goes with its container. You
