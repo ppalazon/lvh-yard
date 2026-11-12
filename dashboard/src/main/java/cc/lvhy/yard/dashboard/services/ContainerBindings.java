@@ -49,7 +49,7 @@ public class ContainerBindings {
    */
   private static final List<String> EVERY_ADDRESS = List.of("", "0.0.0.0", "::");
 
-  /** Where a Bound Instance is for a loopback target: the Workstation itself. */
+  /** The host address of a Bound Instance under Local Scope. */
   private static final String LOOPBACK = "127.0.0.1";
 
   private static final ObjectMapper JSON = JsonMapper.builder().build();
@@ -289,16 +289,8 @@ public class ContainerBindings {
   }
 
   /**
-   * Where {@code container} gives {@code service} its Bound Instance. A container port published on
-   * one address only is at that address and its host port. One published on every host address is
-   * at the host port and, for a Local Publication, loopback, else the LAN address, so other
-   * Workstations reach it. Otherwise it is at the container's own address and the container port,
-   * or, for a container on the host's network, at loopback for a Local Publication, else the LAN
-   * address.
-   *
-   * <p>With several mappings of a container port, the ones that suit the Scope are chosen from, a
-   * wildcard one first, then the first in Docker's order. If none suits, all are chosen from alike.
-   * Only a container port with no mapping at all falls back to the container's own address.
+   * Where {@code container} gives {@code service} its Bound Instance. A mapping on every address
+   * takes the Scope's host address, so Local gives loopback and the rest the LAN address.
    *
    * @param scope that of the Service's Publication, or {@code null} when it has none
    */
@@ -315,15 +307,11 @@ public class ContainerBindings {
     List<Port> suited = mappings.stream().filter(port -> suits(port, scope)).toList();
     Optional<Port> published =
         (suited.isEmpty() ? mappings : suited)
-            .stream()
-                .min(
-                    Comparator.comparing(port ->
-                        EVERY_ADDRESS.contains(port.ip() == null ? "" : port.ip()) ? 0 : 1));
+            .stream().min(Comparator.comparing(port -> everyAddress(port) ? 0 : 1));
     String host;
     int port;
     if (published.isPresent()) {
-      String ip = published.get().ip() == null ? "" : published.get().ip();
-      host = EVERY_ADDRESS.contains(ip) ? hostAddress : ip;
+      host = everyAddress(published.get()) ? hostAddress : published.get().ip();
       port = published.get().publicPort();
     } else {
       host = container.address().orElse(hostAddress);
@@ -339,19 +327,18 @@ public class ContainerBindings {
         published.isPresent() || container.address().isEmpty());
   }
 
-  /**
-   * Whether a mapping suits {@code scope}: Local takes loopback or every address, Yard takes every
-   * address or one that a Route from another Workstation can reach. With no Publication, any
-   * mapping suits.
-   */
+  /** With no Publication, every mapping suits. */
   private boolean suits(Port port, Scope scope) {
-    String ip = port.ip() == null ? "" : port.ip();
-    if (scope == null || EVERY_ADDRESS.contains(ip)) {
+    if (scope == null || everyAddress(port)) {
       return true;
     }
     return scope == Scope.LOCAL
-        ? InetAddress.ofLiteral(ip).isLoopbackAddress()
-        : !outOfRange.contains(ip);
+        ? InetAddress.ofLiteral(port.ip()).isLoopbackAddress()
+        : !outOfRange.contains(port.ip());
+  }
+
+  private static boolean everyAddress(Port port) {
+    return EVERY_ADDRESS.contains(port.ip() == null ? "" : port.ip());
   }
 
   private void checkHome(String workstation) {

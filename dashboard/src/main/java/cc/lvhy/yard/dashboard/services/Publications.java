@@ -34,15 +34,15 @@ public class Publications {
 
   private final RouteProfiles routeProfiles;
 
-  private final ApplicationEventPublisher changes;
+  private final ApplicationEventPublisher events;
 
   Publications(
       Workstation workstation,
       Consul consul,
       ServiceRecords records,
       RouteProfiles routeProfiles,
-      ApplicationEventPublisher changes) {
-    this.changes = changes;
+      ApplicationEventPublisher events) {
+    this.events = events;
     this.workstation = workstation;
     this.consul = consul;
     this.records = records;
@@ -72,7 +72,7 @@ public class Publications {
             given(profiles, existing, Publication::profiles, List.of()),
             given(change.accessLog(), existing, Publication::accessLog, false));
     consul.putValue(PREFIX + service, value(chosen));
-    changes.publishEvent(new PublicationsChanged());
+    events.publishEvent(new PublicationsChanged());
   }
 
   private void checkProfiles(List<String> profiles) {
@@ -124,7 +124,7 @@ public class Publications {
     checkHome(workstation);
     checkExists(service);
     consul.deleteValue(PREFIX + service);
-    changes.publishEvent(new PublicationsChanged());
+    events.publishEvent(new PublicationsChanged());
   }
 
   Map<String, Publication> all() {

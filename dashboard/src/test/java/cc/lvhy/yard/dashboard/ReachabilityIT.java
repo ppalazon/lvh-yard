@@ -134,10 +134,7 @@ class ReachabilityIT extends DashboardIT {
         });
   }
 
-  /**
-   * Starts, inside the Consul container, a loop that accepts each connection on {@code hostPort}
-   * and passes it on to that port on the Docker host, where the container's Host Port is.
-   */
+  /** Inside the Consul container, forwards {@code hostPort} to the same port on the Docker host. */
   private void forwardToHostPort(int hostPort) throws IOException, InterruptedException {
     String gateway =
         consulContainer
@@ -148,8 +145,7 @@ class ReachabilityIT extends DashboardIT {
             .iterator()
             .next()
             .getGateway();
-    // One process serves every connection at once, so the checks, the direct tests and Traefik
-    // never wait for each other. The name in the command line is what the test stops it by.
+    // One listener serves all connections at once. The "# forward-" tag lets the test stop it.
     consulContainer.execInContainer(
         "sh",
         "-c",
