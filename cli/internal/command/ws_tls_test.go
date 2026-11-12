@@ -103,6 +103,33 @@ func TestWSTLSWorkstationCertificates(t *testing.T) {
  assertPrivateWorkstation(t, folder)
 }
 
+func TestWSTLSWildcardAddresses(t *testing.T) {
+ yard := commandtest.New(t); folder := t.TempDir()
+ if r := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"); r.ExitCode != 0 { t.Fatal(r) }
+ if r := yard.Run("ws", "tls", "ca", "create", "--dir", folder); r.ExitCode != 0 { t.Fatal(r) }
+ for _, explicit := range []bool{false, true} {
+  args := []string{"ws", "tls", "cert", "create", "--dir", folder}
+  if explicit { args = append(args, "--address", "*.ws-b.lvh.me") }
+  if r := yard.Run(args...); r.ExitCode != 0 { t.Fatal(r) }
+  cert := readTLSCertificate(t, filepath.Join(folder, "tls", "workstation.crt"))
+  for _, tc := range []struct{
+   hostname string
+   matches bool
+  }{
+   {"server.ws-a.consul", true},
+   {"localhost", true},
+   {"127.0.0.1", true},
+   {"app.lvh.me", true},
+   {"app.ws-b.lvh.me", explicit},
+   {"app.ws-c.lvh.me", false},
+   {"deeper.app.ws-b.lvh.me", false},
+  } {
+   err := cert.VerifyHostname(tc.hostname)
+   if (err == nil) != tc.matches { t.Fatalf("explicit wildcard %t: VerifyHostname(%q) = %v, want match %t", explicit, tc.hostname, err, tc.matches) }
+  }
+ }
+}
+
 func TestWSTLSRefusals(t *testing.T) {
  yard := commandtest.New(t); folder := t.TempDir()
  if r := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); r.ExitCode != 0 { t.Fatal(r) }
@@ -113,6 +140,17 @@ func TestWSTLSRefusals(t *testing.T) {
   {"--days", "0"}, {"--days", "-1"}, {"--days", "100001"}, {"--days", "4000"},
  } {
   if r := yard.Run(append([]string{"ws", "tls", "cert", "create", "--dir", folder}, flags...)...); r.ExitCode == 0 { t.Fatalf("accepted %v", flags) }
+ }
+ for _, address := range []string{
+  "*", "*.127.0.0.1", "*.::1", "*.[::1]", "*.2001:db8::1",
+  "ws-*.lvh.me", "*ws-b.lvh.me", "app.*.lvh.me", "*.*.lvh.me",
+  "*.ws-b..lvh.me", "*.ws_b.lvh.me", "*.-ws-b.lvh.me",
+  "*.ws-b.lvh.me.", "*."+strings.Repeat("a", 64)+".lvh.me",
+ } {
+  t.Run(address, func(t *testing.T) {
+   r := yard.Run("ws", "tls", "cert", "create", "--dir", folder, "--address", address)
+   if r.ExitCode == 0 || !strings.Contains(r.Stderr, "invalid --address") { t.Fatalf("malformed wildcard not refused: %+v", r) }
+  })
  }
  if err := os.Remove(filepath.Join(folder, "ca", "ca.key")); err != nil { t.Fatal(err) }
  if r := yard.Run("ws", "tls", "cert", "create", "--dir", folder); r.ExitCode == 0 || !strings.Contains(r.Stderr, "Yard CA key") { t.Fatalf("missing key: %+v", r) }
