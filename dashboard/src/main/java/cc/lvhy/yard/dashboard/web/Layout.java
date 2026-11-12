@@ -206,8 +206,8 @@ public final class Layout {
   }
 
   /**
-   * A link in a new tab, with Lucide's external-link icon. {@code noopener} keeps the new page
-   * away from the dashboard tab.
+   * A link in a new tab, with Lucide's external-link icon. {@code noopener} keeps the new page away
+   * from the dashboard tab.
    */
   static void externalLink(PhrasingContent<?, ?> parent, String hostname, String url) {
     parent

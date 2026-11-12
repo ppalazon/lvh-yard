@@ -65,8 +65,8 @@ the `lvh-yard.backups.path` setting.
 
 ## Building the CLI
 
-The CLI is a Go program in `cli/`. It uses the standard library, Cobra and one
-YAML module.
+The CLI is a Go program in `cli/`. It uses the standard library, Cobra, a
+YAML module and a PKCS#12 module.
 
 ```sh
 mise run cli:build      # builds cli/target/lvh-yard
@@ -89,12 +89,19 @@ Java CLI, built as a native executable:
 | Java, native  | 49 MB   | 7.3 ms                                |
 
 The source templates are `config/compose.yaml`, `config/.env.example`,
-`config/00-lvh-yard.hcl` and `config/lvh-yard.yaml`. The CLI embeds copies from
-`cli/internal/templates/`. After you edit a source, run
-`mise run cli:templates` to refresh the copies. Commit the copies with the
-source files. A unit test compares the raw bytes. When `ws init` writes
-the Workstation Folder, it pins the dashboard image to the CLI version, or
-`latest` for `dev`. The user template has no build setting.
+`config/00-lvh-yard.hcl`, `config/10-tls.hcl`, `config/10-tls.yaml` and
+`config/lvh-yard.yaml`. The CLI embeds copies from `cli/internal/templates/`.
+After you edit a source, run `mise run cli:templates` to refresh the copies.
+Commit the copies with the source files. A unit test compares the raw bytes.
+When `ws init` writes the Workstation Folder, it pins the dashboard image to
+the CLI version, or `latest` for `dev`. The user template has no build setting.
+
+After `dev:up`, run this from the repository root to build the dashboard with Compose:
+
+```sh
+docker compose --project-directory dev/ws-a --env-file dev/ws-a/.env \
+  -f dev/ws-a/compose.yaml -f dev/compose.yaml build dashboard
+```
 
 The CLI creates Workstation Folders with mode 700 and files with mode 600.
 It creates `backups/` and `consul-data/` before Compose starts, so Docker

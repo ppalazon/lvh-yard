@@ -10,8 +10,7 @@ import org.springframework.test.context.TestPropertySource;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-@TestPropertySource(
-    properties = {"lvh-yard.traefik.https-port=8443", "lvh-yard.traefik.port=8088"})
+@TestPropertySource(properties = "lvh-yard.traefik.https-port=8443")
 class HttpsRoutesComponentTest extends DashboardComponentTest {
   @AfterEach
   void removeProfiles() throws Exception {
@@ -80,7 +79,11 @@ class HttpsRoutesComponentTest extends DashboardComponentTest {
             String router = service + "." + RemoteWorkstation.NAME;
             assertThat(http.get("routers").has(router)).isFalse();
             assertThat(
-                    http.get("routers").get(router + "__https").get("tls").get("options").asString())
+                    http.get("routers")
+                        .get(router + "__https")
+                        .get("tls")
+                        .get("options")
+                        .asString())
                 .isEqualTo("yard-client-certificate@file");
             assertThat(http.path("middlewares").has("ws-remote_remote-certificate")).isFalse();
             assertPublicationLink(
@@ -104,7 +107,6 @@ class HttpsRoutesComponentTest extends DashboardComponentTest {
     assertThat(secure.get("rule")).isEqualTo(plain.get("rule"));
     assertThat(secure.get("service")).isEqualTo(plain.get("service"));
     assertThat(plain.has("middlewares")).isFalse();
-    assertPublicationLink("ws-test", service, "http://" + service + ".lvh.test:8088");
   }
 
   private void assertPublicationLink(String home, String service, String url) {

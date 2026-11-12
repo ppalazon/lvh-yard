@@ -217,11 +217,7 @@ final class CatalogPage {
    * @param remote whether the Services are of another Workstation, so a row can offer an Alias
    */
   private static void services(
-      Div<?> region,
-      List<Service> all,
-      Filters filters,
-      boolean remote,
-      TraefikSettings traefik) {
+      Div<?> region, List<Service> all, Filters filters, boolean remote, TraefikSettings traefik) {
     List<Service> services = filters.of(all);
     if (services.isEmpty()) {
       if (all.isEmpty()) {
