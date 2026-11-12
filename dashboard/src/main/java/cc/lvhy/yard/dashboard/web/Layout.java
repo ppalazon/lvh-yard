@@ -206,13 +206,13 @@ public final class Layout {
   }
 
   /**
-   * A link to {@code http://hostname} in a new tab, with Lucide's external-link icon. {@code
-   * noopener} keeps the new page away from the dashboard tab.
+   * A link in a new tab, with Lucide's external-link icon. {@code noopener} keeps the new page
+   * away from the dashboard tab.
    */
-  static void externalLink(PhrasingContent<?, ?> parent, String hostname) {
+  static void externalLink(PhrasingContent<?, ?> parent, String hostname, String url) {
     parent
         .a()
-        .attrHref(attr("http://" + hostname))
+        .attrHref(attr(url))
         .attrTarget("_blank")
         .addAttr("rel", "noopener noreferrer")
         .attrClass("underline")

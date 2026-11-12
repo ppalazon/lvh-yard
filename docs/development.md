@@ -12,23 +12,11 @@ and installs Node for Tailwind CSS and Go for the CLI.
 
 ## Running from the sources
 
-1. Copy `config/.env.example` to `.env`. Set `YARD_WORKSTATION`, `YARD_GOSSIP_KEY`
-   and `YARD_PEERS`.
-2. Run `mise run up` to start Consul and Traefik.
-3. Run `mise run dashboard:run` to start the dashboard from the sources.
-
-To run the dashboard image instead, copy `config/lvh-yard.yaml` to
-`lvh-yard.yaml` and add `COMPOSE_PROFILES=dashboard` and
-`YARD_DOCKER_GID` to `.env`. Then run `mise run up`. To pin a version,
-set `YARD_DASHBOARD_IMAGE`, for example to
-`ghcr.io/ppalazon/lvh-yard-dashboard:0.1.0`.
-
-The source tasks layer `dev/compose.yaml` on `config/compose.yaml`. The
-development file adds the dashboard build. To build it through Compose, run:
-
-```sh
-docker compose --project-directory . --env-file .env -f config/compose.yaml -f dev/compose.yaml build dashboard
-```
+Use [A Yard on one computer](#a-yard-on-one-computer) to start Consul and
+Traefik, then run either dashboard from the sources. The tasks create private
+Workstation Folders in `dev/ws-a/` and `dev/ws-b/`. Do not use the
+repository root as a Workstation Folder: `ws` repairs file modes recursively,
+which removes executable modes from checkout files.
 
 To try the image from your sources on another Workstation, build it and copy it
 there through ssh. The other Workstation needs Docker and ssh, but no registry.
@@ -50,8 +38,9 @@ Two test Workstations, ws-a and ws-b, can run side by side on loopback.
 `dev/ws-a/` and `dev/ws-b/`. They use the same Gossip Key and join each
 other through their loopback WAN ports. ws-b uses the Base Domain `localhost`.
 Later runs keep the folders and their settings, including certificates.
-`ws start` starts Consul and Traefik. The task leaves the dashboard for
-`dev:dashboard`, which runs it from the sources.
+`ws start` starts Consul and Traefik with `COMPOSE_PROFILES=traefik`.
+This explicit profile selection leaves the dashboard for `dev:dashboard`,
+which runs it from the sources.
 
 ```sh
 mise run dev:up                 # Consul and Traefik for both

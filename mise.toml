@@ -130,19 +130,6 @@ description = "Print the measures of a consolidation audit: stale learnings, don
 usage = 'flag "--check" help="Also time mise run check and count its output lines"'
 run = 'node dev/audit.mjs ${usage_check:+--check}'
 
-[tasks.up]
-description = "Start this Workstation's Consul and Traefik, as .env sets them up"
-run = "docker compose --project-directory . --env-file .env -f config/compose.yaml -f dev/compose.yaml up -d"
-
-[tasks.down]
-description = "Stop this Workstation's Consul and Traefik"
-run = "docker compose --project-directory . --env-file .env -f config/compose.yaml -f dev/compose.yaml down"
-
-[tasks."dashboard:run"]
-description = "Run the dashboard on this Workstation, as .env sets it up"
-depends = ["css"]
-run = "./mvnw -q -pl dashboard spring-boot:run"
-
 [tasks."dashboard:image"]
 description = "Build the dashboard image: mise run dashboard:image [--platform linux/arm64]"
 # The tag is the default image of compose.yaml, so docker compose on a Workstation uses this build without a change to .env.

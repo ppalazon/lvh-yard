@@ -3,6 +3,7 @@ package cc.lvhy.yard.dashboard.web;
 import static cc.lvhy.yard.dashboard.events.EventBroadcaster.YARD_CHANGED;
 
 import cc.lvhy.yard.dashboard.Workstation;
+import cc.lvhy.yard.dashboard.reachability.TraefikSettings;
 import cc.lvhy.yard.dashboard.services.Health;
 import cc.lvhy.yard.dashboard.services.HomeWorkstation;
 import cc.lvhy.yard.dashboard.services.Service;
@@ -48,7 +49,8 @@ final class CatalogPage {
     }
   }
 
-  static String render(Workstation workstation, Yard yard, Filters filters) {
+  static String render(
+      Workstation workstation, Yard yard, Filters filters, TraefikSettings traefik) {
     return Layout.page(
         "Catalog",
         workstation.name(),
@@ -79,17 +81,18 @@ final class CatalogPage {
                         "catalog",
                         filters.path(),
                         YARD_CHANGED,
-                        region -> workstations(region, yard, filters)))
+                        region -> workstations(region, yard, filters, traefik)))
                 .__());
   }
 
-  private static void workstations(Div<?> region, Yard yard, Filters filters) {
+  private static void workstations(
+      Div<?> region, Yard yard, Filters filters, TraefikSettings traefik) {
     if (filters.shows(yard.home().name())) {
-      home(region, yard.home(), filters);
+      home(region, yard.home(), filters, traefik);
     }
     List<YardWorkstation> remotes =
         yard.remotes().stream().filter(remote -> filters.shows(remote.name())).toList();
-    remotes.forEach(remote -> remote(region, remote, filters));
+    remotes.forEach(remote -> remote(region, remote, filters, traefik));
     if (!filters.shows(yard.home().name()) && remotes.isEmpty()) {
       region.p().text("The Yard has no Workstation " + filters.workstation() + ".").__();
     }
@@ -163,18 +166,20 @@ final class CatalogPage {
         .__();
   }
 
-  private static void home(Div<?> region, HomeWorkstation home, Filters filters) {
+  private static void home(
+      Div<?> region, HomeWorkstation home, Filters filters, TraefikSettings traefik) {
     region
         .div()
         .attrClass("catalog-workstation space-y-2")
         .of(group -> {
           heading(group, home.name(), "secondary", "This Workstation");
-          services(group, home.services(), filters, false);
+          services(group, home.services(), filters, false, traefik);
         })
         .__();
   }
 
-  private static void remote(Div<?> region, YardWorkstation remote, Filters filters) {
+  private static void remote(
+      Div<?> region, YardWorkstation remote, Filters filters, TraefikSettings traefik) {
     region
         .div()
         .attrClass("catalog-workstation space-y-2")
@@ -187,7 +192,7 @@ final class CatalogPage {
                 .__();
           } else {
             heading(group, remote.name(), null, null);
-            services(group, remote.services(), filters, true);
+            services(group, remote.services(), filters, true, traefik);
           }
         })
         .__();
@@ -211,7 +216,12 @@ final class CatalogPage {
   /**
    * @param remote whether the Services are of another Workstation, so a row can offer an Alias
    */
-  private static void services(Div<?> region, List<Service> all, Filters filters, boolean remote) {
+  private static void services(
+      Div<?> region,
+      List<Service> all,
+      Filters filters,
+      boolean remote,
+      TraefikSettings traefik) {
     List<Service> services = filters.of(all);
     if (services.isEmpty()) {
       if (all.isEmpty()) {
@@ -254,13 +264,13 @@ final class CatalogPage {
         .__()
         .__()
         .tbody()
-        .of(body -> services.forEach(service -> row(body, service, remote)))
+        .of(body -> services.forEach(service -> row(body, service, remote, traefik)))
         .__()
         .__()
         .__();
   }
 
-  private static void row(Tbody<?> body, Service service, boolean remote) {
+  private static void row(Tbody<?> body, Service service, boolean remote, TraefikSettings traefik) {
     body.tr()
         .td()
         .a()
@@ -277,7 +287,7 @@ final class CatalogPage {
           if (service.hostname() == null) {
             cell.span().attrClass("text-muted-foreground").text("No hostname").__();
           } else {
-            ServiceViews.hostname(cell, service);
+            ServiceViews.hostname(cell, service, traefik);
           }
         })
         .__()

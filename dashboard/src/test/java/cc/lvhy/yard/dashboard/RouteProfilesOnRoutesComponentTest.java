@@ -185,6 +185,12 @@ class RouteProfilesOnRoutesComponentTest extends DashboardComponentTest {
       assertThat(severity(saved, "client-certificate-unavailable")).isEqualTo("error");
       assertThat(warning(saved, "client-certificate-unavailable"))
           .contains("HTTPS", "Client Certificate");
+      for (String path : List.of("/", "/services/ws-test/" + service)) {
+        assertThat(getPage(path).getBody())
+            .contains(service + ".lvh.test")
+            .doesNotContain("href=\"http://" + service + ".lvh.test")
+            .doesNotContain("href=\"https://" + service + ".lvh.test");
+      }
     }
   }
 

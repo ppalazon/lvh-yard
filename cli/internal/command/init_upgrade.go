@@ -90,29 +90,28 @@ func upgradeInit(options *Options, folder string, out io.Writer) error {
 			fmt.Fprintf(out, "%s: %s -> %s\n", service, from.value, to.value)
 		}
 	}
-	if !changed {
-		return nil
-	}
-	var updated strings.Builder
-	updated.Grow(len(text))
-	start := 0
-	for _, image := range images {
-		if image.service != "consul" && image.service != "traefik" && image.service != "dashboard" {
-			continue
+	if changed {
+		var updated strings.Builder
+		updated.Grow(len(text))
+		start := 0
+		for _, image := range images {
+			if image.service != "consul" && image.service != "traefik" && image.service != "dashboard" {
+				continue
+			}
+			to, ok := findComposeImage(desired, image.service)
+			if !ok || image.value == to.value {
+				continue
+			}
+			updated.WriteString(text[start:image.start])
+			updated.WriteString(to.value)
+			start = image.end
 		}
-		to, ok := findComposeImage(desired, image.service)
-		if !ok || image.value == to.value {
-			continue
+		updated.WriteString(text[start:])
+		if err := os.WriteFile(file, []byte(updated.String()), 0600); err != nil {
+			return fmt.Errorf("Could not write %s: %w", file, err)
 		}
-		updated.WriteString(text[start:image.start])
-		updated.WriteString(to.value)
-		start = image.end
 	}
-	updated.WriteString(text[start:])
-	if err := os.WriteFile(file, []byte(updated.String()), 0600); err != nil {
-		return fmt.Errorf("Could not write %s: %w", file, err)
-	}
-	fmt.Fprintf(out, "Upgraded %s. Start the new images: cd %s && docker compose up -d\n", file, folder)
+	fmt.Fprintf(out, "Upgraded %s. Apply the generated options and images: cd %s && docker compose up -d --force-recreate\n", folder, folder)
 	return nil
 }
 

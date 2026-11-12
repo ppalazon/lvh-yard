@@ -140,7 +140,8 @@ lvh-yard:
 
 After saving the file, run `docker compose restart dashboard` in the Workstation
 Folder. `lvh-yard ws upgrade` and `lvh-yard ws set` leave the file unchanged.
-A dashboard run from the sources keeps reading `.env` as before.
+A dashboard run from the sources loads the Workstation Folder's settings through
+the [development tasks](development.md#a-yard-on-one-computer).
 
 ### Joining a Yard
 
@@ -337,7 +338,8 @@ Certificate signed by the Yard CA. The default option does not require one.
 After you install a new `lvh-yard`, run `lvh-yard ws upgrade`.
 It changes only the consul, traefik and dashboard image lines in `compose.yaml`
 and rewrites `consul.d/00-lvh-yard.hcl`.
-Then run `docker compose up -d` again in the Workstation Folder.
+Then run `docker compose up -d --force-recreate` in the Workstation Folder,
+even if every image is current. This makes Consul load the generated options.
 
 LVH Yard owns `consul.d/00-lvh-yard.hcl`, `consul.d/10-tls.hcl` and
 `traefik/dynamic/10-tls.yaml`. Generated files start with
@@ -1259,6 +1261,9 @@ from the Yard CA is refused. There is no HTTP Route or redirect.
 A Workstation without HTTPS gives it no Route. On the Home Workstation, this
 causes a Service Warning of level **error**. See [Client Certificates](#client-certificates)
 to make a certificate for a browser.
+
+Dashboard hostname links use HTTPS and the configured HTTPS port for these
+Publications. Other hostname links use HTTP.
 
 A profile must work on every Workstation, so the dashboard refuses a profile
 that:
