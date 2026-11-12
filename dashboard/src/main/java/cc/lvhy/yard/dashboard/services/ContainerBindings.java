@@ -6,6 +6,7 @@ import cc.lvhy.yard.dashboard.docker.Docker;
 import cc.lvhy.yard.dashboard.docker.Docker.Container;
 import cc.lvhy.yard.dashboard.docker.Docker.Port;
 import cc.lvhy.yard.dashboard.services.Registrations.BoundInstance;
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -65,13 +66,17 @@ public class ContainerBindings {
 
   private final Publications publications;
 
+  private final OutOfRange outOfRange;
+
   ContainerBindings(
       Workstation workstation,
       Consul consul,
       Docker docker,
       Registrations registrations,
       ServiceRecords records,
-      Publications publications) {
+      Publications publications,
+      OutOfRange outOfRange) {
+    this.outOfRange = outOfRange;
     this.publications = publications;
     this.records = records;
     this.workstation = workstation;
@@ -291,9 +296,13 @@ public class ContainerBindings {
    * or, for a container on the host's network, at loopback for a Local Publication, else the LAN
    * address.
    *
+   * <p>With several mappings of a container port, the ones that suit the Scope are chosen from, a
+   * wildcard one first, then the first in Docker's order. If none suits, all are chosen from alike.
+   * Only a container port with no mapping at all falls back to the container's own address.
+   *
    * @param scope that of the Service's Publication, or {@code null} when it has none
    */
-  private static BoundInstance boundInstance(
+  private BoundInstance boundInstance(
       String service,
       String id,
       ContainerBindingRequest binding,
@@ -302,11 +311,14 @@ public class ContainerBindings {
       Scope scope) {
     String hostAddress = scope == Scope.LOCAL ? LOOPBACK : lanAddress;
     int containerPort = binding.port();
+    List<Port> mappings = container.published(containerPort);
+    List<Port> suited = mappings.stream().filter(port -> suits(port, scope)).toList();
     Optional<Port> published =
-        container.published(containerPort).stream()
-            .min(
-                Comparator.comparing(
-                    port -> EVERY_ADDRESS.contains(port.ip() == null ? "" : port.ip()) ? 0 : 1));
+        (suited.isEmpty() ? mappings : suited)
+            .stream()
+                .min(
+                    Comparator.comparing(port ->
+                        EVERY_ADDRESS.contains(port.ip() == null ? "" : port.ip()) ? 0 : 1));
     String host;
     int port;
     if (published.isPresent()) {
@@ -325,6 +337,21 @@ public class ContainerBindings {
         host,
         port,
         published.isPresent() || container.address().isEmpty());
+  }
+
+  /**
+   * Whether a mapping suits {@code scope}: Local takes loopback or every address, Yard takes every
+   * address or one that a Route from another Workstation can reach. With no Publication, any
+   * mapping suits.
+   */
+  private boolean suits(Port port, Scope scope) {
+    String ip = port.ip() == null ? "" : port.ip();
+    if (scope == null || EVERY_ADDRESS.contains(ip)) {
+      return true;
+    }
+    return scope == Scope.LOCAL
+        ? InetAddress.ofLiteral(ip).isLoopbackAddress()
+        : !outOfRange.contains(ip);
   }
 
   private void checkHome(String workstation) {

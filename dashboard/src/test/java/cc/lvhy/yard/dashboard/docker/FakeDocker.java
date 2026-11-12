@@ -59,6 +59,12 @@ public final class FakeDocker implements Docker {
         ports.add(new Port(ip, published.getKey(), hostPort, "tcp"));
       }
     }
+    for (Map.Entry<Integer, String> more : spec.morePublished) {
+      int hostPort = 40000 + next * 10 + ports.size();
+      for (String ip : more.getValue().split(",")) {
+        ports.add(new Port(ip, more.getKey(), hostPort, "tcp"));
+      }
+    }
     Map<String, Network> networks =
         spec.hostNetwork
             ? Map.of("host", new Network(""))
@@ -257,6 +263,9 @@ public final class FakeDocker implements Docker {
     /** Each container port with its host addresses, comma-separated. */
     private final Map<Integer, String> published = new LinkedHashMap<>();
 
+    /** Further mappings of a container port, each on its own host port, in the order given. */
+    private final List<Map.Entry<Integer, String>> morePublished = new ArrayList<>();
+
     private boolean hostNetwork;
 
     private String health;
@@ -298,6 +307,16 @@ public final class FakeDocker implements Docker {
     public Spec publishedOn(String hostIp, int containerPort) {
       ports.remove(Integer.valueOf(containerPort));
       published.put(containerPort, hostIp);
+      return this;
+    }
+
+    /**
+     * Another mapping of {@code containerPort}, on its own host port. It comes after the mappings
+     * that {@link #published} and {@link #publishedOn} give.
+     */
+    public Spec alsoPublishedOn(String hostIp, int containerPort) {
+      ports.remove(Integer.valueOf(containerPort));
+      morePublished.add(Map.entry(containerPort, hostIp));
       return this;
     }
 
