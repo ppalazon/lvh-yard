@@ -188,7 +188,14 @@ final class CatalogPage {
             heading(group, remote.name(), "destructive", "Workstation unreachable");
             group
                 .p()
-                .text("Its Consul does not answer. Its Services show again when it does.")
+                .text(
+                    "Its Consul does not answer. Its Services show again when it does."
+                        + " To see why, run ")
+                .code()
+                .attrClass("rounded bg-muted px-2 py-1 font-mono")
+                .text("lvh-yard ws logs consul")
+                .__()
+                .text(".")
                 .__();
           } else {
             heading(group, remote.name(), null, null);

@@ -19,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriBuilder;
 
@@ -102,8 +103,12 @@ public class ConsulAgent implements Consul {
 
   /** Empty while the datacenter has no leader. */
   @Override
-  public String leader() {
-    String leader = http.get().uri("/v1/status/leader").retrieve().body(String.class);
+  public String leader(String datacenter) {
+    String leader =
+        http.get()
+            .uri(builder -> in(datacenter, builder.path("/v1/status/leader")))
+            .retrieve()
+            .body(String.class);
     return leader == null ? "" : leader.strip().replace("\"", "");
   }
 
@@ -225,14 +230,19 @@ public class ConsulAgent implements Consul {
 
   @Override
   public Map<String, String> values(String datacenter, String prefix) {
-    List<KeyValue> entries =
-        http.get()
-            .uri(builder ->
-                in(datacenter, builder.path("/v1/kv/" + prefix).queryParam("recurse", true)))
-            .exchange((request, response) ->
-                response.getStatusCode() == HttpStatus.NOT_FOUND
-                    ? List.of()
-                    : response.bodyTo(new ParameterizedTypeReference<>() {}));
+    List<KeyValue> entries;
+    try {
+      // retrieve, not exchange: a 5xx must become an HttpServerErrorException. Consul answers a
+      // datacenter it has no path to with a plain text body, which no JSON reader takes.
+      entries =
+          http.get()
+              .uri(builder ->
+                  in(datacenter, builder.path("/v1/kv/" + prefix).queryParam("recurse", true)))
+              .retrieve()
+              .body(new ParameterizedTypeReference<>() {});
+    } catch (HttpClientErrorException.NotFound e) {
+      entries = List.of();
+    }
     Map<String, String> values = new TreeMap<>();
     if (entries != null) {
       entries.forEach(entry -> values.put(entry.key(), entry.value()));

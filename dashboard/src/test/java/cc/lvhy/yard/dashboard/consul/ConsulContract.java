@@ -213,6 +213,12 @@ abstract class ConsulContract {
         .isInstanceOf(HttpServerErrorException.class);
   }
 
+  @Test
+  void leaderOfUnknownDatacenterFailsAsAServerError() {
+    assertThatThrownBy(() -> consul().leader("nowhere"))
+        .isInstanceOf(HttpServerErrorException.class);
+  }
+
   private static Registration registration(String id, String name, Check check) {
     return new Registration(id, name, "10.1.2.3", 8080, List.of(), Map.of("owner", "test"), check);
   }

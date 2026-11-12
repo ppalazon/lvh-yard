@@ -27,8 +27,16 @@ public interface Consul {
   /** Every federated datacenter, answering or not. */
   List<String> datacenters();
 
-  /** Empty while the datacenter has no leader. */
-  String leader();
+  /** Empty while this Workstation's datacenter has no leader. */
+  default String leader() {
+    return leader(null);
+  }
+
+  /**
+   * Empty while the datacenter has no leader. A datacenter that the agent has no path to fails, so
+   * this tells whether the agent can read from it, which its WAN member being alive does not.
+   */
+  String leader(String datacenter);
 
   /** The members of the agent's WAN pool: one server for each federated datacenter. */
   List<WanMember> wanMembers();

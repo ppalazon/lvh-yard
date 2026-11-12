@@ -28,6 +28,9 @@ class ConsulStatusTest {
 
   private HttpServer server;
 
+  /** The datacenters whose leader the stand-in cannot read, as Consul answers one with no path. */
+  private String unreadable = "";
+
   @AfterEach
   void stop() {
     if (server != null) {
@@ -43,6 +46,24 @@ class ConsulStatusTest {
     assertThat(consul.reason()).contains("no leader");
     assertThat(consul.details())
         .contains(new Part.Detail("ws-b", "alive at 10.0.0.2:8302", PartState.OK));
+  }
+
+  @Test
+  void aMemberThatIsAliveButCannotBeReadIsAWarning() throws IOException {
+    unreadable = "ws-b";
+    Part consul = read(consulAnswering("\"10.0.0.1:8300\"", WS_B), "");
+
+    assertThat(consul.state()).isEqualTo(PartState.WARNING);
+    assertThat(consul.reason())
+        .isEqualTo("Consul cannot read from ws-b, though its WAN pool lists it as alive.");
+    assertThat(consul.details())
+        .anySatisfy(detail -> {
+          assertThat(detail.name()).isEqualTo("ws-b");
+          assertThat(detail.state()).isEqualTo(PartState.WARNING);
+          assertThat(detail.value())
+              .startsWith("alive at 10.0.0.2:8302, but Consul cannot read from it")
+              .contains("Remote DC has no server currently reachable");
+        });
   }
 
   @Test
@@ -112,6 +133,21 @@ class ConsulStatusTest {
     server.createContext(
         "/",
         exchange -> {
+          String query = exchange.getRequestURI().getQuery();
+          if (query != null && query.startsWith("dc=")) {
+            String dc = query.substring(3);
+            boolean fails = dc.equals(unreadable);
+            byte[] reply =
+                (fails ? "Remote DC has no server currently reachable" : "\"10.0.0.2:8300\"")
+                    .getBytes(StandardCharsets.UTF_8);
+            exchange
+                .getResponseHeaders()
+                .set("Content-Type", fails ? "text/plain" : "application/json");
+            exchange.sendResponseHeaders(fails ? 500 : 200, reply.length);
+            exchange.getResponseBody().write(reply);
+            exchange.close();
+            return;
+          }
           String answer = answers.get(exchange.getRequestURI().getPath());
           byte[] body = (answer == null ? "" : answer).getBytes(StandardCharsets.UTF_8);
           exchange.getResponseHeaders().set("Content-Type", "application/json");
