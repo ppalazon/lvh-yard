@@ -10,8 +10,8 @@ status: active
 replaces: l-b0777abc
 src: agent
 touches:
-  - ".env.example"
-  - compose.yaml
+  - config/.env.example
+  - config/compose.yaml
   - dashboard/src/main/java/cc/lvhy/yard/dashboard/Problems.java
   - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ApiProblems.java
   - dashboard/src/main/resources/application.yaml

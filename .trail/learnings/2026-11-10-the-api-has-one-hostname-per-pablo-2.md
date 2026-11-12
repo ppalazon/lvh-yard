@@ -9,7 +9,7 @@ status: active
 replaces: l-c849b14d
 src: agent
 touches:
-  - ".env.example"
+  - config/.env.example
   - cli/internal/command/publication.go
   - dashboard/src/main/java/cc/lvhy/yard/dashboard/Workstation.java
   - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/Service.java

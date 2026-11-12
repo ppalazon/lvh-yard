@@ -149,9 +149,10 @@ public final class FakeConsul implements Consul {
   }
 
   @Override
-  public String leader() {
+  public String leader(String datacenter) {
     synchronized (federation) {
-      return own().leader ? own().address + ":8300" : "";
+      Datacenter asked = in(datacenter);
+      return asked.leader ? asked.address + ":8300" : "";
     }
   }
 

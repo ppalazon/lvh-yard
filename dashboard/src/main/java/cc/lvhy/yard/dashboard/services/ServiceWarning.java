@@ -50,6 +50,9 @@ public record ServiceWarning(
     /** Its Home Workstation does not hold the Route Profile, so Traefik refuses the Route. */
     UNKNOWN_ROUTE_PROFILE(Severity.ERROR),
 
+    /** This Workstation has no HTTPS for a Publication that requires a Client Certificate. */
+    CLIENT_CERTIFICATE_UNAVAILABLE(Severity.ERROR),
+
     /** Another tool registered it in Consul, so LVH Yard cannot change or remove it. */
     FOREIGN_INSTANCE(Severity.RISK),
 
@@ -85,7 +88,8 @@ public record ServiceWarning(
       List<Instance> instances,
       List<InstanceSource> sources,
       boolean instancePriority,
-      Map<String, RouteProfileDefinition> profiles) {
+      Map<String, RouteProfileDefinition> profiles,
+      boolean noHttpsAtHome) {
     if (publication == null) {
       return foreign(instances).toList();
     }
@@ -94,6 +98,7 @@ public record ServiceWarning(
             aliasAbove(publication, sources, instancePriority),
             unknown(publication, profiles),
             auth(publication, instances, profiles),
+            clientCertificate(publication, profiles, noHttpsAtHome),
             foreign(instances))
         .flatMap(warnings -> warnings)
         .toList();
@@ -186,6 +191,23 @@ public record ServiceWarning(
                     + " does not exist on the Home Workstation, so Traefik refuses the Route and"
                     + " the hostname does not answer. Add the profile again on the Home"
                     + " Workstation, or remove it from the Publication."));
+  }
+
+  private static Stream<ServiceWarning> clientCertificate(
+      Publication publication,
+      Map<String, RouteProfileDefinition> profiles,
+      boolean noHttpsAtHome) {
+    if (!noHttpsAtHome
+        || publication.profiles().stream()
+            .map(profiles::get)
+            .filter(java.util.Objects::nonNull)
+            .noneMatch(RouteProfileDefinition::requiresClientCertificate)) {
+      return Stream.empty();
+    }
+    return Stream.of(
+        new ServiceWarning(
+            Kind.CLIENT_CERTIFICATE_UNAVAILABLE,
+            "This Workstation has no HTTPS for this Publication's required Client Certificate."));
   }
 
   private static Stream<ServiceWarning> auth(

@@ -45,8 +45,7 @@ final class RouteProfileEditorPage {
                 .__()
                 .p()
                 .attrClass("text-muted-foreground")
-                .text(
-                    "Define one Traefik middleware for Publications on " + workstation.name() + ".")
+                .text("Define Route options for Publications on " + workstation.name() + ".")
                 .__()
                 .__()
                 .div()
@@ -123,7 +122,7 @@ final class RouteProfileEditorPage {
         .p()
         .attrId("profile-definition-help")
         .attrClass("text-muted-foreground text-sm")
-        .text("Write one middleware as YAML. Use spaces for indentation.")
+        .text("Write one middleware or clientCertificate as YAML.")
         .__()
         .textarea()
         .attrClass("textarea profile-yaml font-mono")

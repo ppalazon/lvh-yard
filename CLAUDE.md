@@ -32,4 +32,4 @@ Write all text in simple English: CLI help, messages, page text, API docs, docs,
 
 - CLI and page text says only what a thing does, in one short line.
 - A code comment says only what the code cannot: why, a hidden rule, or a value the type does not show.
-- CLI text names `docker compose` and `lvh-yard` commands. Dashboard text names only HTTP addresses. Neither names `mise` tasks, because Workstations run LVH Yard without this repo.
+- CLI text and dashboard text may name `docker compose` and `lvh-yard` commands, for example to point at `lvh-yard ws compose logs consul`. Neither names `mise` tasks, because Workstations run LVH Yard without this repo.

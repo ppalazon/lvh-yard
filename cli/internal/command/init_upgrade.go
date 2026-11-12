@@ -16,11 +16,11 @@ type composeImage struct {
 	value      string
 }
 
-func upgradeInit(options *Options, folder string, out io.Writer) error {
+func upgradeInit(options *Options, folder, ws string, out io.Writer) error {
 	file := filepath.Join(folder, "compose.yaml")
 	data, err := os.ReadFile(file)
 	if os.IsNotExist(err) {
-		return fmt.Errorf("%s does not exist: nothing to upgrade. Write it first with lvh-yard init", file)
+		return fmt.Errorf("%s does not exist: nothing to upgrade. Write it first with lvh-yard ws init", file)
 	}
 	if err != nil {
 		return fmt.Errorf("Could not read %s: %w", file, err)
@@ -42,6 +42,40 @@ func upgradeInit(options *Options, folder string, out io.Writer) error {
 		return err
 	}
 	desired := composeImages(template)
+	if err := protectWorkstationFolder(folder); err != nil {
+		return err
+	}
+	for _, name := range []string{"consul.d", "traefik/dynamic", "tls/consul", "tls/traefik"} {
+		if err := os.MkdirAll(filepath.Join(folder, name), 0700); err != nil {
+			return fmt.Errorf("could not create %s: %w", name, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(folder, "consul.d/00-lvh-yard.hcl"), []byte(templates.Consul()), 0600); err != nil {
+		return fmt.Errorf("could not write fixed Consul options: %w", err)
+	}
+	if _, err := os.Stat(filepath.Join(folder, "consul.d", "10-tls.hcl")); err == nil {
+		if err := writeConsulTLS(folder); err != nil {
+			return err
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if _, err := os.Stat(filepath.Join(folder, "traefik/dynamic/10-tls.yaml")); err == nil {
+		env, err := readWSEnv(folder)
+		if err != nil {
+			return err
+		}
+		if env.get("YARD_TRAEFIK_ENABLED") != "false" {
+			if err := writeTraefikTLS(folder); err != nil {
+				return err
+			}
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if err := protectWorkstationFolder(folder); err != nil {
+		return err
+	}
 	changed := false
 	for _, service := range services {
 		from, _ := findComposeImage(images, service)
@@ -56,29 +90,31 @@ func upgradeInit(options *Options, folder string, out io.Writer) error {
 			fmt.Fprintf(out, "%s: %s -> %s\n", service, from.value, to.value)
 		}
 	}
-	if !changed {
-		return nil
-	}
-	var updated strings.Builder
-	updated.Grow(len(text))
-	start := 0
-	for _, image := range images {
-		if image.service != "consul" && image.service != "traefik" && image.service != "dashboard" {
-			continue
+	if changed {
+		var updated strings.Builder
+		updated.Grow(len(text))
+		start := 0
+		for _, image := range images {
+			if image.service != "consul" && image.service != "traefik" && image.service != "dashboard" {
+				continue
+			}
+			to, ok := findComposeImage(desired, image.service)
+			if !ok || image.value == to.value {
+				continue
+			}
+			updated.WriteString(text[start:image.start])
+			updated.WriteString(to.value)
+			start = image.end
 		}
-		to, ok := findComposeImage(desired, image.service)
-		if !ok || image.value == to.value {
-			continue
+		updated.WriteString(text[start:])
+		if err := os.WriteFile(file, []byte(updated.String()), 0600); err != nil {
+			return fmt.Errorf("Could not write %s: %w", file, err)
 		}
-		updated.WriteString(text[start:image.start])
-		updated.WriteString(to.value)
-		start = image.end
 	}
-	updated.WriteString(text[start:])
-	if err := os.WriteFile(file, []byte(updated.String()), 0644); err != nil {
-		return fmt.Errorf("Could not write %s: %w", file, err)
+	fmt.Fprintf(out, "Upgraded %s. Apply the generated options and images:\n  %s compose recreate\n", folder, ws)
+	if strings.Contains(text, "./tls:/consul/tls") || strings.Contains(text, "./tls:/etc/traefik/tls") {
+		fmt.Fprintln(out, "Your compose.yaml still mounts ./tls in Consul and Traefik. Certificates now live in tls/consul and tls/traefik: mount ./tls/consul:/consul/tls:ro in Consul and ./tls/traefik:/etc/traefik/tls:ro in Traefik, and install the certificates again.")
 	}
-	fmt.Fprintf(out, "Upgraded %s. Start the new images: cd %s && docker compose up -d\n", file, folder)
 	return nil
 }
 

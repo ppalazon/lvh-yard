@@ -111,11 +111,11 @@ func (c *Client) connectionError(err error) error {
 	// A dial timeout is also a net timeout, so check the dial first.
 	var operation *net.OpError
 	if errors.As(err, &operation) && operation.Op == "dial" {
-		return fmt.Errorf("The dashboard does not answer at %s. Start it with docker compose up -d in the folder that lvh-yard init wrote.", c.address)
+		return fmt.Errorf("The dashboard does not answer at %s. Start it with docker compose up -d in the folder that lvh-yard ws init wrote.", c.address)
 	}
 	var timeout net.Error
 	if errors.As(err, &timeout) && timeout.Timeout() {
-		return fmt.Errorf("The dashboard at %s did not answer within 10 s. Make sure that Consul runs: docker compose up -d in the folder that lvh-yard init wrote.", c.address)
+		return fmt.Errorf("The dashboard at %s did not answer within 10 s. Make sure that Consul runs: docker compose up -d in the folder that lvh-yard ws init wrote.", c.address)
 	}
 	return fmt.Errorf("The dashboard at %s cannot be reached: %w", c.address, err)
 }

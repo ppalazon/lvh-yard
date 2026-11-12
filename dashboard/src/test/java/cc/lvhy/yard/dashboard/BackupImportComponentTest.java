@@ -12,6 +12,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.yaml.snakeyaml.Yaml;
@@ -72,6 +74,40 @@ class BackupImportComponentTest extends DashboardComponentTest {
       lines.add(line.toString());
     }
     return lines;
+  }
+
+  @ParameterizedTest
+  @CsvSource({"add,false", "update,false", "add,true", "update,true"})
+  void versionThreeRestoresClientCertificateProfiles(String mode, boolean existing) {
+    String certificate = newServiceName("certificate");
+    if (existing) {
+      putRouteProfiles(Map.of(certificate, Map.of("compress", Map.of())));
+    }
+    String backup =
+        """
+        version: 3
+        route-profiles:
+          %s:
+            clientCertificate: {}
+        """
+            .formatted(certificate);
+    String path = BackupExportComponentTest.BACKUP_PATH + "?mode=" + mode;
+    ResponseEntity<JsonNode> plan = postYaml(path + "&dry-run=true", backup);
+
+    assertThat(plan.getStatusCode()).isEqualTo(HttpStatus.OK);
+    ResponseEntity<JsonNode> before = get(ROUTE_PROFILES_PATH + "/" + certificate);
+    if (existing) {
+      assertThat(before.getBody().get("type").asString()).isEqualTo("compress");
+    } else {
+      assertThat(before.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    ResponseEntity<JsonNode> response = postYaml(path, backup);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(entries(response)).isEqualTo(entries(plan));
+    assertThat(get(ROUTE_PROFILES_PATH + "/" + certificate).getBody().get("type").asString())
+        .isEqualTo(existing && mode.equals("add") ? "compress" : "clientCertificate");
   }
 
   @Test

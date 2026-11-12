@@ -4,11 +4,6 @@ spring:
   threads:
     virtual:
       enabled: true
-  config:
-    # The settings of the Workstation are in the .env at the repository root, which git ignores and compose.yaml
-    # also reads. spring-boot:run starts in dashboard/, and a packaged jar starts where you launch it. Environment
-    # variables also work.
-    import: optional:file:../.env[.properties],optional:file:.env[.properties]
 
 server:
   # Loopback by default: Traefik on the same Workstation is the way in, at yard.<base-domain>. The dashboard has no
@@ -40,7 +35,7 @@ lvh-yard:
     heartbeat-interval: ${YARD_EVENTS_HEARTBEAT_INTERVAL:15s}
     debounce-window: ${YARD_EVENTS_DEBOUNCE_WINDOW:300ms}
   # The Backups folder, where the Backups page keeps its files and each import writes its safety Backup. The default
-  # is the backups/ folder of the Workstation Folder that lvh-yard init writes.
+  # is the backups/ folder of the Workstation Folder that lvh-yard ws init writes.
   backups:
     path: ${YARD_BACKUPS:${XDG_CONFIG_HOME:${user.home}/.config}/lvh-yard/backups}
   # The Consul agent of this Workstation. Its HTTP API listens on loopback only (compose.yaml).
@@ -51,8 +46,10 @@ lvh-yard:
   # The Traefik of this Workstation. Its entry point listens where compose.yaml binds it. A Reachability test sends
   # requests for the hostnames of a Service through it.
   traefik:
+    enabled: ${YARD_TRAEFIK_ENABLED:true}
     bind-address: ${YARD_TRAEFIK_BIND_ADDRESS:127.0.0.1}
     port: ${YARD_HTTP_PORT:80}
+    https-port: ${YARD_HTTPS_PORT:}
     # Its admin entry point, with its admin page and ping, on loopback only.
     admin-port: ${YARD_TRAEFIK_ADMIN_PORT:8080}
   # The Docker of this Workstation, whose containers the Container Bindings follow. DOCKER_HOST, as the docker

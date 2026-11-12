@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -19,6 +20,10 @@ import org.springframework.stereotype.Component;
  * dashboard, or none, and its Routes may be old.
  */
 @Component
+@ConditionalOnProperty(
+    name = "lvh-yard.traefik.enabled",
+    havingValue = "true",
+    matchIfMissing = true)
 @Order(StatusOrder.TRAEFIK)
 class TraefikStatus implements PartReader {
 

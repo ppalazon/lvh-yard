@@ -22,6 +22,8 @@ class SafetyBackupComponentTest extends DashboardComponentTest {
     String grafana = newServiceName("grafana");
     String loki = newServiceName("loki");
     register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
+    String certificate = newServiceName("certificate");
+    putRouteProfiles(Map.of(certificate, Map.of("clientCertificate", Map.of())));
 
     ResponseEntity<JsonNode> response =
         postYaml(
@@ -43,7 +45,11 @@ class SafetyBackupComponentTest extends DashboardComponentTest {
     Path file = BACKUPS.resolve(name);
     assertThat(PosixFilePermissions.toString(Files.getPosixFilePermissions(file)))
         .isEqualTo("rw-------");
-    Map<String, Object> services = map(yaml(Files.readString(file)).get("services"));
+    Map<String, Object> backup = yaml(Files.readString(file));
+    assertThat(backup.get("version")).isEqualTo(3);
+    assertThat(map(backup.get("route-profiles")).get(certificate))
+        .isEqualTo(Map.of("clientCertificate", Map.of()));
+    Map<String, Object> services = map(backup.get("services"));
     assertThat(services).containsKey(grafana).doesNotContainKey(loki);
   }
 

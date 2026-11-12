@@ -21,49 +21,32 @@ var workstationName = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
 var baseDomainName = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$`)
 
 type initOptions struct {
-	dir          string
 	workstation  string
 	baseDomain   string
 	peers        []string
 	gossipKey    string
 	force        bool
-	upgrade      bool
-	reinit       bool
 	dockerSocket string
 	hostname     string
 	terminal     bool
 }
 
-func NewInit(options *Options) *cobra.Command {
+func newWSInit(options *Options, folder func() string) *cobra.Command {
 	flags := &initOptions{}
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Writes the setup files for this Workstation.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			folder := flags.dir
-			if !cmd.Flags().Changed("dir") {
-				folder = options.WorkstationFolder()
-			}
-			if flags.upgrade {
-				return upgradeInit(options, folder, cmd.OutOrStdout())
-			}
-			if flags.reinit {
-				return flags.recreate(cmd, options, folder)
-			}
-			return flags.create(cmd, options, folder, nil)
+			return flags.create(cmd, options, folder())
 		},
 	}
 	f := cmd.Flags()
-	f.StringVar(&flags.dir, "dir", "", "Writes the files to this Workstation Folder.")
 	f.StringVar(&flags.workstation, "workstation", "", "Sets this Workstation's unique name in the Yard.")
 	f.StringVar(&flags.baseDomain, "base-domain", "", "Sets the Base Domain at the end of this Workstation's hostnames.")
 	f.StringArrayVar(&flags.peers, "peers", nil, "Sets the LAN addresses of other Workstations, separated by spaces or commas.")
 	f.StringVar(&flags.gossipKey, "gossip-key", "", "Uses the Yard's shared Gossip Key.")
 	f.BoolVar(&flags.force, "force", false, "Overwrites the files when they exist.")
-	f.BoolVar(&flags.upgrade, "upgrade", false, "Updates only the Consul, Traefik and dashboard images in compose.yaml.")
-	f.BoolVar(&flags.reinit, "reinit", false, "Rewrites the setup files with the old settings and keeps .bak copies.")
-	cmd.MarkFlagsMutuallyExclusive("force", "upgrade", "reinit")
 	f.StringVar(&flags.dockerSocket, "docker-socket", "/var/run/docker.sock", "Reads the Docker group from this socket.")
 	f.StringVar(&flags.hostname, "hostname", "", "Offers this hostname as the Workstation name.")
 	f.BoolVar(&flags.terminal, "terminal", false, "Reads answers as if at a terminal.")
@@ -73,13 +56,8 @@ func NewInit(options *Options) *cobra.Command {
 	return cmd
 }
 
-func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string, old *envFile) error {
+func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string) error {
 	env := parseEnvFile(templates.Env())
-	if old != nil {
-		if err := carryInitSettings(env, old); err != nil {
-			return err
-		}
-	}
 	terminal := f.terminal || options.Process.IsTerminal()
 	answers := bufio.NewReader(options.Process.Input())
 	ask := func(question, flag string) (string, error) {
@@ -98,9 +76,6 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 		return strings.TrimSpace(line), nil
 	}
 	name := f.workstation
-	if !cmd.Flags().Changed("workstation") && old != nil {
-		name = old.get("YARD_WORKSTATION")
-	}
 	if !cmd.Flags().Changed("workstation") && name == "" {
 		hostname := f.hostname
 		if !cmd.Flags().Changed("hostname") {
@@ -136,7 +111,7 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	domain := f.baseDomain
 	if !cmd.Flags().Changed("base-domain") {
 		domain = env.get("YARD_BASE_DOMAIN")
-		if terminal && old == nil {
+		if terminal {
 			for {
 				typed, err := ask("Base Domain ["+env.get("YARD_BASE_DOMAIN")+"]: ", "--base-domain")
 				if err != nil {
@@ -153,17 +128,10 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 			}
 		}
 	}
-	checkedDomain := domain
-	if old != nil && !cmd.Flags().Changed("base-domain") {
-		checkedDomain = env.valueOrDefault("YARD_BASE_DOMAIN")
-	}
-	if !baseDomainName.MatchString(checkedDomain) {
-		return fmt.Errorf("--base-domain %s is not a domain name such as lvh.me", checkedDomain)
+	if !baseDomainName.MatchString(domain) {
+		return fmt.Errorf("--base-domain %s is not a domain name such as lvh.me", domain)
 	}
 	key := f.gossipKey
-	if !cmd.Flags().Changed("gossip-key") && old != nil {
-		key = old.get("YARD_GOSSIP_KEY")
-	}
 	if cmd.Flags().Changed("gossip-key") || key != "" {
 		if err := checkInitGossipKey(key); err != nil {
 			return err
@@ -179,8 +147,12 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	for _, list := range f.peers {
 		peers = append(peers, strings.FieldsFunc(list, func(r rune) bool { return r == ',' || unicode.IsSpace(r) })...)
 	}
+	checkedPeers, err := checkWSSetting("peers", strings.Join(peers, " "))
+	if err != nil {
+		return err
+	}
 	for _, found := range [][2]string{
-		{"COMPOSE_PROFILES", "dashboard"},
+		{"COMPOSE_PROFILES", "dashboard,traefik"},
 		{"YARD_UID", options.Process.ID("-u")},
 		{"YARD_GID", options.Process.ID("-g")},
 		{"YARD_DOCKER_GID", dockerGroup(f.dockerSocket)},
@@ -190,9 +162,7 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 		}
 	}
 	settings := [][2]string{{"YARD_WORKSTATION", name}, {"YARD_BASE_DOMAIN", domain}, {"YARD_GOSSIP_KEY", key}}
-	if old == nil || cmd.Flags().Changed("peers") {
-		settings = append(settings, [2]string{"YARD_PEERS", strings.Join(peers, " ")})
-	}
+	settings = append(settings, [2]string{"YARD_PEERS", checkedPeers})
 	for _, setting := range settings {
 		if err := env.set(setting[0], setting[1]); err != nil {
 			return err
@@ -202,19 +172,14 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	if err != nil {
 		return err
 	}
-	if old != nil {
-		if err := backUpInitFiles(cmd.OutOrStdout(), folder); err != nil {
-			return err
-		}
-	}
 	if err := writeWorkstationFiles(folder, compose, env.text(), f.force); err != nil {
 		return err
 	}
 	if strings.TrimSpace(env.get("YARD_DOCKER_GID")) == "" {
 		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: no Docker socket at %s, so YARD_DOCKER_GID in .env is empty. Set it to the group of /var/run/docker.sock, or the dashboard will not start.\n", f.dockerSocket)
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "Wrote compose.yaml, .env to %s.\n\nThe Yard's Gossip Key: %s\nGive this key to every other Workstation: lvh-yard init --gossip-key <key>.\n\n", folder, key)
-	printInitNextSteps(cmd.OutOrStdout(), folder, env)
+	fmt.Fprintf(cmd.OutOrStdout(), "Wrote compose.yaml, .env, lvh-yard.yaml to %s.\n\n", folder)
+	printInitNextSteps(cmd.OutOrStdout(), folder, env, options.WorkstationFolder())
 	return nil
 }
 
@@ -263,7 +228,7 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 		name string
 		text string
 		mode os.FileMode
-	}{{"compose.yaml", compose, 0644}, {".env", env, 0600}}
+	}{{"compose.yaml", compose, 0600}, {".env", env, 0600}, {"lvh-yard.yaml", templates.Dashboard(), 0600}, {"consul.d/00-lvh-yard.hcl", templates.Consul(), 0600}}
 	if !force {
 		for _, file := range files {
 			path := filepath.Join(folder, file.name)
@@ -274,9 +239,14 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 			}
 		}
 	}
-	// Create this before Compose starts, or Docker creates it owned by root.
-	if err := os.MkdirAll(filepath.Join(folder, "backups"), 0755); err != nil {
-		return fmt.Errorf("could not create %s: %w", folder, err)
+	// Create these before Compose starts, or Docker creates them owned by root.
+	for _, name := range []string{"backups", "consul-data", "consul.d", "traefik/dynamic", "tls/consul", "tls/traefik"} {
+		if err := os.MkdirAll(filepath.Join(folder, name), 0700); err != nil {
+			return fmt.Errorf("could not create %s: %w", folder, err)
+		}
+	}
+	if err := protectWorkstationFolder(folder); err != nil {
+		return err
 	}
 	for _, file := range files {
 		path := filepath.Join(folder, file.name)
@@ -288,11 +258,9 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 		if err != nil {
 			return fmt.Errorf("could not write %s: %w", path, err)
 		}
-		if file.name == ".env" {
-			if err := output.Chmod(0600); err != nil {
-				_ = output.Close()
-				return fmt.Errorf("could not protect %s: %w", path, err)
-			}
+		if err := output.Chmod(0600); err != nil {
+			_ = output.Close()
+			return fmt.Errorf("could not protect %s: %w", path, err)
 		}
 		_, writeErr := io.WriteString(output, file.text)
 		closeErr := output.Close()
@@ -303,7 +271,7 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 			return fmt.Errorf("could not write %s: %w", path, closeErr)
 		}
 	}
-	return nil
+	return protectWorkstationFolder(folder)
 }
 
 type envFile struct {
@@ -351,11 +319,24 @@ func (e *envFile) valueOrDefault(key string) string {
 	return envSetting(templates.Env(), key, "")
 }
 
-func printInitNextSteps(out io.Writer, folder string, env *envFile) {
+func printInitNextSteps(out io.Writer, folder string, env *envFile, defaultFolder string) {
 	bind := env.valueOrDefault("YARD_DASHBOARD_BIND_ADDRESS")
 	if bind == "0.0.0.0" {
 		bind = "127.0.0.1"
 	}
-	fmt.Fprintf(out, "Next steps:\n  1. Open TCP port %s and TCP and UDP port %s to the other Workstations.\n  2. Start this Workstation: cd %s && docker compose up -d\n  3. Open the dashboard: http://%s:%s\n  4. Make sure that LVH Yard works: lvh-yard status\n\n", env.valueOrDefault("YARD_CONSUL_SERVER_PORT"), env.valueOrDefault("YARD_CONSUL_SERF_WAN_PORT"), folder, bind, env.valueOrDefault("YARD_DASHBOARD_PORT"))
-	fmt.Fprintln(out, "To join a Yard later, run this with the address of one of its Workstations:\n  lvh-yard init --reinit --peers <ip> --gossip-key <key>")
+	dashboard := "http://" + bind + ":" + env.valueOrDefault("YARD_DASHBOARD_PORT")
+	yard := "http://yard." + env.valueOrDefault("YARD_BASE_DOMAIN")
+	if port := env.valueOrDefault("YARD_HTTP_PORT"); port != "80" {
+		yard += ":" + port
+	}
+	ws := wsCommand(folder, defaultFolder)
+	status := "lvh-yard status"
+	if filepath.Clean(folder) != filepath.Clean(defaultFolder) {
+		status = "lvh-yard --dashboard " + quoteShell(dashboard) + " status"
+	}
+	fmt.Fprintln(out, "Next steps:")
+	fmt.Fprintf(out, "\n1. Start Consul, Traefik and the dashboard. Choose ONE:\n\n   A. Workstation command (recommended):\n      %s compose start\n\n   B. Docker Compose (same action):\n      docker compose --project-directory %s up -d\n", ws, quoteShell(folder))
+	fmt.Fprintf(out, "\n2. Check the status:\n   %s\n", status)
+	fmt.Fprintf(out, "\n3. Open either address:\n   %s\n   %s\n", dashboard, yard)
+	fmt.Fprintf(out, "\n4. Connect other Workstations. Choose ONE:\n\n   A. Invite a Workstation into this Yard:\n      %s yard share\n\n   B. Join another Yard:\n      Ask a member for its invitation. For command help:\n      lvh-yard ws yard join --help\n", ws)
 }

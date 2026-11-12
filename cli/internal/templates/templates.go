@@ -12,18 +12,43 @@ var compose string
 //go:embed .env.example
 var env string
 
+//go:embed 00-lvh-yard.hcl
+var consul string
+
+func Consul() string {
+	return consul
+}
+
+//go:embed 10-tls.hcl
+var consulTLS string
+
+func ConsulTLS() string {
+	return consulTLS
+}
+
+//go:embed 10-tls.yaml
+var traefikTLS string
+
+func TraefikTLS() string { return traefikTLS }
+
+//go:embed lvh-yard.yaml
+var dashboard string
+
 func Compose(version string) (string, error) {
 	const image = "ghcr.io/ppalazon/lvh-yard-dashboard:"
-	const build = "    build: .\n"
-	if !strings.Contains(compose, image+"latest}") || !strings.Contains(compose, build) {
-		return "", fmt.Errorf("compose.yaml no longer has the dashboard image or build line that init edits")
+	if !strings.Contains(compose, image+"latest}") {
+		return "", fmt.Errorf("compose.yaml no longer has the dashboard image that init edits")
 	}
 	if version == "" || version == "dev" {
 		version = "latest"
 	}
-	return strings.ReplaceAll(strings.ReplaceAll(compose, image+"latest}", image+version+"}"), build, ""), nil
+	return strings.ReplaceAll(compose, image+"latest}", image+version+"}"), nil
 }
 
 func Env() string {
 	return env
+}
+
+func Dashboard() string {
+	return dashboard
 }

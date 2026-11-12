@@ -48,9 +48,9 @@ class RouteProfilesController {
       operationId = "putRouteProfiles",
       summary = "Adds or replaces a set of Route Profiles",
       description =
-          "The body maps each name to its middleware in Traefik's format. A chain may name a"
-              + " profile of the set or one that exists. The profiles that the body does not name"
-              + " stay. Answers the whole list.")
+          "The body maps each name to its middleware in Traefik's format, or"
+              + " {\"clientCertificate\": {}}. A chain may name either kind. The profiles that the"
+              + " body does not name stay. Answers the whole list.")
   @ApiResponse(responseCode = "200", description = "Saved", useReturnTypeSchema = true)
   @ApiResponse(responseCode = "400", description = REFUSED)
   List<RouteProfile> putRouteProfiles(@RequestBody Map<String, Object> profiles) {
@@ -72,7 +72,8 @@ class RouteProfilesController {
   @Operation(
       operationId = "putRouteProfile",
       summary = "Adds or replaces one Route Profile",
-      description = "The body is its middleware in Traefik's format, such as {\"headers\": {...}}.")
+      description =
+          "The body is its middleware in Traefik's format, or {\"clientCertificate\": {}}.")
   @ApiResponse(responseCode = "200", description = "Saved", useReturnTypeSchema = true)
   @ApiResponse(responseCode = "400", description = REFUSED)
   RouteProfileDetail putRouteProfile(

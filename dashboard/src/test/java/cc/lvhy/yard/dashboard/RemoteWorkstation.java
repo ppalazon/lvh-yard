@@ -264,7 +264,7 @@ final class RemoteWorkstation implements AutoCloseable {
                 }
               }
             })
-            // Arguments, which win over the .env a developer may have at the repository root.
+            // Arguments keep the remote independent of this Workstation's settings.
             .run(arguments);
     http =
         RestClient.builder()

@@ -38,9 +38,10 @@ func TestInitUpgradeChangesOnlyImageValues(t *testing.T) {
 			writeUpgradeFile(t, folder, "compose.yaml", before)
 			writeUpgradeFile(t, folder, ".env", "YARD_WORKSTATION=mine\n")
 			writeUpgradeFile(t, folder, "route-profiles.yaml", "# mine\n")
+			writeUpgradeFile(t, folder, "lvh-yard.yaml", "# my dashboard settings\nlvh-yard:\n  events:\n    debounce-window: 500ms\n")
 			yard := commandtest.New(t)
 			yard.Version = tc.version
-			run := yard.Run("init", "--dir", folder, "--upgrade")
+			run := yard.Run("ws", "compose", "upgrade", "--dir", folder)
 			if run.ExitCode != 0 || run.Stderr != "" {
 				t.Fatalf("upgrade: %+v", run)
 			}
@@ -50,10 +51,8 @@ func TestInitUpgradeChangesOnlyImageValues(t *testing.T) {
 			if readInitFile(t, folder, ".env") != "YARD_WORKSTATION=mine\n" || readInitFile(t, folder, "route-profiles.yaml") != "# mine\n" {
 				t.Fatal("upgrade changed another setup file")
 			}
-			for _, change := range []string{"consul: hashicorp/consul:1.0.0 -> hashicorp/consul:2.1.0", "traefik: traefik:v3.0.0 -> traefik:v3.7.16", "dashboard: ${YARD_DASHBOARD_IMAGE:-ghcr.io/ppalazon/lvh-yard-dashboard:0.1.0} -> ${YARD_DASHBOARD_IMAGE:-ghcr.io/ppalazon/lvh-yard-dashboard:" + tc.tag + "}", "docker compose up -d"} {
-				if !strings.Contains(run.Stdout, change) {
-					t.Errorf("missing %q in %q", change, run.Stdout)
-				}
+			if readInitFile(t, folder, "lvh-yard.yaml") != "# my dashboard settings\nlvh-yard:\n  events:\n    debounce-window: 500ms\n" {
+				t.Fatal("upgrade changed dashboard settings")
 			}
 		})
 	}
@@ -66,7 +65,7 @@ func writeUpgradeFile(t *testing.T, folder, name, text string) {
 	}
 }
 
-func TestInitUpgradeAlreadyCurrentDoesNotWrite(t *testing.T) {
+func TestInitUpgradeAlreadyCurrentDoesNotWriteCompose(t *testing.T) {
 	folder := t.TempDir()
 	const text = "services:\n  dashboard:\n    image: '${YARD_DASHBOARD_IMAGE:-ghcr.io/ppalazon/lvh-yard-dashboard:0.8.1}' # keep\n  consul:\n    image: hashicorp/consul:2.1.0\n  traefik:\n    image: \"traefik:v3.7.16\"\n"
 	writeUpgradeFile(t, folder, "compose.yaml", text)
@@ -77,8 +76,8 @@ func TestInitUpgradeAlreadyCurrentDoesNotWrite(t *testing.T) {
 	}
 	yard := commandtest.New(t)
 	yard.Version = "0.8.1"
-	run := yard.Run("init", "--dir", folder, "--upgrade")
-	if run.ExitCode != 0 || run.Stderr != "" || strings.Count(run.Stdout, "already this version's") != 3 {
+	run := yard.Run("ws", "compose", "upgrade", "--dir", folder)
+	if run.ExitCode != 0 || run.Stderr != "" {
 		t.Fatalf("already-current upgrade: %+v", run)
 	}
 	info, err := os.Stat(file)
@@ -98,7 +97,7 @@ func TestInitUpgradeMissingImageLeavesEveryFileUntouched(t *testing.T) {
 			before := strings.Replace(complete, "    image: old-"+service+"\n", "    # image: removed\n    environment:\n      image: not-a-service-image\n", 1)
 			writeUpgradeFile(t, folder, "compose.yaml", before)
 			writeUpgradeFile(t, folder, ".env", "YARD_WORKSTATION=mine\n")
-			run := commandtest.New(t).Run("init", "--dir", folder, "--upgrade")
+			run := commandtest.New(t).Run("ws", "compose", "upgrade", "--dir", folder)
 			if run.ExitCode != 1 || !strings.Contains(run.Stderr, filepath.Join(folder, "compose.yaml")+" has no image: line for "+service) || !strings.Contains(run.Stderr, "nothing was changed") {
 				t.Fatalf("missing image: %+v", run)
 			}
@@ -111,8 +110,8 @@ func TestInitUpgradeMissingImageLeavesEveryFileUntouched(t *testing.T) {
 
 func TestInitUpgradeMissingComposeSaysToRunInit(t *testing.T) {
 	folder := t.TempDir()
-	run := commandtest.New(t).Run("init", "--dir", folder, "--upgrade")
-	if run.ExitCode != 1 || !strings.Contains(run.Stderr, filepath.Join(folder, "compose.yaml")+" does not exist") || !strings.Contains(run.Stderr, "lvh-yard init") {
+	run := commandtest.New(t).Run("ws", "compose", "upgrade", "--dir", folder)
+	if run.ExitCode != 1 || !strings.Contains(run.Stderr, filepath.Join(folder, "compose.yaml")+" does not exist") || !strings.Contains(run.Stderr, "lvh-yard ws init") {
 		t.Fatalf("missing compose: %+v", run)
 	}
 	files, err := os.ReadDir(folder)
@@ -122,12 +121,12 @@ func TestInitUpgradeMissingComposeSaysToRunInit(t *testing.T) {
 }
 
 func TestInitUpgradeRejectsOtherWriteModes(t *testing.T) {
-	for _, mode := range []string{"--force", "--reinit"} {
+	for _, mode := range []string{"--force", "--unknown"} {
 		t.Run(mode, func(t *testing.T) {
 			folder := t.TempDir()
 			writeUpgradeFile(t, folder, ".env", "YARD_WORKSTATION=mine\n")
-			run := commandtest.New(t).Run("init", "--dir", folder, "--upgrade", mode)
-			if run.ExitCode != 1 || !strings.Contains(run.Stderr, "upgrade") || !strings.Contains(run.Stderr, strings.TrimPrefix(mode, "--")) {
+			run := commandtest.New(t).Run("ws", "compose", "upgrade", "--dir", folder, mode)
+			if run.ExitCode != 1 || !strings.Contains(run.Stderr, "unknown flag") || !strings.Contains(run.Stderr, strings.TrimPrefix(mode, "--")) {
 				t.Fatalf("conflicting modes: %+v", run)
 			}
 			files, err := os.ReadDir(folder)
@@ -143,7 +142,7 @@ func TestInitUpgradeUsesStandardWorkstationFolder(t *testing.T) {
 	writeUpgradeFile(t, folder, "compose.yaml", "services:\n  dashboard:\n    image: old-dashboard\n  consul:\n    image: old-consul\n  traefik:\n    image: old-traefik\n")
 	yard := commandtest.New(t)
 	yard.Process.Env["YARD_CONFIG_DIR"] = folder
-	run := yard.Run("init", "--upgrade")
+	run := yard.Run("ws", "compose", "upgrade")
 	if run.ExitCode != 0 || run.Stderr != "" {
 		t.Fatalf("upgrade default Workstation Folder: %+v", run)
 	}

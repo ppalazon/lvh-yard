@@ -57,7 +57,7 @@ description = "Build app.css, build the dashboard from scratch, check the Go CLI
 sources = [
   "pom.xml", "dashboard/pom.xml", ".mvn/**/*", "package-lock.json",
   "cli/**/*.go", "cli/go.mod", "cli/go.sum",
-  "dashboard/src/**/*", "dashboard/openapi.yaml", "compose.yaml", ".env.example",
+  "dashboard/src/**/*", "dashboard/openapi.yaml", "config/**/*", "config/.env.example",
 ]
 outputs = { auto = true }
 run = [{ task = "css" }, "./mvnw -q clean verify", { task = "cli:check" }, { task = "cli:smoke" }]
@@ -74,10 +74,14 @@ description = "Run the dashboard's component tests: the dashboard with fake Cons
 run = "./mvnw -q -pl dashboard test -Dtest='*ComponentTest' -Dsurefire.failIfNoSpecifiedTests=false"
 
 [tasks."cli:templates"]
-description = "Refresh the Go CLI's embedded copies of compose.yaml and .env.example"
+description = "Refresh the Go CLI's embedded configuration templates"
 run = [
-  "cp compose.yaml cli/internal/templates/compose.yaml",
-  "cp .env.example cli/internal/templates/.env.example",
+  "cp config/compose.yaml cli/internal/templates/compose.yaml",
+  "cp config/.env.example cli/internal/templates/.env.example",
+  "cp config/00-lvh-yard.hcl cli/internal/templates/00-lvh-yard.hcl",
+  "cp config/10-tls.hcl cli/internal/templates/10-tls.hcl",
+  "cp config/10-tls.yaml cli/internal/templates/10-tls.yaml",
+  "cp config/lvh-yard.yaml cli/internal/templates/lvh-yard.yaml",
 ]
 
 [tasks."cli:build"]
@@ -96,7 +100,7 @@ dir = "{{config_root}}/cli"
 run = "go test -tags integration -count=1 ./cmd/lvh-yard"
 
 [tasks."cli:install"]
-description = "Build the lvh-yard executable and copy it to a folder on this computer: mise run cli:install [--dir ~/.local/bin]"
+description = "Build the lvh-yard executable and copy it to a folder on this computer: mise run cli:install"
 # A new file, then mv: a running lvh-yard cannot be overwritten in place ("Text file busy").
 usage = 'flag "--dir <dir>" default="~/.local/bin" help="The folder for lvh-yard"'
 depends = ["cli:build"]
@@ -108,12 +112,26 @@ mv "$dir/lvh-yard.new" "$dir/lvh-yard"
 echo "Installed lvh-yard to $dir/lvh-yard"
 """
 
-[tasks.install]
-description = "Install the CLI and build the dashboard image: mise run install [--dir ~/.local/bin]"
+[tasks."install:local"]
+description = "Install the CLI and build the dashboard image on this computer: mise run install:local"
 usage = 'flag "--dir <dir>" default="~/.local/bin" help="The folder for lvh-yard"'
 run = [
   { task = "cli:install", args = ["--dir", "{{usage.dir}}"] },
   { task = "dashboard:image" },
+]
+
+[tasks."install:ssh"]
+description = "Copy the CLI and the dashboard image to another computer through ssh: mise run install:ssh user@host"
+# The other computer needs ssh, Docker and the folder, not a registry. Both builds are for the system and CPU of this computer.
+# The new file, then mv: a running lvh-yard cannot be overwritten in place.
+usage = '''
+arg "<host>" help="The ssh destination, for example user@host"
+flag "--dir <dir>" default="~/.local/bin" help="The folder for lvh-yard on the other computer"
+'''
+depends = ["cli:build", "dashboard:image"]
+run = [
+  'ssh -C "$usage_host" "cat > $usage_dir/lvh-yard.new && chmod +x $usage_dir/lvh-yard.new && mv $usage_dir/lvh-yard.new $usage_dir/lvh-yard" < cli/target/lvh-yard',
+  'docker save ghcr.io/ppalazon/lvh-yard-dashboard:latest | ssh -C "$usage_host" docker load',
 ]
 
 [tasks.openapi]
@@ -126,45 +144,33 @@ description = "Print the measures of a consolidation audit: stale learnings, don
 usage = 'flag "--check" help="Also time mise run check and count its output lines"'
 run = 'node dev/audit.mjs ${usage_check:+--check}'
 
-[tasks.up]
-description = "Start this Workstation's Consul and Traefik, as .env sets them up"
-run = "docker compose up -d"
-
-[tasks.down]
-description = "Stop this Workstation's Consul and Traefik"
-run = "docker compose down"
-
-[tasks."dashboard:run"]
-description = "Run the dashboard on this Workstation, as .env sets it up"
-depends = ["css"]
-run = "./mvnw -q -pl dashboard spring-boot:run"
-
 [tasks."dashboard:image"]
-description = "Build the dashboard image: mise run dashboard:image [--platform linux/arm64]"
+description = "Build the dashboard image: mise run dashboard:image"
 # The tag is the default image of compose.yaml, so docker compose on a Workstation uses this build without a change to .env.
 usage = 'flag "--platform <platform>" help="The platform of the Workstation that runs the image, for example linux/arm64"'
 run = 'docker build ${usage_platform:+--platform "$usage_platform"} -t ghcr.io/ppalazon/lvh-yard-dashboard:latest .'
 
-[tasks."dashboard:copy"]
-description = "Copy the dashboard image to another computer through ssh: mise run dashboard:copy user@host"
-usage = 'arg "<host>" help="The ssh destination, for example user@host"'
-# -C compresses the image on the way. The other computer needs no registry, only Docker and ssh.
-run = 'docker save ghcr.io/ppalazon/lvh-yard-dashboard:latest | ssh -C "$usage_host" docker load'
-
 [tasks."dev:up"]
-description = "Start a Yard of two test Workstations, ws-a and ws-b, on this computer (dev/*.env)"
-run = [
-  "docker compose -p ws-a --env-file dev/ws-a.env up -d",
-  "docker compose -p ws-b --env-file dev/ws-b.env up -d",
-]
+description = "Start Consul and Traefik for two test Workstation Folders"
+depends = ["cli:build"]
+run = 'bash dev/workstations.sh up "$PWD/cli/target/lvh-yard" "$PWD"'
 
 [tasks."dev:down"]
 description = "Stop the two test Workstations"
-run = ["docker compose -p ws-a down", "docker compose -p ws-b down"]
+depends = ["cli:build"]
+run = 'bash dev/workstations.sh down "$PWD/cli/target/lvh-yard" "$PWD"'
 
 [tasks."dev:dashboard"]
 description = "Run the dashboard of test Workstation ws-a or ws-b: mise run dev:dashboard ws-b"
 depends = ["css"]
 usage = 'arg "<workstation>" help="ws-a or ws-b"'
-# Each test Workstation has its own Backups folder, apart from the Workstation Folder that lvh-yard init writes.
-run = "set -a; . dev/${usage_workstation}.env; YARD_BACKUPS=$PWD/dev/backups/${usage_workstation}; set +a; ./mvnw -q -pl dashboard spring-boot:run"
+run = """
+case "$usage_workstation" in ws-a|ws-b) ;; *) echo "Use ws-a or ws-b." >&2; exit 1 ;; esac
+folder="$PWD/dev/$usage_workstation"
+set -a
+. "$folder/.env"
+YARD_BACKUPS="$folder/backups"
+SPRING_CONFIG_ADDITIONAL_LOCATION="optional:file:$folder/lvh-yard.yaml"
+set +a
+./mvnw -q -pl dashboard spring-boot:run
+"""

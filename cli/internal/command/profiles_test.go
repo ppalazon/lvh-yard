@@ -104,6 +104,41 @@ func TestProfilesSetFileAsOneBatch(t *testing.T) {
 	}
 }
 
+func TestClientCertificateProfileFileRoundTrip(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" && r.URL.Path == "/api/workstation/route-profiles/certificate" {
+			fmt.Fprint(w, `{"name":"certificate","type":"clientCertificate","services":[],"definition":{"clientCertificate":{}}}`)
+			return
+		}
+		if r.Method != "PUT" || r.URL.Path != "/api/workstation/route-profiles" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL)
+		}
+		var got map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+			t.Error(err)
+		}
+		want := map[string]any{"certificate": map[string]any{"clientCertificate": map[string]any{}}}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("unexpected certificate profile: %#v", got)
+		}
+		fmt.Fprint(w, `[]`)
+	}))
+	defer server.Close()
+	h := commandtest.New(t)
+	shown := h.Run("--dashboard", server.URL, "profiles", "show", "certificate")
+	if shown.ExitCode != 0 || !strings.Contains(shown.Stdout, "clientCertificate: {}") {
+		t.Fatalf("unexpected show: %+v", shown)
+	}
+	file := filepath.Join(t.TempDir(), "profiles.yaml")
+	if err := os.WriteFile(file, []byte(shown.Stdout), 0600); err != nil {
+		t.Fatal(err)
+	}
+	saved := h.Run("--dashboard", server.URL, "profiles", "set", file)
+	if saved.ExitCode != 0 || saved.Stdout != "Saved the Route Profile certificate.\n" {
+		t.Fatalf("unexpected save: %+v", saved)
+	}
+}
+
 func TestProfilesSetRejectsInvalidFilesBeforeRequest(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { t.Errorf("unexpected request: %s %s", r.Method, r.URL) }))
 	defer server.Close()

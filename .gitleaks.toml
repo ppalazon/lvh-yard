@@ -4,12 +4,13 @@
 useDefault = true
 
 # These files hold throwaway gossip keys. They only join the test Workstations on loopback, and the tests
-# only check how `lvh-yard init` writes a key. No real Yard uses them. The old Java CLI and `cli-go/` paths
+# only check how `lvh-yard ws init` writes a key. No real Yard uses them. The old Java CLI and `cli-go/` paths
 # are in the history only.
 [[allowlists]]
 description = "Throwaway gossip keys of the test Workstations and of the CLI tests"
 paths = [
   '''^dev/(ws-a|ws-b|yard)\.env$''',
+  '''^dev/workstations\.sh$''',
   '''^cli/internal/command/init(_reinit)?_test\.go$''',
   '''^cli-go/internal/command/init(_reinit)?_test\.go$''',
 ]

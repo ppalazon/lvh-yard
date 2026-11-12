@@ -131,6 +131,9 @@ class RemoteServicesComponentTest extends DashboardComponentTest {
       String catalog = getPage("/").getBody();
       assertThat(catalog.substring(catalog.indexOf("<h2>" + RemoteWorkstation.NAME + "</h2>")))
           .contains("Workstation unreachable")
+          .contains(
+              "<code class=\"rounded bg-muted px-2 py-1 font-mono\">lvh-yard ws compose logs"
+                  + " consul</code>")
           .doesNotContain(api);
       assertThat(catalog).contains(web);
       assertThat(

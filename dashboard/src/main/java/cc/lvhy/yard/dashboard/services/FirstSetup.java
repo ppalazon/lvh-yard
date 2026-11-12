@@ -18,10 +18,10 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 /**
- * The first start of a dashboard against a Consul registers yard, consul-ui and traefik-admin and
- * publishes them with Local Scope, as a user's request would. Then the dashboard writes the time at
- * {@value #MARKER} and never does this again. A Service with one of the names that already exists
- * is left alone. This runs in the background, so a slow Consul never holds up the start.
+ * The first start of a dashboard against a Consul registers yard, consul-ui and, when Traefik is
+ * on, traefik-admin. It publishes them with Local Scope, as a user's request would. Then it writes
+ * the time at {@value #MARKER} and never does this again. A Service with one of the names that
+ * already exists is left alone. A slow Consul never holds up the start.
  */
 @Component
 public class FirstSetup implements SmartLifecycle {
@@ -203,14 +203,19 @@ public class FirstSetup implements SmartLifecycle {
         environment.getProperty(
             "local.server.port", environment.getRequiredProperty("server.port"));
     String loopback = "127.0.0.1";
-    return List.of(
+    List<OwnService> services = new ArrayList<>();
+    services.add(
         new OwnService(
             "yard",
             BindAddress.host(environment.getRequiredProperty("server.address")),
             Integer.parseInt(dashboardPort),
-            "/actuator/health"),
-        new OwnService("consul-ui", loopback, consulSettings.url().getPort(), "/v1/status/leader"),
-        new OwnService("traefik-admin", loopback, traefik.adminPort(), "/ping"));
+            "/actuator/health"));
+    services.add(
+        new OwnService("consul-ui", loopback, consulSettings.url().getPort(), "/v1/status/leader"));
+    if (traefik.enabled()) {
+      services.add(new OwnService("traefik-admin", loopback, traefik.adminPort(), "/ping"));
+    }
+    return services;
   }
 
   private record OwnService(String name, String host, int port, String path) {}

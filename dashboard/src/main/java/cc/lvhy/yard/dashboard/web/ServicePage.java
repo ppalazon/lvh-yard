@@ -3,6 +3,7 @@ package cc.lvhy.yard.dashboard.web;
 import static cc.lvhy.yard.dashboard.events.EventBroadcaster.YARD_CHANGED;
 
 import cc.lvhy.yard.dashboard.Workstation;
+import cc.lvhy.yard.dashboard.reachability.TraefikSettings;
 import cc.lvhy.yard.dashboard.services.Alias;
 import cc.lvhy.yard.dashboard.services.ContainerBinding;
 import cc.lvhy.yard.dashboard.services.Health;
@@ -59,7 +60,11 @@ final class ServicePage {
    * @param profileNames this Workstation's valid Route Profiles, which its own Services can name
    */
   static String render(
-      Workstation workstation, Service service, List<Alias> aliases, List<String> profileNames) {
+      Workstation workstation,
+      Service service,
+      List<Alias> aliases,
+      List<String> profileNames,
+      TraefikSettings traefik) {
     boolean own = workstation.is(service.workstation());
     return Layout.page(
         service.name(),
@@ -75,7 +80,7 @@ final class ServicePage {
                         YARD_CHANGED,
                         region ->
                             region
-                                .of(content -> header(content, service, own))
+                                .of(content -> header(content, service, own, traefik))
                                 .of(content -> foreignOnly(content, service))
                                 .div()
                                 .attrId("sections")
@@ -490,7 +495,8 @@ final class ServicePage {
    * The name, state and Test Reachability, then two columns: the hostname, the passing count and
    * the Home Workstation on the left, the alerts on the right. They stack on a narrow screen.
    */
-  private static void header(Div<?> content, Service service, boolean own) {
+  private static void header(
+      Div<?> content, Service service, boolean own, TraefikSettings traefik) {
     long passing =
         service.instances().stream()
             .filter(instance -> instance.health() == Health.PASSING)
@@ -519,7 +525,7 @@ final class ServicePage {
         .attrClass("text-lg")
         .of(p -> {
           if (service.hostname() != null) {
-            ServiceViews.hostname(p, service);
+            ServiceViews.hostname(p, service, traefik);
           } else {
             p.text("No hostname on this Workstation");
           }

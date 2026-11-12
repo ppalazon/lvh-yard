@@ -14,7 +14,15 @@ import (
 // Every command with the options it must accept, by name.
 var commands = map[string][]string{
 	"":                   {"dashboard"},
-	"init":               {"dir", "workstation", "peers", "gossip-key", "base-domain", "force", "upgrade", "reinit", "docker-socket", "hostname", "terminal"},
+	"ws":                 {"dir"},
+	"ws init":            {"workstation", "peers", "gossip-key", "base-domain", "force", "docker-socket", "hostname", "terminal"},
+	"ws compose":         nil,
+	"ws compose upgrade": nil,
+	"ws show":            nil,
+	"ws set":             nil,
+	"ws yard":            nil,
+	"ws yard share":      {"address"},
+	"ws yard join":       {"gossip-key", "peers", "workstation"},
 	"catalog":            {"workstation", "state", "details"},
 	"service":            nil,
 	"service create":     nil,

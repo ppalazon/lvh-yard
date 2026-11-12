@@ -79,7 +79,7 @@ class CatalogPageComponentTest extends DashboardComponentTest {
 
     String page = getPage("/").getBody();
 
-    assertThat(openingTag(page, "href=\"http://" + api + ".lvh.test\""))
+    assertThat(openingTag(page, "href=\"http://" + api + ".lvh.test"))
         .contains("target=\"_blank\"")
         .contains("rel=\"noopener noreferrer\"");
     assertThat(openingTag(page, "href=\"/services/ws-test/" + api + "\""))

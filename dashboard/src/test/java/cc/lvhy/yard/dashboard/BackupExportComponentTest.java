@@ -50,7 +50,7 @@ class BackupExportComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void exportIsVersionTwoYamlFromThisWorkstation() {
+  void exportIsVersionThreeYamlFromThisWorkstation() {
     OffsetDateTime before = OffsetDateTime.now().minusSeconds(1);
 
     ResponseEntity<String> response = getYaml(BACKUP_PATH);
@@ -58,7 +58,7 @@ class BackupExportComponentTest extends DashboardComponentTest {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getHeaders().getContentType().isCompatibleWith(YAML)).isTrue();
     Map<String, Object> backup = yaml(response.getBody());
-    assertThat(backup.get("version")).isEqualTo(2);
+    assertThat(backup.get("version")).isEqualTo(3);
     Map<String, Object> exportedFrom = map(backup.get("exported-from"));
     assertThat(exportedFrom.get("workstation")).isEqualTo(WORKSTATION);
     assertThat(OffsetDateTime.parse((String) exportedFrom.get("at")))
@@ -80,6 +80,15 @@ class BackupExportComponentTest extends DashboardComponentTest {
         .isEqualTo(Map.of("scope", "yard", "route-profiles", List.of(compress)));
     assertThat(map(backup.get("route-profiles")).get(compress))
         .isEqualTo(Map.of("compress", Map.of()));
+  }
+
+  @Test
+  void clientCertificateProfileIsExported() {
+    String certificate = newServiceName("certificate");
+    putRouteProfiles(Map.of(certificate, Map.of("clientCertificate", Map.of())));
+
+    assertThat(map(exported().get("route-profiles")).get(certificate))
+        .isEqualTo(Map.of("clientCertificate", Map.of()));
   }
 
   @Test

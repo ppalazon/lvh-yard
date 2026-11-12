@@ -44,11 +44,15 @@ func (h *Harness) Run(args ...string) Result {
 }
 
 type Process struct {
-	Env      map[string]string
-	Stdin    string
-	Terminal bool
-	Editor   func(editor, path string) error
-	Identity func(flag string) string
+	Env        map[string]string
+	Stdin      string
+	Terminal   bool
+	LANIP      string
+	LANError   error
+	Editor     func(editor, path string) error
+	Identity   func(flag string) string
+	Commands   []Command
+	RunCommand func(name string, args []string, dir string, stdout, stderr io.Writer) (int, error)
 
 	input io.Reader
 }
@@ -65,6 +69,10 @@ func (p *Process) IsTerminal() bool {
 	return p.Terminal
 }
 
+func (p *Process) LANAddress() (string, error) {
+	return p.LANIP, p.LANError
+}
+
 func (p *Process) Edit(editor, path string) error {
 	if p.Editor == nil {
 		return fmt.Errorf("unexpected editor call: %s %s", editor, path)
@@ -77,4 +85,18 @@ func (p *Process) ID(flag string) string {
 		return ""
 	}
 	return p.Identity(flag)
+}
+
+type Command struct {
+	Name string
+	Args []string
+	Dir  string
+}
+
+func (p *Process) Run(name string, args []string, dir string, stdout, stderr io.Writer) (int, error) {
+	p.Commands = append(p.Commands, Command{Name: name, Args: append([]string(nil), args...), Dir: dir})
+	if p.RunCommand != nil {
+		return p.RunCommand(name, args, dir, stdout, stderr)
+	}
+	return 0, nil
 }

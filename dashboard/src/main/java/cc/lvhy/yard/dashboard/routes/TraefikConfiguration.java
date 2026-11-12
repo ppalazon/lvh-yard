@@ -24,7 +24,8 @@ record TraefikConfiguration(Http http) {
       List<String> entryPoints,
       String service,
       @JsonInclude(JsonInclude.Include.NON_EMPTY) List<String> middlewares,
-      @JsonInclude(JsonInclude.Include.NON_NULL) Observability observability) {}
+      @JsonInclude(JsonInclude.Include.NON_NULL) Observability observability,
+      @JsonInclude(JsonInclude.Include.NON_NULL) Map<String, Object> tls) {}
 
   /** Traefik writes the access log for a router unless this says false. */
   record Observability(boolean accessLogs) {}

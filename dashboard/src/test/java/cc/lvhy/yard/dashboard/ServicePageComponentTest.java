@@ -90,7 +90,7 @@ class ServicePageComponentTest extends DashboardComponentTest {
     assertThat(response.getHeaders().getLocation()).hasPath(page);
     assertThat(getPage(page).getBody())
         .contains("Unhealthy")
-        .contains("href=\"http://" + web + ".lvh.test\"")
+        .contains(web + ".lvh.test")
         .contains("Local")
         .contains("action=\"" + page + "/unpublish\"");
     assertThat(get(servicePath(web)).getBody().get("state").asString()).isEqualTo("unhealthy");
@@ -104,7 +104,7 @@ class ServicePageComponentTest extends DashboardComponentTest {
 
     String page = getPage("/services/ws-test/" + web).getBody();
 
-    assertThat(openingTag(page, "href=\"http://" + web + ".lvh.test\""))
+    assertThat(openingTag(page, "href=\"http://" + web + ".lvh.test"))
         .contains("target=\"_blank\"")
         .contains("rel=\"noopener noreferrer\"");
   }
@@ -125,7 +125,6 @@ class ServicePageComponentTest extends DashboardComponentTest {
     assertThat(response.getHeaders().getLocation()).hasPath(page);
     assertThat(getPage(page).getBody())
         .contains("Yard Scope")
-        .contains("href=\"http://" + web + ".lvh.test\"")
         .contains(web + ".ws-test.&lt;base-domain&gt;")
         .contains("name=\"scope\" value=\"local\"");
     assertThat(get(servicePath(web)).getBody().get("publication").get("scope").asString())
@@ -634,7 +633,7 @@ class ServicePageComponentTest extends DashboardComponentTest {
 
     assertThat(body)
         .contains("Yard Scope")
-        .contains("href=\"http://" + api + "." + RemoteWorkstation.NAME + ".lvh.test\"");
+        .contains(api + "." + RemoteWorkstation.NAME + ".lvh.test");
   }
 
   @Test

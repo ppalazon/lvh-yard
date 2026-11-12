@@ -22,6 +22,9 @@ func TestProfileOperationsMatchOpenAPI(t *testing.T) {
 		func(c *client.Client) {
 			_, _ = c.PutRouteProfile("team/a ?#", map[string]any{"compress": map[string]any{}})
 		},
+		func(c *client.Client) {
+			_, _ = c.PutRouteProfile("certificate", map[string]any{"clientCertificate": map[string]any{}})
+		},
 		func(c *client.Client) { _ = c.RemoveRouteProfile("team/a ?#") },
 	)
 }

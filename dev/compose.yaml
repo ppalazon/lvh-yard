@@ -1,0 +1,5 @@
+services:
+  dashboard:
+    build:
+      context: ../..
+      dockerfile: Dockerfile

@@ -1,6 +1,7 @@
 package cc.lvhy.yard.dashboard.reachability;
 
 import cc.lvhy.yard.dashboard.BindAddress;
+import cc.lvhy.yard.dashboard.services.Service;
 import java.net.URI;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -9,10 +10,24 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * YARD_TRAEFIK_ADMIN_PORT}. The admin entry point listens on loopback only (compose.yaml).
  */
 @ConfigurationProperties("lvh-yard.traefik")
-public record TraefikSettings(String bindAddress, int port, int adminPort) {
+public record TraefikSettings(
+    boolean enabled, String bindAddress, int port, int adminPort, Integer httpsPort) {
 
   public URI url() {
     return URI.create("http://" + BindAddress.host(bindAddress) + ":" + port);
+  }
+
+  /** The browser address of a Publication, or null when its certificate-only Route is disabled. */
+  public String publicationUrl(Service service) {
+    if (service.hostname() == null) {
+      return null;
+    }
+    if (service.requiresClientCertificate()) {
+      return enabled && httpsPort != null
+          ? "https://" + service.hostname() + (httpsPort == 443 ? "" : ":" + httpsPort)
+          : null;
+    }
+    return "http://" + service.hostname() + (port == 80 ? "" : ":" + port);
   }
 
   /** On loopback, whatever {@link #bindAddress} says. */

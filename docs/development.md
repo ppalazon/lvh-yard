@@ -12,35 +12,37 @@ and installs Node for Tailwind CSS and Go for the CLI.
 
 ## Running from the sources
 
-1. Copy `.env.example` to `.env`. Set `YARD_WORKSTATION`, `YARD_GOSSIP_KEY`
-   and `YARD_PEERS`.
-2. Run `mise run up` to start Consul and Traefik.
-3. Run `mise run dashboard:run` to start the dashboard from the sources.
+Use [A Yard on one computer](#a-yard-on-one-computer) to start Consul and
+Traefik, then run either dashboard from the sources. The tasks create private
+Workstation Folders in `dev/ws-a/` and `dev/ws-b/`. Do not use the
+repository root as a Workstation Folder: `ws` repairs file modes recursively,
+which removes executable modes from checkout files.
 
-To run the dashboard image instead, add `COMPOSE_PROFILES=dashboard` and
-`YARD_DOCKER_GID` to `.env`. Then run `docker compose up -d`. To pin a version,
-set `YARD_DASHBOARD_IMAGE`, for example to
-`ghcr.io/ppalazon/lvh-yard-dashboard:0.1.0`. `docker compose build dashboard`
-builds the image from this repository.
-
-To try the image from your sources on another Workstation, build it and copy it
-there through ssh. The other Workstation needs Docker and ssh, but no registry.
+To try your sources on another Workstation, copy the CLI and the dashboard
+image there through ssh. The other Workstation needs ssh, Docker and the
+folder for the CLI, but no registry. Both are built for the system and CPU of
+this computer:
 
 ```sh
-mise run dashboard:image                        # for the CPU of this computer
-mise run dashboard:image --platform linux/arm64 # for a Workstation with another CPU
-mise run dashboard:copy user@host
+mise run install:ssh user@host
 ```
 
-Both tasks use the tag `ghcr.io/ppalazon/lvh-yard-dashboard:latest`. It is the
-default image of `compose.yaml`. On the other Workstation, unset
-`YARD_DASHBOARD_IMAGE` in `.env` and run `docker compose up -d`.
+The CLI goes to `~/.local/bin/lvh-yard` on the other Workstation. The image
+keeps the tag `ghcr.io/ppalazon/lvh-yard-dashboard:latest`, the default image of
+`compose.yaml`. On the other Workstation, unset `YARD_DASHBOARD_IMAGE` in `.env`
+and run `lvh-yard ws compose recreate`. For this computer, use
+`mise run install:local`.
 
 ## A Yard on one computer
 
-Two test Workstations, ws-a and ws-b, can run side by side on loopback. Their
-settings are in `dev/ws-a.env` and `dev/ws-b.env`. Each one is a full `.env`,
-and ws-b uses the Base Domain `localhost`.
+Two test Workstations, ws-a and ws-b, can run side by side on loopback.
+`dev:up` builds the CLI and uses `ws init` and `ws set` to make
+`dev/ws-a/` and `dev/ws-b/`. They use the same Gossip Key and join each
+other through their loopback WAN ports. ws-b uses the Base Domain `localhost`.
+Later runs keep the folders and their settings, including certificates.
+`ws compose start` starts Consul and Traefik with `COMPOSE_PROFILES=traefik`.
+This explicit profile selection leaves the dashboard for `dev:dashboard`,
+which runs it from the sources.
 
 ```sh
 mise run dev:up                 # Consul and Traefik for both
@@ -57,21 +59,21 @@ lvh-yard --dashboard http://127.0.0.1:17780 profiles set profiles.yaml   # ws-a
 lvh-yard --dashboard http://127.0.0.1:17790 profiles set profiles.yaml   # ws-b
 ```
 
-Each one writes its Backups to its own folder, `dev/backups/ws-a` or
-`dev/backups/ws-b`. Git ignores these folders. The dashboard tests use a new
-temporary folder for each test JVM, through the `lvh-yard.backups.path`
-setting.
+Each Workstation Folder holds its own `backups/`, Consul data and TLS files.
+Git ignores both folders. `dev:dashboard` reads that Workstation's `.env`
+and `lvh-yard.yaml`. `dev:down` uses `ws compose stop` and keeps the files.
+The dashboard tests use a new temporary folder for each test JVM, through
+the `lvh-yard.backups.path` setting.
 
 ## Building the CLI
 
-The CLI is a Go program in `cli/`. It uses the standard library, Cobra and one
-YAML module.
+The CLI is a Go program in `cli/`. It uses the standard library, Cobra, a
+YAML module and a PKCS#12 module.
 
 ```sh
 mise run cli:build      # builds cli/target/lvh-yard
 mise run cli:install    # builds it and copies it to ~/.local/bin/lvh-yard
-mise run cli:install --dir ~/bin   # copies it to ~/bin/lvh-yard
-mise run install        # runs cli:install, then builds the dashboard image
+mise run install:local  # runs cli:install, then builds the dashboard image
 ```
 
 `mise run cli:build` builds without C code and strips debug data. The
@@ -87,12 +89,26 @@ Java CLI, built as a native executable:
 | Go (this CLI) | 9.19 MB | 1.44 ms                               |
 | Java, native  | 49 MB   | 7.3 ms                                |
 
-The CLI embeds copies of `compose.yaml` and `.env.example` from
-`cli/internal/templates/`. After you edit either root file, run
-`mise run cli:templates` to refresh the copies. Commit both copies with the
-root files. A unit test compares the raw bytes. When `init` writes the
-Workstation Folder, it removes the dashboard build line and pins the image
-to the CLI version, or `latest` for `dev`.
+The source templates are `config/compose.yaml`, `config/.env.example`,
+`config/00-lvh-yard.hcl`, `config/10-tls.hcl`, `config/10-tls.yaml` and
+`config/lvh-yard.yaml`. The CLI embeds copies from `cli/internal/templates/`.
+After you edit a source, run `mise run cli:templates` to refresh the copies.
+Commit the copies with the source files. A unit test compares the raw bytes.
+When `ws init` writes the Workstation Folder, it pins the dashboard image to
+the CLI version, or `latest` for `dev`. The user template has no build setting.
+
+After `dev:up`, run this from the repository root to build the dashboard with Compose:
+
+```sh
+docker compose --project-directory dev/ws-a --env-file dev/ws-a/.env \
+  -f dev/ws-a/compose.yaml -f dev/compose.yaml build dashboard
+```
+
+The CLI creates Workstation Folders with mode 700 and files with mode 600.
+It creates `backups/` and `consul-data/` before Compose starts, so Docker
+does not create them as root. Consul uses the user and group in `.env`
+(`YARD_UID` and `YARD_GID`) and stores its data in `consul-data/`.
+The CLI mode tests cover new folders and repair of existing folders.
 
 ## Tests
 
@@ -131,6 +147,17 @@ Both `test:unit` and `check` also run `go vet` and `go test ./...` in `cli/`.
 CLI, runs the executable against a fake dashboard, and checks the output, the
 version and the exit codes. Its file has the build tag `integration`, so
 `go test ./...` skips it.
+
+The real-Docker TLS Yard test builds the CLI and creates two Workstation
+Folders with `ws init` and `ws tls`. Build the dashboard image from this
+checkout, then run from `cli/`:
+
+```sh
+YARD_TEST_DASHBOARD_IMAGE=lvh-yard-dashboard:test go test -tags dockerintegration -count=1 -run TestWorkstationTLSYard ./cmd/lvh-yard
+```
+
+The test starts the generated Compose projects and removes them when it
+finishes. It needs Docker Compose and free local TCP and UDP ports.
 The `gofmt` pre-commit hook rejects Go files that need formatting.
 The dashboard tests log only warnings and errors. The full output of each test
 class is in `dashboard/target/surefire-reports/` and
@@ -160,7 +187,7 @@ After the tests pass, a manual check is needed in two cases only:
 
 If no source file changed after the last `mise run check` that passed, mise
 skips the task. The source files are the two `pom.xml` files, `.mvn/`,
-`package-lock.json`, `dashboard/openapi.yaml`, `compose.yaml`, `.env.example`,
+`package-lock.json`, `dashboard/openapi.yaml`, the templates in `config/`,
 the dashboard's `src/` folder, and the Go sources and module files in `cli/`. mise compares change times, not contents, so a `git checkout` also
 starts a new run. A change outside these files does not start a new run, for
 example a new Java version. To run every test anyway, use
@@ -194,8 +221,9 @@ It runs in three places, all with the rules of `.gitleaks.toml`:
 - `mise run secrets` scans the working tree and the whole git history.
 - The `secrets` job of CI runs the same task.
 
-`.gitleaks.toml` allows the throwaway gossip keys of `dev/*.env` and of the CLI
-tests. They only join the test Workstations on loopback. Never put a gossip key
+`.gitleaks.toml` allows the throwaway gossip key in `dev/workstations.sh`
+and the CLI tests, including old files in Git history. They only join the
+test Workstations on loopback. Never put a gossip key
 of a real Yard in a file of this repository. `.env` is ignored by Git for this
 reason. If gitleaks finds a real secret, remove it, rotate it, and do not just
 allow it.

@@ -11,7 +11,7 @@ src: agent
 touches:
   - dashboard/src/main/java/cc/lvhy/yard/dashboard/backups/BackupFormat.java
   - dashboard/src/main/java/cc/lvhy/yard/dashboard/backups/ImportPlanner.java
-  - compose.yaml
+  - config/compose.yaml
   - cli/internal/command/backup.go
   - cli/internal/client/backup.go
 ---
@@ -23,4 +23,4 @@ touches:
 ## Tried and ruled out
 - Route Profiles in a file that an import writes: a rewrite loses comments, and hand edits race with imports.
 
-In the code: backups/BackupFormat.java, ImportPlanner.java, compose.yaml (the ./backups volume), cli/internal/command/backup.go and cli/internal/client/backup.go.
+In the code: backups/BackupFormat.java, ImportPlanner.java, config/compose.yaml (the ./backups volume), cli/internal/command/backup.go and cli/internal/client/backup.go.

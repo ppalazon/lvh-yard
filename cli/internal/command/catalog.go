@@ -54,8 +54,10 @@ func NewCatalog(options *Options) *cobra.Command {
 				}
 			}
 			out := cmd.OutOrStdout()
+			anyUnreachable := false
 			for _, ws := range workstations {
 				if ws.Unreachable {
+					anyUnreachable = true
 					fmt.Fprintln(out, ws.Name+": Workstation unreachable")
 					continue
 				}
@@ -93,6 +95,9 @@ func NewCatalog(options *Options) *cobra.Command {
 				if !printed {
 					fmt.Fprintln(out, heading+": no Services")
 				}
+			}
+			if anyUnreachable {
+				fmt.Fprintln(out, "To see why, read the log of this Workstation's Consul:\n    lvh-yard ws compose logs consul")
 			}
 			return nil
 		},

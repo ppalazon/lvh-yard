@@ -21,25 +21,38 @@ final class RouteBuilder {
   private RouteBuilder() {}
 
   /** Unreachable Workstations are not among {@code services}, so their Services get no Route. */
-  static TraefikConfiguration build(Workstation workstation, List<Service> services) {
+  static TraefikConfiguration build(
+      Workstation workstation, List<Service> services, boolean https) {
     Map<String, Router> routers = new LinkedHashMap<>();
     Map<String, TraefikConfiguration.Service> backends = new LinkedHashMap<>();
     Map<String, Map<String, Object>> middlewares = new LinkedHashMap<>();
     services.stream()
         .filter(Service::routed)
+        .filter(service -> https || !service.requiresClientCertificate())
         .forEach(service -> {
           List<Server> servers =
               service.routing().routedInstances().stream()
                   .map(instance -> new Server("http://" + instance.address()))
                   .toList();
           String name = name(workstation, service);
-          routers.put(
-              name,
-              router(
-                  service.hostname(),
-                  name,
-                  profiles(service, middlewares),
-                  service.publication().accessLog()));
+          List<String> routeProfiles = profiles(service, middlewares);
+          boolean certificate = service.requiresClientCertificate();
+          if (!certificate) {
+            routers.put(
+                name,
+                router(service.hostname(), name, routeProfiles, service.publication().accessLog()));
+          }
+          if (https) {
+            routers.put(
+                name + "__https",
+                new Router(
+                    "Host(`" + service.hostname() + "`)",
+                    List.of("websecure"),
+                    name,
+                    routeProfiles,
+                    service.publication().accessLog() ? null : new Observability(false),
+                    certificate ? Map.of("options", "yard-client-certificate@file") : Map.of()));
+          }
           backends.put(name, new TraefikConfiguration.Service(new LoadBalancer(servers)));
         });
     return new TraefikConfiguration(new Http(routers, backends, middlewares));
@@ -54,11 +67,16 @@ final class RouteBuilder {
       Service service, Map<String, Map<String, Object>> middlewares) {
     String home = service.workstation();
     service.profileDefinitions().values().stream()
-        .map(RouteProfileDefinition::middlewares)
+        .map(RouteProfileDefinition::traefikMiddlewares)
         .forEach(definitions ->
             definitions.forEach((name, definition) ->
                 middlewares.put(middleware(home, name), renamed(home, definition))));
-    return service.profiles().stream().map(profile -> middleware(home, profile)).toList();
+    return service.profiles().stream()
+        .filter(profile ->
+            !service.profileDefinitions().containsKey(profile)
+                || middlewares.containsKey(middleware(home, profile)))
+        .map(profile -> middleware(home, profile))
+        .toList();
   }
 
   /**
@@ -102,6 +120,7 @@ final class RouteBuilder {
         List.of(HTTP_ENTRY_POINT),
         name,
         middlewares,
-        accessLog ? null : new Observability(false));
+        accessLog ? null : new Observability(false),
+        null);
   }
 }

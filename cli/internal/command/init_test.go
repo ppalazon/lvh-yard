@@ -21,12 +21,12 @@ func TestInitWritesNewWorkstationFolder(t *testing.T) {
 		}
 		return "2345"
 	}
-	run := yard.Run("init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me", "--docker-socket", filepath.Join(t.TempDir(), "missing"))
+	run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me", "--docker-socket", filepath.Join(t.TempDir(), "missing"))
 	if run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
 	env := readInitFile(t, folder, ".env")
-	for _, setting := range []string{"YARD_WORKSTATION=ws-a", "YARD_BASE_DOMAIN=lvh.me", "YARD_PEERS=", "COMPOSE_PROFILES=dashboard", "YARD_UID=1234", "YARD_GID=2345"} {
+	for _, setting := range []string{"YARD_WORKSTATION=ws-a", "YARD_BASE_DOMAIN=lvh.me", "YARD_PEERS=", "COMPOSE_PROFILES=dashboard,traefik", "YARD_TRAEFIK_ENABLED=true", "YARD_UID=1234", "YARD_GID=2345"} {
 		if !strings.Contains(env, "\n"+setting+"\n") {
 			t.Errorf("missing %s in .env", setting)
 		}
@@ -35,6 +35,11 @@ func TestInitWritesNewWorkstationFolder(t *testing.T) {
 	if strings.Contains(compose, "    build: .\n") || !strings.Contains(compose, "ghcr.io/ppalazon/lvh-yard-dashboard:latest}") || !strings.Contains(compose, "./backups:") {
 		t.Fatalf("wrong compose template: %s", compose)
 	}
+	if !strings.Contains(compose, `user: "${YARD_UID:?set YARD_UID in .env}:${YARD_GID:?set YARD_GID in .env}"`) ||
+		!strings.Contains(compose, "./consul-data:/consul/data") ||
+		strings.Contains(compose, "\nvolumes:\n") {
+		t.Fatalf("Consul must use the Workstation user and local data folder: %s", compose)
+	}
 	info, err := os.Stat(filepath.Join(folder, "backups"))
 	if err != nil || !info.IsDir() {
 		t.Fatalf("backups folder: %v", err)
@@ -42,6 +47,19 @@ func TestInitWritesNewWorkstationFolder(t *testing.T) {
 	info, err = os.Stat(filepath.Join(folder, ".env"))
 	if err != nil || info.Mode().Perm() != 0600 {
 		t.Fatalf(".env permissions: %v, %v", info, err)
+	}
+	settings := readInitFile(t, folder, "lvh-yard.yaml")
+	for _, line := range strings.Split(strings.TrimSuffix(settings, "\n"), "\n") {
+		if !strings.HasPrefix(line, "#") {
+			t.Fatalf("dashboard setting is not commented: %q", line)
+		}
+	}
+	info, err = os.Stat(filepath.Join(folder, "lvh-yard.yaml"))
+	if err != nil || info.Mode().Perm() != 0600 {
+		t.Fatalf("lvh-yard.yaml permissions: %v, %v", info, err)
+	}
+	if !strings.Contains(compose, "./lvh-yard.yaml:/app/config/application.yaml:ro") {
+		t.Fatalf("dashboard settings are not mounted read-only: %s", compose)
 	}
 	if _, err := os.Stat(filepath.Join(folder, "route-profiles.yaml")); !os.IsNotExist(err) {
 		t.Fatalf("unexpected Route Profiles file: %v", err)
@@ -66,7 +84,7 @@ func TestInitPinsDashboardToBuildVersion(t *testing.T) {
 			yard := commandtest.New(t)
 			yard.Version = version
 			folder := t.TempDir()
-			run := yard.Run("init", "--dir", folder, "--workstation", "ws-a")
+			run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a")
 			if run.ExitCode != 0 {
 				t.Fatalf("init: %+v", run)
 			}
@@ -83,11 +101,11 @@ func TestInitPinsDashboardToBuildVersion(t *testing.T) {
 
 func TestInitPreservesTemplateCommentsAndOrder(t *testing.T) {
 	folder := t.TempDir()
-	run := commandtest.New(t).Run("init", "--dir", folder, "--workstation", "ws-a")
+	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a")
 	if run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
-	root, err := os.ReadFile(filepath.Join("..", "..", "..", ".env.example"))
+	root, err := os.ReadFile(filepath.Join("..", "..", "..", "config", ".env.example"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +129,7 @@ func TestInitPreservesTemplateCommentsAndOrder(t *testing.T) {
 func TestInitFlagsSetWorkstationSettings(t *testing.T) {
 	const key = "pUqJrVyVRj5jsiYEkM/tFQYfWyJIv4s3XkvDwy7Cu5s="
 	folder := t.TempDir()
-	run := commandtest.New(t).Run("init", "--dir", folder, "--workstation", "ws-b", "--base-domain", "localhost", "--peers", "192.168.1.10,192.168.1.11:8302", "--peers", "10.0.0.2 10.0.0.3", "--gossip-key", key)
+	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-b", "--base-domain", "localhost", "--peers", "192.168.1.10,192.168.1.11:8302", "--peers", "10.0.0.2 10.0.0.3", "--gossip-key", key)
 	if run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
@@ -123,12 +141,12 @@ func TestInitFlagsSetWorkstationSettings(t *testing.T) {
 	}
 }
 
-func TestInitGeneratesAndSharesNewGossipKey(t *testing.T) {
+func TestInitGeneratesNewGossipKeys(t *testing.T) {
 	yard := commandtest.New(t)
 	folder := t.TempDir()
 	var previous string
 	for _, args := range [][]string{nil, {"--force"}} {
-		run := yard.Run(append([]string{"init", "--dir", folder, "--workstation", "ws-a"}, args...)...)
+		run := yard.Run(append([]string{"ws", "init", "--dir", folder, "--workstation", "ws-a"}, args...)...)
 		if run.ExitCode != 0 {
 			t.Fatalf("init: %+v", run)
 		}
@@ -139,21 +157,18 @@ func TestInitGeneratesAndSharesNewGossipKey(t *testing.T) {
 		if err != nil || len(decoded) != 32 || key == previous {
 			t.Fatalf("new gossip key %q: %v", key, err)
 		}
-		if !strings.Contains(run.Stdout, "The Yard's Gossip Key: "+key) || !strings.Contains(run.Stdout, "Give this key to every other Workstation") {
-			t.Fatalf("missing key instructions: %+v", run)
-		}
 		previous = key
 	}
 }
 
 func TestInitRefusesOverwriteBeforeWritingAnything(t *testing.T) {
-	for _, existing := range []string{"compose.yaml", ".env"} {
+	for _, existing := range []string{"compose.yaml", ".env", "lvh-yard.yaml"} {
 		t.Run(existing, func(t *testing.T) {
 			folder := t.TempDir()
 			if err := os.WriteFile(filepath.Join(folder, existing), []byte("mine\n"), 0644); err != nil {
 				t.Fatal(err)
 			}
-			run := commandtest.New(t).Run("init", "--dir", folder, "--workstation", "ws-a")
+			run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a")
 			if run.ExitCode != 1 || !strings.Contains(run.Stderr, "--force") {
 				t.Fatalf("overwrite refused: %+v", run)
 			}
@@ -175,7 +190,7 @@ func TestInitForceReplacesFilesAndProtectsExistingEnv(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	run := commandtest.New(t).Run("init", "--dir", folder, "--workstation", "ws-a", "--force")
+	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--force")
 	if run.ExitCode != 0 || !strings.Contains(readInitFile(t, folder, ".env"), "YARD_WORKSTATION=ws-a\n") || !strings.Contains(readInitFile(t, folder, "compose.yaml"), "services:") {
 		t.Fatalf("forced init: %+v", run)
 	}
@@ -197,12 +212,12 @@ func TestInitInputErrorsWriteNothing(t *testing.T) {
 		{"--workstation", "ws-a", "--gossip-key", "secret"},
 		{"--workstation", "ws-a", "--gossip-key", ""},
 		{"--force", "--upgrade"},
-		{"--force", "--reinit"},
-		{"--upgrade", "--reinit"},
+		{"--force", "--unknown"},
+		{"--upgrade", "--unknown"},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
 			folder := filepath.Join(t.TempDir(), "not-created")
-			run := commandtest.New(t).Run(append([]string{"init", "--dir", folder}, args...)...)
+			run := commandtest.New(t).Run(append([]string{"ws", "init", "--dir", folder}, args...)...)
 			if run.ExitCode != 1 || run.Stderr == "" {
 				t.Fatalf("invalid input: %+v", run)
 			}
@@ -216,7 +231,7 @@ func TestInitInputErrorsWriteNothing(t *testing.T) {
 func TestInitAcceptsAllConsulGossipKeyLengths(t *testing.T) {
 	for _, length := range []int{16, 24, 32} {
 		key := base64.StdEncoding.EncodeToString(make([]byte, length))
-		run := commandtest.New(t).Run("init", "--dir", t.TempDir(), "--workstation", "ws-a", "--gossip-key", key)
+		run := commandtest.New(t).Run("ws", "init", "--dir", t.TempDir(), "--workstation", "ws-a", "--gossip-key", key)
 		if run.ExitCode != 0 {
 			t.Fatalf("%d-byte key: %+v", length, run)
 		}
@@ -234,7 +249,7 @@ func TestInitFindsDockerSocketGroup(t *testing.T) {
 	}
 	stat := info.Sys().(*syscall.Stat_t)
 	folder := t.TempDir()
-	run := commandtest.New(t).Run("init", "--dir", folder, "--workstation", "ws-a", "--docker-socket", socket)
+	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--docker-socket", socket)
 	if run.ExitCode != 0 || run.Stderr != "" {
 		t.Fatalf("Docker group: %+v", run)
 	}
@@ -251,7 +266,7 @@ func TestInitUsesWorkstationFolderLookup(t *testing.T) {
 			base := t.TempDir()
 			yard.Process.Env["HOME"] = base
 			want := filepath.Join(base, ".config", "lvh-yard")
-			args := []string{"init", "--workstation", "ws-a"}
+			args := []string{"ws", "init", "--workstation", "ws-a"}
 			if setting == "XDG_CONFIG_HOME" {
 				yard.Process.Env[setting] = base
 				want = filepath.Join(base, "lvh-yard")
@@ -278,7 +293,7 @@ func TestInitPromptsOnlyForWorkstationAndBaseDomain(t *testing.T) {
 	yard.Process.Terminal = true
 	yard.Process.Stdin = "ws-a\nexample.test\n"
 	folder := t.TempDir()
-	run := yard.Run("init", "--dir", folder)
+	run := yard.Run("ws", "init", "--dir", folder)
 	if run.ExitCode != 0 || !strings.Contains(run.Stdout, "Workstation name") || !strings.Contains(run.Stdout, "Base Domain [lvh.me]: ") || strings.Contains(run.Stdout, "Peers") {
 		t.Fatalf("prompts: %+v", run)
 	}
@@ -300,7 +315,7 @@ func TestInitPromptDefaultsUseHostnameAndBaseDomain(t *testing.T) {
 			yard := commandtest.New(t)
 			yard.Process.Stdin = "\n\n"
 			folder := t.TempDir()
-			run := yard.Run("init", "--dir", folder, "--terminal", "--hostname", host.given)
+			run := yard.Run("ws", "init", "--dir", folder, "--terminal", "--hostname", host.given)
 			if run.ExitCode != 0 || !strings.Contains(run.Stdout, "["+host.want+"]: ") {
 				t.Fatalf("hostname default: %+v", run)
 			}
@@ -317,7 +332,7 @@ func TestInitPromptsAgainAfterInvalidAnswers(t *testing.T) {
 	yard.Process.Terminal = true
 	yard.Process.Stdin = "WS_A\n\nws-a\nNot A Domain\nlocalhost\n"
 	folder := t.TempDir()
-	run := yard.Run("init", "--dir", folder, "--hostname", "_")
+	run := yard.Run("ws", "init", "--dir", folder, "--hostname", "_")
 	if run.ExitCode != 0 || !strings.Contains(run.Stdout, "WS_A is not a Workstation name") || !strings.Contains(run.Stdout, "A Workstation needs a name") || !strings.Contains(run.Stdout, "Not A Domain is not a domain name") {
 		t.Fatalf("invalid answers: %+v", run)
 	}
@@ -333,7 +348,7 @@ func TestInitEarlyInputEndFailsBeforeWrites(t *testing.T) {
 			yard.Process.Terminal = true
 			yard.Process.Stdin = input
 			folder := filepath.Join(t.TempDir(), "not-created")
-			run := yard.Run("init", "--dir", folder, "--hostname", "_")
+			run := yard.Run("ws", "init", "--dir", folder, "--hostname", "_")
 			if run.ExitCode != 1 || !strings.Contains(run.Stderr, "input ended") {
 				t.Fatalf("early input end: %+v", run)
 			}
@@ -348,7 +363,7 @@ func TestInitDoesNotPromptForFlagValuesOrWithoutTerminal(t *testing.T) {
 	for _, terminal := range []bool{true, false} {
 		yard := commandtest.New(t)
 		yard.Process.Terminal = terminal
-		args := []string{"init", "--dir", t.TempDir(), "--workstation", "ws-a"}
+		args := []string{"ws", "init", "--dir", t.TempDir(), "--workstation", "ws-a"}
 		if terminal {
 			args = append(args, "--base-domain", "lvh.me")
 		}
@@ -359,29 +374,10 @@ func TestInitDoesNotPromptForFlagValuesOrWithoutTerminal(t *testing.T) {
 	}
 }
 
-func TestInitPrintsNextSteps(t *testing.T) {
-	folder := t.TempDir()
-	run := commandtest.New(t).Run("init", "--dir", folder, "--workstation", "ws-a")
-	if run.ExitCode != 0 {
-		t.Fatalf("init: %+v", run)
-	}
-	for _, next := range []string{
-		"Open TCP port 8300 and TCP and UDP port 8302",
-		"cd " + folder + " && docker compose up -d",
-		"http://127.0.0.1:7780",
-		"lvh-yard status",
-		"lvh-yard init --reinit --peers <ip> --gossip-key <key>",
-	} {
-		if !strings.Contains(run.Stdout, next) {
-			t.Errorf("missing next step %q", next)
-		}
-	}
-}
-
 func TestInitAcceptsGossipKeyWithoutBase64Padding(t *testing.T) {
 	const key = "pUqJrVyVRj5jsiYEkM/tFQYfWyJIv4s3XkvDwy7Cu5s"
 	folder := t.TempDir()
-	run := commandtest.New(t).Run("init", "--dir", folder, "--workstation", "ws-a", "--gossip-key", key)
+	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--gossip-key", key)
 	if run.ExitCode != 0 || !strings.Contains(readInitFile(t, folder, ".env"), "\nYARD_GOSSIP_KEY="+key+"\n") {
 		t.Fatalf("unpadded gossip key: %+v", run)
 	}

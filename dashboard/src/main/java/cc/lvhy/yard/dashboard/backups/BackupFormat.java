@@ -171,18 +171,14 @@ public final class BackupFormat {
     if (version == null) {
       return "The file has no version. A Backup has version: " + Backup.VERSION + ".";
     }
-    if (version instanceof Integer older && older < Backup.VERSION) {
+    if (version instanceof Integer older && older < 2) {
       return "The version "
           + older
-          + " is an older Backup format. This dashboard reads only version "
-          + Backup.VERSION
-          + ".";
+          + " is an older Backup format. This dashboard reads versions 2 and 3.";
     }
     return "The version "
         + version
-        + " is not one this dashboard reads. It reads version "
-        + Backup.VERSION
-        + ".";
+        + " is not one this dashboard reads. It reads versions 2 and 3.";
   }
 
   private static RefusedBackupException refused(String place, String reason) {
@@ -212,7 +208,7 @@ public final class BackupFormat {
       Map<String, Object> file =
           keys(root, "", Set.of("version", "exported-from", "route-profiles", "services"));
       Object version = file.get("version");
-      if (!Integer.valueOf(Backup.VERSION).equals(version)) {
+      if (!Integer.valueOf(2).equals(version) && !Integer.valueOf(Backup.VERSION).equals(version)) {
         problem("version", versionProblem(version));
         return null;
       }

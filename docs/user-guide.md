@@ -24,7 +24,7 @@ it has focus. The Container field of the bind form is a list: Down and Up mark
 an entry, Enter picks it, and Escape closes the list. The pages keep a contrast
 of at least 4.5 to 1 for text in both themes.
 
-The Status page shows one box for each of Consul, Traefik and Docker. Each box
+The Status page shows one box for each of Consul, Traefik (when on) and Docker. Each box
 gives the state and the reason. Its Technical details list the facts behind the
 state. When a part is not OK, its details start open. When a part is OK, they
 start closed. The page refreshes by itself and keeps the details that you open
@@ -46,30 +46,37 @@ Java or a copy of this repository.
 
 1. Download `lvh-yard` and put it on your `PATH`, as
    [Installing the CLI](#installing-the-cli) shows.
-2. Run `lvh-yard init`. It asks for the name of this Workstation and for its
+2. Run `lvh-yard ws init`. It asks for the name of this Workstation and for its
    Base Domain. Press Enter to take the default: the hostname of this computer
    as the name, and `lvh.me` as the Base Domain. You can give both as flags
    instead:
 
    ```sh
-   lvh-yard init --workstation ws-a --base-domain lvh.me
+   lvh-yard ws init --workstation ws-a --base-domain lvh.me
    ```
 
-   `init` writes `compose.yaml` and `.env` to
+   `ws init` writes `compose.yaml`, `.env` and `lvh-yard.yaml` to
    `~/.config/lvh-yard`. If `XDG_CONFIG_HOME` is set, it writes to
-   `$XDG_CONFIG_HOME/lvh-yard`. `--dir` picks another folder. It also creates
+   `$XDG_CONFIG_HOME/lvh-yard`. `--dir` picks another folder for any `ws` command.
+   You can put it before or after the subcommand. It also creates
    the empty [Backups folder](#the-backups-folder-and-the-safety-backup),
-   `backups/`.
+   `backups/`, and `consul-data/` for Consul's data. The Workstation Folder
+   and all folders inside it have mode 700. All files have mode 600.
+   Only your user can read them. `ws init`, `ws compose upgrade` and `ws set`
+   fix these modes on an existing Workstation Folder.
 
-   `init` makes a new gossip key and prints it. This Workstation then starts a
-   Yard of its own. To join a Yard, see [Joining a Yard](#joining-a-yard).
+   `ws init` makes a new Gossip Key and stores it in `.env`. It does not print
+   the key. This Workstation then starts a Yard of its own.
 
-3. Open TCP port 8300 and TCP and UDP port 8302 to the other Workstations.
-4. Start this Workstation: `cd ~/.config/lvh-yard && docker compose up -d`.
-   This starts Consul, the dashboard and Traefik, in that order. When one is
-   healthy, the next one starts. `docker compose ps` shows the
-   health of each one. If you gave `init` another folder, `cd` to that folder.
-5. Make sure that LVH Yard works: `lvh-yard status`.
+3. Start this Workstation: `lvh-yard ws compose start`.
+   This starts Consul, the dashboard and Traefik. You can also run
+   `docker compose up -d` in the Workstation Folder.
+4. Check that LVH Yard works: `lvh-yard status`.
+5. Open [http://127.0.0.1:7780](http://127.0.0.1:7780) or
+   [http://yard.lvh.me](http://yard.lvh.me).
+
+To invite another Workstation or join another Yard, see
+[Joining a Yard](#joining-a-yard).
 
 On its first start, the dashboard sets up three Services with Local Scope:
 
@@ -84,19 +91,29 @@ Services. You can change, unpublish or delete them, and they do not come back.
 The dashboard is always at `127.0.0.1:7780` too, also when Traefik is down or
 `yard` is unpublished.
 
-Run the other `docker compose` commands in the same folder. For example,
-`docker compose logs -f consul` shows the logs of Consul. Consul logs only
-errors.
+From any directory, `lvh-yard ws compose start`, `ws compose stop`,
+`ws compose restart` and `ws compose recreate` manage this Workstation's
+services. `recreate` runs `docker compose up -d --force-recreate`, which applies
+changed settings. Each command prints the `docker compose` line it runs, with the Workstation Folder as the project
+directory. The commands work while the dashboard is down and return the exit
+code of `docker compose`. Docker with Compose must be on your `PATH`.
 
-`docker compose logs -f traefik` shows one line for each request that Traefik
+`lvh-yard ws compose logs` shows all service logs. Give `consul`, `traefik` or
+`dashboard` to show one service, and add `-f` to follow its logs. For example,
+`lvh-yard ws compose logs consul -f` follows Consul's logs. Consul logs only errors.
+Use `--dir <folder>` with any of these commands to select another Workstation
+Folder. You can also run `docker compose up -d`, `stop`, `restart` or `logs`
+directly in that folder.
+
+`lvh-yard ws compose logs traefik -f` shows one line for each request that Traefik
 sends on. The line ends with the Route, the address of the Instance that
 answered, and the time in milliseconds. The status of the response comes after
 the request. Traefik logs only the Services that you turn on, for example with
 `lvh-yard publish <service> --access-log on`.
 
-If a request to the dashboard fails, `docker compose logs dashboard` shows one
+If a request to the dashboard fails, `lvh-yard ws compose logs dashboard` shows one
 line for it, with no stack trace. To also log the stack trace, set
-`YARD_STACK_TRACES=true` in `.env`. Then run `docker compose up -d`.
+`YARD_STACK_TRACES=true` in `.env`. Then run `lvh-yard ws compose recreate`.
 
 If a page of the dashboard fails, the browser shows an error page. It names the
 error, says what failed, and links to the Status page. A failed page that you
@@ -105,38 +122,376 @@ the Catalog. The dashboard talks to Consul only through the Consul HTTP API,
 whatever runs Consul. If that API does not answer, the page shows its address
 and a request that tests it. The REST API still answers errors with JSON.
 
-The files that `init` writes are a reference setup, and they are yours. You
+The files that `ws init` writes are a reference setup, and they are yours. You
 can change `compose.yaml`, or run Consul, Traefik and the dashboard another
-way. The comments in `compose.yaml` and `.env` explain each value. `lvh-yard`
-only talks to the dashboard. It does not start or stop anything.
+way. The comments in `compose.yaml` and `.env` explain each value. The `ws`
+commands use local files and `docker compose`. Other `lvh-yard` commands talk
+to the dashboard.
+
+### Dashboard settings
+
+`lvh-yard.yaml` holds structured dashboard settings in the Workstation Folder.
+Every line starts as a comment and shows the dashboard's defaults. The file
+is readable only by its owner. The dashboard container reads it through a
+read-only mount.
+
+To change a setting, uncomment its parent sections and its value. Keep the
+`YARD_*` placeholders so that `.env` values still win. For example:
+
+```yaml
+lvh-yard:
+  events:
+    debounce-window: ${YARD_EVENTS_DEBOUNCE_WINDOW:500ms}
+```
+
+After saving the file, run `docker compose restart dashboard` in the Workstation
+Folder. `lvh-yard ws compose upgrade` and `lvh-yard ws set` leave the file unchanged.
+A dashboard run from the sources loads the Workstation Folder's settings through
+the [development tasks](development.md#a-yard-on-one-computer).
 
 ### Joining a Yard
 
-A Workstation joins a Yard through one Peer, the LAN address of a Workstation
-that is already in the Yard. It also needs the gossip key of that Yard. Copy
-the key from `YARD_GOSSIP_KEY` in the `.env` of that Workstation. Then run
-these commands on the new Workstation:
+On a member of the Yard, print its invitation:
 
 ```sh
-lvh-yard init --reinit --peers 192.168.1.10 --gossip-key <key>
-cd ~/.config/lvh-yard && docker compose up -d
+lvh-yard ws yard share
 ```
 
-You can also give `--peers` and `--gossip-key` to the first `lvh-yard init`.
+The command uses a specific non-loopback Consul bind address first.
+Otherwise, it tries this computer's default-route IPv4 address, then a single
+active IPv4 interface address. If it cannot choose an address, it prints a
+placeholder. To override the address:
+
+```sh
+lvh-yard ws yard share --address 192.168.1.10
+```
+
+The invitation has two steps. Step 1 names the firewall ports to open on this
+Workstation. Step 2 gives separate commands for a new Workstation and an
+already initialized one. Run those commands on the joining Workstation, not on
+this one. The joining Workstation then prints its own next steps. The
+invitation ends by reminding you to run `lvh-yard ws yard peers` and
+`lvh-yard ws yard peers --sync` here after the Workstation joins. Commands
+appear on their own indented lines. Keep the output private: it contains the Gossip Key.
+Sharing reads local files and network settings only. It works while the
+dashboard is down.
+
+On an already initialized Workstation, use the invitation's key and Peer:
+
+```sh
+lvh-yard ws yard join --peers 192.168.1.10:8302 --gossip-key '<key>'
+```
+
+For a new Workstation, the invitation instead gives `ws init` with the same
+key and Peer. Pick a Workstation name that is not already in the Yard.
+Each Workstation can choose its own Base Domain.
+
+If Consul TLS is on, the invitation also names the commands to get a separate Consul
+[certificate](#yard-ca-and-workstation-certificates) from the Workstation that
+holds the CA key. The CA owner signs for the joining Workstation's name.
+With a company CA, ask its issuer for that certificate instead.
+`ws tls ca install '<new-workstation>'` puts the new Workstation's `ca.crt`,
+`consul.crt` and `consul.key` in `certificates/<new-workstation>/consul/`.
+Copy only those files to it through a private channel, then run the printed
+`ws tls import consul` command before applying the Yard settings.
+Never share `ca.key` or reuse another Workstation's certificate keys.
+Client Certificate `.p12` files are for people using protected Routes, not
+for Workstation membership.
+
+`ws yard join` keeps the Workstation name and existing certificate files.
+If it already uses Consul TLS, import the destination Yard's Consul certificate
+before applying the change. If the destination has no Consul TLS, run
+`lvh-yard ws tls disable consul` first. This leaves the certificate and the
+HTTPS files in place. To restore Consul TLS later, run
+`lvh-yard ws tls enable consul`, or import the appropriate certificate again.
+After any required TLS steps, run the printed recreation command and check
+`lvh-yard status`. A first start can use `lvh-yard ws compose start`.
+
+### Listing Peers
+
+To see the other Workstations that this Workstation's Consul sees, run:
+
+```sh
+lvh-yard ws yard peers
+```
+
+It asks the local Consul, so Consul must run. The list leaves out a
+Workstation that does not answer and names it on a last line. To replace
+`YARD_PEERS` with the Peers on the list, run:
+
+```sh
+lvh-yard ws yard peers --sync
+```
+
+`--sync` leaves `.env` as it is when no other Workstation answers. Like `ws set`,
+it does not restart services: run the printed `docker compose` command.
+
+### Changing settings
+
+`lvh-yard ws show` prints the active settings in `.env`, with the Gossip Key hidden.
+`lvh-yard ws set <name> <value>` checks a value and changes one setting. It keeps
+the comments. Neither `ws set` nor `ws yard join` restarts services. After either
+command, run the printed command, `lvh-yard ws compose recreate`, to recreate the containers.
+`ws compose restart` restarts existing containers without applying changed environment
+variables. When Traefik is off, the printed commands stop its existing container
+before they recreate the enabled services.
+
+```sh
+lvh-yard ws set base-domain example.test
+lvh-yard ws set peers "192.168.1.10,192.168.1.11:8302"
+lvh-yard ws set dashboard-bind-address 0.0.0.0
+```
+
+The setting names are `base-domain`, `peers`, `bind-address`,
+`traefik-bind-address`, `dashboard-bind-address`, `http-port`,
+`traefik-admin-port`, `dashboard-port`, `consul-http-port`, `consul-dns-port`,
+`consul-grpc-tls-port`, `consul-server-port`, `consul-serf-lan-port`,
+`consul-serf-wan-port`, `out-of-range`, `stack-traces` and `traefik`.
+Addresses use IPv4. Ports run from 1 to 65535. `out-of-range` takes
+comma-separated CIDR ranges or an empty value. `stack-traces` takes `true` or `false`.
+`traefik` takes `on` or `off`.
+An empty `bind-address` lets Consul choose its address.
+
+To change the Workstation name, export a Backup, run `lvh-yard ws init`
+under the new name, and import the Backup. There is no `ws rename`.
+To change the Gossip Key, use `ws yard join`. Without `--peers`, it keeps the Peers.
+Every `ws` command accepts `--dir <folder>`.
+
+### Yard CA and Workstation Certificates
+
+One Yard CA signs the certificates for every Workstation in a Yard. Keep its
+key on the Workstation that made it. The key can sign certificates for anyone
+in the Yard, so never copy it to another Workstation or a container.
+
+The CA that `ws tls ca create` makes is for testing. Its key is a plain file
+on one computer, and nothing can revoke a certificate it signed. Every command
+under `ws tls ca` prints a warning to say so. For more than testing, use a
+more robust CA, such as a company CA or a public CA, and install its
+certificates with `ws tls import`.
+
+Each Workstation has two certificates, with separate keys:
+
+| Certificate | Used by                                         | Names                                             | Signed by                                |
+| ----------- | ----------------------------------------------- | ------------------------------------------------- | ---------------------------------------- |
+| Consul      | Consul, between the Workstations                | `server.<name>.consul`, `localhost`, `127.0.0.1`  | The Yard CA                              |
+| Traefik     | Traefik, for HTTPS on this Workstation's Routes | `*.<Base Domain>`, `localhost`, `127.0.0.1`, more | The Yard CA, a company CA or a public CA |
+
+Compose mounts `tls/consul/` only in Consul and `tls/traefik/` only in Traefik.
+So a Traefik process that faces browsers never holds the key that identifies
+this Workstation to the other Consul servers. The Consul certificate also never
+changes when a Workstation joins the Yard, because Consul checks only its own
+name. The Traefik certificate changes with the Routes that it covers.
+
+Every command that signs sits under `ws tls ca`, because signing needs the CA key.
+Like `ws init`, each one asks for what you did not give as a flag. Without a
+terminal, it uses the defaults.
+
+`lvh-yard ws tls ca create` writes `ca/ca.crt` and `ca/ca.key` in the
+Workstation Folder. The CA uses ECDSA P-256 and lasts 3650 days. Its key has
+mode 600, and the `ca/` folder is not mounted by the reference Compose setup.
+The command refuses to replace either CA file unless you give `--force`.
+Replacing the CA does not update certificates that it already signed.
+
+`lvh-yard ws tls ca issue workstation [name]` signs both certificates for this
+Workstation or for another one. It asks for the name, the Base Domain, extra
+Traefik addresses and the validity. To sign one, run
+`ws tls ca issue consul [name]` or `ws tls ca issue traefik [name]`.
+The files are `ca/certs/<name>/consul.crt|key` and
+`ca/certs/<name>/traefik.crt|key`, so the CA can hold the certificates of every
+Workstation. Signing does not copy anything to `tls/`, start TLS or change
+running services. A certificate uses ECDSA P-256 and lasts 365 days. The Consul
+certificate allows server and client use, because Consul checks both ways.
+The Traefik certificate allows server use only. Private keys have mode 600.
+
+The Traefik certificate names `*.<Base Domain>`, `localhost` and `127.0.0.1`.
+Each `--address` adds one IP address or DNS name to it.
+A DNS wildcard must be the whole leftmost label, such as `*.ws-b.lvh.me`.
+Wildcards cannot cover IP addresses.
+`--base-domain` defaults to this Workstation's Base Domain.
+For example, `lvh-yard ws tls ca issue workstation ws-b --base-domain example.test --address 192.168.1.11`
+signs for another Workstation. `--days <number>` changes the validity.
+A certificate must expire before or with its CA. All these commands accept
+`--dir <folder>` and repair the Workstation Folder's private file modes.
+
+The default `*.<Base Domain>` covers local Routes only. A wildcard matches
+one label, so `*.lvh.me` does not cover `app.ws-b.lvh.me`.
+For each remote Workstation whose Routes this Workstation serves, add an
+extra wildcard to its Traefik certificate. For example, on a Workstation with
+Base Domain `lvh.me`:
+
+```sh
+lvh-yard ws tls ca issue traefik --address '*.ws-b.lvh.me'
+```
+
+This covers `app.ws-b.lvh.me`, but not `app.ws-c.lvh.me` or
+`deeper.app.ws-b.lvh.me`. Repeat `--address` for each remote Workstation.
+When a new Peer needs Route coverage, issue and install a new Traefik
+certificate with all required `--address` values. The Consul certificates do
+not change.
+
+`lvh-yard ws tls ca install [name]` puts the signed certificates where they
+belong, and turns each one on:
+
+- For this Workstation, it copies `ca/ca.crt` and the certificate and key of
+  each role to `tls/consul/` and `tls/traefik/`.
+- For another Workstation, it saves the same folders in
+  `certificates/<name>/consul/` and `certificates/<name>/traefik/`, and prints
+  how to hand them over. The other Workstation can be on this computer or on
+  another one:
+  - **Same computer.** Import each folder, with the other Workstation's own
+    Workstation Folder: `lvh-yard ws --dir <its-folder> tls import consul --ca
+<folder>/consul/ca.crt --cert <folder>/consul/consul.crt --key <folder>/consul/consul.key`,
+    and the same for `traefik`.
+  - **Another computer, by hand.** Copy the folders into the `tls/` folder of
+    its Workstation Folder (`~/.config/lvh-yard/tls/` unless it uses another).
+    The command prints the `ssh` line that makes `tls/` private and the `scp`
+    line. Then log in and run `lvh-yard ws tls enable consul` and
+    `lvh-yard ws tls enable traefik`, as you need. Each one checks the
+    certificate first. Send the `.key` files only through a private channel.
+    Never send `ca.key`.
+  - **Another computer, over ssh.** Give `--scp user@host`, or
+    `--scp user@host:<its-folder>` for another folder, or answer the
+    question at a terminal. The command makes `tls/` there with mode 700 and
+    copies the folders into it. It needs `ssh` and `scp` on this computer. It
+    does not run anything on the other Workstation. Log in and run
+    `ws tls enable`, as above, to turn on what it needs.
+
+`install` asks which certificates to install, or takes `--consul[=false]` and
+`--traefik[=false]`. Without a terminal, it takes every certificate that the
+CA has signed. A certificate that was never signed is not asked about, and a
+flag that names it is an error. Traefik is not asked when it is off.
+
+`lvh-yard ws tls import <consul|traefik> --ca ca.crt --cert <file> --key <file>`
+installs a certificate that someone else signed, and turns that service on.
+It checks the key and the chain before it writes any files:
+
+- **Consul:** the certificate must chain to the given Yard CA, allow server and
+  client use, and name `server.<this Workstation>.consul`.
+- **Traefik:** the certificate must be valid for the given CA or for a public
+  CA, so a company or Let's Encrypt certificate works. It must name
+  `yard.<Base Domain>`. `--ca` is always the Yard CA, because Traefik uses it to
+  check Client Certificates.
+
+| Turning on | What it writes                                                          |
+| ---------- | ----------------------------------------------------------------------- |
+| Consul     | `consul.d/10-tls.hcl`                                                   |
+| Traefik    | `traefik/dynamic/10-tls.yaml`, and `YARD_HTTPS_PORT=443` if it is empty |
+
+To change the choice later, use `lvh-yard ws tls enable consul`,
+`enable traefik`, `disable consul` or `disable traefik`. `enable` needs the
+files in `tls/consul/` or `tls/traefik/`, and checks them. `disable` keeps them.
+Apply any change with the printed `lvh-yard ws compose recreate`.
+
+Turn Consul TLS on everywhere in the Yard in one go. A Workstation without it
+cannot federate with one that requires it. Consul verifies certificates in
+both directions for RPC. Its local HTTP API stays plain HTTP. `ws compose upgrade`
+rewrites the generated TLS options and keeps the installed certificates. If your
+`compose.yaml` still mounts `./tls` in Consul and Traefik, the command says so:
+mount `./tls/consul` in Consul and `./tls/traefik` in Traefik, and install the
+certificates again.
+
+#### Browser trust
+
+The CLI does not change browser trust. In your browser's certificate settings,
+import `ca/ca.crt` as a trusted certificate authority for websites. Firefox
+has an Authorities tab in its certificate manager. Browsers that use the
+operating system's trust store need the CA certificate installed there instead.
+Use your browser or operating system's instructions for that step.
+
+Import only `ca.crt`, never `ca.key` or a Workstation's private key.
+Trusting the CA lets the browser trust any website certificate it signs.
+To remove that trust, remove the CA from the same certificate store.
+
+#### Client Certificates
+
+On the Workstation with the Yard CA key, run
+`lvh-yard ws tls ca issue user alice`. It asks for the username or email, a password and
+the validity, and writes `ca/clients/alice.p12` in the Workstation Folder with
+mode 600.
+The file holds Alice's private key, Client Certificate and Yard CA certificate.
+If you leave the password empty, the command makes a random one and prints it
+once. Save it before closing the terminal. To choose a password, answer the
+question or add `--password <password>`. The command does not print a password
+that you give.
+
+A Client Certificate uses ECDSA P-256 and lasts 365 days. It allows client
+authentication only. Use `--days <number>` to change its validity, within
+the Yard CA's validity. Use `--dir <folder>` for another Workstation Folder.
+
+In Firefox, open Settings, Privacy & Security, Certificates, View Certificates,
+then Your Certificates. Choose Import, select `alice.p12` and enter its
+password. In Chromium-based browsers, open the certificate manager from
+Settings and import the file into personal certificates. The operating
+system may manage this store. Follow its import instructions if so.
+When a Route asks for a Client Certificate, select Alice's certificate.
+Import the Yard CA for website trust as described above, too.
+Share the `.p12` file and its password only with the person it identifies.
+
+### A host without Traefik
+
+On a shared host with no direct users, turn Traefik off:
+
+```sh
+lvh-yard ws compose stop
+lvh-yard ws set traefik off
+lvh-yard ws compose start
+```
+
+The command sets `YARD_TRAEFIK_ENABLED=false` in `.env` and removes only
+`traefik` from `COMPOSE_PROFILES`. Consul and the dashboard still run and
+publish Instances. Other Workstations can route to those Instances through
+their own Traefik.
+
+Status has no Traefik Status Part. Reachability still tests Instances directly,
+and says that this Workstation has no Traefik for a test through a Route.
+On the first setup, the dashboard registers `yard` and `consul-ui`, but skips
+`traefik-admin`. It keeps the setup marker, so turning Traefik on later does
+not register `traefik-admin`.
+
+If the Service already exists, remove it with `lvh-yard remove traefik-admin`.
+To turn Traefik back on, stop the Workstation, run
+`lvh-yard ws set traefik on`, then run `lvh-yard ws compose start`.
+A dashboard run from the sources reads the same
+`YARD_TRAEFIK_ENABLED` setting.
+
+### HTTPS Routes
+
+HTTPS is off by default. When Traefik is on, installing the Traefik certificate with
+`lvh-yard ws tls ca install` or `lvh-yard ws tls import traefik` (or running
+`lvh-yard ws tls enable traefik`) sets `YARD_HTTPS_PORT=443` if it is empty and
+writes the Traefik TLS file.
+Apply the settings with `lvh-yard ws compose recreate`. Every Route then answers on HTTP and HTTPS. HTTP does not
+redirect to HTTPS. If the Yard CA signed the Traefik certificate, import `tls/traefik/ca.crt`
+into your browser's trusted certificate authorities to trust it. A public
+certificate needs nothing.
+
+Use `lvh-yard ws set https-port 8443` to choose another port, or
+`lvh-yard ws set https-port ''` to turn HTTPS off. The HTTPS entry point uses
+`traefik-bind-address`. The dashboard reads `YARD_HTTPS_PORT` in Compose and
+when run from the sources. With Traefik off, a certificate can turn on
+only Consul TLS, and no Traefik TLS configuration is written.
+
+The generated `traefik/dynamic/10-tls.yaml` defines the default TLS option and
+the fixed option `yard-client-certificate@file`. The latter requires a Client
+Certificate signed by the Yard CA. The default option does not require one.
 
 ### Upgrading
 
-`lvh-yard init` does not overwrite a file unless you give `--force`. After you
-install a new `lvh-yard`, use one of these flags:
+`lvh-yard ws init` does not overwrite a file unless you give `--force`.
+After you install a new `lvh-yard`, run `lvh-yard ws compose upgrade`.
+It changes only the consul, traefik and dashboard image lines in `compose.yaml`
+and rewrites `consul.d/00-lvh-yard.hcl`.
+Then run `lvh-yard ws compose recreate`,
+even if every image is current. This makes Consul load the generated options.
 
-- `lvh-yard init --upgrade` changes only the consul, traefik and dashboard
-  images in `compose.yaml`. Then run `docker compose up -d` again in the
-  folder of this Workstation.
-- `lvh-yard init --reinit` writes `compose.yaml` and `.env` again from the new
-  templates, with the values of the old `.env`. A flag that you give with it
-  replaces the old value. The old files stay as
-  `<file>.<yyyyMMdd-HHmmss>.bak`. If the `backups/` folder is missing, it
-  creates it. The new `compose.yaml` lets the dashboard write to this folder.
+LVH Yard owns `consul.d/00-lvh-yard.hcl`, `consul.d/10-tls.hcl` and
+`traefik/dynamic/10-tls.yaml`. Generated files start with
+`# Generated, do not edit.` The TLS files exist only when TLS is set up.
+You own `compose.yaml`, `.env`, `lvh-yard.yaml` and every other file you add
+to `consul.d/` or `traefik/dynamic/`. Put custom options in your own files.
+`ws compose upgrade` keeps their contents unchanged.
+Consul reads `consul.d/` read-only. Traefik watches `traefik/dynamic/`
+read-only for routing options.
 
 ### Addresses and ports
 
@@ -157,16 +512,16 @@ The admin page of Traefik is at `127.0.0.1:8080/dashboard/`, and its ping is at
 
 ### The dashboard image
 
-The folder that `lvh-yard init` writes runs the dashboard from its image,
+The folder that `lvh-yard ws init` writes runs the dashboard from its image,
 `ghcr.io/ppalazon/lvh-yard-dashboard`. The image tag is the version of
-`lvh-yard`. `init` sets these values in `.env`:
+`lvh-yard`. `ws init` sets these values in `.env`:
 
-- `COMPOSE_PROFILES=dashboard`, which turns on the dashboard in Compose
+- `COMPOSE_PROFILES=dashboard,traefik`, which turns on both services in Compose
 - `YARD_DOCKER_GID`, the group that owns the Docker socket
   (`stat -c %g /var/run/docker.sock`)
 - `YARD_UID` and `YARD_GID`, your user and group
 
-The dashboard runs as your user, not as root. It joins the socket group so that
+Consul and the dashboard run as your user, not as root. The dashboard joins the socket group so that
 it can read the Docker socket. It uses host networking. On Docker Desktop, turn
 on host networking in the settings.
 
@@ -306,7 +661,8 @@ show each Instance's address, Health and ID, followed by the Service Warnings.
 Both views support `--workstation` and `--state`. You can combine the filters.
 The states are `unpublished`,
 `unavailable`, `unhealthy`, `degraded` and `healthy`. An unreachable Workstation
-shows `Workstation unreachable` instead of its Services.
+shows `Workstation unreachable` instead of its Services, and the output ends with
+the command that shows this Workstation's Consul log: `lvh-yard ws compose logs consul`.
 
 A command exits with 0 when it succeeds. If it fails, it prints the reason on
 stderr and exits with 1. A usage error, such as an unknown option, does the same.
@@ -377,7 +733,7 @@ curl -H 'Accept: application/yaml' http://127.0.0.1:7780/api/workstation/backup
 A Backup looks like this:
 
 ```yaml
-version: 2
+version: 3
 exported-from:
   workstation: ws-a
   at: "2026-11-05T10:00:00+01:00"
@@ -386,6 +742,8 @@ route-profiles:
     basicAuth:
       users:
         - ana:$2y$05$abc
+  certificate:
+    clientCertificate: {}
 services:
   grafana:
     publication:
@@ -435,6 +793,9 @@ services:
 - If the host of a Static Instance is the LAN address of this Workstation, the
   Backup leaves the host out. So the Static Instance fits another computer.
 - The Backup leaves out empty tags and meta.
+
+Exports use version 3. Imports accept versions 2 and 3. Version 3 holds
+Client Certificate Route Profiles, such as `certificate` above.
 
 A Backup holds the basic-auth hashes of your Route Profiles. Anyone who can
 read the file can read them. Keep a Backup as private as a password file.
@@ -509,7 +870,7 @@ services.grafana.sources[0].static-instance.port: The port 70000 is not a TCP po
 services.grafana.publication.route-profiles[0]: The Route Profile login is not in the file, and this Workstation does not have it.
 ```
 
-The import refuses a key that a Backup does not have, a version other than 2,
+The import refuses a key that a Backup does not have, a version other than 2 or 3,
 and an unknown Route Profile. It also refuses an Alias to this Workstation.
 
 The import writes Route Profiles first, then Services, then Static Instances
@@ -540,7 +901,7 @@ curl -X POST -H 'Content-Type: application/yaml' --data-binary @ws-a.yaml \
 ### The Backups folder and the safety Backup
 
 The Backups folder is `backups/` in the folder of this Workstation, such as
-`~/.config/lvh-yard/backups`. `lvh-yard init` creates it. `compose.yaml` lets
+`~/.config/lvh-yard/backups`. `lvh-yard ws init` creates it. `compose.yaml` lets
 the dashboard write to this folder, and to no other folder of this
 Workstation. Each Backup in it is a plain YAML file. You can copy, move or
 delete the files with normal tools. The dashboard never deletes them by itself.
@@ -956,20 +1317,21 @@ Service.
 
 ### Route Profiles
 
-A Route Profile is a named set of Route options, such as basic auth or added
-headers. LVH Yard gives it to Traefik as a middleware.
+A Route Profile is a named set of Route options, such as basic auth, added
+headers or a required Client Certificate.
 The Consul KV of this Workstation holds its Route Profiles, under
 `lvh-yard/route-profiles/<name>`. Other Workstations read the profiles there.
 A profile is one middleware in the format of Traefik, such as
-`{"headers": {"customRequestHeaders": {"X-Forwarded-Proto": "https"}}}`.
+`{"headers": {"customRequestHeaders": {"X-Forwarded-Proto": "https"}}}`,
+or the reserved option `clientCertificate: {}`.
 
 The Route Profiles page of the dashboard lists each profile with its name, its
 Traefik type and the Services whose Publications name it. In **Used by**, click a
 Service to open its page.
 
-- To add a profile, click **New Route Profile**. Type its name and write one
-  middleware as YAML in **Route options**, such as `headers:` with its options
-  below it. Then click **Save Route Profile**.
+- To add a profile, click **New Route Profile**. Type its name and write its
+  options as YAML in **Route options**, such as `headers:` with its options
+  below it, or `clientCertificate: {}`. Then click **Save Route Profile**.
 - To use a reference, open an example in the **Examples** sidebar. Copy its YAML
   into **Route options** and adapt the values before you save. Each example has
   usage notes and a link to the Traefik documentation. Opening an example keeps
@@ -1021,6 +1383,32 @@ curl -X DELETE "$dashboard/protected"
 
 `lvh-yard profiles` lists the profiles, as the list of the API does.
 
+To require a Client Certificate signed by the Yard CA, save this profile with
+`lvh-yard profiles set profiles.yaml`:
+
+```yaml
+http:
+  middlewares:
+    certificate:
+      clientCertificate: {}
+```
+
+The Route Profiles page takes `clientCertificate: {}` in **Route options**.
+The API takes `{"clientCertificate": {}}` as the body of
+`PUT /api/workstation/route-profiles/certificate`.
+The reserved key has no settings and is not a Traefik middleware.
+Publish a Service with `lvh-yard publish admin --profile certificate`.
+A chain can name `certificate`, including through another chain.
+
+The Publication answers only on HTTPS. A request without a Client Certificate
+from the Yard CA is refused. There is no HTTP Route or redirect.
+A Workstation without HTTPS gives it no Route. On the Home Workstation, this
+causes a Service Warning of level **error**. See [Client Certificates](#client-certificates)
+to make a certificate for a browser.
+
+Dashboard hostname links use HTTPS and the configured HTTPS port for these
+Publications. Other hostname links use HTTP.
+
 A profile must work on every Workstation, so the dashboard refuses a profile
 that:
 
@@ -1030,7 +1418,7 @@ that:
 - sends `forwardAuth` to `localhost` or to an out-of-range address
 - is a chain that names a middleware that is not a Route Profile of this
   Workstation, or that is refused
-- has a type that is not a Traefik middleware, such as a typo
+- has a type that is neither a Traefik middleware nor `clientCertificate`
 - has a name with other characters than letters, digits, `-` and `_`
 
 A refused save answers 400 with the reason, and nothing changes. So a bad save
@@ -1052,7 +1440,7 @@ lvh-yard publish admin --no-profiles                    # removes them all
 Without `--profile`, a Publication keeps its profiles. A name that is not a
 Route Profile of this Workstation is refused, with the names that exist.
 
-The Route gets each profile as a Traefik middleware named
+The Route gets each middleware profile as a Traefik middleware named
 `<workstation>_<profile>`, such as `ws-a_basic-auth`, in the order of the
 Publication. A chain's members get the same name in front. So the profiles of
 two Workstations never clash.
@@ -1064,7 +1452,8 @@ dashboard reads the profiles from your Consul KV, so nobody copies a file. When
 you change a profile, their Routes change within a few seconds. The Service's
 page on their dashboard shows the profile names.
 
-A profile with `basicAuth`, `digestAuth` or `forwardAuth`, also inside a chain,
+A profile with `basicAuth`, `digestAuth`, `forwardAuth` or `clientCertificate`,
+also inside a chain,
 protects only the hostname. A connection straight to the Instance's address and
 port does not go through Traefik, so it skips the profile. The Service page,
 the API and `lvh-yard publish` show a risk about it. The Service must check
