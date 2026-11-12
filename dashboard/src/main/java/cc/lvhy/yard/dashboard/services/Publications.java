@@ -9,13 +9,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Function;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
  * One Consul KV key per published Service, holding its Scope, Route Profiles and whether Traefik
- * logs its requests. Publishing never touches an Instance.
+ * logs its requests. Publishing never touches an Instance itself: it says so, and the Bound
+ * Instances follow the new Scope.
  */
 @Component
 public class Publications {
@@ -32,8 +34,15 @@ public class Publications {
 
   private final RouteProfiles routeProfiles;
 
+  private final ApplicationEventPublisher changes;
+
   Publications(
-      Workstation workstation, Consul consul, ServiceRecords records, RouteProfiles routeProfiles) {
+      Workstation workstation,
+      Consul consul,
+      ServiceRecords records,
+      RouteProfiles routeProfiles,
+      ApplicationEventPublisher changes) {
+    this.changes = changes;
     this.workstation = workstation;
     this.consul = consul;
     this.records = records;
@@ -63,6 +72,7 @@ public class Publications {
             given(profiles, existing, Publication::profiles, List.of()),
             given(change.accessLog(), existing, Publication::accessLog, false));
     consul.putValue(PREFIX + service, value(chosen));
+    changes.publishEvent(new PublicationsChanged());
   }
 
   private void checkProfiles(List<String> profiles) {
@@ -114,6 +124,7 @@ public class Publications {
     checkHome(workstation);
     checkExists(service);
     consul.deleteValue(PREFIX + service);
+    changes.publishEvent(new PublicationsChanged());
   }
 
   Map<String, Publication> all() {
