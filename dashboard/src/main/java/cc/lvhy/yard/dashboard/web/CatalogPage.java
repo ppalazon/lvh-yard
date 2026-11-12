@@ -24,33 +24,77 @@ final class CatalogPage {
 
   private CatalogPage() {}
 
+  /** What the Scope selector of the catalog can choose. */
+  enum ScopeFilter {
+    /** The default. Hides the Remote Services that this Workstation has no Route to. */
+    IN_RANGE("in-range", "In range"),
+    EVERY("every", "Every scope"),
+    LOCAL(Scope.LOCAL.value(), "Local"),
+    YARD(Scope.YARD.value(), "Yard");
+
+    private final String value;
+    private final String label;
+
+    ScopeFilter(String value, String label) {
+      this.value = value;
+      this.label = label;
+    }
+
+    String value() {
+      return value;
+    }
+
+    String label() {
+      return label;
+    }
+
+    static Optional<ScopeFilter> named(String value) {
+      return Arrays.stream(values()).filter(filter -> filter.value.equals(value)).findFirst();
+    }
+
+    /**
+     * A Service of this Workstation is always in range. A Remote Service is in range when it has a
+     * Route here. Local and Yard hide a Service that is not published.
+     */
+    boolean shows(Service service, boolean remote) {
+      return switch (this) {
+        case IN_RANGE -> !remote || service.routed();
+        case EVERY -> true;
+        case LOCAL -> service.published() && service.publication().scope() == Scope.LOCAL;
+        case YARD -> service.sharedWithYard();
+      };
+    }
+  }
+
   /**
-   * A {@code null} filter does not filter. All stay in the page's address, as {@code
-   * ?workstation=<name>&state=<state>&scope=<scope>}. A Service that is not published has no Scope,
-   * so a Scope filter hides it.
+   * A {@code null} workstation or state does not filter. All stay in the page's address, as {@code
+   * ?workstation=<name>&state=<state>&scope=<scope>}, except the default Scope.
    */
-  record Filters(String workstation, ServiceState state, Scope scope) {
+  record Filters(String workstation, ServiceState state, ScopeFilter scope) {
 
     boolean shows(String name) {
       return workstation == null || workstation.equals(name);
     }
 
-    List<Service> of(List<Service> services) {
+    /**
+     * @param remote whether the Services are of another Workstation
+     */
+    List<Service> of(List<Service> services, boolean remote) {
       return services.stream()
           .filter(service -> state == null || service.state() == state)
-          .filter(service -> scope == null || scopeOf(service) == scope)
+          .filter(service -> scope.shows(service, remote))
           .toList();
-    }
-
-    private static Scope scopeOf(Service service) {
-      return service.published() ? service.publication().scope() : null;
     }
 
     String path() {
       return UriComponentsBuilder.fromPath("/")
           .queryParamIfPresent("workstation", Optional.ofNullable(workstation))
           .queryParamIfPresent("state", Optional.ofNullable(state).map(ServiceState::value))
-          .queryParamIfPresent("scope", Optional.ofNullable(scope).map(Scope::value))
+          .queryParamIfPresent(
+              "scope",
+              Optional.of(scope)
+                  .filter(chosen -> chosen != ScopeFilter.IN_RANGE)
+                  .map(ScopeFilter::value))
           .encode()
           .build()
           .toUriString();
@@ -181,18 +225,14 @@ final class CatalogPage {
         .attrClass("select")
         .attrId("scope")
         .attrName("scope")
-        .option()
-        .attrValue("")
-        .text("Every scope")
-        .__()
         .of(select ->
-            Arrays.stream(Scope.values())
+            Arrays.stream(ScopeFilter.values())
                 .forEach(scope ->
                     select
                         .option()
                         .attrValue(scope.value())
                         .of(option -> option.attrSelected(scope == filters.scope()))
-                        .text(scopeLabel(scope))
+                        .text(scope.label())
                         .__()))
         .__()
         .__()
@@ -258,7 +298,7 @@ final class CatalogPage {
    */
   private static void services(
       Div<?> region, List<Service> all, Filters filters, boolean remote, TraefikSettings traefik) {
-    List<Service> services = filters.of(all);
+    List<Service> services = filters.of(all, remote);
     if (services.isEmpty()) {
       if (all.isEmpty()) {
         EmptyState.render(
@@ -359,12 +399,5 @@ final class CatalogPage {
         })
         .__()
         .__();
-  }
-
-  private static String scopeLabel(Scope scope) {
-    return switch (scope) {
-      case LOCAL -> "Local";
-      case YARD -> "Yard";
-    };
   }
 }

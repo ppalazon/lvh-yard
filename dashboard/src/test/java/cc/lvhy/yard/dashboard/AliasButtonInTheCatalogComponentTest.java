@@ -46,7 +46,7 @@ class AliasButtonInTheCatalogComponentTest extends DashboardComponentTest {
     register(own, Map.of("host", "10.1.2.3", "port", 8080));
     put(publicationPath(own), Map.of("scope", "yard"));
 
-    String catalog = getPage("/").getBody();
+    String catalog = getPage("/?scope=every").getBody();
 
     assertThat(rowOf(catalog, remotePage(shared)))
         .contains("href=\"" + formPath(shared) + "\"")

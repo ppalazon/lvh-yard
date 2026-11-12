@@ -105,14 +105,14 @@ class PagesController {
     } catch (UnknownStateException e) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
     }
-    Scope shared =
+    CatalogPage.ScopeFilter shared =
         blank(scope)
-            ? null
-            : Scope.named(scope)
+            ? CatalogPage.ScopeFilter.IN_RANGE
+            : CatalogPage.ScopeFilter.named(scope)
                 .orElseThrow(() ->
                     new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
-                        "The Scope " + scope + " is unknown. Use local or yard."));
+                        "The Scope " + scope + " is unknown. Use in-range, every, local or yard."));
     return CatalogPage.render(
         this.workstation,
         yard.yard(),

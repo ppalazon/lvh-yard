@@ -161,6 +161,39 @@ class CatalogPageComponentTest extends DashboardComponentTest {
   }
 
   @Test
+  void hidesRemoteServicesOutOfRangeByDefault() {
+    String inRange = newServiceName("api");
+    String loopback = newServiceName("db");
+    String local = newServiceName("web");
+    String own = newServiceName("own");
+    remote.register(inRange, Map.of("host", "10.9.8.7", "port", 9090));
+    remote.publish(inRange, Map.of("scope", "yard"));
+    remote.register(loopback, Map.of("host", "127.0.0.1", "port", 5432));
+    remote.publish(loopback, Map.of("scope", "yard"));
+    remote.register(local, Map.of("host", "10.9.8.7", "port", 8080));
+    remote.publish(local, Map.of("scope", "local"));
+    register(own, Map.of("host", "10.1.2.3", "port", 8080));
+
+    String page = getPage("/").getBody();
+
+    assertThat(page)
+        .contains("<option value=\"in-range\" selected=\"selected\">In range</option>")
+        .contains("href=\"/services/" + RemoteWorkstation.NAME + "/" + inRange + "\"")
+        .contains("href=\"/services/ws-test/" + own + "\"")
+        .doesNotContain("href=\"/services/" + RemoteWorkstation.NAME + "/" + loopback + "\"")
+        .doesNotContain("href=\"/services/" + RemoteWorkstation.NAME + "/" + local + "\"");
+    assertThat(getPage("/?scope=every").getBody())
+        .contains("<option value=\"every\" selected=\"selected\">Every scope</option>")
+        .contains("href=\"/services/" + RemoteWorkstation.NAME + "/" + loopback + "\"")
+        .contains("href=\"/services/" + RemoteWorkstation.NAME + "/" + local + "\"");
+  }
+
+  @Test
+  void refusesAnUnknownScope() {
+    assertThat(getPage("/?scope=world").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+  }
+
+  @Test
   void saysWhenTheYardHasNoSuchWorkstation() {
     assertThat(getPage("/?workstation=ws-typo").getBody())
         .contains("The Yard has no Workstation ws-typo.");
@@ -221,6 +254,7 @@ class CatalogPageComponentTest extends DashboardComponentTest {
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
     String api = newServiceName("api");
     remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
+    remote.publish(api, Map.of("scope", "yard"));
 
     String page = getPage("/").getBody();
 
@@ -240,6 +274,7 @@ class CatalogPageComponentTest extends DashboardComponentTest {
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
     String api = newServiceName("api");
     remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
+    remote.publish(api, Map.of("scope", "yard"));
 
     String page = getPage("/?workstation=" + RemoteWorkstation.NAME).getBody();
 

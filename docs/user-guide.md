@@ -35,7 +35,10 @@ are Service, State, Hostname and Instances. On a phone, each row stacks these
 facts without sideways scrolling. The Instances count says "2 of 3 passing",
 for example, or "No Instances". Unpublished Services show the count too.
 Instance addresses are on the Service page. You can filter by Workstation,
-state and Scope. A Scope filter hides Services that are not published. The
+state and Scope. The Scope filter starts on "In range". It hides the Remote
+Services that this Workstation has no Route to: those with Local Scope or no
+Publication, and those with no Instance in range. Choose "Every scope" to see
+all Services. Choose Local or Yard to see only the Services with that Scope. The
 Catalog refreshes when something in the Yard changes, and at least every 30
 seconds. It keeps your filters.
 
