@@ -150,6 +150,23 @@ description = "Build the dashboard image: mise run dashboard:image"
 usage = 'flag "--platform <platform>" help="The platform of the Workstation that runs the image, for example linux/arm64"'
 run = 'docker build ${usage_platform:+--platform "$usage_platform"} -t ghcr.io/ppalazon/lvh-yard-dashboard:latest .'
 
+[tasks."dashboard:run"]
+description = "Run the dashboard from the sources on a Workstation Folder, ~/.config/lvh-yard by default: mise run dashboard:run"
+# It reads .env and lvh-yard.yaml of the folder, as the dashboard image does in Compose. Stop the dashboard container of that
+# Workstation first, as both use YARD_DASHBOARD_PORT.
+usage = 'flag "--dir <dir>" default="~/.config/lvh-yard" help="The Workstation Folder that the dashboard reads"'
+depends = ["css"]
+run = """
+folder="${usage_dir/#\\~/$HOME}"
+[ -f "$folder/.env" ] || { echo "No .env in $folder. Run lvh-yard ws init first." >&2; exit 1; }
+set -a
+. "$folder/.env"
+YARD_BACKUPS="$folder/backups"
+SPRING_CONFIG_ADDITIONAL_LOCATION="optional:file:$folder/lvh-yard.yaml"
+set +a
+./mvnw -q -pl dashboard spring-boot:run
+"""
+
 [tasks."dev:up"]
 description = "Start Consul and Traefik for two test Workstation Folders"
 depends = ["cli:build"]
@@ -162,15 +179,8 @@ run = 'bash dev/workstations.sh down "$PWD/cli/target/lvh-yard" "$PWD"'
 
 [tasks."dev:dashboard"]
 description = "Run the dashboard of test Workstation ws-a or ws-b: mise run dev:dashboard ws-b"
-depends = ["css"]
 usage = 'arg "<workstation>" help="ws-a or ws-b"'
-run = """
-case "$usage_workstation" in ws-a|ws-b) ;; *) echo "Use ws-a or ws-b." >&2; exit 1 ;; esac
-folder="$PWD/dev/$usage_workstation"
-set -a
-. "$folder/.env"
-YARD_BACKUPS="$folder/backups"
-SPRING_CONFIG_ADDITIONAL_LOCATION="optional:file:$folder/lvh-yard.yaml"
-set +a
-./mvnw -q -pl dashboard spring-boot:run
-"""
+run = [
+  'case "$usage_workstation" in ws-a|ws-b) ;; *) echo "Use ws-a or ws-b." >&2; exit 1 ;; esac',
+  { task = "dashboard:run", args = ["--dir", "{{config_root}}/dev/{{usage.workstation}}"] },
+]

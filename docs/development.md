@@ -18,6 +18,12 @@ Workstation Folders in `dev/ws-a/` and `dev/ws-b/`. Do not use the
 repository root as a Workstation Folder: `ws` repairs file modes recursively,
 which removes executable modes from checkout files.
 
+To try your sources on your own Workstation, stop its dashboard container if it
+runs, and use `mise run dashboard:run`. It builds `app.css` and runs
+`spring-boot:run` with the `.env` and `lvh-yard.yaml` of `~/.config/lvh-yard`.
+Consul and Traefik keep running from Compose. Use `--dir <folder>` for another
+Workstation Folder.
+
 To try your sources on another Workstation, copy the CLI and the dashboard
 image there through ssh. The other Workstation needs ssh, Docker and the
 folder for the CLI, but no registry. Both are built for the system and CPU of
