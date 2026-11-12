@@ -9,7 +9,7 @@ status: active
 replaces: l-1b1e7a1d
 src: agent
 touches:
-  - compose.yaml
+  - config/compose.yaml
 ---
 
 ## Decided
@@ -21,4 +21,4 @@ touches:
 - A hidden rule that turns the log off for Routes whose Instance is this Workstation's dashboard, Consul or Traefik admin address. LVH Yard has no Core Services, and a hidden rule would surprise the user.
 - On by default, with the first setup turning it off for yard, consul-ui and traefik-admin. The user preferred off for every Service.
 
-In the code: Publication.accessLog, PublicationRequest.accessLog (null keeps), StoredPublication.accessLog (written only when true), TraefikConfiguration.Router.observability ({accessLogs: false} unless on), RouteBuilder.router, Backup.Published.accessLog (file key access-log, missing means false), lvh-yard publish --access-log on|off, compose.yaml --accesslog=true and Consul -log-level=error.
+In the code: Publication.accessLog, PublicationRequest.accessLog (null keeps), StoredPublication.accessLog (written only when true), TraefikConfiguration.Router.observability ({accessLogs: false} unless on), RouteBuilder.router, Backup.Published.accessLog (file key access-log, missing means false), lvh-yard publish --access-log on|off, config/compose.yaml --accesslog=true and config/00-lvh-yard.hcl log_level.

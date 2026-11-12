@@ -9,7 +9,7 @@ On its first start against a Consul with no setup marker, the dashboard register
 ## Considered Options
 
 - **Core Services that the dashboard keeps on every start**: rejected. You cannot remove or change such Services, they reserve three names, and their Status Part only repeats the Consul and Traefik checks. Routes to them are a convenience, not a need, because the dashboard is always at its own address.
-- **Setup commands that `lvh-yard init` prints for you to run**: rejected. A new Workstation then has no hostnames until you do extra steps.
+- **Setup commands that `lvh-yard ws init` prints for you to run**: rejected. A new Workstation then has no hostnames until you do extra steps.
 
 ## Consequences
 

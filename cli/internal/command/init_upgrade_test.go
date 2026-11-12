@@ -126,7 +126,7 @@ func TestInitUpgradeMissingComposeSaysToRunInit(t *testing.T) {
 }
 
 func TestInitUpgradeRejectsOtherWriteModes(t *testing.T) {
-	for _, mode := range []string{"--force", "--reinit"} {
+	for _, mode := range []string{"--force", "--unknown"} {
 		t.Run(mode, func(t *testing.T) {
 			folder := t.TempDir()
 			writeUpgradeFile(t, folder, ".env", "YARD_WORKSTATION=mine\n")
