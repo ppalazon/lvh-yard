@@ -42,7 +42,7 @@ class BoundInstanceTargetsComponentTest extends DashboardComponentTest {
         .toList();
   }
 
-  /** Where the Route of the Local {@code service} sends requests. */
+  /** Where the Route of this Workstation's {@code service} sends requests. */
   private List<String> routeTargets(String service) {
     return TraefikConfigurationComponentTest.serverUrlsAt(
         get("/traefik/configuration").getBody().get("http"), service + ".lvh.test");
@@ -251,6 +251,7 @@ class BoundInstanceTargetsComponentTest extends DashboardComponentTest {
 
     scope(web, "yard");
     assertThat(targetsNow(web)).containsExactly(lan);
+    assertThat(routeTargets(web)).containsExactly("http://" + lan);
     assertThat(get(servicePath(web)).getBody().get("warnings")).isEmpty();
 
     scope(web, "local");
@@ -274,7 +275,9 @@ class BoundInstanceTargetsComponentTest extends DashboardComponentTest {
                 .alsoPublishedOn("127.0.0.2", 80));
     bind(yard, ties, 80);
     scope(yard, "yard");
-    assertThat(targets(yard, 1)).containsExactly("10.9.8.7:" + hostPortOn(tied, 80, "10.9.8.7"));
+    String firstLan = "10.9.8.7:" + hostPortOn(tied, 80, "10.9.8.7");
+    assertThat(targets(yard, 1)).containsExactly(firstLan);
+    assertThat(routeTargets(yard)).containsExactly("http://" + firstLan);
     bind(local, ties, 80);
     publish(local);
     assertThat(targets(local, 1)).containsExactly(LOOPBACK + ":" + hostPortOn(tied, 80, LOOPBACK));
@@ -294,6 +297,8 @@ class BoundInstanceTargetsComponentTest extends DashboardComponentTest {
     scope(mixedYard, "yard");
     publish(mixedLocal);
     assertThat(targets(mixedYard, 1)).containsExactly(lanAddress() + ":" + wildcardPort);
+    assertThat(routeTargets(mixedYard))
+        .containsExactly("http://" + lanAddress() + ":" + wildcardPort);
     assertThat(targets(mixedLocal, 1)).containsExactly(LOOPBACK + ":" + wildcardPort);
   }
 
@@ -386,5 +391,48 @@ class BoundInstanceTargetsComponentTest extends DashboardComponentTest {
         .containsExactly(LOOPBACK + ":" + hostPortOn(container, 80, LOOPBACK));
     assertThat(targets(yard, 1))
         .containsExactly(lanAddress() + ":" + hostPortOn(container, 80, lanAddress()));
+    assertThat(routeTargets(yard))
+        .containsExactly("http://" + lanAddress() + ":" + hostPortOn(container, 80, lanAddress()));
+  }
+
+  /** The other Workstation's own Yard-Scope Instances, as its Routes here take them. */
+  private void assertNoRemoteRouteButWarning(String service) {
+    await()
+        .atMost(FOLLOW_TIMEOUT)
+        .untilAsserted(() -> {
+          JsonNode remoteService =
+              get("/api/services/" + RemoteWorkstation.NAME + "/" + service).getBody();
+          assertThat(remoteService.get("instances")).hasSize(1);
+          assertThat(remoteService.get("warnings").valueStream().map(w -> w.get("kind").asString()))
+              .containsExactly("loopback-instance");
+        });
+    assertThat(
+            TraefikConfigurationComponentTest.routedHostnames(
+                get("/traefik/configuration").getBody().get("http")))
+        .doesNotContain(service + "." + RemoteWorkstation.NAME + ".lvh.test");
+  }
+
+  @Test
+  void explicitLoopbackMappingUnderYardScopeIsNotRoutedFromAnotherWorkstation() {
+    String web = newServiceName("web");
+    String name = newContainerName();
+    start(FakeDocker.container(name).publishedOn(LOOPBACK, 80));
+    remote.bind(web, name, 80);
+
+    remote.publish(web, "yard");
+
+    assertNoRemoteRouteButWarning(web);
+  }
+
+  @Test
+  void noSuitableMappingUnderYardScopeIsNotRoutedFromAnotherWorkstation() {
+    String web = newServiceName("web");
+    String name = newContainerName();
+    start(FakeDocker.container(name).publishedOn("127.0.0.2", 80).alsoPublishedOn(LOOPBACK, 80));
+    remote.bind(web, name, 80);
+
+    remote.publish(web, "yard");
+
+    assertNoRemoteRouteButWarning(web);
   }
 }
