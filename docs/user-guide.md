@@ -212,12 +212,28 @@ Workstation that made the CA.
 
 The certificate includes `server.<name>.consul`, `localhost`, `127.0.0.1`
 and `*.<Base Domain>`. Each `--address` adds one IP address or DNS name.
+A DNS wildcard must be the whole leftmost label, such as `*.ws-b.lvh.me`.
+Wildcards cannot cover IP addresses.
 `--base-domain` defaults to the signing Workstation's Base Domain.
 For example, the arguments for another Workstation can be
 `--workstation ws-b --base-domain example.test --address 192.168.1.11`.
 Both create commands accept `--days <number>` to change the validity.
 A certificate must expire before or with its CA. All these commands accept
 `--dir <folder>` and repair the Workstation Folder's private file modes.
+
+The default `*.<Base Domain>` covers local Routes only. A wildcard matches
+one label, so `*.lvh.me` does not cover `app.ws-b.lvh.me`.
+For each remote Workstation whose Routes this Workstation serves, add an
+extra wildcard. For example, on a Workstation with Base Domain `lvh.me`:
+
+```sh
+lvh-yard ws tls cert create --address '*.ws-b.lvh.me'
+```
+
+This covers `app.ws-b.lvh.me`, but not `app.ws-c.lvh.me` or
+`deeper.app.ws-b.lvh.me`. Repeat `--address` for each remote Workstation.
+When a new Peer needs Route coverage, create and import a new Workstation
+Certificate with all required `--address` values.
 
 To enable Consul TLS, import the bundle on its Workstation:
 

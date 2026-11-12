@@ -12,6 +12,7 @@ import (
  "net"
  "os"
  "path/filepath"
+ "strings"
  "time"
 
  "github.com/spf13/cobra"
@@ -86,7 +87,10 @@ func newWSTLSCert(folder func() string) *cobra.Command {
   leaf.DNSNames = []string{"server."+name+".consul", "localhost", "*."+base}
   leaf.IPAddresses = []net.IP{net.ParseIP("127.0.0.1")}
   for _, address := range addresses {
-   if ip := net.ParseIP(address); ip != nil { leaf.IPAddresses = append(leaf.IPAddresses, ip) } else if baseDomainName.MatchString(address) { leaf.DNSNames = append(leaf.DNSNames, address) } else { return fmt.Errorf("invalid --address %q: use an IP address or DNS name", address) }
+   if ip := net.ParseIP(address); ip != nil { leaf.IPAddresses = append(leaf.IPAddresses, ip); continue }
+   dns := strings.TrimPrefix(address, "*.")
+   if !baseDomainName.MatchString(dns) || net.ParseIP(dns) != nil { return fmt.Errorf("invalid --address %q: use an IP address, DNS name or leftmost-label wildcard such as *.ws-b.lvh.me", address) }
+   leaf.DNSNames = append(leaf.DNSNames, address)
   }
   leaf.KeyUsage = x509.KeyUsageDigitalSignature
   leaf.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
@@ -101,7 +105,7 @@ func newWSTLSCert(folder func() string) *cobra.Command {
  }}
  create.Flags().StringVar(&workstation, "workstation", "", "Signs a bundle for this Workstation name.")
  create.Flags().StringVar(&domain, "base-domain", "", "Uses this Base Domain for the certificate.")
- create.Flags().StringArrayVar(&addresses, "address", nil, "Adds an IP address or DNS name to the certificate.")
+ create.Flags().StringArrayVar(&addresses, "address", nil, "Adds an IP address, DNS name or wildcard DNS name to the certificate.")
  create.Flags().IntVar(&days, "days", 365, "Sets the certificate validity in days.")
  cert.AddCommand(create)
  return cert
