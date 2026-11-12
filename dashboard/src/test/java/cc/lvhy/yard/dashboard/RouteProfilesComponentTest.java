@@ -113,8 +113,7 @@ class RouteProfilesComponentTest extends DashboardComponentTest {
   @Test
   void clientCertificateProfileIsSavedAndReadWithoutATraefikMiddleware() {
     JsonNode definition = json("{\"clientCertificate\": {}}");
-    ResponseEntity<JsonNode> saved =
-        put(ROUTE_PROFILES_PATH + "/certificate", definition);
+    ResponseEntity<JsonNode> saved = put(ROUTE_PROFILES_PATH + "/certificate", definition);
 
     assertThat(saved.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(saved.getBody().get("type").asString()).isEqualTo("clientCertificate");
@@ -122,7 +121,8 @@ class RouteProfilesComponentTest extends DashboardComponentTest {
         .isEqualTo(definition);
     assertThat(json(kv("certificate"))).isEqualTo(definition);
     assertThat(
-            put(ROUTE_PROFILES_PATH + "/certificate",
+            put(
+                    ROUTE_PROFILES_PATH + "/certificate",
                     json("{\"clientCertificate\": {\"required\": false}}"))
                 .getStatusCode())
         .isEqualTo(HttpStatus.BAD_REQUEST);

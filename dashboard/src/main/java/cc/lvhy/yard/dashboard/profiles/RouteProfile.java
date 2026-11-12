@@ -10,7 +10,8 @@ public record RouteProfile(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
     @Schema(
             description =
-                "Its Traefik middleware type or clientCertificate. Missing when it has more or none.")
+                "Its Traefik middleware type or clientCertificate. Missing when it has more or"
+                    + " none.")
         String type,
     @Schema(
             requiredMode = Schema.RequiredMode.REQUIRED,

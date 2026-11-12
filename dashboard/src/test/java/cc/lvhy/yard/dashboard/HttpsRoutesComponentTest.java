@@ -2,13 +2,13 @@ package cc.lvhy.yard.dashboard;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
-import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.context.TestPropertySource;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 @TestPropertySource(properties = "lvh-yard.traefik.https-port=8443")
 class HttpsRoutesComponentTest extends DashboardComponentTest {
@@ -20,16 +20,20 @@ class HttpsRoutesComponentTest extends DashboardComponentTest {
 
   @Test
   void clientCertificateAndChainsRequireHttpsWithoutCertificateMiddlewares() {
-    putRouteProfiles(new JsonMapper().readTree("""
-        {"certificate": {"clientCertificate": {}},
-         "certificate-chain": {"chain": {"middlewares": ["certificate"]}},
-         "compressed": {"compress": {}},
-         "protected": {"chain": {"middlewares": ["certificate-chain", "compressed"]}}}
-        """));
+    putRouteProfiles(
+        new JsonMapper()
+            .readTree(
+                """
+                {"certificate": {"clientCertificate": {}},
+                 "certificate-chain": {"chain": {"middlewares": ["certificate"]}},
+                 "compressed": {"compress": {}},
+                 "protected": {"chain": {"middlewares": ["certificate-chain", "compressed"]}}}
+                """));
     for (String profile : List.of("certificate", "certificate-chain", "protected")) {
       String service = newServiceName("certificate");
       register(service, Map.of("host", "10.1.2.3", "port", 8080));
-      JsonNode saved = put(publicationPath(service), Map.of("profiles", List.of(profile))).getBody();
+      JsonNode saved =
+          put(publicationPath(service), Map.of("profiles", List.of(profile))).getBody();
       JsonNode http = get("/traefik/configuration").getBody().get("http");
       assertThat(http.get("routers").has(service)).isFalse();
       JsonNode secure = http.get("routers").get(service + "__https");
@@ -40,8 +44,13 @@ class HttpsRoutesComponentTest extends DashboardComponentTest {
       assertThat(http.path("middlewares").has("ws-test_certificate-chain")).isFalse();
       if (profile.equals("protected")) {
         assertThat(secure.get("middlewares").toString()).isEqualTo("[\"ws-test_protected\"]");
-        assertThat(http.get("middlewares").get("ws-test_protected").get("chain")
-                .get("middlewares").toString()).isEqualTo("[\"ws-test_compressed\"]");
+        assertThat(
+                http.get("middlewares")
+                    .get("ws-test_protected")
+                    .get("chain")
+                    .get("middlewares")
+                    .toString())
+            .isEqualTo("[\"ws-test_compressed\"]");
       } else {
         assertThat(secure.has("middlewares")).isFalse();
       }
@@ -51,22 +60,28 @@ class HttpsRoutesComponentTest extends DashboardComponentTest {
 
   @Test
   void remoteClientCertificateRequirementUsesItsHomeProfiles() {
-    remote.putRouteProfiles(new JsonMapper().readTree("""
-        {"remote-certificate": {"clientCertificate": {}}}
-        """));
+    remote.putRouteProfiles(
+        new JsonMapper()
+            .readTree(
+                """
+                {"remote-certificate": {"clientCertificate": {}}}
+                """));
     String service = newServiceName("remote-certificate");
     remote.register(service, Map.of("host", "10.9.8.7", "port", 8080));
     remote.publish(service, Map.of("scope", "yard", "profiles", List.of("remote-certificate")));
-    org.awaitility.Awaitility.await().atMost(java.time.Duration.ofSeconds(10))
+    org.awaitility.Awaitility.await()
+        .atMost(java.time.Duration.ofSeconds(10))
         .untilAsserted(() -> {
           JsonNode http = get("/traefik/configuration").getBody().get("http");
           String router = service + "." + RemoteWorkstation.NAME;
           assertThat(http.get("routers").has(router)).isFalse();
-          assertThat(http.get("routers").get(router + "__https").get("tls").get("options")
-                  .asString()).isEqualTo("yard-client-certificate@file");
+          assertThat(
+                  http.get("routers").get(router + "__https").get("tls").get("options").asString())
+              .isEqualTo("yard-client-certificate@file");
           assertThat(http.path("middlewares").has("ws-remote_remote-certificate")).isFalse();
         });
   }
+
   @Test
   void routesHttpAndHttpsToTheSamePublicationWithoutRedirect() {
     String service = newServiceName("secure");

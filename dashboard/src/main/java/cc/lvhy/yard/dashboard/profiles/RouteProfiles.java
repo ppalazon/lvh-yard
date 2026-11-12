@@ -13,8 +13,8 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * The Route Profiles that a Workstation's Consul KV holds, at {@link #KEY_PREFIX}{@code <name>}.
  * Every Workstation that routes a Publication naming one reads it there (ADR-0004). The value is
- * either the profile's middleware in Traefik's format or {@code {"clientCertificate": {}}}.
- * A chain names its members, as Traefik does. {@link RouteProfileEditor} writes them.
+ * either the profile's middleware in Traefik's format or {@code {"clientCertificate": {}}}. A chain
+ * names its members, as Traefik does. {@link RouteProfileEditor} writes them.
  */
 @Component
 public class RouteProfiles {

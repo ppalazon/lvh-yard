@@ -186,7 +186,8 @@ class BackupFormatTest {
     assertThat(refused.problems())
         .containsExactly(
             new BackupProblem(
-                "version", "The version 4 is not one this dashboard reads. It reads versions 2 and 3."));
+                "version",
+                "The version 4 is not one this dashboard reads. It reads versions 2 and 3."));
   }
 
   @Test

@@ -53,8 +53,7 @@ class TraefikStatusComponentTest extends DashboardComponentTest {
       remote.whileDashboardRunsWith(
           () -> {
             String service = newServiceName("no-traefik");
-            remote.register(
-                service, Map.of("host", "127.0.0.1", "port", instance.getLocalPort()));
+            remote.register(service, Map.of("host", "127.0.0.1", "port", instance.getLocalPort()));
             remote.publish(service, "yard");
             JsonNode shared =
                 get("/api/services/" + RemoteWorkstation.NAME + "/" + service).getBody();

@@ -194,15 +194,20 @@ public record ServiceWarning(
   }
 
   private static Stream<ServiceWarning> clientCertificate(
-      Publication publication, Map<String, RouteProfileDefinition> profiles, boolean noHttpsAtHome) {
-    if (!noHttpsAtHome || publication.profiles().stream()
-        .map(profiles::get)
-        .filter(java.util.Objects::nonNull)
-        .noneMatch(RouteProfileDefinition::requiresClientCertificate)) {
+      Publication publication,
+      Map<String, RouteProfileDefinition> profiles,
+      boolean noHttpsAtHome) {
+    if (!noHttpsAtHome
+        || publication.profiles().stream()
+            .map(profiles::get)
+            .filter(java.util.Objects::nonNull)
+            .noneMatch(RouteProfileDefinition::requiresClientCertificate)) {
       return Stream.empty();
     }
-    return Stream.of(new ServiceWarning(Kind.CLIENT_CERTIFICATE_UNAVAILABLE,
-        "This Workstation has no HTTPS for this Publication's required Client Certificate."));
+    return Stream.of(
+        new ServiceWarning(
+            Kind.CLIENT_CERTIFICATE_UNAVAILABLE,
+            "This Workstation has no HTTPS for this Publication's required Client Certificate."));
   }
 
   private static Stream<ServiceWarning> auth(

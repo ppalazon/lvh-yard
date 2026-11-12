@@ -188,7 +188,9 @@ func checkWSSetting(name, value string) (string, error) {
 	case strings.HasSuffix(name, "-port"):
 		n, err := strconv.Atoi(value)
 		valid, rule = err == nil && n >= 1 && n <= 65535, "a port from 1 to 65535"
-		if name == "https-port" && value == "" { valid = true }
+		if name == "https-port" && value == "" {
+			valid = true
+		}
 	case name == "out-of-range":
 		valid, rule = true, "CIDR ranges separated by commas, or an empty value"
 		if value != "" {

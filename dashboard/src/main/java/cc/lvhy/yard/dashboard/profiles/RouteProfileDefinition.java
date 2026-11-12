@@ -58,9 +58,11 @@ public record RouteProfileDefinition(String name, Map<String, Map<String, Object
       if (!omitted.contains(profile)) {
         if (value.get("chain") instanceof Map<?, ?> chain) {
           Map<String, Object> options = new LinkedHashMap<>((Map<String, Object>) chain);
-          options.put("middlewares",
+          options.put(
+              "middlewares",
               RouteProfileChecks.chainMembers(value).stream()
-                  .filter(member -> !omitted.contains(member)).toList());
+                  .filter(member -> !omitted.contains(member))
+                  .toList());
           result.put(profile, Map.of("chain", options));
         } else {
           result.put(profile, value);
@@ -69,6 +71,7 @@ public record RouteProfileDefinition(String name, Map<String, Map<String, Object
     });
     return result;
   }
+
   /** Whether it, or a chain member it reaches, asks who the user is. */
   public boolean asksWhoTheUserIs() {
     return middlewares.values().stream()

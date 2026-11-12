@@ -18,7 +18,7 @@ func TestInitKeepsDashboardEnvironmentExplicit(t *testing.T) {
 	var compose struct {
 		Services map[string]struct {
 			Environment map[string]string `yaml:"environment"`
-			EnvFile any `yaml:"env_file"`
+			EnvFile     any               `yaml:"env_file"`
 		} `yaml:"services"`
 	}
 	if err := yaml.Unmarshal([]byte(readInitFile(t, folder, "compose.yaml")), &compose); err != nil {

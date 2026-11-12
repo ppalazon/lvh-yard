@@ -23,10 +23,13 @@ class DashboardConfigComponentTest {
     Path config = folder.resolve("application.yaml");
     Path env = folder.resolve(".env");
     Files.writeString(env, "");
-    Files.writeString(config, "# lvh-yard:\n#   workstation:\n#     base-domain: ${YARD_BASE_DOMAIN:example.test}\n");
+    Files.writeString(
+        config,
+        "# lvh-yard:\n#   workstation:\n#     base-domain: ${YARD_BASE_DOMAIN:example.test}\n");
     assertThat(catalog(config, env)).contains("base domain lvh.me.");
 
-    Files.writeString(config, "lvh-yard:\n  workstation:\n    base-domain: ${YARD_BASE_DOMAIN:example.test}\n");
+    Files.writeString(
+        config, "lvh-yard:\n  workstation:\n    base-domain: ${YARD_BASE_DOMAIN:example.test}\n");
     assertThat(catalog(config, env)).contains("base domain example.test.");
 
     Files.writeString(env, "YARD_BASE_DOMAIN=env.test\n");
@@ -37,14 +40,19 @@ class DashboardConfigComponentTest {
     try (ConfigurableApplicationContext dashboard =
         new SpringApplicationBuilder(DashboardApplication.class)
             .initializers(context -> {
-              context.getBeanFactory().registerSingleton(
-                  RemoteWorkstation.SkipTestConfigurations.class.getName(),
-                  new RemoteWorkstation.SkipTestConfigurations());
+              context
+                  .getBeanFactory()
+                  .registerSingleton(
+                      RemoteWorkstation.SkipTestConfigurations.class.getName(),
+                      new RemoteWorkstation.SkipTestConfigurations());
               GenericApplicationContext beans = (GenericApplicationContext) context;
-              beans.registerBean("fakeConsul", FakeConsul.class, () -> new FakeConsul("ws-config"),
+              beans.registerBean(
+                  "fakeConsul",
+                  FakeConsul.class,
+                  () -> new FakeConsul("ws-config"),
                   bean -> bean.setPrimary(true));
-              beans.registerBean("fakeDocker", FakeDocker.class, FakeDocker::new,
-                  bean -> bean.setPrimary(true));
+              beans.registerBean(
+                  "fakeDocker", FakeDocker.class, FakeDocker::new, bean -> bean.setPrimary(true));
             })
             .run(
                 "--spring.config.additional-location=" + config.toUri(),
@@ -57,9 +65,13 @@ class DashboardConfigComponentTest {
                 "--lvh-yard.consul.peers=",
                 "--lvh-yard.docker.host=unix:///fake/docker.sock",
                 "--lvh-yard.backups.path=" + folder.resolve("backups"))) {
-      return RestClient.create("http://127.0.0.1:"
-              + dashboard.getEnvironment().getRequiredProperty("local.server.port"))
-          .get().uri("/").retrieve().body(String.class);
+      return RestClient.create(
+              "http://127.0.0.1:"
+                  + dashboard.getEnvironment().getRequiredProperty("local.server.port"))
+          .get()
+          .uri("/")
+          .retrieve()
+          .body(String.class);
     }
   }
 }

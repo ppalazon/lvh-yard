@@ -45,8 +45,7 @@ final class RouteProfileEditorPage {
                 .__()
                 .p()
                 .attrClass("text-muted-foreground")
-                .text(
-                    "Define Route options for Publications on " + workstation.name() + ".")
+                .text("Define Route options for Publications on " + workstation.name() + ".")
                 .__()
                 .__()
                 .div()

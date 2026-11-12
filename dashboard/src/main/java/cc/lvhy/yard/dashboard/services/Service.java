@@ -94,7 +94,8 @@ public record Service(
         hostname,
         instances,
         containerBindings,
-        ServiceWarning.of(publication, instances, sources, instancePriority, stored, home && !https),
+        ServiceWarning.of(
+            publication, instances, sources, instancePriority, stored, home && !https),
         sources,
         instancePriority,
         publication == null ? List.of() : publication.profiles(),

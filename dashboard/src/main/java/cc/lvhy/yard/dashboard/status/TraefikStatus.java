@@ -20,7 +20,10 @@ import org.springframework.stereotype.Component;
  * dashboard, or none, and its Routes may be old.
  */
 @Component
-@ConditionalOnProperty(name = "lvh-yard.traefik.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(
+    name = "lvh-yard.traefik.enabled",
+    havingValue = "true",
+    matchIfMissing = true)
 @Order(StatusOrder.TRAEFIK)
 class TraefikStatus implements PartReader {
 

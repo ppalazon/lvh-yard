@@ -11,7 +11,8 @@ public record RouteProfileDetail(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
     @Schema(
             description =
-                "Its Traefik middleware type or clientCertificate. Missing when it has more or none.")
+                "Its Traefik middleware type or clientCertificate. Missing when it has more or"
+                    + " none.")
         String type,
     @Schema(
             requiredMode = Schema.RequiredMode.REQUIRED,
@@ -19,8 +20,7 @@ public record RouteProfileDetail(
         List<String> services,
     @Schema(
             requiredMode = Schema.RequiredMode.REQUIRED,
-            description =
-                "The middleware in Traefik's format, or {\"clientCertificate\": {}}.")
+            description = "The middleware in Traefik's format, or {\"clientCertificate\": {}}.")
         Map<String, Object> definition) {
 
   public RouteProfileDetail {

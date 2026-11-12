@@ -64,8 +64,10 @@ class RouteProfilesPageComponentTest extends DashboardComponentTest {
 
   @Test
   void savingClientCertificateProfileThroughThePageKeepsItsReservedKey() {
-    ResponseEntity<String> response = postForm("/route-profiles",
-        Map.of("name", "page-certificate", "definition", "clientCertificate: {}\n"));
+    ResponseEntity<String> response =
+        postForm(
+            "/route-profiles",
+            Map.of("name", "page-certificate", "definition", "clientCertificate: {}\n"));
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
     assertThat(row(getPage("/route-profiles").getBody(), "page-certificate"))
         .contains("clientCertificate");

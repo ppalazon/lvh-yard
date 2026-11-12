@@ -1,8 +1,8 @@
 package cc.lvhy.yard.dashboard.routes;
 
 import cc.lvhy.yard.dashboard.Workstation;
-import cc.lvhy.yard.dashboard.services.YardReader;
 import cc.lvhy.yard.dashboard.reachability.TraefikSettings;
+import cc.lvhy.yard.dashboard.services.YardReader;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,7 +24,8 @@ class TraefikController {
   private final TraefikFetches fetches;
   private final TraefikSettings settings;
 
-  TraefikController(Workstation workstation, YardReader yard, TraefikFetches fetches, TraefikSettings settings) {
+  TraefikController(
+      Workstation workstation, YardReader yard, TraefikFetches fetches, TraefikSettings settings) {
     this.settings = settings;
     this.workstation = workstation;
     this.yard = yard;
@@ -34,7 +35,10 @@ class TraefikController {
   @GetMapping(path = PATH, produces = MediaType.APPLICATION_JSON_VALUE)
   TraefikConfiguration configuration() {
     TraefikConfiguration configuration =
-        RouteBuilder.build(workstation, yard.routableYard().services(), settings.enabled() && settings.httpsPort() != null);
+        RouteBuilder.build(
+            workstation,
+            yard.routableYard().services(),
+            settings.enabled() && settings.httpsPort() != null);
     fetches.fetched();
     return configuration;
   }

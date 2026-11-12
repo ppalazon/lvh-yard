@@ -21,7 +21,8 @@ final class RouteBuilder {
   private RouteBuilder() {}
 
   /** Unreachable Workstations are not among {@code services}, so their Services get no Route. */
-  static TraefikConfiguration build(Workstation workstation, List<Service> services, boolean https) {
+  static TraefikConfiguration build(
+      Workstation workstation, List<Service> services, boolean https) {
     Map<String, Router> routers = new LinkedHashMap<>();
     Map<String, TraefikConfiguration.Service> backends = new LinkedHashMap<>();
     Map<String, Map<String, Object>> middlewares = new LinkedHashMap<>();
@@ -37,15 +38,20 @@ final class RouteBuilder {
           List<String> routeProfiles = profiles(service, middlewares);
           boolean certificate = service.requiresClientCertificate();
           if (!certificate) {
-            routers.put(name, router(service.hostname(), name, routeProfiles,
-                service.publication().accessLog()));
+            routers.put(
+                name,
+                router(service.hostname(), name, routeProfiles, service.publication().accessLog()));
           }
           if (https) {
-            routers.put(name + "__https", new Router(
-                "Host(`" + service.hostname() + "`)", List.of("websecure"), name,
-                routeProfiles,
-                service.publication().accessLog() ? null : new Observability(false),
-                certificate ? Map.of("options", "yard-client-certificate@file") : Map.of()));
+            routers.put(
+                name + "__https",
+                new Router(
+                    "Host(`" + service.hostname() + "`)",
+                    List.of("websecure"),
+                    name,
+                    routeProfiles,
+                    service.publication().accessLog() ? null : new Observability(false),
+                    certificate ? Map.of("options", "yard-client-certificate@file") : Map.of()));
           }
           backends.put(name, new TraefikConfiguration.Service(new LoadBalancer(servers)));
         });
@@ -66,9 +72,11 @@ final class RouteBuilder {
             definitions.forEach((name, definition) ->
                 middlewares.put(middleware(home, name), renamed(home, definition))));
     return service.profiles().stream()
-        .filter(profile -> !service.profileDefinitions().containsKey(profile)
-            || middlewares.containsKey(middleware(home, profile)))
-        .map(profile -> middleware(home, profile)).toList();
+        .filter(profile ->
+            !service.profileDefinitions().containsKey(profile)
+                || middlewares.containsKey(middleware(home, profile)))
+        .map(profile -> middleware(home, profile))
+        .toList();
   }
 
   /**
@@ -112,6 +120,7 @@ final class RouteBuilder {
         List.of(HTTP_ENTRY_POINT),
         name,
         middlewares,
-        accessLog ? null : new Observability(false), null);
+        accessLog ? null : new Observability(false),
+        null);
   }
 }

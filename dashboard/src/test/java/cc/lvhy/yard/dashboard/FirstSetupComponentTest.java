@@ -190,7 +190,8 @@ class FirstSetupComponentTest extends DashboardComponentTest {
               remote.deleteConsulValue("lvh-yard/services/" + name);
             });
             remote.deleteConsulValue(RemoteWorkstation.FIRST_SETUP);
-            remote.putConsulValue(RemoteWorkstation.FIRST_SETUP_NAMES, String.join(",", OWN_SERVICES));
+            remote.putConsulValue(
+                RemoteWorkstation.FIRST_SETUP_NAMES, String.join(",", OWN_SERVICES));
           },
           "--YARD_TRAEFIK_ENABLED=false");
 
