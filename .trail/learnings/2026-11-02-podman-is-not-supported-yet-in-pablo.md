@@ -9,10 +9,10 @@ scope: repo
 status: active
 src: agent
 touches:
-  - ".env.example"
+  - config/.env.example
   - Dockerfile
   - README.md
-  - compose.yaml
+  - config/compose.yaml
 ---
 
 ## Decided
@@ -25,4 +25,4 @@ Running the dashboard on rootless Podman with the Docker setup (user 1000:1000, 
 Podman support would need: a setting for the socket path (rootless: /run/user/<uid>/podman/podman.sock), and userns_mode keep-id or no user and group_add. Traefik on port 80 also fails rootless, unless net.ipv4.ip_unprivileged_port_start is lowered. Not tested yet: the dashboard on Podman's Docker-compatible events API, an empty group_add on Podman, and whether podman-compose gives containers the Compose labels that Container Bindings match.
 A podman system service socket path must be under about 108 characters, or it fails with "bind: invalid argument".
 
-In the code: compose.yaml dashboard `user`, `group_add` and the /var/run/docker.sock volume.
+In the code: config/compose.yaml dashboard `user`, `group_add` and the /var/run/docker.sock volume.

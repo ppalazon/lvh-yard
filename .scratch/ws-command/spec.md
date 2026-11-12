@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: done
 
 # The `lvh-yard ws` command, config files and TLS
 
@@ -48,7 +48,7 @@ The fixed options of Consul move out of `compose.yaml` into files in the Worksta
 24. As a user, I want `ws set peers <list>` to take spaces or commas, so that I paste the list as I have it.
 25. As a user, I want a `ws set` name for each address, port and option that I may change, so that I never edit `.env` by hand.
 26. As a user, I want `ws set` to refuse the Workstation name and to tell me how to rename, so that I do not break my hostnames by mistake.
-27. As a user, I want `ws set` to tell me to run `ws restart`, so that I know the change is not live yet.
+27. As a user, I want `ws set` to name the recreate or stop command that applies the setting, so that I know the change is not live yet. `ws restart` remains `docker compose restart` and does not apply new environment settings.
 28. As a user, I want `ws join --gossip-key <key> --peers <list>` to move this Workstation to another Yard, so that I do not rewrite files.
 29. As a user, I want `ws join` to check the Gossip Key, so that a bad key never reaches `.env`.
 30. As a user, I want no `ws rename`, and a message that says export a Backup, run `ws init` under the new name and import it, so that I keep my Services.
@@ -145,6 +145,7 @@ The fixed options of Consul move out of `compose.yaml` into files in the Worksta
 - `traefik/dynamic/10-tls.yaml` gives Traefik the Workstation Certificate, a default TLS option, and one named TLS option that requires a Client Certificate signed by the Yard CA. That name is a fixed contract between this file and the dashboard.
 - `ws tls client create <name>` signs a Client Certificate with the Yard CA key and writes a PKCS#12 file. The key usage is client only.
 - TLS on Consul is Yard-wide. A Workstation with TLS and one without cannot federate.
+- Explicit `--address` DNS names may use a whole leftmost wildcard, such as `*.ws-b.lvh.me`, to cover nested remote Route names. Defaults stay unchanged. Add a wildcard for each remote Workstation whose Routes this Workstation serves, and replace the certificate when another Peer needs coverage. Hostname verification stays on.
 
 **Dashboard**
 

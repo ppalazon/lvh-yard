@@ -10,14 +10,14 @@ status: active
 replaces: l-55c8fe89
 src: agent
 touches:
-  - compose.yaml
+  - config/compose.yaml
   - ".github/workflows/release.yml"
 ---
 
 ## Decided
 - A multi-stage Dockerfile builds the image, not Spring Boot's buildpacks, because buildpacks do not build app.css and make amd64 plus arm64 images harder. app.css and the jar are built once. Only the last stage is per platform, and it has no RUN, so no QEMU is needed.
-- The dashboard service in compose.yaml sits behind the dashboard profile, so mise run up and dev:up start only Consul and Traefik.
-- compose.yaml passes each setting with its default written out, so it shows every value the dashboard gets. The defaults must match application.yaml.
+- The dashboard service in config/compose.yaml sits behind the dashboard profile. dev/workstations.sh starts only Consul and Traefik, because the test dashboards run from sources.
+- config/compose.yaml passes each setting with its default written out, so it shows every value the dashboard gets. The defaults must match application.yaml.
 - YARD_OUT_OF_RANGE uses ${VAR-default}, not ${VAR:-default}, because set but empty must mean that nothing is out of range.
 
 ## Tried and ruled out
@@ -27,4 +27,4 @@ touches:
 - A local multi-platform build fails with the default docker driver. Use a docker-container builder.
 - Exported shell variables beat .env, for Compose and the dashboard alike.
 
-In the code: Dockerfile, compose.yaml (dashboard service), .github/workflows/release.yml.
+In the code: Dockerfile, config/compose.yaml (dashboard service), .github/workflows/release.yml.

@@ -16,7 +16,7 @@ touches:
 - Base Domain belongs to one Workstation, not to the Yard. Each Workstation's Traefik builds every hostname with its own Base Domain, and it may be a public domain. The user corrected the older text that said "the same on every Workstation".
 - A Peer is the LAN address of another Workstation that this Workstation joins to find the Yard. Joining is one way: if ws-b lists ws-a, ws-a still learns about ws-b. The first Workstation of a Yard has no Peers.
 - "Gossip Key" stays the name of the Yard's shared secret, even though "gossip" is a Consul word, so the flag and the setting keep their names.
-- "Workstation Folder" is the name of the folder that lvh-yard init writes.
+- "Workstation Folder" is the name of the folder that lvh-yard ws init writes.
 
 ## Tried and ruled out
 - Peer as "any other Workstation": that is just Workstation again, and it hides the one-way join.

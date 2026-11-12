@@ -215,8 +215,8 @@ func TestInitInputErrorsWriteNothing(t *testing.T) {
 		{"--workstation", "ws-a", "--gossip-key", "secret"},
 		{"--workstation", "ws-a", "--gossip-key", ""},
 		{"--force", "--upgrade"},
-		{"--force", "--reinit"},
-		{"--upgrade", "--reinit"},
+		{"--force", "--unknown"},
+		{"--upgrade", "--unknown"},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
 			folder := filepath.Join(t.TempDir(), "not-created")
