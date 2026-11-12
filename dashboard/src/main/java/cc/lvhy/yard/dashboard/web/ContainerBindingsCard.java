@@ -17,7 +17,6 @@ final class ContainerBindingsCard {
   static void openLink(Div<?> row, Service service) {
     row.a()
         .attrClass("btn w-fit")
-        .addAttr("data-variant", "outline")
         .addAttr("data-size", "sm")
         .attrHref(Layout.attr(BindContainerPage.path(service)))
         .text("Bind container")

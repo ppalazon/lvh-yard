@@ -513,7 +513,6 @@ final class ServicePage {
         .a()
         .attrHref(Layout.attr(ReachabilityPage.path(service)))
         .attrClass("btn ml-auto")
-        .addAttr("data-variant", "outline")
         .text("Test Reachability")
         .__()
         .__()
