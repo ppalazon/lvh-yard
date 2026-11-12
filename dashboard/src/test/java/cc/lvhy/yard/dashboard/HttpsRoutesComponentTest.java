@@ -109,6 +109,18 @@ class HttpsRoutesComponentTest extends DashboardComponentTest {
     assertThat(plain.has("middlewares")).isFalse();
   }
 
+  @Test
+  void pagesLinkHttpAndHttpsOfAPlainPublication() {
+    String service = newServiceName("both");
+    register(service, Map.of("host", "10.1.2.3", "port", 8080));
+    publish(service);
+    for (String path : List.of("/", "/services/ws-test/" + service)) {
+      assertThat(getPage(path).getBody())
+          .contains("href=\"http://" + service + ".lvh.test:")
+          .contains("href=\"https://" + service + ".lvh.test:8443\"");
+    }
+  }
+
   private void assertPublicationLink(String home, String service, String url) {
     for (String path : List.of("/", "/services/" + home + "/" + service)) {
       assertThat(getPage(path).getBody()).contains("href=\"" + url + "\"");

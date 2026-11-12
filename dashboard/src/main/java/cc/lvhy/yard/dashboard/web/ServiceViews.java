@@ -31,16 +31,26 @@ final class ServiceViews {
     };
   }
 
-  /** No link when this Workstation cannot serve a certificate-only Route. */
+  /**
+   * The hostname as a link. With HTTPS on this Workstation, a lock icon links to the HTTPS address
+   * next to the HTTP link. A Publication that needs a Client Certificate has only the HTTPS link.
+   * With no address that this Workstation serves, it is plain text.
+   */
   static void hostname(PhrasingContent<?, ?> parent, Service service, TraefikSettings settings) {
     if (service.hostname() == null) {
       return;
     }
-    String url = settings.publicationUrl(service);
-    if (url == null) {
-      parent.text(service.hostname());
+    String http = settings.httpUrl(service);
+    String https = settings.httpsUrl(service);
+    if (http != null) {
+      Layout.externalLink(parent, service.hostname(), http);
+      if (https != null) {
+        Layout.secureIconLink(parent, https);
+      }
+    } else if (https != null) {
+      Layout.secureLink(parent, service.hostname(), https);
     } else {
-      Layout.externalLink(parent, service.hostname(), url);
+      parent.text(service.hostname());
     }
   }
 }

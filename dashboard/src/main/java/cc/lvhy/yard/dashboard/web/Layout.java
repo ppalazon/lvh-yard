@@ -215,6 +215,36 @@ public final class Layout {
    * from the dashboard tab.
    */
   static void externalLink(PhrasingContent<?, ?> parent, String hostname, String url) {
+    link(parent, hostname, url, "M15 3h6v6", "M10 14 21 3", EXTERNAL_LINK_BODY);
+  }
+
+  /** Like {@link #externalLink}, with Lucide's lock icon: the address is HTTPS. */
+  static void secureLink(PhrasingContent<?, ?> parent, String hostname, String url) {
+    link(parent, hostname, url, LOCK_SHACKLE, LOCK_BODY);
+  }
+
+  /** Only Lucide's lock icon, as a link next to the HTTP link of the same hostname. */
+  static void secureIconLink(PhrasingContent<?, ?> parent, String url) {
+    parent
+        .a()
+        .attrHref(attr(url))
+        .attrTarget("_blank")
+        .addAttr("rel", "noopener noreferrer")
+        .addAttr("aria-label", "Open " + attr(url) + " (HTTPS)")
+        .addAttr("title", "Open with HTTPS")
+        .attrClass("ml-1 inline-block align-baseline")
+        .of(link -> icon(link.svg(), "inline size-3.5", LOCK_SHACKLE, LOCK_BODY))
+        .__();
+  }
+
+  private static final String EXTERNAL_LINK_BODY =
+      "M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6";
+  private static final String LOCK_SHACKLE = "M7 11V7a5 5 0 0 1 10 0v4";
+  private static final String LOCK_BODY =
+      "M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z";
+
+  private static void link(
+      PhrasingContent<?, ?> parent, String hostname, String url, String... iconPaths) {
     parent
         .a()
         .attrHref(attr(url))
@@ -222,13 +252,7 @@ public final class Layout {
         .addAttr("rel", "noopener noreferrer")
         .attrClass("underline")
         .text(hostname)
-        .of(link ->
-            icon(
-                link.svg(),
-                "ml-1 inline size-3.5 align-baseline",
-                "M15 3h6v6",
-                "M10 14 21 3",
-                "M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"))
+        .of(link -> icon(link.svg(), "ml-1 inline size-3.5 align-baseline", iconPaths))
         .__();
   }
 

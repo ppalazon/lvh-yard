@@ -17,17 +17,20 @@ public record TraefikSettings(
     return URI.create("http://" + BindAddress.host(bindAddress) + ":" + port);
   }
 
-  /** The browser address of a Publication, or null when its certificate-only Route is disabled. */
-  public String publicationUrl(Service service) {
-    if (service.hostname() == null) {
+  /** The plain HTTP address of a Publication, or null when it has no hostname or needs HTTPS. */
+  public String httpUrl(Service service) {
+    if (service.hostname() == null || service.requiresClientCertificate()) {
       return null;
     }
-    if (service.requiresClientCertificate()) {
-      return enabled && httpsPort != null
-          ? "https://" + service.hostname() + (httpsPort == 443 ? "" : ":" + httpsPort)
-          : null;
-    }
     return "http://" + service.hostname() + (port == 80 ? "" : ":" + port);
+  }
+
+  /** The HTTPS address of a Publication, or null when it has no hostname or this has no HTTPS. */
+  public String httpsUrl(Service service) {
+    if (service.hostname() == null || !enabled || httpsPort == null) {
+      return null;
+    }
+    return "https://" + service.hostname() + (httpsPort == 443 ? "" : ":" + httpsPort);
   }
 
   /** On loopback, whatever {@link #bindAddress} says. */

@@ -464,7 +464,8 @@ HTTPS is off by default. When Traefik is on, installing the Traefik certificate 
 `lvh-yard ws tls enable traefik`) sets `YARD_HTTPS_PORT=443` if it is empty and
 writes the Traefik TLS file.
 Apply the settings with `lvh-yard ws compose recreate`. Every Route then answers on HTTP and HTTPS. HTTP does not
-redirect to HTTPS. If the Yard CA signed the Traefik certificate, import `tls/traefik/ca.crt`
+redirect to HTTPS. The dashboard then shows two links for each hostname: the hostname for HTTP, and a lock icon for
+HTTPS. If the Yard CA signed the Traefik certificate, import `tls/traefik/ca.crt`
 into your browser's trusted certificate authorities to trust it. A public
 certificate needs nothing.
 
@@ -1410,7 +1411,7 @@ causes a Service Warning of level **error**. See [Client Certificates](#client-c
 to make a certificate for a browser.
 
 Dashboard hostname links use HTTPS and the configured HTTPS port for these
-Publications. Other hostname links use HTTP.
+Publications, with a lock icon. Other hostname links use HTTP.
 
 A profile must work on every Workstation, so the dashboard refuses a profile
 that:
