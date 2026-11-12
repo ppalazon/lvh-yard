@@ -193,7 +193,7 @@ final class CatalogPage {
                         + " To see why, run ")
                 .code()
                 .attrClass("rounded bg-muted px-2 py-1 font-mono")
-                .text("lvh-yard ws logs consul")
+                .text("lvh-yard ws compose logs consul")
                 .__()
                 .text(".")
                 .__();

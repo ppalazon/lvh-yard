@@ -44,7 +44,7 @@ services:
     volumes:
       - ./consul-data:/consul/data
       - ./consul.d:/consul/config:ro
-      - ./tls:/consul/tls:ro
+      - ./tls/consul:/consul/tls:ro
 
   # Reads its Routes from the dashboard on this Workstation (ADR-0002). While the dashboard is down, it keeps the
   # last Routes.
@@ -107,7 +107,7 @@ services:
           --accesslog=true "$$@"
     volumes:
       - ./traefik/dynamic:/etc/traefik/dynamic:ro
-      - ./tls:/etc/traefik/tls:ro
+      - ./tls/traefik:/etc/traefik/tls:ro
 
   # The dashboard image, for a Workstation without Java. It is off unless you turn it on: set
   # COMPOSE_PROFILES=dashboard in .env, or run docker compose --profile dashboard up -d.

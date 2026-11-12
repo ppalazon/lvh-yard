@@ -109,7 +109,7 @@ func readWANMembers(port string) ([]wanMember, error) {
 	address := "http://127.0.0.1:" + port
 	response, err := (&http.Client{Timeout: 5 * time.Second}).Get(address + "/v1/agent/members?wan=1")
 	if err != nil {
-		return nil, fmt.Errorf("cannot reach Consul at %s: start this Workstation with lvh-yard ws start", address)
+		return nil, fmt.Errorf("cannot reach Consul at %s: start this Workstation with lvh-yard ws compose start", address)
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {

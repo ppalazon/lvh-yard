@@ -188,6 +188,6 @@ func saveWSEnv(cmd *cobra.Command, folder string, env *envFile) error {
 	if strings.Trim(env.get("YARD_TRAEFIK_ENABLED"), "\"'") == "false" {
 		fmt.Fprintf(cmd.OutOrStdout(), "  docker compose --project-directory %s --profile traefik stop traefik\n", quotedFolder)
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "  docker compose --project-directory %s up -d --force-recreate\n", quotedFolder)
+	fmt.Fprintf(cmd.OutOrStdout(), "  %s compose recreate\n", wsCommandOf(cmd, folder))
 	return nil
 }

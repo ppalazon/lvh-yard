@@ -16,6 +16,6 @@ LVH Yard owns the files it generates, and the file name says so: `consul.d/00-lv
 
 ## Consequences
 
-- `ws upgrade` rewrites the three generated files, so a new Consul or Traefik option reaches an existing Workstation. It still edits only the image lines of `compose.yaml`, byte for byte.
-- A change to one of the generated files by hand is lost at the next `ws upgrade` or `ws tls` command. To keep a change, put it in a file of your own.
+- `ws compose upgrade` rewrites the three generated files, so a new Consul or Traefik option reaches an existing Workstation. It still edits only the image lines of `compose.yaml`, byte for byte.
+- A change to one of the generated files by hand is lost at the next `ws compose upgrade` or `ws tls` command. To keep a change, put it in a file of your own.
 - Consul runs as `YARD_UID:YARD_GID`, so it reads the files with mode 600 in the folder with mode 700. Its data is in `./consul-data` in the Workstation Folder.

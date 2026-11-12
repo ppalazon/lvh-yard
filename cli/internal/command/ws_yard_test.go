@@ -34,12 +34,12 @@ func TestWSYardShareKeepsPrivateMaterialLocal(t *testing.T) {
 				t.Fatal(run.Stderr)
 			}
 			files := map[string]string{
-				"ca/ca.key":           "private-ca-material",
-				"tls/workstation.key": "private-workstation-material",
+				"ca/ca.key":             "private-ca-material",
+				"tls/consul/consul.key": "private-workstation-material", "tls/traefik/traefik.key": "private-workstation-material",
 			}
 			if tlsEnabled {
 				files["consul.d/10-tls.hcl"] = "TLS enabled"
-				files["tls/ca.crt"] = "public-ca-certificate"
+				files["tls/consul/ca.crt"] = "public-ca-certificate"
 			}
 			for name, contents := range files {
 				path := filepath.Join(folder, name)
@@ -58,13 +58,19 @@ func TestWSYardShareKeepsPrivateMaterialLocal(t *testing.T) {
 			if !strings.Contains(run.Stdout, key) {
 				t.Fatal("explicit sharing omitted the joining credential")
 			}
-			for _, secret := range []string{"private-ca-material", "private-workstation-material", filepath.Join(folder, "tls/workstation.key"), filepath.Join(folder, "ca/ca.key")} {
+			for _, secret := range []string{"private-ca-material", "private-workstation-material", filepath.Join(folder, "tls/consul/consul.key"), filepath.Join(folder, "tls/traefik/traefik.key"), filepath.Join(folder, "ca/ca.key")} {
 				if strings.Contains(run.Stdout, secret) {
 					t.Fatal("sharing exposed this Workstation's private material")
 				}
 			}
-			if tlsEnabled && !strings.Contains(run.Stdout, filepath.Join(folder, "tls/ca.crt")) {
-				t.Fatal("TLS sharing omitted the active public CA certificate")
+			if tlsEnabled && !strings.Contains(run.Stdout, "ca issue consul") {
+				t.Fatal("TLS sharing omitted how to get the Consul certificate")
+			}
+			if !strings.Contains(run.Stdout, "yard peers --sync") {
+				t.Fatal("sharing does not remind to check and sync the Peers")
+			}
+			if strings.Contains(run.Stdout, "Check the joining Workstation's status") {
+				t.Fatal("sharing lists steps that run on the joining Workstation")
 			}
 			if readInitFile(t, folder, ".env") != before {
 				t.Fatal("sharing changed Workstation settings")

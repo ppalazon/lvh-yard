@@ -30,7 +30,7 @@ mise run install:ssh user@host
 The CLI goes to `~/.local/bin/lvh-yard` on the other Workstation. The image
 keeps the tag `ghcr.io/ppalazon/lvh-yard-dashboard:latest`, the default image of
 `compose.yaml`. On the other Workstation, unset `YARD_DASHBOARD_IMAGE` in `.env`
-and run `docker compose up -d --force-recreate`. For this computer, use
+and run `lvh-yard ws compose recreate`. For this computer, use
 `mise run install:local`.
 
 ## A Yard on one computer
@@ -40,7 +40,7 @@ Two test Workstations, ws-a and ws-b, can run side by side on loopback.
 `dev/ws-a/` and `dev/ws-b/`. They use the same Gossip Key and join each
 other through their loopback WAN ports. ws-b uses the Base Domain `localhost`.
 Later runs keep the folders and their settings, including certificates.
-`ws start` starts Consul and Traefik with `COMPOSE_PROFILES=traefik`.
+`ws compose start` starts Consul and Traefik with `COMPOSE_PROFILES=traefik`.
 This explicit profile selection leaves the dashboard for `dev:dashboard`,
 which runs it from the sources.
 
@@ -61,7 +61,7 @@ lvh-yard --dashboard http://127.0.0.1:17790 profiles set profiles.yaml   # ws-b
 
 Each Workstation Folder holds its own `backups/`, Consul data and TLS files.
 Git ignores both folders. `dev:dashboard` reads that Workstation's `.env`
-and `lvh-yard.yaml`. `dev:down` uses `ws stop` and keeps the files.
+and `lvh-yard.yaml`. `dev:down` uses `ws compose stop` and keeps the files.
 The dashboard tests use a new temporary folder for each test JVM, through
 the `lvh-yard.backups.path` setting.
 

@@ -25,12 +25,12 @@ func TestWSTLSClientCertificate(t *testing.T) {
 	}
 	for _, explicit := range []bool{true, false} {
 		name, password := "alice", "browser-secret"
-		args := []string{"ws", "tls", "client", "create", name, "--dir", folder}
+		args := []string{"ws", "tls", "ca", "issue", "user", name, "--dir", folder}
 		if explicit {
 			args = append(args, "--password", password)
 		} else {
 			name = "bob"
-			args[4] = name
+			args[5] = name
 		}
 		r := yard.Run(args...)
 		if r.ExitCode != 0 {
@@ -50,7 +50,7 @@ func TestWSTLSClientCertificate(t *testing.T) {
 				t.Fatalf("random password not printed once: %+v", r)
 			}
 		}
-		data, err := os.ReadFile(filepath.Join(folder, "certificates", "clients", name+".p12"))
+		data, err := os.ReadFile(filepath.Join(folder, "ca", "clients", name+".p12"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -97,7 +97,7 @@ func TestWSTLSClientRefusals(t *testing.T) {
 		t.Fatal(r)
 	}
 	for _, args := range [][]string{{"../escape"}, {"alice", "--password", ""}} {
-		r := yard.Run(append([]string{"ws", "tls", "client", "create", "--dir", folder}, args...)...)
+		r := yard.Run(append([]string{"ws", "tls", "ca", "issue", "user", "--dir", folder}, args...)...)
 		if r.ExitCode == 0 {
 			t.Fatalf("accepted invalid input: %+v", args)
 		}
@@ -105,8 +105,32 @@ func TestWSTLSClientRefusals(t *testing.T) {
 	if err := os.Remove(filepath.Join(folder, "ca", "ca.key")); err != nil {
 		t.Fatal(err)
 	}
-	r := yard.Run("ws", "tls", "client", "create", "alice", "--dir", folder)
+	r := yard.Run("ws", "tls", "ca", "issue", "user", "alice", "--dir", folder)
 	if r.ExitCode == 0 || !strings.Contains(r.Stderr, "Yard CA key") || !strings.Contains(r.Stderr, "Workstation that made the CA") {
 		t.Fatalf("missing signing key not explained: %+v", r)
+	}
+}
+
+func TestWSTLSIssueUserAsksForUsernameOrEmail(t *testing.T) {
+	yard := commandtest.New(t)
+	folder := t.TempDir()
+	if r := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); r.ExitCode != 0 {
+		t.Fatal(r)
+	}
+	if r := yard.Run("ws", "tls", "ca", "create", "--dir", folder); r.ExitCode != 0 {
+		t.Fatal(r)
+	}
+	yard.Process.Terminal = true
+	// An empty name is asked again. Empty answers then take a random password and 365 days.
+	yard.Process.Stdin = "\nbob@example.com\n\n\n"
+	r := yard.Run("ws", "tls", "ca", "issue", "user", "--dir", folder)
+	if r.ExitCode != 0 {
+		t.Fatal(r)
+	}
+	if !strings.Contains(r.Stdout, "Username or email") || !strings.Contains(r.Stdout, "needs a username or an email") || !strings.Contains(r.Stdout, "Password: ") {
+		t.Fatalf("unexpected questions or output:\n%s", r.Stdout)
+	}
+	if _, err := os.Stat(filepath.Join(folder, "ca", "clients", "bob@example.com.p12")); err != nil {
+		t.Fatal(err)
 	}
 }

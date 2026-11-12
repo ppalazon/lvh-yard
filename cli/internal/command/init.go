@@ -240,7 +240,7 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 		}
 	}
 	// Create these before Compose starts, or Docker creates them owned by root.
-	for _, name := range []string{"backups", "consul-data", "consul.d", "traefik/dynamic", "tls"} {
+	for _, name := range []string{"backups", "consul-data", "consul.d", "traefik/dynamic", "tls/consul", "tls/traefik"} {
 		if err := os.MkdirAll(filepath.Join(folder, name), 0700); err != nil {
 			return fmt.Errorf("could not create %s: %w", folder, err)
 		}
@@ -335,7 +335,7 @@ func printInitNextSteps(out io.Writer, folder string, env *envFile, defaultFolde
 		status = "lvh-yard --dashboard " + quoteShell(dashboard) + " status"
 	}
 	fmt.Fprintln(out, "Next steps:")
-	fmt.Fprintf(out, "\n1. Start Consul, Traefik and the dashboard. Choose ONE:\n\n   A. Workstation command (recommended):\n      %s start\n\n   B. Docker Compose (same action):\n      docker compose --project-directory %s up -d\n", ws, quoteShell(folder))
+	fmt.Fprintf(out, "\n1. Start Consul, Traefik and the dashboard. Choose ONE:\n\n   A. Workstation command (recommended):\n      %s compose start\n\n   B. Docker Compose (same action):\n      docker compose --project-directory %s up -d\n", ws, quoteShell(folder))
 	fmt.Fprintf(out, "\n2. Check the status:\n   %s\n", status)
 	fmt.Fprintf(out, "\n3. Open either address:\n   %s\n   %s\n", dashboard, yard)
 	fmt.Fprintf(out, "\n4. Connect other Workstations. Choose ONE:\n\n   A. Invite a Workstation into this Yard:\n      %s yard share\n\n   B. Join another Yard:\n      Ask a member for its invitation. For command help:\n      lvh-yard ws yard join --help\n", ws)

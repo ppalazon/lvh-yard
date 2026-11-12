@@ -13,15 +13,16 @@ import (
 
 func TestWSLifecycleRunsCompose(t *testing.T) {
 	for _, test := range []struct {
-		command string
+		command []string
 		args    []string
 	}{
-		{"start", []string{"up", "-d"}},
-		{"stop", []string{"stop"}},
-		{"restart", []string{"restart"}},
-		{"logs", []string{"logs"}},
+		{[]string{"compose", "start"}, []string{"up", "-d"}},
+		{[]string{"compose", "stop"}, []string{"stop"}},
+		{[]string{"compose", "restart"}, []string{"restart"}},
+		{[]string{"compose", "recreate"}, []string{"up", "-d", "--force-recreate"}},
+		{[]string{"compose", "logs"}, []string{"logs"}},
 	} {
-		t.Run(test.command, func(t *testing.T) {
+		t.Run(strings.Join(test.command, " "), func(t *testing.T) {
 			yard := commandtest.New(t)
 			folder := filepath.Join(t.TempDir(), "workstation's folder")
 			yard.Process.Env["YARD_CONFIG_DIR"] = folder
@@ -31,7 +32,7 @@ func TestWSLifecycleRunsCompose(t *testing.T) {
 				io.WriteString(stderr, "service error\n")
 				return 0, nil
 			}
-			run := yard.Run("ws", test.command)
+			run := yard.Run(append([]string{"ws"}, test.command...)...)
 			want := append([]string{"compose", "--project-directory", folder}, test.args...)
 			if len(yard.Process.Commands) != 1 {
 				t.Fatalf("commands: %+v", yard.Process.Commands)
@@ -53,7 +54,7 @@ func TestWSLogsSelectsServicesAndFollows(t *testing.T) {
 		for _, follow := range []string{"", "-f", "--follow"} {
 			yard := commandtest.New(t)
 			folder := t.TempDir()
-			args := []string{"ws", "--dir", folder, "logs"}
+			args := []string{"ws", "--dir", folder, "compose", "logs"}
 			want := []string{"compose", "--project-directory", folder, "logs"}
 			if service != "" {
 				args = append(args, service)
@@ -74,7 +75,7 @@ func TestWSLogsSelectsServicesAndFollows(t *testing.T) {
 }
 
 func TestWSLogsRejectsUnknownServicesBeforeRunning(t *testing.T) {
-	for _, args := range [][]string{{"ws", "logs", "other"}, {"ws", "logs", "consul", "traefik"}} {
+	for _, args := range [][]string{{"ws", "compose", "logs", "other"}, {"ws", "compose", "logs", "consul", "traefik"}} {
 		yard := commandtest.New(t)
 		run := yard.Run(args...)
 		if run.ExitCode != 1 || len(yard.Process.Commands) != 0 || run.Stdout != "" {
@@ -89,12 +90,12 @@ func TestWSLogsRejectsUnknownServicesBeforeRunning(t *testing.T) {
 }
 
 func TestWSLifecycleReturnsComposeExitCode(t *testing.T) {
-	for _, subcommand := range []string{"start", "stop", "restart", "logs"} {
+	for _, subcommand := range [][]string{{"compose", "start"}, {"compose", "stop"}, {"compose", "restart"}, {"compose", "recreate"}, {"compose", "logs"}} {
 		yard := commandtest.New(t)
 		yard.Process.RunCommand = func(string, []string, string, io.Writer, io.Writer) (int, error) {
 			return 37, nil
 		}
-		run := yard.Run("ws", subcommand, "--dir", t.TempDir())
+		run := yard.Run(append(append([]string{"ws"}, subcommand...), "--dir", t.TempDir())...)
 		if run.ExitCode != 37 || run.Stderr != "" {
 			t.Fatalf("%s exit code: %+v", subcommand, run)
 		}
@@ -106,8 +107,34 @@ func TestWSLifecycleReportsMissingDocker(t *testing.T) {
 	yard.Process.RunCommand = func(string, []string, string, io.Writer, io.Writer) (int, error) {
 		return 0, &exec.Error{Name: "docker", Err: exec.ErrNotFound}
 	}
-	run := yard.Run("ws", "start", "--dir", t.TempDir())
+	run := yard.Run("ws", "compose", "start", "--dir", t.TempDir())
 	if run.ExitCode != 1 || !strings.Contains(run.Stderr, "docker is not on the PATH") {
 		t.Fatalf("missing docker: %+v", run)
+	}
+}
+
+func TestOldLifecycleCommandsAreGone(t *testing.T) {
+	for _, name := range []string{"start", "stop", "restart", "upgrade"} {
+		if run := commandtest.New(t).Run("ws", name); run.ExitCode == 0 || !strings.Contains(run.Stderr, "unknown command") {
+			t.Fatalf("ws %s still exists: %+v", name, run)
+		}
+	}
+}
+
+func TestApplyHintsUseTheComposeCommand(t *testing.T) {
+	yard := commandtest.New(t)
+	folder := t.TempDir()
+	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); run.ExitCode != 0 || !strings.Contains(run.Stdout, "lvh-yard ws --dir '"+folder+"' compose start") {
+		t.Fatalf("init does not name ws compose start: %+v", run)
+	}
+	run := yard.Run("ws", "--dir", folder, "set", "http-port", "8081")
+	if run.ExitCode != 0 || !strings.Contains(run.Stdout, "lvh-yard ws --dir '"+folder+"' compose recreate") {
+		t.Fatalf("set does not name ws compose recreate: %+v", run)
+	}
+	// Without --dir, the folder is the default one, and the hint leaves it out.
+	yard.Process.Env["YARD_CONFIG_DIR"] = folder
+	run = yard.Run("ws", "set", "http-port", "8082")
+	if run.ExitCode != 0 || !strings.Contains(run.Stdout, "  lvh-yard ws compose recreate\n") || strings.Contains(run.Stdout, "--dir") {
+		t.Fatalf("the default folder is named in the hint: %+v", run)
 	}
 }

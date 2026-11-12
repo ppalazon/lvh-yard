@@ -16,7 +16,7 @@ type composeImage struct {
 	value      string
 }
 
-func upgradeInit(options *Options, folder string, out io.Writer) error {
+func upgradeInit(options *Options, folder, ws string, out io.Writer) error {
 	file := filepath.Join(folder, "compose.yaml")
 	data, err := os.ReadFile(file)
 	if os.IsNotExist(err) {
@@ -45,7 +45,7 @@ func upgradeInit(options *Options, folder string, out io.Writer) error {
 	if err := protectWorkstationFolder(folder); err != nil {
 		return err
 	}
-	for _, name := range []string{"consul.d", "traefik/dynamic", "tls"} {
+	for _, name := range []string{"consul.d", "traefik/dynamic", "tls/consul", "tls/traefik"} {
 		if err := os.MkdirAll(filepath.Join(folder, name), 0700); err != nil {
 			return fmt.Errorf("could not create %s: %w", name, err)
 		}
@@ -111,7 +111,10 @@ func upgradeInit(options *Options, folder string, out io.Writer) error {
 			return fmt.Errorf("Could not write %s: %w", file, err)
 		}
 	}
-	fmt.Fprintf(out, "Upgraded %s. Apply the generated options and images: cd %s && docker compose up -d --force-recreate\n", folder, folder)
+	fmt.Fprintf(out, "Upgraded %s. Apply the generated options and images:\n  %s compose recreate\n", folder, ws)
+	if strings.Contains(text, "./tls:/consul/tls") || strings.Contains(text, "./tls:/etc/traefik/tls") {
+		fmt.Fprintln(out, "Your compose.yaml still mounts ./tls in Consul and Traefik. Certificates now live in tls/consul and tls/traefik: mount ./tls/consul:/consul/tls:ro in Consul and ./tls/traefik:/etc/traefik/tls:ro in Traefik, and install the certificates again.")
+	}
 	return nil
 }
 

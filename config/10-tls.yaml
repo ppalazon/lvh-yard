@@ -1,8 +1,8 @@
 # Generated, do not edit.
 tls:
   certificates:
-    - certFile: /etc/traefik/tls/workstation.crt
-      keyFile: /etc/traefik/tls/workstation.key
+    - certFile: /etc/traefik/tls/traefik.crt
+      keyFile: /etc/traefik/tls/traefik.key
   options:
     default:
       minVersion: VersionTLS12

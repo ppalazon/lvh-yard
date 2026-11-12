@@ -89,7 +89,7 @@ The one certificate authority of a Yard. It signs every Workstation Certificate 
 _Avoid_: Private CA, root certificate
 
 **Workstation Certificate**:
-The certificate and key that the Yard CA signs for one Workstation. Consul uses it between Workstations, and Traefik uses it for HTTPS on that Workstation's Routes.
+One of the two certificates of a Workstation, each with its own key: the Consul certificate, which Consul uses between Workstations, and the Traefik certificate, which Traefik uses for HTTPS on that Workstation's Routes. The Yard CA signs the Consul certificate. It can sign the Traefik certificate too, or a company or public CA can.
 _Avoid_: Server certificate, TLS cert
 
 **Client Certificate**:

@@ -18,8 +18,15 @@ func (e *processExit) Error() string {
 	return fmt.Sprintf("docker compose exited with code %d", e.code)
 }
 
+// newWSLifecycle returns ws compose, which holds the commands that run docker compose on this
+// Workstation's services or change compose.yaml.
 func newWSLifecycle(options *Options, folder func() string) []*cobra.Command {
-	var commands []*cobra.Command
+	compose := &cobra.Command{
+		Use:   "compose",
+		Short: "Starts, stops, upgrades and shows the logs of this Workstation's services.",
+		Args:  cobra.NoArgs,
+		RunE:  func(cmd *cobra.Command, args []string) error { return cmd.Help() },
+	}
 	for _, action := range []struct {
 		name  string
 		short string
@@ -28,8 +35,9 @@ func newWSLifecycle(options *Options, folder func() string) []*cobra.Command {
 		{"start", "Starts this Workstation's services.", []string{"up", "-d"}},
 		{"stop", "Stops this Workstation's services.", []string{"stop"}},
 		{"restart", "Restarts this Workstation's services.", []string{"restart"}},
+		{"recreate", "Recreates this Workstation's services to apply changed settings.", []string{"up", "-d", "--force-recreate"}},
 	} {
-		commands = append(commands, &cobra.Command{
+		compose.AddCommand(&cobra.Command{
 			Use:   action.name,
 			Short: action.short,
 			Args:  cobra.NoArgs,
@@ -38,6 +46,14 @@ func newWSLifecycle(options *Options, folder func() string) []*cobra.Command {
 			},
 		})
 	}
+	compose.AddCommand(&cobra.Command{
+		Use:   "upgrade",
+		Short: "Updates the service images in compose.yaml.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return upgradeInit(options, folder(), wsCommandOf(cmd, folder()), cmd.OutOrStdout())
+		},
+	})
 	var follow bool
 	logs := &cobra.Command{
 		Use:       "logs [consul|traefik|dashboard]",
@@ -61,7 +77,8 @@ func newWSLifecycle(options *Options, folder func() string) []*cobra.Command {
 		},
 	}
 	logs.Flags().BoolVarP(&follow, "follow", "f", false, "Follows the service logs.")
-	return append(commands, logs)
+	compose.AddCommand(logs)
+	return []*cobra.Command{compose}
 }
 
 func runWSCompose(options *Options, cmd *cobra.Command, folder string, args []string) error {
@@ -86,4 +103,13 @@ func runWSCompose(options *Options, cmd *cobra.Command, folder string, args []st
 
 func quoteShell(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
+}
+
+// wsCommandOf is the ws command to print in an instruction. It names the folder only when the
+// command that is running got --dir, because the other commands find the default folder alone.
+func wsCommandOf(cmd *cobra.Command, folder string) string {
+	if flag := cmd.Flag("dir"); flag != nil && flag.Changed {
+		return "lvh-yard ws --dir " + quoteShell(folder)
+	}
+	return "lvh-yard ws"
 }

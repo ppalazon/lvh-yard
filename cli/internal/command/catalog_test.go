@@ -29,13 +29,13 @@ func TestCatalogViewsAndFilters(t *testing.T) {
 		args []string
 		want string
 	}{
-		{"summary", nil, "ws-a (this Workstation)\n  web       degraded     web.lvh.me  1 of 2 passing\n  worker    unpublished              0 of 2 passing\n  waiting   unavailable              No Instances\nws-b\n  database  healthy      db.lvh.me   2 of 2 passing\n  cache     unavailable              Empty\nws-c: Workstation unreachable\nws-d: no Services\nTo see why, read the log of this Workstation's Consul:\n    lvh-yard ws logs consul\n"},
+		{"summary", nil, "ws-a (this Workstation)\n  web       degraded     web.lvh.me  1 of 2 passing\n  worker    unpublished              0 of 2 passing\n  waiting   unavailable              No Instances\nws-b\n  database  healthy      db.lvh.me   2 of 2 passing\n  cache     unavailable              Empty\nws-c: Workstation unreachable\nws-d: no Services\nTo see why, read the log of this Workstation's Consul:\n    lvh-yard ws compose logs consul\n"},
 		{"filters", []string{"--workstation", "ws-a", "--state", "degraded"}, "ws-a (this Workstation)\n  web  degraded  web.lvh.me  1 of 2 passing\n"},
-		{"unreachable", []string{"--workstation", "ws-c"}, "ws-c: Workstation unreachable\nTo see why, read the log of this Workstation's Consul:\n    lvh-yard ws logs consul\n"},
-		{"state", []string{"--state", "unpublished"}, "ws-a (this Workstation)\n  worker  unpublished     0 of 2 passing\nws-b: no Services\nws-c: Workstation unreachable\nws-d: no Services\nTo see why, read the log of this Workstation's Consul:\n    lvh-yard ws logs consul\n"},
+		{"unreachable", []string{"--workstation", "ws-c"}, "ws-c: Workstation unreachable\nTo see why, read the log of this Workstation's Consul:\n    lvh-yard ws compose logs consul\n"},
+		{"state", []string{"--state", "unpublished"}, "ws-a (this Workstation)\n  worker  unpublished     0 of 2 passing\nws-b: no Services\nws-c: Workstation unreachable\nws-d: no Services\nTo see why, read the log of this Workstation's Consul:\n    lvh-yard ws compose logs consul\n"},
 		{"details", []string{"--details", "--workstation", "ws-a", "--state", "degraded"}, "ws-a (this Workstation)\n  web: degraded at web.lvh.me\n    10.1.2.3:8080  passing   good  routed  out of range\n    127.0.0.1:8081  critical  bad\n    risk: Hidden warning.\n    error: Missing Route Profile.\n"},
 		{"remote details", []string{"--details", "--workstation", "ws-b"}, "ws-b\n  database: healthy at db.lvh.me\n    10.1.2.4:5432  passing   db-first\n    10.1.2.4:5433  passing   db-second\n  cache: unavailable\n"},
-		{"filtered details", []string{"--details", "--state", "unpublished"}, "ws-a (this Workstation)\n  worker: unpublished\n    10.1.2.3:8083  critical  worker-critical\n    10.1.2.3:8084  warning   worker-warning\nws-b: no Services\nws-c: Workstation unreachable\nws-d: no Services\nTo see why, read the log of this Workstation's Consul:\n    lvh-yard ws logs consul\n"},
+		{"filtered details", []string{"--details", "--state", "unpublished"}, "ws-a (this Workstation)\n  worker: unpublished\n    10.1.2.3:8083  critical  worker-critical\n    10.1.2.3:8084  warning   worker-warning\nws-b: no Services\nws-c: Workstation unreachable\nws-d: no Services\nTo see why, read the log of this Workstation's Consul:\n    lvh-yard ws compose logs consul\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			h := commandtest.New(t)

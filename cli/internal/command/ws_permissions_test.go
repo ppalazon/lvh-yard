@@ -54,7 +54,7 @@ func TestWSUpgradeRepairsExistingFolderModesEvenWhenImagesAreCurrent(t *testing.
 	if err := os.Symlink(outside, filepath.Join(folder, "link")); err != nil {
 		t.Fatal(err)
 	}
-	if run := yard.Run("ws", "upgrade", "--dir", folder); run.ExitCode != 0 {
+	if run := yard.Run("ws", "compose", "upgrade", "--dir", folder); run.ExitCode != 0 {
 		t.Fatalf("upgrade: %+v", run)
 	}
 	assertPrivateWorkstation(t, folder)

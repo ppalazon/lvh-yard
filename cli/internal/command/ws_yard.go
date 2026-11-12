@@ -50,7 +50,7 @@ func newWSYardShare(options *Options, folder func() string) *cobra.Command {
 				return err
 			}
 			if tlsEnabled {
-				ca := filepath.Join(folder(), "tls", "ca.crt")
+				ca := filepath.Join(folder(), "tls", "consul", "ca.crt")
 				info, err := os.Stat(ca)
 				if err != nil {
 					return fmt.Errorf("Consul TLS is enabled, but its public CA certificate cannot be read: %w", err)
@@ -79,25 +79,16 @@ func newWSYardShare(options *Options, folder func() string) *cobra.Command {
 				fmt.Fprintln(out, "   This Peer works only for Workstations on the same computer.")
 			}
 			peer += ":" + env.valueOrDefault("YARD_CONSUL_SERF_WAN_PORT")
-			fmt.Fprintln(out, "\n2. Set up the joining Workstation. Choose ONE:")
+			fmt.Fprintln(out, "\n2. On the joining Workstation, not on this one, run ONE of these commands:")
 			fmt.Fprintf(out, "\n   A. New Workstation (asks for its name and Base Domain):\n      lvh-yard ws init --gossip-key %s --peers %s\n", quoteShell(key), quoteShell(peer))
 			fmt.Fprintf(out, "\n   B. Already initialized Workstation:\n      lvh-yard ws yard join --gossip-key %s --peers %s\n", quoteShell(key), quoteShell(peer))
-			next := 3
 			if tlsEnabled {
-				printYardTLSInvitation(out, folder(), env)
-				next = 5
+				fmt.Fprintf(out, "\n   Consul TLS is ON here, so the joining Workstation also needs a Consul certificate signed by this Yard's CA.\n   On the Workstation that holds the CA key, run:\n      lvh-yard ws tls ca issue consul '<new-workstation>'\n      lvh-yard ws tls ca install '<new-workstation>' --scp '<user@host>'\n   With a company CA, ask its issuer for the certificate instead.\n")
 			} else {
-				fmt.Fprintln(out, "\n   Consul TLS is OFF. Keep it off on the joining Workstation too.\n   No certificate bundle is needed for Yard membership.")
+				fmt.Fprintln(out, "\n   Consul TLS is OFF here. Keep it off on the joining Workstation too.")
 			}
-			fmt.Fprintf(out, "\n%d. Start or apply settings on the joining Workstation. Choose ONE:\n\n   A. First start:\n      lvh-yard ws start\n\n   B. Services already running:\n      docker compose --project-directory '<joining-workstation-folder>' up -d --force-recreate\n      Also run any stop command printed during setup.\n", next)
-			fmt.Fprintf(out, "\n%d. Check the joining Workstation's status:\n   lvh-yard status\n", next+1)
-			fmt.Fprintf(out, "\n%d. Open its dashboard at an address printed during initialization.\n", next+2)
-			if tlsEnabled || env.get("YARD_HTTPS_PORT") != "" {
-				fmt.Fprintf(out, "   For browser HTTPS trust, import only the public CA certificate:\n      %s\n   Verify its source before trusting it. Browser trust does not enable Consul TLS.\n", filepath.Join(folder(), "tls", "ca.crt"))
-			}
-			if tlsEnabled {
-				fmt.Fprintf(out, "\n%d. Optional: give a person access to protected Routes.\n   Client Certificates are not needed for Yard membership. Choose ONE issuer:\n\n   A. On the Workstation that holds the Yard CA key:\n      lvh-yard ws tls client create '<person>'\n\n   B. With a company CA:\n      Ask its issuer for a Client Certificate instead.\n\n   Share only that person's .p12 file and password through a private channel.\n", next+3)
-			}
+			fmt.Fprintln(out, "\nThen follow the next steps that the command prints on the joining Workstation.")
+			fmt.Fprintf(out, "\nAfter it joins, check the Peers of this Workstation, and save the ones that answer in YARD_PEERS:\n  %[1]s yard peers\n  %[1]s yard peers --sync\n", ws)
 			return nil
 		},
 	}
@@ -113,27 +104,16 @@ func consulTLSEnabled(folder string) (bool, error) {
 	return err == nil, err
 }
 
-func printYardTLSInvitation(out io.Writer, folder string, env *envFile) {
-	fmt.Fprintf(out, "\n3. Get a separate TLS bundle for the joining Workstation.\n   Consul TLS is ON. Every Workstation must use this Yard's CA.\n   Public CA certificate:\n      %s\n   It is safe to copy. Verify its source before trusting it.\n", filepath.Join(folder, "tls", "ca.crt"))
-	fmt.Fprintln(out, "\n   Choose ONE issuer:")
-	fmt.Fprintln(out, "\n   A. On the Workstation that holds that CA's key:")
-	fmt.Fprintf(out, "      lvh-yard ws tls cert create --workstation '<new-workstation>' --base-domain '<base-domain>' --address '<new-workstation-lan-ip>' --address %s\n", quoteShell("*."+env.get("YARD_WORKSTATION")+".<base-domain>"))
-	fmt.Fprintln(out, "\n   B. With a company CA:\n      Ask its issuer for the bundle instead.\n      Names: server.<new-workstation>.consul, localhost, 127.0.0.1, *.<base-domain>,\n      the LAN address and remote Route wildcards.\n      Usages: server and client authentication.")
-	fmt.Fprintln(out, "\n   Send only these files from certificates/<new-workstation>/ through a private channel:\n      ca.crt\n      workstation.crt\n      workstation.key\n   Never send ca.key or this Workstation's certificate key.\n   Every Workstation needs wildcard SANs for the remote Routes it serves.\n   Existing Workstations may need new certificates for *.<new-workstation>.<their-base-domain>.")
-	fmt.Fprintln(out, "\n4. Import the received bundle on the joining Workstation before starting it:")
-	printYardTLSImport(out, "lvh-yard ws", "<received-bundle>")
-}
-
 func printYardTLSImport(out io.Writer, ws, bundle string) {
-	fmt.Fprintf(out, "      %s tls import --ca %s --cert %s --key %s\n", ws, quoteShell(filepath.Join(bundle, "ca.crt")), quoteShell(filepath.Join(bundle, "workstation.crt")), quoteShell(filepath.Join(bundle, "workstation.key")))
+	fmt.Fprintf(out, "      %s tls import consul --ca %s --cert %s --key %s\n", ws, quoteShell(filepath.Join(bundle, "ca.crt")), quoteShell(filepath.Join(bundle, "consul.crt")), quoteShell(filepath.Join(bundle, "consul.key")))
 }
 
 func printYardJoinTLS(out io.Writer, ws, folder string, env *envFile, tlsEnabled bool) {
-	fmt.Fprintf(out, "1. Match the destination Yard's Consul TLS mode. Choose ONE:\n\n   A. Destination uses TLS:\n      Get its public CA and a separate certificate for server.%s.consul.\n      Import the received bundle:\n", env.get("YARD_WORKSTATION"))
-	printYardTLSImport(out, ws, "<received-bundle>")
-	fmt.Fprintln(out, "      Never copy the CA key or reuse another Workstation's certificate key.\n\n   B. Destination does not use TLS:")
+	fmt.Fprintf(out, "1. Match the destination Yard's Consul TLS mode. Choose ONE:\n\n   A. Destination uses TLS:\n      Get its public CA and a separate Consul certificate for server.%s.consul.\n      Import the received files:\n", env.get("YARD_WORKSTATION"))
+	printYardTLSImport(out, ws, "<received-folder>")
+	fmt.Fprintln(out, "      Never copy the CA key or reuse another Workstation's certificate keys.\n\n   B. Destination does not use TLS:")
 	if tlsEnabled {
-		fmt.Fprintf(out, "      Move this file outside consul.d before applying the settings:\n         %s\n      HTTPS files are kept.\n", filepath.Join(folder, "consul.d", "10-tls.hcl"))
+		fmt.Fprintf(out, "      Turn Consul TLS off before applying the settings:\n         %s tls disable consul\n      HTTPS files are kept.\n", ws)
 	} else {
 		fmt.Fprintln(out, "      No TLS file changes are needed.")
 	}

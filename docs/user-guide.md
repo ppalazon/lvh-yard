@@ -61,13 +61,13 @@ Java or a copy of this repository.
    the empty [Backups folder](#the-backups-folder-and-the-safety-backup),
    `backups/`, and `consul-data/` for Consul's data. The Workstation Folder
    and all folders inside it have mode 700. All files have mode 600.
-   Only your user can read them. `ws init`, `ws upgrade` and `ws set`
+   Only your user can read them. `ws init`, `ws compose upgrade` and `ws set`
    fix these modes on an existing Workstation Folder.
 
    `ws init` makes a new Gossip Key and stores it in `.env`. It does not print
    the key. This Workstation then starts a Yard of its own.
 
-3. Start this Workstation: `lvh-yard ws start`.
+3. Start this Workstation: `lvh-yard ws compose start`.
    This starts Consul, the dashboard and Traefik. You can also run
    `docker compose up -d` in the Workstation Folder.
 4. Check that LVH Yard works: `lvh-yard status`.
@@ -90,28 +90,29 @@ Services. You can change, unpublish or delete them, and they do not come back.
 The dashboard is always at `127.0.0.1:7780` too, also when Traefik is down or
 `yard` is unpublished.
 
-From any directory, `lvh-yard ws start`, `lvh-yard ws stop` and
-`lvh-yard ws restart` manage this Workstation's services. Each command prints
-the `docker compose` line it runs, with the Workstation Folder as the project
+From any directory, `lvh-yard ws compose start`, `ws compose stop`,
+`ws compose restart` and `ws compose recreate` manage this Workstation's
+services. `recreate` runs `docker compose up -d --force-recreate`, which applies
+changed settings. Each command prints the `docker compose` line it runs, with the Workstation Folder as the project
 directory. The commands work while the dashboard is down and return the exit
 code of `docker compose`. Docker with Compose must be on your `PATH`.
 
-`lvh-yard ws logs` shows all service logs. Give `consul`, `traefik` or
+`lvh-yard ws compose logs` shows all service logs. Give `consul`, `traefik` or
 `dashboard` to show one service, and add `-f` to follow its logs. For example,
-`lvh-yard ws logs consul -f` follows Consul's logs. Consul logs only errors.
+`lvh-yard ws compose logs consul -f` follows Consul's logs. Consul logs only errors.
 Use `--dir <folder>` with any of these commands to select another Workstation
 Folder. You can also run `docker compose up -d`, `stop`, `restart` or `logs`
 directly in that folder.
 
-`lvh-yard ws logs traefik -f` shows one line for each request that Traefik
+`lvh-yard ws compose logs traefik -f` shows one line for each request that Traefik
 sends on. The line ends with the Route, the address of the Instance that
 answered, and the time in milliseconds. The status of the response comes after
 the request. Traefik logs only the Services that you turn on, for example with
 `lvh-yard publish <service> --access-log on`.
 
-If a request to the dashboard fails, `lvh-yard ws logs dashboard` shows one
+If a request to the dashboard fails, `lvh-yard ws compose logs dashboard` shows one
 line for it, with no stack trace. To also log the stack trace, set
-`YARD_STACK_TRACES=true` in `.env`. Then run `lvh-yard ws start`.
+`YARD_STACK_TRACES=true` in `.env`. Then run `lvh-yard ws compose recreate`.
 
 If a page of the dashboard fails, the browser shows an error page. It names the
 error, says what failed, and links to the Status page. A failed page that you
@@ -143,7 +144,7 @@ lvh-yard:
 ```
 
 After saving the file, run `docker compose restart dashboard` in the Workstation
-Folder. `lvh-yard ws upgrade` and `lvh-yard ws set` leave the file unchanged.
+Folder. `lvh-yard ws compose upgrade` and `lvh-yard ws set` leave the file unchanged.
 A dashboard run from the sources loads the Workstation Folder's settings through
 the [development tasks](development.md#a-yard-on-one-computer).
 
@@ -164,9 +165,13 @@ placeholder. To override the address:
 lvh-yard ws yard share --address 192.168.1.10
 ```
 
-The numbered invitation names the firewall ports and gives separate choices
-for a new Workstation and an already initialized one. Commands appear on
-their own indented lines. Keep the output private: it contains the Gossip Key.
+The invitation has two steps. Step 1 names the firewall ports to open on this
+Workstation. Step 2 gives separate commands for a new Workstation and an
+already initialized one. Run those commands on the joining Workstation, not on
+this one. The joining Workstation then prints its own next steps. The
+invitation ends by reminding you to run `lvh-yard ws yard peers` and
+`lvh-yard ws yard peers --sync` here after the Workstation joins. Commands
+appear on their own indented lines. Keep the output private: it contains the Gossip Key.
 Sharing reads local files and network settings only. It works while the
 dashboard is down.
 
@@ -180,26 +185,26 @@ For a new Workstation, the invitation instead gives `ws init` with the same
 key and Peer. Pick a Workstation name that is not already in the Yard.
 Each Workstation can choose its own Base Domain.
 
-If Consul TLS is on, the invitation also names the public CA certificate and
-the steps to get a separate [Workstation Certificate](#yard-ca-and-workstation-certificates).
-The CA owner signs for the joining Workstation's name, Base Domain and address.
-With a company CA, ask its issuer for that bundle instead.
-Copy only the new Workstation's `ca.crt`, `workstation.crt` and
-`workstation.key` to it through a private channel, then run the printed
-`ws tls import` command before applying the Yard settings.
-Never share `ca.key` or reuse another Workstation's certificate key.
-Public CA certificates can be shared for browser trust, after checking their source.
+If Consul TLS is on, the invitation also names the commands to get a separate Consul
+[certificate](#yard-ca-and-workstation-certificates) from the Workstation that
+holds the CA key. The CA owner signs for the joining Workstation's name.
+With a company CA, ask its issuer for that certificate instead.
+`ws tls ca install '<new-workstation>'` puts the new Workstation's `ca.crt`,
+`consul.crt` and `consul.key` in `certificates/<new-workstation>/consul/`.
+Copy only those files to it through a private channel, then run the printed
+`ws tls import consul` command before applying the Yard settings.
+Never share `ca.key` or reuse another Workstation's certificate keys.
 Client Certificate `.p12` files are for people using protected Routes, not
 for Workstation membership.
 
 `ws yard join` keeps the Workstation name and existing certificate files.
-If it already uses Consul TLS, import the destination Yard's bundle before
-applying the change. If the destination has no Consul TLS, move
-`consul.d/10-tls.hcl` outside `consul.d` first; the command prints its path.
-This leaves HTTPS files in place. To restore Consul TLS later, import the
-appropriate bundle again.
+If it already uses Consul TLS, import the destination Yard's Consul certificate
+before applying the change. If the destination has no Consul TLS, run
+`lvh-yard ws tls disable consul` first. This leaves the certificate and the
+HTTPS files in place. To restore Consul TLS later, run
+`lvh-yard ws tls enable consul`, or import the appropriate certificate again.
 After any required TLS steps, run the printed recreation command and check
-`lvh-yard status`. A first start can use `lvh-yard ws start`.
+`lvh-yard status`. A first start can use `lvh-yard ws compose start`.
 
 ### Listing Peers
 
@@ -225,8 +230,8 @@ it does not restart services: run the printed `docker compose` command.
 `lvh-yard ws show` prints the active settings in `.env`, with the Gossip Key hidden.
 `lvh-yard ws set <name> <value>` checks a value and changes one setting. It keeps
 the comments. Neither `ws set` nor `ws yard join` restarts services. After either
-command, run the printed `docker compose` commands to recreate the containers.
-`ws restart` restarts existing containers without applying changed environment
+command, run the printed command, `lvh-yard ws compose recreate`, to recreate the containers.
+`ws compose restart` restarts existing containers without applying changed environment
 variables. When Traefik is off, the printed commands stop its existing container
 before they recreate the enabled services.
 
@@ -257,62 +262,132 @@ One Yard CA signs the certificates for every Workstation in a Yard. Keep its
 key on the Workstation that made it. The key can sign certificates for anyone
 in the Yard, so never copy it to another Workstation or a container.
 
+The CA that `ws tls ca create` makes is for testing. Its key is a plain file
+on one computer, and nothing can revoke a certificate it signed. Every command
+under `ws tls ca` prints a warning to say so. For more than testing, use a
+more robust CA, such as a company CA or a public CA, and install its
+certificates with `ws tls import`.
+
+Each Workstation has two certificates, with separate keys:
+
+| Certificate | Used by                                         | Names                                             | Signed by                                |
+| ----------- | ----------------------------------------------- | ------------------------------------------------- | ---------------------------------------- |
+| Consul      | Consul, between the Workstations                | `server.<name>.consul`, `localhost`, `127.0.0.1`  | The Yard CA                              |
+| Traefik     | Traefik, for HTTPS on this Workstation's Routes | `*.<Base Domain>`, `localhost`, `127.0.0.1`, more | The Yard CA, a company CA or a public CA |
+
+Compose mounts `tls/consul/` only in Consul and `tls/traefik/` only in Traefik.
+So a Traefik process that faces browsers never holds the key that identifies
+this Workstation to the other Consul servers. The Consul certificate also never
+changes when a Workstation joins the Yard, because Consul checks only its own
+name. The Traefik certificate changes with the Routes that it covers.
+
+Every command that signs sits under `ws tls ca`, because signing needs the CA key.
+Like `ws init`, each one asks for what you did not give as a flag. Without a
+terminal, it uses the defaults.
+
 `lvh-yard ws tls ca create` writes `ca/ca.crt` and `ca/ca.key` in the
 Workstation Folder. The CA uses ECDSA P-256 and lasts 3650 days. Its key has
 mode 600, and the `ca/` folder is not mounted by the reference Compose setup.
 The command refuses to replace either CA file unless you give `--force`.
 Replacing the CA does not update certificates that it already signed.
 
-`lvh-yard ws tls cert create` signs for this Workstation. It writes
-`tls/ca.crt`, `tls/workstation.crt` and `tls/workstation.key`. It does not
-start TLS or change running services. A Workstation Certificate uses ECDSA
-P-256, lasts 365 days, and supports both server and client authentication.
-The private key has mode 600.
+`lvh-yard ws tls ca issue workstation [name]` signs both certificates for this
+Workstation or for another one. It asks for the name, the Base Domain, extra
+Traefik addresses and the validity. To sign one, run
+`ws tls ca issue consul [name]` or `ws tls ca issue traefik [name]`.
+The files are `ca/certs/<name>/consul.crt|key` and
+`ca/certs/<name>/traefik.crt|key`, so the CA can hold the certificates of every
+Workstation. Signing does not copy anything to `tls/`, start TLS or change
+running services. A certificate uses ECDSA P-256 and lasts 365 days. The Consul
+certificate allows server and client use, because Consul checks both ways.
+The Traefik certificate allows server use only. Private keys have mode 600.
 
-With `--workstation ws-b`, the command instead writes the three files to
-`certificates/ws-b/` in the Workstation Folder. Copy only that bundle to the
-other Workstation. Signing needs the Yard CA key, so it works only on the
-Workstation that made the CA.
-
-The certificate includes `server.<name>.consul`, `localhost`, `127.0.0.1`
-and `*.<Base Domain>`. Each `--address` adds one IP address or DNS name.
+The Traefik certificate names `*.<Base Domain>`, `localhost` and `127.0.0.1`.
+Each `--address` adds one IP address or DNS name to it.
 A DNS wildcard must be the whole leftmost label, such as `*.ws-b.lvh.me`.
 Wildcards cannot cover IP addresses.
-`--base-domain` defaults to the signing Workstation's Base Domain.
-For example, the arguments for another Workstation can be
-`--workstation ws-b --base-domain example.test --address 192.168.1.11`.
-Both create commands accept `--days <number>` to change the validity.
+`--base-domain` defaults to this Workstation's Base Domain.
+For example, `lvh-yard ws tls ca issue workstation ws-b --base-domain example.test --address 192.168.1.11`
+signs for another Workstation. `--days <number>` changes the validity.
 A certificate must expire before or with its CA. All these commands accept
 `--dir <folder>` and repair the Workstation Folder's private file modes.
 
 The default `*.<Base Domain>` covers local Routes only. A wildcard matches
 one label, so `*.lvh.me` does not cover `app.ws-b.lvh.me`.
 For each remote Workstation whose Routes this Workstation serves, add an
-extra wildcard. For example, on a Workstation with Base Domain `lvh.me`:
+extra wildcard to its Traefik certificate. For example, on a Workstation with
+Base Domain `lvh.me`:
 
 ```sh
-lvh-yard ws tls cert create --address '*.ws-b.lvh.me'
+lvh-yard ws tls ca issue traefik --address '*.ws-b.lvh.me'
 ```
 
 This covers `app.ws-b.lvh.me`, but not `app.ws-c.lvh.me` or
 `deeper.app.ws-b.lvh.me`. Repeat `--address` for each remote Workstation.
-When a new Peer needs Route coverage, create and import a new Workstation
-Certificate with all required `--address` values.
+When a new Peer needs Route coverage, issue and install a new Traefik
+certificate with all required `--address` values. The Consul certificates do
+not change.
 
-To enable Consul TLS, import the bundle on its Workstation:
+`lvh-yard ws tls ca install [name]` puts the signed certificates where they
+belong, and turns each one on:
 
-```sh
-lvh-yard ws tls import --ca ca.crt --cert workstation.crt --key workstation.key
-lvh-yard ws start
-```
+- For this Workstation, it copies `ca/ca.crt` and the certificate and key of
+  each role to `tls/consul/` and `tls/traefik/`.
+- For another Workstation, it saves the same folders in
+  `certificates/<name>/consul/` and `certificates/<name>/traefik/`, and prints
+  how to hand them over. The other Workstation can be on this computer or on
+  another one:
+  - **Same computer.** Import each folder, with the other Workstation's own
+    Workstation Folder: `lvh-yard ws --dir <its-folder> tls import consul --ca
+<folder>/consul/ca.crt --cert <folder>/consul/consul.crt --key <folder>/consul/consul.key`,
+    and the same for `traefik`.
+  - **Another computer, by hand.** Copy the folders into the `tls/` folder of
+    its Workstation Folder (`~/.config/lvh-yard/tls/` unless it uses another).
+    The command prints the `ssh` line that makes `tls/` private and the `scp`
+    line. Then log in and run `lvh-yard ws tls enable consul` and
+    `lvh-yard ws tls enable traefik`, as you need. Each one checks the
+    certificate first. Send the `.key` files only through a private channel.
+    Never send `ca.key`.
+  - **Another computer, over ssh.** Give `--scp user@host`, or
+    `--scp user@host:<its-folder>` for another folder, or answer the
+    question at a terminal. The command makes `tls/` there with mode 700 and
+    copies the folders into it. It needs `ssh` and `scp` on this computer. It
+    does not run anything on the other Workstation. Log in and run
+    `ws tls enable`, as above, to turn on what it needs.
 
-Turn TLS on everywhere in the Yard in one go. A Workstation without TLS
-cannot federate with one that requires it. Import checks the key, the CA
-chain and `server.<this Workstation>.consul` before writing any files.
-It installs the bundle in `tls/` and writes the generated
-`consul.d/10-tls.hcl`. Consul verifies certificates in both directions for
-RPC. Its local HTTP API stays plain HTTP. `ws upgrade` rewrites the
-generated TLS options and keeps the installed certificates.
+`install` asks which certificates to install, or takes `--consul[=false]` and
+`--traefik[=false]`. Without a terminal, it takes every certificate that the
+CA has signed. A certificate that was never signed is not asked about, and a
+flag that names it is an error. Traefik is not asked when it is off.
+
+`lvh-yard ws tls import <consul|traefik> --ca ca.crt --cert <file> --key <file>`
+installs a certificate that someone else signed, and turns that service on.
+It checks the key and the chain before it writes any files:
+
+- **Consul:** the certificate must chain to the given Yard CA, allow server and
+  client use, and name `server.<this Workstation>.consul`.
+- **Traefik:** the certificate must be valid for the given CA or for a public
+  CA, so a company or Let's Encrypt certificate works. It must name
+  `yard.<Base Domain>`. `--ca` is always the Yard CA, because Traefik uses it to
+  check Client Certificates.
+
+| Turning on | What it writes                                                          |
+| ---------- | ----------------------------------------------------------------------- |
+| Consul     | `consul.d/10-tls.hcl`                                                   |
+| Traefik    | `traefik/dynamic/10-tls.yaml`, and `YARD_HTTPS_PORT=443` if it is empty |
+
+To change the choice later, use `lvh-yard ws tls enable consul`,
+`enable traefik`, `disable consul` or `disable traefik`. `enable` needs the
+files in `tls/consul/` or `tls/traefik/`, and checks them. `disable` keeps them.
+Apply any change with the printed `lvh-yard ws compose recreate`.
+
+Turn Consul TLS on everywhere in the Yard in one go. A Workstation without it
+cannot federate with one that requires it. Consul verifies certificates in
+both directions for RPC. Its local HTTP API stays plain HTTP. `ws compose upgrade`
+rewrites the generated TLS options and keeps the installed certificates. If your
+`compose.yaml` still mounts `./tls` in Consul and Traefik, the command says so:
+mount `./tls/consul` in Consul and `./tls/traefik` in Traefik, and install the
+certificates again.
 
 #### Browser trust
 
@@ -329,12 +404,14 @@ To remove that trust, remove the CA from the same certificate store.
 #### Client Certificates
 
 On the Workstation with the Yard CA key, run
-`lvh-yard ws tls client create alice`. It writes
-`certificates/clients/alice.p12` in the Workstation Folder with mode 600.
+`lvh-yard ws tls ca issue user alice`. It asks for the username or email, a password and
+the validity, and writes `ca/clients/alice.p12` in the Workstation Folder with
+mode 600.
 The file holds Alice's private key, Client Certificate and Yard CA certificate.
-The command prints a random password once. Save it before closing the terminal.
-To choose a password instead, add `--password <password>`. The command does
-not print a password that you give.
+If you leave the password empty, the command makes a random one and prints it
+once. Save it before closing the terminal. To choose a password, answer the
+question or add `--password <password>`. The command does not print a password
+that you give.
 
 A Client Certificate uses ECDSA P-256 and lasts 365 days. It allows client
 authentication only. Use `--days <number>` to change its validity, within
@@ -354,9 +431,9 @@ Share the `.p12` file and its password only with the person it identifies.
 On a shared host with no direct users, turn Traefik off:
 
 ```sh
-lvh-yard ws stop
+lvh-yard ws compose stop
 lvh-yard ws set traefik off
-lvh-yard ws start
+lvh-yard ws compose start
 ```
 
 The command sets `YARD_TRAEFIK_ENABLED=false` in `.env` and removes only
@@ -372,24 +449,26 @@ not register `traefik-admin`.
 
 If the Service already exists, remove it with `lvh-yard remove traefik-admin`.
 To turn Traefik back on, stop the Workstation, run
-`lvh-yard ws set traefik on`, then run `lvh-yard ws start`.
+`lvh-yard ws set traefik on`, then run `lvh-yard ws compose start`.
 A dashboard run from the sources reads the same
 `YARD_TRAEFIK_ENABLED` setting.
 
 ### HTTPS Routes
 
-HTTPS is off by default. When Traefik is on, `lvh-yard ws tls import`
-sets `YARD_HTTPS_PORT=443` and installs the Workstation Certificate for Traefik.
-Apply the settings with `docker compose up -d --force-recreate` in the
-Workstation Folder. Every Route then answers on HTTP and HTTPS. HTTP does not
-redirect to HTTPS. Import `tls/ca.crt` into your browser's trusted certificate
-authorities to trust the HTTPS certificate.
+HTTPS is off by default. When Traefik is on, installing the Traefik certificate with
+`lvh-yard ws tls ca install` or `lvh-yard ws tls import traefik` (or running
+`lvh-yard ws tls enable traefik`) sets `YARD_HTTPS_PORT=443` if it is empty and
+writes the Traefik TLS file.
+Apply the settings with `lvh-yard ws compose recreate`. Every Route then answers on HTTP and HTTPS. HTTP does not
+redirect to HTTPS. If the Yard CA signed the Traefik certificate, import `tls/traefik/ca.crt`
+into your browser's trusted certificate authorities to trust it. A public
+certificate needs nothing.
 
 Use `lvh-yard ws set https-port 8443` to choose another port, or
 `lvh-yard ws set https-port ''` to turn HTTPS off. The HTTPS entry point uses
 `traefik-bind-address`. The dashboard reads `YARD_HTTPS_PORT` in Compose and
-when run from the sources. With Traefik off, importing a certificate enables
-only Consul TLS and writes no Traefik TLS configuration.
+when run from the sources. With Traefik off, a certificate can turn on
+only Consul TLS, and no Traefik TLS configuration is written.
 
 The generated `traefik/dynamic/10-tls.yaml` defines the default TLS option and
 the fixed option `yard-client-certificate@file`. The latter requires a Client
@@ -398,10 +477,10 @@ Certificate signed by the Yard CA. The default option does not require one.
 ### Upgrading
 
 `lvh-yard ws init` does not overwrite a file unless you give `--force`.
-After you install a new `lvh-yard`, run `lvh-yard ws upgrade`.
+After you install a new `lvh-yard`, run `lvh-yard ws compose upgrade`.
 It changes only the consul, traefik and dashboard image lines in `compose.yaml`
 and rewrites `consul.d/00-lvh-yard.hcl`.
-Then run `docker compose up -d --force-recreate` in the Workstation Folder,
+Then run `lvh-yard ws compose recreate`,
 even if every image is current. This makes Consul load the generated options.
 
 LVH Yard owns `consul.d/00-lvh-yard.hcl`, `consul.d/10-tls.hcl` and
@@ -409,7 +488,7 @@ LVH Yard owns `consul.d/00-lvh-yard.hcl`, `consul.d/10-tls.hcl` and
 `# Generated, do not edit.` The TLS files exist only when TLS is set up.
 You own `compose.yaml`, `.env`, `lvh-yard.yaml` and every other file you add
 to `consul.d/` or `traefik/dynamic/`. Put custom options in your own files.
-`ws upgrade` keeps their contents unchanged.
+`ws compose upgrade` keeps their contents unchanged.
 Consul reads `consul.d/` read-only. Traefik watches `traefik/dynamic/`
 read-only for routing options.
 
@@ -582,7 +661,7 @@ Both views support `--workstation` and `--state`. You can combine the filters.
 The states are `unpublished`,
 `unavailable`, `unhealthy`, `degraded` and `healthy`. An unreachable Workstation
 shows `Workstation unreachable` instead of its Services, and the output ends with
-the command that shows this Workstation's Consul log: `lvh-yard ws logs consul`.
+the command that shows this Workstation's Consul log: `lvh-yard ws compose logs consul`.
 
 A command exits with 0 when it succeeds. If it fails, it prints the reason on
 stderr and exits with 1. A usage error, such as an unknown option, does the same.

@@ -97,7 +97,7 @@ func NewCatalog(options *Options) *cobra.Command {
 				}
 			}
 			if anyUnreachable {
-				fmt.Fprintln(out, "To see why, read the log of this Workstation's Consul:\n    lvh-yard ws logs consul")
+				fmt.Fprintln(out, "To see why, read the log of this Workstation's Consul:\n    lvh-yard ws compose logs consul")
 			}
 			return nil
 		},

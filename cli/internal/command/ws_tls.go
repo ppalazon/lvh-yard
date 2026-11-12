@@ -9,18 +9,32 @@ import (
 	"encoding/pem"
 	"fmt"
 	"math/big"
-	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 )
 
-func newWSTLS(folder func() string) *cobra.Command {
-	tls := &cobra.Command{Use: "tls", Short: "Makes certificates for this Yard.", Args: cobra.NoArgs}
-	ca := &cobra.Command{Use: "ca", Short: "Manages the Yard CA.", Args: cobra.NoArgs}
+func newWSTLS(options *Options, folder func() string) *cobra.Command {
+	tls := &cobra.Command{Use: "tls", Short: "Manages this Workstation's certificates and TLS.", Args: cobra.NoArgs}
+	tls.AddCommand(newWSTLSCA(options, folder), newWSTLSImport(options, folder), newWSTLSEnable(folder), newWSTLSDisable(folder))
+	return tls
+}
+
+const privateCAWarning = "Warning: LVH Yard makes this Yard CA for testing or development. Its key is a plain file on this computer, and nothing can revoke a certificate it signed.\nFor more than testing, use a more robust CA, such as a company CA or a public CA, and install its certificates with 'lvh-yard ws tls import'."
+
+// newWSTLSCA holds every command that needs the Yard CA key.
+func newWSTLSCA(options *Options, folder func() string) *cobra.Command {
+	ca := &cobra.Command{
+		Use: "ca", Short: "Makes the Yard CA and signs with it.", Long: "Makes the Yard CA and signs with it.\n\n" + privateCAWarning, Args: cobra.NoArgs,
+		// After every command under ca that succeeded.
+		PersistentPostRun: func(cmd *cobra.Command, args []string) {
+			fmt.Fprintln(cmd.ErrOrStderr(), "\n"+privateCAWarning)
+		},
+	}
 	var force bool
 	var days int
 	create := &cobra.Command{Use: "create", Short: "Makes a Yard CA without starting TLS.", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
@@ -38,6 +52,10 @@ func newWSTLS(folder func() string) *cobra.Command {
 				return err
 			}
 		}
+		days, err := askDays(cmd, newPrompter(cmd, options), days, 3650, "CA validity in days")
+		if err != nil {
+			return err
+		}
 		cert, key, err := newTLSCertificate("LVH Yard CA", days)
 		if err != nil {
 			return err
@@ -53,12 +71,25 @@ func newWSTLS(folder func() string) *cobra.Command {
 	}}
 	create.Flags().BoolVar(&force, "force", false, "Replaces an existing Yard CA.")
 	create.Flags().IntVar(&days, "days", 3650, "Sets the CA validity in days.")
-	ca.AddCommand(create)
-	tls.AddCommand(ca)
-	tls.AddCommand(newWSTLSCert(folder))
-	tls.AddCommand(newWSTLSImport(folder))
-	tls.AddCommand(newWSTLSClient(folder))
-	return tls
+	ca.AddCommand(create, newWSTLSIssue(options, folder), newWSTLSInstall(options, folder))
+	return ca
+}
+
+// askDays uses the --days flag when it was given, and asks for the validity at a terminal.
+func askDays(cmd *cobra.Command, p *prompter, flag, fallback int, question string) (int, error) {
+	if cmd.Flags().Changed("days") || !p.terminal {
+		return flag, nil
+	}
+	answer, err := p.text(strings.ToUpper(question[:1])+question[1:], strconv.Itoa(fallback), func(text string) error {
+		if n, err := strconv.Atoi(text); err != nil || n < 1 || n > 100000 {
+			return fmt.Errorf("Use a number of days from 1 to 100000.")
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return strconv.Atoi(answer)
 }
 
 func newTLSCertificate(name string, days int) (*x509.Certificate, *ecdsa.PrivateKey, error) {
@@ -102,83 +133,6 @@ func writeTLSCertificate(dir, name string, cert, parent *x509.Certificate, key, 
 		}
 	}
 	return nil
-}
-
-func newWSTLSCert(folder func() string) *cobra.Command {
-	cert := &cobra.Command{Use: "cert", Short: "Manages Workstation Certificates.", Args: cobra.NoArgs}
-	var workstation, domain string
-	var addresses []string
-	var days int
-	create := &cobra.Command{Use: "create", Short: "Signs a Workstation Certificate without starting TLS.", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
-		env, err := readWSEnv(folder())
-		if err != nil {
-			return err
-		}
-		if err := protectWorkstationFolder(folder()); err != nil {
-			return err
-		}
-		name := workstation
-		if !cmd.Flags().Changed("workstation") {
-			name = env.get("YARD_WORKSTATION")
-		}
-		if !workstationName.MatchString(name) {
-			return fmt.Errorf("invalid --workstation: use a lowercase Workstation name")
-		}
-		base := domain
-		if !cmd.Flags().Changed("base-domain") {
-			base = env.valueOrDefault("YARD_BASE_DOMAIN")
-		}
-		if _, err := checkWSSetting("base-domain", base); err != nil {
-			return err
-		}
-		ca, signer, caPEM, err := readYardCA(folder())
-		if err != nil {
-			return err
-		}
-		leaf, key, err := newTLSCertificate(name, days)
-		if err != nil {
-			return err
-		}
-		leaf.DNSNames = []string{"server." + name + ".consul", "localhost", "*." + base}
-		leaf.IPAddresses = []net.IP{net.ParseIP("127.0.0.1")}
-		for _, address := range addresses {
-			if ip := net.ParseIP(address); ip != nil {
-				leaf.IPAddresses = append(leaf.IPAddresses, ip)
-				continue
-			}
-			dns := strings.TrimPrefix(address, "*.")
-			if !baseDomainName.MatchString(dns) || net.ParseIP(dns) != nil {
-				return fmt.Errorf("invalid --address %q: use an IP address, DNS name or leftmost-label wildcard such as *.ws-b.lvh.me", address)
-			}
-			leaf.DNSNames = append(leaf.DNSNames, address)
-		}
-		leaf.KeyUsage = x509.KeyUsageDigitalSignature
-		leaf.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
-		if leaf.NotAfter.After(ca.NotAfter) || leaf.NotBefore.Before(ca.NotBefore) {
-			return fmt.Errorf("certificate validity is outside the Yard CA validity: use a shorter --days value or make a new CA")
-		}
-		dir := filepath.Join(folder(), "tls")
-		if cmd.Flags().Changed("workstation") {
-			dir = filepath.Join(folder(), "certificates", name)
-		}
-		if err := writeTLSCertificate(dir, "workstation", leaf, ca, key, signer); err != nil {
-			return err
-		}
-		if err := os.WriteFile(filepath.Join(dir, "ca.crt"), caPEM, 0600); err != nil {
-			return err
-		}
-		if err := protectWorkstationFolder(folder()); err != nil {
-			return err
-		}
-		fmt.Fprintf(cmd.OutOrStdout(), "Workstation Certificate saved in %s. TLS is not started.\nImport ca.crt into your browser's trusted certificate authorities. Never share the Yard CA key.\n", dir)
-		return nil
-	}}
-	create.Flags().StringVar(&workstation, "workstation", "", "Signs a bundle for this Workstation name.")
-	create.Flags().StringVar(&domain, "base-domain", "", "Uses this Base Domain for the certificate.")
-	create.Flags().StringArrayVar(&addresses, "address", nil, "Adds an IP address, DNS name or wildcard DNS name to the certificate.")
-	create.Flags().IntVar(&days, "days", 365, "Sets the certificate validity in days.")
-	cert.AddCommand(create)
-	return cert
 }
 
 func readYardCA(folder string) (*x509.Certificate, *ecdsa.PrivateKey, []byte, error) {

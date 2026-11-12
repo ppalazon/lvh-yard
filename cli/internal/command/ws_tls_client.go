@@ -13,18 +13,10 @@ import (
 	pkcs12 "software.sslmate.com/src/go-pkcs12"
 )
 
-func newWSTLSClient(folder func() string) *cobra.Command {
-	client := &cobra.Command{Use: "client", Short: "Manages Client Certificates.", Args: cobra.NoArgs}
+func newWSTLSIssueUser(options *Options, folder func() string) *cobra.Command {
 	var password string
 	var days int
-	create := &cobra.Command{Use: "create <name>", Short: "Signs a Client Certificate for a browser.", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
-		name := args[0]
-		if strings.TrimSpace(name) == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\\x00") {
-			return fmt.Errorf("invalid client name: use a name without path separators")
-		}
-		if cmd.Flags().Changed("password") && password == "" {
-			return fmt.Errorf("--password must not be empty")
-		}
+	create := &cobra.Command{Use: "user [username-or-email]", Short: "Signs a Client Certificate for the browser of a user.", Args: cobra.MaximumNArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 		if _, err := readWSEnv(folder()); err != nil {
 			return err
 		}
@@ -32,6 +24,42 @@ func newWSTLSClient(folder func() string) *cobra.Command {
 			return err
 		}
 		ca, signer, _, err := readYardCA(folder())
+		if err != nil {
+			return err
+		}
+		p := newPrompter(cmd, options)
+		var name string
+		switch {
+		case len(args) == 1:
+			name = args[0]
+		case p.terminal:
+			name, err = p.text("Username or email", "", func(text string) error {
+				if text == "" {
+					return fmt.Errorf("A Client Certificate needs a username or an email.")
+				}
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("Missing the username or email: no terminal to ask for it, so give it as an argument")
+		}
+		if strings.TrimSpace(name) == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\\x00") {
+			return fmt.Errorf("invalid username or email: use a name without path separators")
+		}
+		given := cmd.Flags().Changed("password")
+		if given && password == "" {
+			return fmt.Errorf("--password must not be empty")
+		}
+		if !given && p.terminal {
+			typed, err := p.text("Password of the PKCS#12 file (empty for a random one)", "", nil)
+			if err != nil {
+				return err
+			}
+			password, given = typed, typed != ""
+		}
+		days, err := askDays(cmd, p, days, 365, "certificate validity in days")
 		if err != nil {
 			return err
 		}
@@ -53,7 +81,7 @@ func newWSTLSClient(folder func() string) *cobra.Command {
 			return err
 		}
 		secret := password
-		generated := !cmd.Flags().Changed("password")
+		generated := !given
 		if generated {
 			var random [24]byte
 			if _, err := rand.Read(random[:]); err != nil {
@@ -65,7 +93,7 @@ func newWSTLSClient(folder func() string) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		dir := filepath.Join(folder(), "certificates", "clients")
+		dir := filepath.Join(folder(), "ca", "clients")
 		if err := os.MkdirAll(dir, 0700); err != nil {
 			return err
 		}
@@ -84,6 +112,5 @@ func newWSTLSClient(folder func() string) *cobra.Command {
 	}}
 	create.Flags().StringVar(&password, "password", "", "Sets the password of the PKCS#12 file.")
 	create.Flags().IntVar(&days, "days", 365, "Sets the certificate validity in days.")
-	client.AddCommand(create)
-	return client
+	return create
 }

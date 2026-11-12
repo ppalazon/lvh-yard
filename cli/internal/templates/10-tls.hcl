@@ -3,8 +3,8 @@
 tls {
   defaults {
     ca_file = "/consul/tls/ca.crt"
-    cert_file = "/consul/tls/workstation.crt"
-    key_file = "/consul/tls/workstation.key"
+    cert_file = "/consul/tls/consul.crt"
+    key_file = "/consul/tls/consul.key"
     verify_incoming = true
     verify_outgoing = true
   }

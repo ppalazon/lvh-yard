@@ -19,15 +19,7 @@ func NewWS(options *Options) *cobra.Command {
 	}
 	ws.AddCommand(newWSInit(options, folder))
 	ws.AddCommand(newWSShow(folder), newWSSet(folder), newWSYard(options, folder))
-	ws.AddCommand(&cobra.Command{
-		Use:   "upgrade",
-		Short: "Updates the service images in compose.yaml.",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return upgradeInit(options, folder(), cmd.OutOrStdout())
-		},
-	})
 	ws.AddCommand(newWSLifecycle(options, folder)...)
-	ws.AddCommand(newWSTLS(folder))
+	ws.AddCommand(newWSTLS(options, folder))
 	return ws
 }

@@ -86,9 +86,10 @@ func TestWorkstationTLSYard(t *testing.T) {
 	run("ws", "tls", "ca", "create", "--dir", folders[0])
 	for i, folder := range folders {
 		name := fmt.Sprintf("tls-ws-%d", i)
-		run("ws", "tls", "cert", "create", "--dir", folders[0], "--workstation", name)
-		bundle := filepath.Join(folders[0], "certificates", name)
-		run("ws", "tls", "import", "--dir", folder, "--ca", filepath.Join(bundle, "ca.crt"), "--cert", filepath.Join(bundle, "workstation.crt"), "--key", filepath.Join(bundle, "workstation.key"))
+		run("ws", "tls", "ca", "issue", "workstation", name, "--dir", folders[0])
+		for _, role := range []string{"consul", "traefik"} {
+			run("ws", "tls", "import", role, "--dir", folder, "--ca", filepath.Join(folders[0], "ca", "ca.crt"), "--cert", filepath.Join(folders[0], "ca", "certs", name, role+".crt"), "--key", filepath.Join(folders[0], "ca", "certs", name, role+".key"))
+		}
 		run("ws", "set", "--dir", folder, "https-port", fmt.Sprint(ports[i][9]))
 	}
 	for i, folder := range folders {
@@ -152,7 +153,7 @@ func TestWorkstationTLSYard(t *testing.T) {
 		}
 		time.Sleep(time.Second)
 	}
-	caPEM, err := os.ReadFile(filepath.Join(folders[0], "tls", "ca.crt"))
+	caPEM, err := os.ReadFile(filepath.Join(folders[0], "tls", "traefik", "ca.crt"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,8 +198,8 @@ func TestWorkstationTLSYard(t *testing.T) {
 	run("--dashboard", dashboard, "service", "create", "private")
 	run("--dashboard", dashboard, "register", "static", "private", "--host", "127.0.0.1", "--port", fmt.Sprint(ports[0][6]))
 	run("--dashboard", dashboard, "publish", "private", "--profile", "certificate")
-	run("ws", "tls", "client", "create", "alice", "--dir", folders[0], "--password", "integration-client")
-	p12, err := os.ReadFile(filepath.Join(folders[0], "certificates", "clients", "alice.p12"))
+	run("ws", "tls", "ca", "issue", "user", "alice", "--dir", folders[0], "--password", "integration-client")
+	p12, err := os.ReadFile(filepath.Join(folders[0], "ca", "clients", "alice.p12"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -33,10 +33,10 @@ for workstation in ws-a ws-b; do
                 done
             fi
             # The dashboard runs from sources with dev:dashboard.
-            COMPOSE_PROFILES=traefik "$cli" ws --dir "$folder" start
+            COMPOSE_PROFILES=traefik "$cli" ws --dir "$folder" compose start
             ;;
         down)
-            "$cli" ws --dir "$folder" stop
+            "$cli" ws --dir "$folder" compose stop
             ;;
         *)
             echo "Use up or down." >&2
