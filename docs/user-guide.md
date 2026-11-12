@@ -152,14 +152,23 @@ the [development tasks](development.md#a-yard-on-one-computer).
 On a member of the Yard, print its invitation:
 
 ```sh
+lvh-yard ws yard share
+```
+
+The command uses a specific non-loopback Consul bind address first.
+Otherwise, it tries this computer's default-route IPv4 address, then a single
+active IPv4 interface address. If it cannot choose an address, it prints a
+placeholder. To override the address:
+
+```sh
 lvh-yard ws yard share --address 192.168.1.10
 ```
 
-Use that Workstation's reachable LAN address. Without `--address`, the command
-uses a specific non-loopback Consul bind address, or prints a placeholder.
-It names the firewall ports and prints commands for a new Workstation and an
-already initialized one. Keep the output private: it contains the Gossip Key.
-Sharing reads files only and works while the dashboard is down.
+The numbered invitation names the firewall ports and gives separate choices
+for a new Workstation and an already initialized one. Commands appear on
+their own indented lines. Keep the output private: it contains the Gossip Key.
+Sharing reads local files and network settings only. It works while the
+dashboard is down.
 
 On an already initialized Workstation, use the invitation's key and Peer:
 
@@ -191,6 +200,25 @@ This leaves HTTPS files in place. To restore Consul TLS later, import the
 appropriate bundle again.
 After any required TLS steps, run the printed recreation command and check
 `lvh-yard status`. A first start can use `lvh-yard ws start`.
+
+### Listing Peers
+
+To see the other Workstations that this Workstation's Consul sees, run:
+
+```sh
+lvh-yard ws yard peers
+```
+
+It asks the local Consul, so Consul must run. The list leaves out a
+Workstation that does not answer and names it on a last line. To replace
+`YARD_PEERS` with the Peers on the list, run:
+
+```sh
+lvh-yard ws yard peers --sync
+```
+
+`--sync` leaves `.env` as it is when no other Workstation answers. Like `ws set`,
+it does not restart services: run the printed `docker compose` command.
 
 ### Changing settings
 
@@ -553,7 +581,8 @@ show each Instance's address, Health and ID, followed by the Service Warnings.
 Both views support `--workstation` and `--state`. You can combine the filters.
 The states are `unpublished`,
 `unavailable`, `unhealthy`, `degraded` and `healthy`. An unreachable Workstation
-shows `Workstation unreachable` instead of its Services.
+shows `Workstation unreachable` instead of its Services, and the output ends with
+the command that shows this Workstation's Consul log: `lvh-yard ws logs consul`.
 
 A command exits with 0 when it succeeds. If it fails, it prints the reason on
 stderr and exits with 1. A usage error, such as an unknown option, does the same.

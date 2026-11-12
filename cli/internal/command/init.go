@@ -179,7 +179,7 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: no Docker socket at %s, so YARD_DOCKER_GID in .env is empty. Set it to the group of /var/run/docker.sock, or the dashboard will not start.\n", f.dockerSocket)
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "Wrote compose.yaml, .env, lvh-yard.yaml to %s.\n\n", folder)
-	printInitNextSteps(cmd.OutOrStdout(), folder, env)
+	printInitNextSteps(cmd.OutOrStdout(), folder, env, options.WorkstationFolder())
 	return nil
 }
 
@@ -319,7 +319,7 @@ func (e *envFile) valueOrDefault(key string) string {
 	return envSetting(templates.Env(), key, "")
 }
 
-func printInitNextSteps(out io.Writer, folder string, env *envFile) {
+func printInitNextSteps(out io.Writer, folder string, env *envFile, defaultFolder string) {
 	bind := env.valueOrDefault("YARD_DASHBOARD_BIND_ADDRESS")
 	if bind == "0.0.0.0" {
 		bind = "127.0.0.1"
@@ -329,10 +329,14 @@ func printInitNextSteps(out io.Writer, folder string, env *envFile) {
 	if port := env.valueOrDefault("YARD_HTTP_PORT"); port != "80" {
 		yard += ":" + port
 	}
-	dir := quoteShell(folder)
-	fmt.Fprintf(out, "Next steps:\n  1. Start Consul, Traefik and the dashboard:\n     lvh-yard ws --dir %s start\n     Or: docker compose --project-directory %s up -d\n", dir, dir)
-	fmt.Fprintf(out, "  2. Check the status:\n     lvh-yard --dashboard %s status\n", quoteShell(dashboard))
-	fmt.Fprintf(out, "  3. Open %s or %s.\n", dashboard, yard)
-	fmt.Fprintf(out, "  4. Invite another Workstation:\n     lvh-yard ws --dir %s yard share\n", dir)
-	fmt.Fprintln(out, "     To join another Yard, ask its owner for the joining instructions:\n     lvh-yard ws yard join --help")
+	ws := wsCommand(folder, defaultFolder)
+	status := "lvh-yard status"
+	if filepath.Clean(folder) != filepath.Clean(defaultFolder) {
+		status = "lvh-yard --dashboard " + quoteShell(dashboard) + " status"
+	}
+	fmt.Fprintln(out, "Next steps:")
+	fmt.Fprintf(out, "\n1. Start Consul, Traefik and the dashboard. Choose ONE:\n\n   A. Workstation command (recommended):\n      %s start\n\n   B. Docker Compose (same action):\n      docker compose --project-directory %s up -d\n", ws, quoteShell(folder))
+	fmt.Fprintf(out, "\n2. Check the status:\n   %s\n", status)
+	fmt.Fprintf(out, "\n3. Open either address:\n   %s\n   %s\n", dashboard, yard)
+	fmt.Fprintf(out, "\n4. Connect other Workstations. Choose ONE:\n\n   A. Invite a Workstation into this Yard:\n      %s yard share\n\n   B. Join another Yard:\n      Ask a member for its invitation. For command help:\n      lvh-yard ws yard join --help\n", ws)
 }

@@ -100,7 +100,7 @@ dir = "{{config_root}}/cli"
 run = "go test -tags integration -count=1 ./cmd/lvh-yard"
 
 [tasks."cli:install"]
-description = "Build the lvh-yard executable and copy it to a folder on this computer: mise run cli:install [--dir ~/.local/bin]"
+description = "Build the lvh-yard executable and copy it to a folder on this computer: mise run cli:install"
 # A new file, then mv: a running lvh-yard cannot be overwritten in place ("Text file busy").
 usage = 'flag "--dir <dir>" default="~/.local/bin" help="The folder for lvh-yard"'
 depends = ["cli:build"]
@@ -112,12 +112,26 @@ mv "$dir/lvh-yard.new" "$dir/lvh-yard"
 echo "Installed lvh-yard to $dir/lvh-yard"
 """
 
-[tasks.install]
-description = "Install the CLI and build the dashboard image: mise run install [--dir ~/.local/bin]"
+[tasks."install:local"]
+description = "Install the CLI and build the dashboard image on this computer: mise run install:local"
 usage = 'flag "--dir <dir>" default="~/.local/bin" help="The folder for lvh-yard"'
 run = [
   { task = "cli:install", args = ["--dir", "{{usage.dir}}"] },
   { task = "dashboard:image" },
+]
+
+[tasks."install:ssh"]
+description = "Copy the CLI and the dashboard image to another computer through ssh: mise run install:ssh user@host"
+# The other computer needs ssh, Docker and the folder, not a registry. Both builds are for the system and CPU of this computer.
+# The new file, then mv: a running lvh-yard cannot be overwritten in place.
+usage = '''
+arg "<host>" help="The ssh destination, for example user@host"
+flag "--dir <dir>" default="~/.local/bin" help="The folder for lvh-yard on the other computer"
+'''
+depends = ["cli:build", "dashboard:image"]
+run = [
+  'ssh -C "$usage_host" "cat > $usage_dir/lvh-yard.new && chmod +x $usage_dir/lvh-yard.new && mv $usage_dir/lvh-yard.new $usage_dir/lvh-yard" < cli/target/lvh-yard',
+  'docker save ghcr.io/ppalazon/lvh-yard-dashboard:latest | ssh -C "$usage_host" docker load',
 ]
 
 [tasks.openapi]
@@ -131,16 +145,10 @@ usage = 'flag "--check" help="Also time mise run check and count its output line
 run = 'node dev/audit.mjs ${usage_check:+--check}'
 
 [tasks."dashboard:image"]
-description = "Build the dashboard image: mise run dashboard:image [--platform linux/arm64]"
+description = "Build the dashboard image: mise run dashboard:image"
 # The tag is the default image of compose.yaml, so docker compose on a Workstation uses this build without a change to .env.
 usage = 'flag "--platform <platform>" help="The platform of the Workstation that runs the image, for example linux/arm64"'
 run = 'docker build ${usage_platform:+--platform "$usage_platform"} -t ghcr.io/ppalazon/lvh-yard-dashboard:latest .'
-
-[tasks."dashboard:copy"]
-description = "Copy the dashboard image to another computer through ssh: mise run dashboard:copy user@host"
-usage = 'arg "<host>" help="The ssh destination, for example user@host"'
-# -C compresses the image on the way. The other computer needs no registry, only Docker and ssh.
-run = 'docker save ghcr.io/ppalazon/lvh-yard-dashboard:latest | ssh -C "$usage_host" docker load'
 
 [tasks."dev:up"]
 description = "Start Consul and Traefik for two test Workstation Folders"

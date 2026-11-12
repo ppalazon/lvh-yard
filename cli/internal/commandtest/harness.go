@@ -47,6 +47,8 @@ type Process struct {
 	Env        map[string]string
 	Stdin      string
 	Terminal   bool
+	LANIP      string
+	LANError   error
 	Editor     func(editor, path string) error
 	Identity   func(flag string) string
 	Commands   []Command
@@ -65,6 +67,10 @@ func (p *Process) Input() io.Reader {
 
 func (p *Process) IsTerminal() bool {
 	return p.Terminal
+}
+
+func (p *Process) LANAddress() (string, error) {
+	return p.LANIP, p.LANError
 }
 
 func (p *Process) Edit(editor, path string) error {

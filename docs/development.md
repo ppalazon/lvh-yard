@@ -18,18 +18,20 @@ Workstation Folders in `dev/ws-a/` and `dev/ws-b/`. Do not use the
 repository root as a Workstation Folder: `ws` repairs file modes recursively,
 which removes executable modes from checkout files.
 
-To try the image from your sources on another Workstation, build it and copy it
-there through ssh. The other Workstation needs Docker and ssh, but no registry.
+To try your sources on another Workstation, copy the CLI and the dashboard
+image there through ssh. The other Workstation needs ssh, Docker and the
+folder for the CLI, but no registry. Both are built for the system and CPU of
+this computer:
 
 ```sh
-mise run dashboard:image                        # for the CPU of this computer
-mise run dashboard:image --platform linux/arm64 # for a Workstation with another CPU
-mise run dashboard:copy user@host
+mise run install:ssh user@host
 ```
 
-Both tasks use the tag `ghcr.io/ppalazon/lvh-yard-dashboard:latest`. It is the
-default image of `compose.yaml`. On the other Workstation, unset
-`YARD_DASHBOARD_IMAGE` in `.env` and run `docker compose up -d`.
+The CLI goes to `~/.local/bin/lvh-yard` on the other Workstation. The image
+keeps the tag `ghcr.io/ppalazon/lvh-yard-dashboard:latest`, the default image of
+`compose.yaml`. On the other Workstation, unset `YARD_DASHBOARD_IMAGE` in `.env`
+and run `docker compose up -d --force-recreate`. For this computer, use
+`mise run install:local`.
 
 ## A Yard on one computer
 
@@ -71,8 +73,7 @@ YAML module and a PKCS#12 module.
 ```sh
 mise run cli:build      # builds cli/target/lvh-yard
 mise run cli:install    # builds it and copies it to ~/.local/bin/lvh-yard
-mise run cli:install --dir ~/bin   # copies it to ~/bin/lvh-yard
-mise run install        # runs cli:install, then builds the dashboard image
+mise run install:local  # runs cli:install, then builds the dashboard image
 ```
 
 `mise run cli:build` builds without C code and strips debug data. The

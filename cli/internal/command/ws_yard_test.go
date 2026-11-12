@@ -1,8 +1,12 @@
 package command_test
 
 import (
+	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -112,5 +116,113 @@ func TestWSYardRejectsUnknownCommands(t *testing.T) {
 		if run.ExitCode == 0 {
 			t.Fatalf("unknown command succeeded: %v", args)
 		}
+	}
+}
+
+func TestWSYardShareSelectsReachablePeer(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		bind     string
+		override string
+		detects  string
+		err      error
+		want     string
+	}{
+		{name: "wildcard binding", bind: "0.0.0.0", detects: "192.168.50.20", want: "192.168.50.20:18302"},
+		{name: "configured binding wins", bind: "192.168.50.10", detects: "192.168.50.20", want: "192.168.50.10:18302"},
+		{name: "explicit address wins", bind: "192.168.50.10", override: "10.20.30.40", detects: "192.168.50.20", want: "10.20.30.40:18302"},
+		{name: "detection unavailable", bind: "0.0.0.0", err: errors.New("no route"), want: "<this-workstation-lan-ip>:18302"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			folder := t.TempDir()
+			yard := commandtest.New(t)
+			yard.Process.LANIP, yard.Process.LANError = tc.detects, tc.err
+			for _, args := range [][]string{
+				{"ws", "init", "--dir", folder, "--workstation", "ws-a"},
+				{"ws", "--dir", folder, "set", "bind-address", tc.bind},
+				{"ws", "--dir", folder, "set", "consul-serf-wan-port", "18302"},
+			} {
+				if run := yard.Run(args...); run.ExitCode != 0 {
+					t.Fatal(run.Stderr)
+				}
+			}
+			args := []string{"ws", "--dir", folder, "yard", "share"}
+			if tc.override != "" {
+				args = append(args, "--address", tc.override)
+			}
+			run := yard.Run(args...)
+			if run.ExitCode != 0 {
+				t.Fatal(run.Stderr)
+			}
+			if !strings.Contains(run.Stdout, "--peers '"+tc.want+"'") {
+				t.Fatalf("invitation has the wrong Peer:\n%s", run.Stdout)
+			}
+		})
+	}
+}
+
+func TestWSYardPeersSyncKeepsOnlyAnsweringWorkstations(t *testing.T) {
+	consul := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/agent/members" || r.URL.Query().Get("wan") != "1" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`[
+			{"Name":"ws-a.ws-a","Addr":"192.168.1.10","Port":8302,"Status":1,"Tags":{"dc":"ws-a"}},
+			{"Name":"ws-c.ws-c","Addr":"192.168.1.12","Port":8302,"Status":1,"Tags":{"dc":"ws-c"}},
+			{"Name":"ws-b.ws-b","Addr":"192.168.1.11","Port":18302,"Status":1,"Tags":{"dc":"ws-b"}},
+			{"Name":"ws-d.ws-d","Addr":"192.168.1.13","Port":8302,"Status":4,"Tags":{"dc":"ws-d"}}]`))
+	}))
+	defer consul.Close()
+	folder := t.TempDir()
+	yard := commandtest.New(t)
+	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); run.ExitCode != 0 {
+		t.Fatal(run.Stderr)
+	}
+	if run := yard.Run("ws", "--dir", folder, "set", "consul-http-port", consul.URL[strings.LastIndex(consul.URL, ":")+1:]); run.ExitCode != 0 {
+		t.Fatal(run.Stderr)
+	}
+	if run := yard.Run("ws", "--dir", folder, "set", "peers", "192.168.1.13"); run.ExitCode != 0 {
+		t.Fatal(run.Stderr)
+	}
+
+	listed := yard.Run("ws", "--dir", folder, "yard", "peers")
+	if listed.ExitCode != 0 {
+		t.Fatal(listed.Stderr)
+	}
+	if strings.Contains(listed.Stdout, "ws-a ") || strings.Contains(listed.Stdout, "192.168.1.13") {
+		t.Fatalf("the list holds this Workstation or one that does not answer:\n%s", listed.Stdout)
+	}
+	if got := strings.Fields(listed.Stdout); !slices.Contains(got, "192.168.1.11:18302") || !slices.Contains(got, "192.168.1.12") {
+		t.Fatalf("the list lacks an answering Workstation:\n%s", listed.Stdout)
+	}
+	if !strings.Contains(readInitFile(t, folder, ".env"), "YARD_PEERS=192.168.1.13\n") {
+		t.Fatal("listing changed .env")
+	}
+
+	synced := yard.Run("ws", "--dir", folder, "yard", "peers", "--sync")
+	if synced.ExitCode != 0 {
+		t.Fatal(synced.Stderr)
+	}
+	if !strings.Contains(readInitFile(t, folder, ".env"), "YARD_PEERS=192.168.1.11:18302 192.168.1.12\n") {
+		t.Fatalf(".env lacks the answering Peers:\n%s", readInitFile(t, folder, ".env"))
+	}
+	if again := yard.Run("ws", "--dir", folder, "yard", "peers", "--sync"); !strings.Contains(again.Stdout, "already up to date") {
+		t.Fatalf("a second sync changed something:\n%s", again.Stdout)
+	}
+}
+
+func TestWSYardPeersNamesAConsulThatIsOff(t *testing.T) {
+	folder := t.TempDir()
+	yard := commandtest.New(t)
+	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); run.ExitCode != 0 {
+		t.Fatal(run.Stderr)
+	}
+	if run := yard.Run("ws", "--dir", folder, "set", "consul-http-port", "1"); run.ExitCode != 0 {
+		t.Fatal(run.Stderr)
+	}
+	run := yard.Run("ws", "--dir", folder, "yard", "peers")
+	if run.ExitCode == 0 || !strings.Contains(run.Stderr, "cannot reach Consul") {
+		t.Fatalf("exit %d, stderr %q", run.ExitCode, run.Stderr)
 	}
 }

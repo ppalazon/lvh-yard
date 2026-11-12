@@ -11,16 +11,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newWSYard(folder func() string) *cobra.Command {
+func newWSYard(options *Options, folder func() string) *cobra.Command {
 	yard := &cobra.Command{
 		Use: "yard", Short: "Manages this Workstation's Yard membership.", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error { return cmd.Help() },
 	}
-	yard.AddCommand(newWSYardShare(folder), newWSJoin(folder))
+	yard.AddCommand(newWSYardShare(options, folder), newWSJoin(options, folder), newWSYardPeers(folder))
 	return yard
 }
 
-func newWSYardShare(folder func() string) *cobra.Command {
+func newWSYardShare(options *Options, folder func() string) *cobra.Command {
 	var address string
 	cmd := &cobra.Command{
 		Use: "share", Short: "Prints the commands and files another Workstation needs to join.", Args: cobra.NoArgs,
@@ -42,6 +42,8 @@ func newWSYardShare(folder func() string) *cobra.Command {
 				peer = ip.String()
 			} else if ip := net.ParseIP(env.get("YARD_BIND_ADDRESS")); ip != nil && ip.To4() != nil && !ip.IsUnspecified() && !ip.IsLoopback() {
 				peer = ip.String()
+			} else if detected, err := options.Process.LANAddress(); err == nil && detected != "" {
+				peer = detected
 			}
 			tlsEnabled, err := consulTLSEnabled(folder())
 			if err != nil {
@@ -58,33 +60,48 @@ func newWSYardShare(folder func() string) *cobra.Command {
 				}
 			}
 			out := cmd.OutOrStdout()
+			ws := wsCommand(folder(), options.WorkstationFolder())
 			fmt.Fprintf(out, "Yard invitation from %s.\nKeep these instructions private: they contain the Yard's Gossip Key.\n\n", env.get("YARD_WORKSTATION"))
-			fmt.Fprintf(out, "On this Workstation, allow TCP port %s and TCP and UDP port %s from the other Workstations.\n", env.valueOrDefault("YARD_CONSUL_SERVER_PORT"), env.valueOrDefault("YARD_CONSUL_SERF_WAN_PORT"))
+			fmt.Fprintf(out, "1. Prepare this Workstation for incoming connections.\n   Peer address: %s:%s\n   Allow TCP port %s and TCP and UDP port %s from other Workstations.\n", peer, env.valueOrDefault("YARD_CONSUL_SERF_WAN_PORT"), env.valueOrDefault("YARD_CONSUL_SERVER_PORT"), env.valueOrDefault("YARD_CONSUL_SERF_WAN_PORT"))
 			if peer == "<this-workstation-lan-ip>" {
-				fmt.Fprintf(out, "Replace <this-workstation-lan-ip> with this computer's LAN address, or run lvh-yard ws --dir %s yard share --address <ip>.\n", quoteShell(folder()))
-			}
-			if ip := net.ParseIP(env.get("YARD_BIND_ADDRESS")); ip != nil && ip.IsLoopback() {
-				fmt.Fprintf(out, "Consul is bound to loopback. Before another computer joins, use lvh-yard ws --dir %s set bind-address '<lan-ip>' and apply its printed commands.\n", quoteShell(folder()))
-			}
-			if ip := net.ParseIP(peer); ip != nil && ip.IsLoopback() {
-				fmt.Fprintln(out, "This Peer address works only for Workstations on the same computer.")
-			}
-			peer += ":" + env.valueOrDefault("YARD_CONSUL_SERF_WAN_PORT")
-			fmt.Fprintf(out, "\nOn a new Workstation:\n  lvh-yard ws init --workstation '<new-workstation>' --base-domain '<base-domain>' --gossip-key %s --peers %s\n", quoteShell(key), quoteShell(peer))
-			fmt.Fprintf(out, "\nOn an already initialized Workstation instead:\n  lvh-yard ws yard join --gossip-key %s --peers %s\n", quoteShell(key), quoteShell(peer))
-			if tlsEnabled {
-				printYardTLSInvitation(out, folder(), env)
+				fmt.Fprintln(out, "   No LAN IPv4 address could be detected. Set it explicitly:")
 			} else {
-				fmt.Fprintln(out, "\nConsul TLS is off here. No certificate bundle is needed for Yard membership. The joining Workstation must also have Consul TLS off.")
-				if env.get("YARD_HTTPS_PORT") != "" {
-					fmt.Fprintf(out, "For browser HTTPS trust only, share the public CA certificate at %s. This does not enable Consul TLS.\n", filepath.Join(folder(), "tls", "ca.crt"))
+				fmt.Fprintln(out, "   If this address is not reachable from other Workstations, override it:")
+			}
+			fmt.Fprintf(out, "      %s yard share --address '<lan-ip>'\n", ws)
+			if ip := net.ParseIP(env.get("YARD_BIND_ADDRESS")); ip != nil && ip.IsLoopback() {
+				fmt.Fprintln(out, "   Consul listens only on this computer.")
+				if ip := net.ParseIP(peer); ip == nil || !ip.IsLoopback() {
+					fmt.Fprintf(out, "   Before another computer joins, change the binding:\n      %s set bind-address %s\n   Apply the commands it prints.\n", ws, quoteShell(peer))
 				}
 			}
-			fmt.Fprintln(out, "\nAfter the joining Workstation has the right settings and TLS files, run its printed recreation command, or lvh-yard ws start for a first start.\nThen run lvh-yard status and open its dashboard.")
+			if ip := net.ParseIP(peer); ip != nil && ip.IsLoopback() {
+				fmt.Fprintln(out, "   This Peer works only for Workstations on the same computer.")
+			}
+			peer += ":" + env.valueOrDefault("YARD_CONSUL_SERF_WAN_PORT")
+			fmt.Fprintln(out, "\n2. Set up the joining Workstation. Choose ONE:")
+			fmt.Fprintf(out, "\n   A. New Workstation (asks for its name and Base Domain):\n      lvh-yard ws init --gossip-key %s --peers %s\n", quoteShell(key), quoteShell(peer))
+			fmt.Fprintf(out, "\n   B. Already initialized Workstation:\n      lvh-yard ws yard join --gossip-key %s --peers %s\n", quoteShell(key), quoteShell(peer))
+			next := 3
+			if tlsEnabled {
+				printYardTLSInvitation(out, folder(), env)
+				next = 5
+			} else {
+				fmt.Fprintln(out, "\n   Consul TLS is OFF. Keep it off on the joining Workstation too.\n   No certificate bundle is needed for Yard membership.")
+			}
+			fmt.Fprintf(out, "\n%d. Start or apply settings on the joining Workstation. Choose ONE:\n\n   A. First start:\n      lvh-yard ws start\n\n   B. Services already running:\n      docker compose --project-directory '<joining-workstation-folder>' up -d --force-recreate\n      Also run any stop command printed during setup.\n", next)
+			fmt.Fprintf(out, "\n%d. Check the joining Workstation's status:\n   lvh-yard status\n", next+1)
+			fmt.Fprintf(out, "\n%d. Open its dashboard at an address printed during initialization.\n", next+2)
+			if tlsEnabled || env.get("YARD_HTTPS_PORT") != "" {
+				fmt.Fprintf(out, "   For browser HTTPS trust, import only the public CA certificate:\n      %s\n   Verify its source before trusting it. Browser trust does not enable Consul TLS.\n", filepath.Join(folder(), "tls", "ca.crt"))
+			}
+			if tlsEnabled {
+				fmt.Fprintf(out, "\n%d. Optional: give a person access to protected Routes.\n   Client Certificates are not needed for Yard membership. Choose ONE issuer:\n\n   A. On the Workstation that holds the Yard CA key:\n      lvh-yard ws tls client create '<person>'\n\n   B. With a company CA:\n      Ask its issuer for a Client Certificate instead.\n\n   Share only that person's .p12 file and password through a private channel.\n", next+3)
+			}
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&address, "address", "", "Uses this Workstation's reachable IPv4 address in the joining commands.")
+	cmd.Flags().StringVar(&address, "address", "", "Overrides the detected LAN IPv4 address in the joining commands.")
 	return cmd
 }
 
@@ -97,36 +114,34 @@ func consulTLSEnabled(folder string) (bool, error) {
 }
 
 func printYardTLSInvitation(out io.Writer, folder string, env *envFile) {
-	fmt.Fprintf(out, "\nConsul TLS is on. Every Workstation must use this Yard's CA.\nThe public CA certificate is %s. It is safe to copy; verify its source before trusting it.\n", filepath.Join(folder, "tls", "ca.crt"))
-	fmt.Fprintln(out, "\nAsk the owner of that CA to sign a separate Workstation Certificate.\nOn the Workstation that holds the CA key, run:")
-	fmt.Fprintf(out, "  lvh-yard ws --dir '<ca-workstation-folder>' tls cert create --workstation '<new-workstation>' --base-domain '<base-domain>' --address '<new-workstation-lan-ip>' --address %s\n", quoteShell("*."+env.get("YARD_WORKSTATION")+".<base-domain>"))
-	fmt.Fprintln(out, "With a company CA, ask its issuer for the bundle instead.\nInclude server.<new-workstation>.consul, localhost, 127.0.0.1, *.<base-domain>, the LAN address and remote Route wildcards.\nThe certificate must allow both server and client authentication.")
-	fmt.Fprintln(out, "Copy only ca.crt, workstation.crt and workstation.key from certificates/<new-workstation>/ to that Workstation through a private channel.\nNever copy ca.key or this Workstation's certificate key.")
-	fmt.Fprintln(out, "\nBefore starting the joining Workstation, import its received bundle:")
-	printYardTLSImport(out, "", "<received-bundle>")
-	fmt.Fprintln(out, "Each Workstation needs wildcard SANs for the remote Routes it serves. Existing Workstations may need new certificates for *.<new-workstation>.<their-base-domain>.")
-	fmt.Fprintln(out, "\nFor browser trust, import only the public ca.crt into the browser's trusted certificate authorities.\nClient Certificates are for people who use protected Routes, not Yard membership. The CA owner can run lvh-yard ws tls client create <person> and share that person's .p12 file and password privately.")
+	fmt.Fprintf(out, "\n3. Get a separate TLS bundle for the joining Workstation.\n   Consul TLS is ON. Every Workstation must use this Yard's CA.\n   Public CA certificate:\n      %s\n   It is safe to copy. Verify its source before trusting it.\n", filepath.Join(folder, "tls", "ca.crt"))
+	fmt.Fprintln(out, "\n   Choose ONE issuer:")
+	fmt.Fprintln(out, "\n   A. On the Workstation that holds that CA's key:")
+	fmt.Fprintf(out, "      lvh-yard ws tls cert create --workstation '<new-workstation>' --base-domain '<base-domain>' --address '<new-workstation-lan-ip>' --address %s\n", quoteShell("*."+env.get("YARD_WORKSTATION")+".<base-domain>"))
+	fmt.Fprintln(out, "\n   B. With a company CA:\n      Ask its issuer for the bundle instead.\n      Names: server.<new-workstation>.consul, localhost, 127.0.0.1, *.<base-domain>,\n      the LAN address and remote Route wildcards.\n      Usages: server and client authentication.")
+	fmt.Fprintln(out, "\n   Send only these files from certificates/<new-workstation>/ through a private channel:\n      ca.crt\n      workstation.crt\n      workstation.key\n   Never send ca.key or this Workstation's certificate key.\n   Every Workstation needs wildcard SANs for the remote Routes it serves.\n   Existing Workstations may need new certificates for *.<new-workstation>.<their-base-domain>.")
+	fmt.Fprintln(out, "\n4. Import the received bundle on the joining Workstation before starting it:")
+	printYardTLSImport(out, "lvh-yard ws", "<received-bundle>")
 }
 
-func printYardTLSImport(out io.Writer, folder, bundle string) {
-	dir := ""
-	if folder != "" {
-		dir = " --dir " + quoteShell(folder)
-	}
-	fmt.Fprintf(out, "  lvh-yard ws%s tls import --ca %s --cert %s --key %s\n", dir, quoteShell(filepath.Join(bundle, "ca.crt")), quoteShell(filepath.Join(bundle, "workstation.crt")), quoteShell(filepath.Join(bundle, "workstation.key")))
+func printYardTLSImport(out io.Writer, ws, bundle string) {
+	fmt.Fprintf(out, "      %s tls import --ca %s --cert %s --key %s\n", ws, quoteShell(filepath.Join(bundle, "ca.crt")), quoteShell(filepath.Join(bundle, "workstation.crt")), quoteShell(filepath.Join(bundle, "workstation.key")))
 }
 
-func printYardJoinTLS(out io.Writer, folder string, env *envFile, tlsEnabled bool) {
-	fmt.Fprintf(out, "Before applying the Yard settings, check its Consul TLS policy.\nIf it uses TLS, get its public CA and a separate Workstation Certificate for server.%s.consul, then import the received bundle:\n", env.get("YARD_WORKSTATION"))
-	printYardTLSImport(out, folder, "<received-bundle>")
-	fmt.Fprintln(out, "Never copy the CA key or reuse another Workstation's certificate key. Every Workstation must use the same Yard CA and Consul TLS mode.")
+func printYardJoinTLS(out io.Writer, ws, folder string, env *envFile, tlsEnabled bool) {
+	fmt.Fprintf(out, "1. Match the destination Yard's Consul TLS mode. Choose ONE:\n\n   A. Destination uses TLS:\n      Get its public CA and a separate certificate for server.%s.consul.\n      Import the received bundle:\n", env.get("YARD_WORKSTATION"))
+	printYardTLSImport(out, ws, "<received-bundle>")
+	fmt.Fprintln(out, "      Never copy the CA key or reuse another Workstation's certificate key.\n\n   B. Destination does not use TLS:")
 	if tlsEnabled {
-		fmt.Fprintf(out, "This Workstation currently uses Consul TLS. If the destination Yard does not, move %s outside consul.d before applying the settings. Its HTTPS files are kept.\n", quoteShell(filepath.Join(folder, "consul.d", "10-tls.hcl")))
+		fmt.Fprintf(out, "      Move this file outside consul.d before applying the settings:\n         %s\n      HTTPS files are kept.\n", filepath.Join(folder, "consul.d", "10-tls.hcl"))
+	} else {
+		fmt.Fprintln(out, "      No TLS file changes are needed.")
 	}
-	fmt.Fprintln(out)
+	fmt.Fprintln(out, "\n   Every Workstation must use the same Yard CA and Consul TLS mode.")
+	fmt.Fprint(out, "\n2. ")
 }
 
-func newWSJoin(folder func() string) *cobra.Command {
+func newWSJoin(options *Options, folder func() string) *cobra.Command {
 	var key, workstation string
 	var peers []string
 	cmd := &cobra.Command{
@@ -162,7 +177,7 @@ func newWSJoin(folder func() string) *cobra.Command {
 					return err
 				}
 			}
-			printYardJoinTLS(cmd.OutOrStdout(), folder(), env, tlsEnabled)
+			printYardJoinTLS(cmd.OutOrStdout(), wsCommand(folder(), options.WorkstationFolder()), folder(), env, tlsEnabled)
 			return saveWSEnv(cmd, folder(), env)
 		},
 	}
@@ -171,4 +186,12 @@ func newWSJoin(folder func() string) *cobra.Command {
 	cmd.Flags().StringVar(&workstation, "workstation", "", "Refuses a change of the Workstation name.")
 	_ = cmd.Flags().MarkHidden("workstation")
 	return cmd
+}
+
+// wsCommand names the ws command to print. It adds --dir only for a folder that is not the default.
+func wsCommand(folder, defaultFolder string) string {
+	if filepath.Clean(folder) == filepath.Clean(defaultFolder) {
+		return "lvh-yard ws"
+	}
+	return "lvh-yard ws --dir " + quoteShell(folder)
 }

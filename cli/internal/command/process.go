@@ -12,6 +12,7 @@ type Process interface {
 	Getenv(key string) string
 	Input() io.Reader
 	IsTerminal() bool
+	LANAddress() (string, error)
 	Edit(editor, path string) error
 	Run(name string, args []string, dir string, stdout, stderr io.Writer) (int, error)
 	// ID returns a number, or an empty string when id fails or prints other text.
