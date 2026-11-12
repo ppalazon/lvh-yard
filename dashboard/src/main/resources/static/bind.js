@@ -1,6 +1,5 @@
-// The two fields of the bind form are lists that you can also type in.
+// Bind forms list targets and their ports. Port-only fields use server-rendered options.
 // A typed value is sent as it is.
-// The port field lists the open ports of the target in the container field.
 
 // A field with a listbox under it. It shows the options that match what you typed, or all of them
 // when the field holds one option exactly. onPick runs after a pick.
@@ -89,7 +88,11 @@ const combobox = (input, listbox, onPick) => {
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       show(true);
-      mark(active + (event.key === "ArrowDown" ? 1 : -1));
+      mark(
+        active < 0 && event.key === "ArrowUp"
+          ? visible().length - 1
+          : active + (event.key === "ArrowDown" ? 1 : -1),
+      );
     } else if (event.key === "Enter" && !listbox.hidden && active >= 0) {
       event.preventDefault();
       pick(visible()[active]);
@@ -154,4 +157,12 @@ for (const form of document.querySelectorAll("[data-bind-form]")) {
   });
   target.addEventListener("input", fillPorts);
   fillPorts();
+}
+
+for (const input of document.querySelectorAll("[data-port-combobox]")) {
+  combobox(
+    input,
+    document.getElementById(input.getAttribute("aria-controls")),
+    () => {},
+  );
 }

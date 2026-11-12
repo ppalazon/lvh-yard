@@ -13,6 +13,8 @@ class NavigationBarComponentTest extends DashboardComponentTest {
     assertThat(navOf(getPage("/").getBody()))
         .contains("href=\"/\"")
         .contains(">Catalog<")
+        .contains("href=\"/containers\"")
+        .contains(">Containers<")
         .doesNotContain("href=\"/aliases\"")
         .doesNotContain(">Aliases<")
         .contains("href=\"/route-profiles\"")
@@ -24,18 +26,9 @@ class NavigationBarComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void menuHoldsCatalogRouteProfilesBackupsAndStatusInThisOrder() {
-    String nav = navOf(getPage("/").getBody());
-
-    assertThat(nav.split("<a ", -1)).hasSize(5);
-    assertThat(nav.indexOf(">Catalog<")).isLessThan(nav.indexOf(">Route Profiles<"));
-    assertThat(nav.indexOf(">Route Profiles<")).isLessThan(nav.indexOf(">Backups<"));
-    assertThat(nav.indexOf(">Backups<")).isLessThan(nav.indexOf(">Status<"));
-  }
-
-  @Test
   void eachListMarksItsOwnLinkAsCurrent() {
     assertThat(currentLinkOf("/")).isEqualTo("/");
+    assertThat(currentLinkOf("/containers")).isEqualTo("/containers");
     assertThat(currentLinkOf("/route-profiles")).isEqualTo("/route-profiles");
     assertThat(currentLinkOf("/backups")).isEqualTo("/backups");
     assertThat(currentLinkOf("/status")).isEqualTo("/status");

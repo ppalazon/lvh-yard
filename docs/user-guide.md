@@ -14,7 +14,7 @@ Each Workstation runs three things:
   ([ADR-0002](adr/0002-traefik-reads-routes-from-lvh-yard.md))
 
 Each page of the dashboard has a navigation bar at the top. It links to the
-Catalog, Route Profiles, Backups and Status pages, and it highlights the
+Catalog, Containers, Route Profiles, Backups and Status pages, and it highlights the
 current page. The header names Consul, Traefik and Docker with their Status.
 On a phone, it shows their worst Status. Open the summary to see the details.
 
@@ -1505,9 +1505,8 @@ Service, or with `lvh-yard remove` and `--container`, or `--compose-project`
 and `--compose-service`. The Bindings are in the Consul KV of this
 Workstation, under `lvh-yard/container-bindings/`.
 
-One container name, or one Compose project and service, has at most one
-Container Binding on a Workstation. A second one is refused, whatever its port,
-and the refusal names the Service of the first one.
+A container or Compose service can give Instances to several Services.
+Each Service keeps its own Container Bindings.
 
 Each running container that matches is a Bound Instance with a TCP check.
 When a Container Port has a Host Port, the Bound Instance uses that Host Port.
@@ -1575,6 +1574,43 @@ shows your input again with the error under its field.
 If the Service has Yard Scope and the container port is not published, the
 page of the Service warns that other Workstations cannot reach the Bound
 Instance.
+
+#### The Containers page
+
+Open Containers in the navigation bar to see this Workstation's Docker
+containers. Running and Stopped have separate sections, grouped by Compose
+project and service. Open the container count or Container details to see
+Container Ports, Host Ports and bind addresses. Details start closed and
+stay open or closed as you left them when the list refreshes.
+Links under Followed by open the Services that follow the target.
+A running container with no matching Container Binding is marked Unfollowed
+inside its details. If Docker does not answer, the page shows the reason
+and keeps trying.
+
+Click Create Service beside a container or Compose service to open its form.
+The button is hidden when a Service already follows that target.
+For a Compose service, a Binding to any of its containers hides the button
+in both Running and Stopped. A Binding to a Compose service follows every
+replica, including containers that start later.
+
+The form creates one new Service with one Container Binding.
+Its target is fixed to the container or Compose service that you opened.
+You can edit the proposed Service name. An existing name is refused.
+The Container Port combobox lists the detected ports and accepts a typed
+port. A single known port is selected for you. Docker lists no ports for
+stopped containers, so you must type one unless a running container of the
+same Compose service supplies it.
+
+Publish starts checked, with Local Scope. Choose Yard Scope to give other
+Workstations a hostname, or clear Publish to leave the Service Unpublished.
+You can set Route Profiles and access logging on the Service page.
+Click Create Service to create the Service, add its Container Binding
+and publish it if checked. Cancel returns to the container list.
+
+The form checks all input before it writes. If a write fails, it stops
+and lists the confirmed changes. Saved changes stay; nothing is rolled
+back. Open the Service to check what exists before trying again.
+Creating or publishing a Service never starts or stops its containers.
 
 #### The container list
 

@@ -33,6 +33,7 @@ public final class Layout {
   /** A link of the navigation bar in the header. */
   enum Section {
     CATALOG("Catalog", "/"),
+    CONTAINERS("Containers", ContainersPage.PATH),
     ROUTE_PROFILES("Route Profiles", RouteProfilesPage.PATH),
     BACKUPS("Backups", BackupsPage.PATH),
     STATUS("Status", StatusPage.PATH);

@@ -59,7 +59,7 @@ The port on a Workstation where a Container Port is open. It is the port that Do
 _Avoid_: Exposed port, public port, mapped port
 
 **Unfollowed Container**:
-A running container on this Workstation that no Container Binding matches, whatever the Binding's port. `lvh-yard containers` lists them.
+A running container on this Workstation that no Container Binding matches, whatever the Binding's port.
 _Avoid_: Unbound container, new container, orphan container
 
 ### Setting up a Workstation
