@@ -8,7 +8,6 @@ import cc.lvhy.yard.dashboard.services.Instance;
 import cc.lvhy.yard.dashboard.services.InstanceSource;
 import cc.lvhy.yard.dashboard.services.Routing;
 import cc.lvhy.yard.dashboard.services.Service;
-import cc.lvhy.yard.dashboard.services.SourceKind;
 import java.util.List;
 import java.util.Optional;
 import org.xmlet.htmlapifaster.Div;
@@ -176,10 +175,18 @@ final class InstanceSourcesCard {
                       .div()
                       .attrClass("ml-auto flex flex-wrap items-center justify-end gap-3")
                       .of(group -> {
-                        if (source.kind() == SourceKind.STATIC) {
-                          source
-                              .givenInstances()
-                              .forEach(instance -> editLink(group, service, instance));
+                        switch (source.kind()) {
+                          case STATIC ->
+                              source
+                                  .givenInstances()
+                                  .forEach(instance ->
+                                      editLink(group, EditInstancePage.path(service, instance)));
+                          case BOUND ->
+                              binding(service, source)
+                                  .ifPresent(binding ->
+                                      editLink(
+                                          group, BindContainerPage.editPath(service, binding)));
+                          case ALIAS, FOREIGN -> {}
                         }
                         if (movable) {
                           orderSlots(group, service, sources, at, label);
@@ -438,13 +445,13 @@ final class InstanceSourcesCard {
         .__();
   }
 
-  private static void editLink(Div<?> group, Service service, Instance instance) {
+  private static void editLink(Div<?> group, String path) {
     group
         .a()
         .attrClass("btn")
         .addAttr("data-variant", "outline")
         .addAttr("data-size", "sm")
-        .attrHref(Layout.attr(EditInstancePage.path(service, instance)))
+        .attrHref(Layout.attr(path))
         .text("Edit")
         .__();
   }

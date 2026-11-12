@@ -1,12 +1,14 @@
 package cc.lvhy.yard.dashboard.web;
 
 import cc.lvhy.yard.dashboard.Workstation;
+import cc.lvhy.yard.dashboard.services.ContainerBinding;
 import cc.lvhy.yard.dashboard.services.ContainerBindingRequest;
 import cc.lvhy.yard.dashboard.services.ContainerBindings;
 import cc.lvhy.yard.dashboard.services.ContainerList;
 import cc.lvhy.yard.dashboard.services.InvalidRegistrationException;
 import cc.lvhy.yard.dashboard.services.ListedContainer;
 import cc.lvhy.yard.dashboard.services.Service;
+import cc.lvhy.yard.dashboard.services.UnknownContainerBindingException;
 import cc.lvhy.yard.dashboard.services.UnknownServiceException;
 import cc.lvhy.yard.dashboard.services.UnreadableDockerException;
 import cc.lvhy.yard.dashboard.services.YardReader;
@@ -91,8 +93,64 @@ class BindContainerPagesController {
         TARGET_FIELDS.contains(field) ? BindContainerPage.TARGET : field, message);
   }
 
+  @GetMapping(
+      path = "/services/{workstation}/{service}/container-bindings/{id}/edit",
+      produces = MediaType.TEXT_HTML_VALUE)
+  @ResponseBody
+  String editForm(
+      @PathVariable("workstation") String home,
+      @PathVariable String service,
+      @PathVariable String id) {
+    Service found = ownService(home, service);
+    ContainerBinding binding = binding(found, id);
+    return page(found, binding, BindContainerPage.Bind.of(binding), null);
+  }
+
+  /** A refused post answers the form again, with what was typed and the reason at its field. */
+  @PostMapping(
+      path = "/services/{workstation}/{service}/container-bindings/{id}/edit",
+      produces = MediaType.TEXT_HTML_VALUE)
+  ResponseEntity<String> edit(
+      @PathVariable("workstation") String home,
+      @PathVariable String service,
+      @PathVariable String id,
+      BindContainerPage.Bind bind) {
+    Service found = ownService(home, service);
+    ContainerBinding binding = binding(found, id);
+    InvalidRegistrationException error;
+    try {
+      containerBindings.edit(home, service, id, bind.request());
+      return ResponseEntity.status(HttpStatus.SEE_OTHER)
+          .location(URI.create(ServicePage.path(found)))
+          .build();
+    } catch (InvalidRegistrationException e) {
+      error = atTarget(e.field(), e.getMessage());
+    } catch (UnknownContainerBindingException e) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+    }
+    return ResponseEntity.badRequest()
+        .contentType(Layout.HTML)
+        .body(page(found, binding, bind, error));
+  }
+
+  private static ContainerBinding binding(Service service, String id) {
+    return service.containerBindings().stream()
+        .filter(binding -> binding.id().equals(id))
+        .findFirst()
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+  }
+
   private String page(
       Service service, BindContainerPage.Bind bind, InvalidRegistrationException e) {
+    return page(service, null, bind, e);
+  }
+
+  /** {@code binding} is the one that the form edits, or {@code null} when it binds a new one. */
+  private String page(
+      Service service,
+      ContainerBinding binding,
+      BindContainerPage.Bind bind,
+      InvalidRegistrationException e) {
     List<BindContainerPage.Target> targets;
     String dockerProblem = null;
     try {
@@ -101,7 +159,10 @@ class BindContainerPagesController {
       targets = List.of();
       dockerProblem = problem.getMessage();
     }
-    return BindContainerPage.render(workstation, service, targets, dockerProblem, bind, e);
+    return binding == null
+        ? BindContainerPage.render(workstation, service, targets, dockerProblem, bind, e)
+        : BindContainerPage.renderEdit(
+            workstation, service, binding, targets, dockerProblem, bind, e);
   }
 
   /**

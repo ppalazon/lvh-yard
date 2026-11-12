@@ -106,6 +106,47 @@ public class ContainerBindings {
   }
 
   /**
+   * {@code workstation} must be this one. Changes the target and the port of a Binding. Its ID
+   * holds both, so it gets a new ID, in the same place of the Instance Priority. The Bound
+   * Instances of the old ID go, and the running containers that match give the new ones at once.
+   *
+   * @return the Binding's new ID, the old one when nothing changed
+   * @throws UnknownContainerBindingException when the Service has no Binding with this ID
+   * @throws InvalidRegistrationException when the Service has another Binding with the new ID
+   */
+  public String edit(
+      String workstation, String service, String id, ContainerBindingRequest request) {
+    checkHome(workstation);
+    Map<String, String> stored = consul.values(null, PREFIX + service + "/");
+    if (!stored.containsKey(PREFIX + service + "/" + id)) {
+      throw new UnknownContainerBindingException(service, id);
+    }
+    ContainerBindingRequest binding = checked(request);
+    String newId = ContainerBinding.id(binding);
+    if (newId.equals(id)) {
+      return id;
+    }
+    if (stored.containsKey(PREFIX + service + "/" + newId)) {
+      throw new InvalidRegistrationException(
+          "containerPort",
+          "Another Binding of "
+              + service
+              + " already follows "
+              + ContainerBindingRequest.follows(
+                  binding.container(), binding.composeProject(), binding.composeService())
+              + " at port "
+              + binding.port()
+              + ": edit or remove that one instead.");
+    }
+    consul.putValue(PREFIX + service + "/" + newId, JSON.writeValueAsString(binding));
+    records.replaceSource(service, id, newId);
+    consul.deleteValue(PREFIX + service + "/" + id);
+    registrations.removeBoundInstances(service, id);
+    syncIfDockerAnswers();
+    return newId;
+  }
+
+  /**
    * The Binding as {@link #add} would store it. It writes nothing.
    *
    * @throws InvalidRegistrationException at the first rule that {@code request} breaks

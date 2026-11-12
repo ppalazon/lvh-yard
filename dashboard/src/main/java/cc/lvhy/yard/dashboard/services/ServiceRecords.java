@@ -144,6 +144,26 @@ public class ServiceRecords {
   }
 
   /**
+   * Gives a source that changed its ID the place of its old ID, so an edit leaves the Route alone.
+   * An old ID that the order does not name leaves the order as it is.
+   */
+  void replaceSource(String service, String oldId, String newId) {
+    get(service)
+        .filter(stored -> stored.order().contains(oldId))
+        .ifPresent(stored -> {
+          List<String> order = new ArrayList<>();
+          for (String id : stored.order()) {
+            if (id.equals(oldId)) {
+              order.add(newId);
+            } else if (!id.equals(newId)) {
+              order.add(id);
+            }
+          }
+          write(service, new ServiceRecord(order, stored.priorityOff(), stored.aliases()));
+        });
+  }
+
+  /**
    * Sets the order, the toggle or both. The IDs that {@code order} names come first, and the other
    * sources follow in their order. IDs whose sources are gone are dropped.
    *

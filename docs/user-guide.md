@@ -1122,9 +1122,9 @@ Route moves to the second one. When you start it again, the Route moves back.
 Each move takes up to about 15 seconds.
 
 A new Instance Source goes to the end of the order, so it never takes over the
-Route. A new Foreign Instance goes to the end too. An edited Static Instance
-keeps its place. A removed source leaves the order. If you add it again, it
-goes to the end.
+Route. A new Foreign Instance goes to the end too. An edited Static Instance or
+Container Binding keeps its place. A removed source leaves the order. If you add
+it again, it goes to the end.
 
 If no Instance passes its check, the Route uses every Instance in range of
 every source, Aliases included. Out-of-range Instances never count.
@@ -1553,8 +1553,8 @@ starts open when an Instance does not pass, and closed when every Instance
 passes. It stays open or closed as you left it when the page refreshes. Remote
 Services show the same facts and checks, from their Home Workstation.
 
-Each Container Binding is one source on the Instance Sources card. Its Remove
-button is at the right of its title, and its Bound Instances are in its box.
+Each Container Binding is one source on the Instance Sources card. Its Edit and
+Remove buttons are at the right of its title, and its Bound Instances are in its box.
 A Binding with no match says that no container runs. The API gives each Bound
 Instance's `container` and `containerPort`. It also gives `hostPort` when the
 Instance has a Host Port. A Static Instance has none of these fields.
@@ -1599,6 +1599,17 @@ shows your input again with the error under its field.
 If the Service has Yard Scope and the container port is not published, the
 page of the Service warns that other Workstations cannot reach the Bound
 Instance.
+
+#### Edit a Container Binding
+
+Click "Edit" at the right of a Container Binding's title. The form is the same as
+the bind form, with the target and the port filled in. Click Save to change them.
+A Binding has no other settings, so you can fix the port or the target there
+without removing it. The Binding gets a new ID, because the ID holds the target and
+the port, but it keeps its place in the order. Its Bound Instances follow the
+new target and port at once. If the Service has another Binding with the same
+target and port, the form refuses the change. The page of a Remote Service has
+no Edit button.
 
 #### The Containers page
 

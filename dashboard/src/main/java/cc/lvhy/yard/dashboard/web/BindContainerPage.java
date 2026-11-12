@@ -1,6 +1,7 @@
 package cc.lvhy.yard.dashboard.web;
 
 import cc.lvhy.yard.dashboard.Workstation;
+import cc.lvhy.yard.dashboard.services.ContainerBinding;
 import cc.lvhy.yard.dashboard.services.ContainerBindingRequest;
 import cc.lvhy.yard.dashboard.services.InvalidRegistrationException;
 import cc.lvhy.yard.dashboard.services.Registrations;
@@ -75,6 +76,15 @@ final class BindContainerPage {
 
     static final Bind EMPTY = new Bind("", "");
 
+    /** The fields of the edit form, filled with the Binding as it is. */
+    static Bind of(ContainerBinding binding) {
+      return new Bind(
+          binding.container() != null
+              ? binding.container()
+              : binding.composeProject() + "/" + binding.composeService(),
+          String.valueOf(binding.port()));
+    }
+
     Bind {
       target = target == null ? "" : target;
       containerPort = containerPort == null ? "" : containerPort;
@@ -101,6 +111,10 @@ final class BindContainerPage {
     return ServicePage.path(service) + "/container-bindings";
   }
 
+  static String editPath(Service service, ContainerBinding binding) {
+    return action(service) + "/" + binding.id() + "/edit";
+  }
+
   /**
    * @param targets Compose services first, then containers with no Compose project
    * @param dockerProblem why Docker cannot be read, or {@code null}
@@ -121,6 +135,40 @@ final class BindContainerPage {
             path(service),
             action(service),
             "Bind");
+    return form(workstation, service, spec, targets, dockerProblem, bind, error);
+  }
+
+  /**
+   * The same form for a Binding that exists. It stays in its place of the Instance Priority, and
+   * the Bound Instances follow the new target and port.
+   */
+  static String renderEdit(
+      Workstation workstation,
+      Service service,
+      ContainerBinding binding,
+      List<Target> targets,
+      String dockerProblem,
+      Bind bind,
+      InvalidRegistrationException error) {
+    FormPage.Spec spec =
+        new FormPage.Spec(
+            null,
+            "Edit a Container Binding of " + service.name(),
+            "Now bound to " + binding.follows() + ", port " + binding.port() + ".",
+            editPath(service, binding),
+            editPath(service, binding),
+            "Save");
+    return form(workstation, service, spec, targets, dockerProblem, bind, error);
+  }
+
+  private static String form(
+      Workstation workstation,
+      Service service,
+      FormPage.Spec spec,
+      List<Target> targets,
+      String dockerProblem,
+      Bind bind,
+      InvalidRegistrationException error) {
     return FormPage.render(
         workstation,
         spec,

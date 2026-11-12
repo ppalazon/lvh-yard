@@ -278,5 +278,98 @@ class BindContainerPageComponentTest extends DashboardComponentTest {
         .isEqualTo(HttpStatus.NOT_FOUND);
   }
 
+  private static String editPage(String service, String id) {
+    return bindAction(service) + "/" + id + "/edit";
+  }
+
+  @Test
+  void editFormShowsTheBindingAndSavesANewPortInPlace() {
+    String name = newContainerName();
+    String project = newComposeProject();
+    String web = newServiceName("web");
+    bind(web, name, 80);
+    String composeId = "compose:" + project + ":api:8080";
+    postForm(bindAction(web), Map.of("target", project + "/api", "containerPort", "8080"));
+    String page = getPage(servicePage(web)).getBody();
+    assertThat(openingTag(page, "href=\"" + editPage(web, name + ":80") + "\"")).startsWith("<a");
+    assertThat(openingTag(page, "href=\"" + editPage(web, composeId) + "\"")).startsWith("<a");
+
+    String edit = editPage(web, name + ":80");
+    String form = formTo(getPage(edit).getBody(), edit);
+    assertThat(openingTag(form, "name=\"target\"")).contains("value=\"" + name + "\"");
+    assertThat(openingTag(form, "name=\"containerPort\"")).contains("value=\"80\"");
+    ResponseEntity<String> response =
+        postForm(editPage(web, name + ":80"), Map.of("target", name, "containerPort", "8080"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    assertThat(response.getHeaders().getLocation()).hasPath(servicePage(web));
+    assertThat(InstancePriorityComponentTest.ids(get(servicePath(web)).getBody().get("sources")))
+        .containsExactly(name + ":8080", composeId);
+  }
+
+  @Test
+  void editingTheTargetOfABindingMovesItsBoundInstance() {
+    String old = newContainerName();
+    String fresh = newContainerName();
+    start(FakeDocker.container(old).port(80));
+    start(FakeDocker.container(fresh).port(80));
+    String web = newServiceName("web");
+    bind(web, old, 80);
+    await()
+        .atMost(Duration.ofSeconds(15))
+        .until(() -> get(servicePath(web)).getBody().get("instances").size() == 1);
+
+    postForm(editPage(web, old + ":80"), Map.of("target", fresh, "containerPort", "80"));
+
+    await()
+        .atMost(Duration.ofSeconds(15))
+        .untilAsserted(() -> {
+          JsonNode service = get(servicePath(web)).getBody();
+          assertThat(service.get("containerBindings")).hasSize(1);
+          assertThat(service.get("containerBindings").get(0).get("id").asString())
+              .isEqualTo(fresh + ":80");
+          assertThat(service.get("instances")).hasSize(1);
+          assertThat(service.get("instances").get(0).get("container").asString()).isEqualTo(fresh);
+        });
+  }
+
+  @Test
+  void editRefusedForABindingThatTheServiceHasAlready() {
+    String name = newContainerName();
+    String web = newServiceName("web");
+    bind(web, name, 80);
+    postForm(bindAction(web), Map.of("target", name, "containerPort", "81"));
+
+    ResponseEntity<String> response =
+        postForm(editPage(web, name + ":80"), Map.of("target", name, "containerPort", "81"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(openingTag(response.getBody(), "name=\"containerPort\""))
+        .contains("aria-invalid=\"true\"")
+        .contains("value=\"81\"");
+    assertThat(response.getBody()).contains("edit or remove that one instead");
+    assertThat(get(servicePath(web)).getBody().get("containerBindings")).hasSize(2);
+  }
+
+  @Test
+  void editFormOfAMissingBindingOrARemoteServiceIsRefused() {
+    String web = newServiceName("web");
+    create(web);
+    String remoteWeb = newServiceName("web");
+    remote.create(remoteWeb);
+
+    assertThat(getPage(editPage(web, "nothing:80")).getStatusCode())
+        .isEqualTo(HttpStatus.NOT_FOUND);
+    assertThat(
+            getPage(
+                    "/services/"
+                        + RemoteWorkstation.NAME
+                        + "/"
+                        + remoteWeb
+                        + "/container-bindings/nothing:80/edit")
+                .getStatusCode())
+        .isEqualTo(HttpStatus.FORBIDDEN);
+  }
+
   /** The table row that contains {@code text}. */
 }
