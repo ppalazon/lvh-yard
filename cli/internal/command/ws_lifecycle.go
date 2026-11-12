@@ -70,8 +70,7 @@ func runWSCompose(options *Options, cmd *cobra.Command, folder string, args []st
 		return err
 	}
 	compose := append([]string{"compose", "--project-directory", dir}, args...)
-	quotedDir := "'" + strings.ReplaceAll(dir, "'", "'\"'\"'") + "'"
-	fmt.Fprintf(cmd.OutOrStdout(), "docker compose --project-directory %s %s\n", quotedDir, strings.Join(args, " "))
+	fmt.Fprintf(cmd.OutOrStdout(), "docker compose --project-directory %s %s\n", quoteShell(dir), strings.Join(args, " "))
 	code, err := options.Process.Run("docker", compose, dir, cmd.OutOrStdout(), cmd.ErrOrStderr())
 	if errors.Is(err, exec.ErrNotFound) {
 		return errors.New("docker is not on the PATH; install Docker with Compose")
@@ -83,4 +82,8 @@ func runWSCompose(options *Options, cmd *cobra.Command, folder string, args []st
 		return &processExit{code: code}
 	}
 	return nil
+}
+
+func quoteShell(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
 }

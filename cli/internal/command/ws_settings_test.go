@@ -60,7 +60,7 @@ func TestWSShowHidesGossipKey(t *testing.T) {
 	}
 }
 
-func TestWSJoin(t *testing.T) {
+func TestWSYardJoin(t *testing.T) {
 	const key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 	for _, peers := range []string{"", "10.0.0.2,10.0.0.3:8302"} {
 		t.Run(peers, func(t *testing.T) {
@@ -68,11 +68,11 @@ func TestWSJoin(t *testing.T) {
 			before := "# Kept\nYARD_WORKSTATION=ws-a\nYARD_GOSSIP_KEY=old\nYARD_PEERS=10.0.0.1\n"
 			writeEnv(t, folder, before)
 			yard := commandtest.New(t)
-			bad := yard.Run("ws", "join", "--dir", folder, "--gossip-key", "bad")
+			bad := yard.Run("ws", "yard", "join", "--dir", folder, "--gossip-key", "bad")
 			if bad.ExitCode != 1 || readInitFile(t, folder, ".env") != before {
 				t.Fatalf("bad key: %+v", bad)
 			}
-			args := []string{"ws", "join", "--dir", folder, "--gossip-key", key}
+			args := []string{"ws", "yard", "join", "--dir", folder, "--gossip-key", key}
 			wantPeers := "10.0.0.1"
 			if peers != "" {
 				args = append(args, "--peers", peers)
@@ -88,7 +88,7 @@ func TestWSJoin(t *testing.T) {
 }
 
 func TestWSRefusesRename(t *testing.T) {
-	for _, args := range [][]string{{"set", "workstation", "new"}, {"join", "--workstation", "new"}} {
+	for _, args := range [][]string{{"set", "workstation", "new"}, {"yard", "join", "--workstation", "new"}} {
 		run := commandtest.New(t).Run(append([]string{"ws"}, args...)...)
 		if run.ExitCode != 1 || !strings.Contains(run.Stderr, "export a Backup") || !strings.Contains(run.Stderr, "ws init") || !strings.Contains(run.Stderr, "import") {
 			t.Fatalf("rename: %+v", run)

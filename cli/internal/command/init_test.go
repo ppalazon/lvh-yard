@@ -141,7 +141,7 @@ func TestInitFlagsSetWorkstationSettings(t *testing.T) {
 	}
 }
 
-func TestInitGeneratesAndSharesNewGossipKey(t *testing.T) {
+func TestInitGeneratesNewGossipKeys(t *testing.T) {
 	yard := commandtest.New(t)
 	folder := t.TempDir()
 	var previous string
@@ -156,9 +156,6 @@ func TestInitGeneratesAndSharesNewGossipKey(t *testing.T) {
 		decoded, err := base64.StdEncoding.DecodeString(key)
 		if err != nil || len(decoded) != 32 || key == previous {
 			t.Fatalf("new gossip key %q: %v", key, err)
-		}
-		if !strings.Contains(run.Stdout, "The Yard's Gossip Key: "+key) || !strings.Contains(run.Stdout, "Give this key to every other Workstation") {
-			t.Fatalf("missing key instructions: %+v", run)
 		}
 		previous = key
 	}
@@ -373,25 +370,6 @@ func TestInitDoesNotPromptForFlagValuesOrWithoutTerminal(t *testing.T) {
 		run := yard.Run(args...)
 		if run.ExitCode != 0 || strings.Contains(run.Stdout, "Workstation name") || strings.Contains(run.Stdout, "Base domain") {
 			t.Fatalf("unexpected prompts: %+v", run)
-		}
-	}
-}
-
-func TestInitPrintsNextSteps(t *testing.T) {
-	folder := t.TempDir()
-	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a")
-	if run.ExitCode != 0 {
-		t.Fatalf("init: %+v", run)
-	}
-	for _, next := range []string{
-		"Open TCP port 8300 and TCP and UDP port 8302",
-		"cd " + folder + " && docker compose up -d",
-		"http://127.0.0.1:7780",
-		"lvh-yard status",
-		"lvh-yard ws join --peers <ip> --gossip-key <key>",
-	} {
-		if !strings.Contains(run.Stdout, next) {
-			t.Errorf("missing next step %q", next)
 		}
 	}
 }

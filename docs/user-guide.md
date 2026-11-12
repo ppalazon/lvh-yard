@@ -64,14 +64,18 @@ Java or a copy of this repository.
    Only your user can read them. `ws init`, `ws upgrade` and `ws set`
    fix these modes on an existing Workstation Folder.
 
-   `init` makes a new gossip key and prints it. This Workstation then starts a
-   Yard of its own. To join a Yard, see [Joining a Yard](#joining-a-yard).
+   `ws init` makes a new Gossip Key and stores it in `.env`. It does not print
+   the key. This Workstation then starts a Yard of its own.
 
-3. Open TCP port 8300 and TCP and UDP port 8302 to the other Workstations.
-4. Start this Workstation: `lvh-yard ws start`.
-   This starts Consul, the dashboard and Traefik. In the Workstation Folder,
-   `docker compose ps` shows the health of each one.
-5. Make sure that LVH Yard works: `lvh-yard status`.
+3. Start this Workstation: `lvh-yard ws start`.
+   This starts Consul, the dashboard and Traefik. You can also run
+   `docker compose up -d` in the Workstation Folder.
+4. Check that LVH Yard works: `lvh-yard status`.
+5. Open [http://127.0.0.1:7780](http://127.0.0.1:7780) or
+   [http://yard.lvh.me](http://yard.lvh.me).
+
+To invite another Workstation or join another Yard, see
+[Joining a Yard](#joining-a-yard).
 
 On its first start, the dashboard sets up three Services with Local Scope:
 
@@ -145,23 +149,54 @@ the [development tasks](development.md#a-yard-on-one-computer).
 
 ### Joining a Yard
 
-A Workstation joins a Yard through one Peer, the LAN address of a Workstation
-that is already in the Yard. It also needs the gossip key of that Yard. Copy
-the key from `YARD_GOSSIP_KEY` in the `.env` of that Workstation. Then run
-these commands on the new Workstation:
+On a member of the Yard, print its invitation:
 
 ```sh
-lvh-yard ws join --peers 192.168.1.10 --gossip-key <key>
-cd ~/.config/lvh-yard && docker compose up -d
+lvh-yard ws yard share --address 192.168.1.10
 ```
 
-You can also give `--peers` and `--gossip-key` to the first `lvh-yard ws init`.
+Use that Workstation's reachable LAN address. Without `--address`, the command
+uses a specific non-loopback Consul bind address, or prints a placeholder.
+It names the firewall ports and prints commands for a new Workstation and an
+already initialized one. Keep the output private: it contains the Gossip Key.
+Sharing reads files only and works while the dashboard is down.
+
+On an already initialized Workstation, use the invitation's key and Peer:
+
+```sh
+lvh-yard ws yard join --peers 192.168.1.10:8302 --gossip-key '<key>'
+```
+
+For a new Workstation, the invitation instead gives `ws init` with the same
+key and Peer. Pick a Workstation name that is not already in the Yard.
+Each Workstation can choose its own Base Domain.
+
+If Consul TLS is on, the invitation also names the public CA certificate and
+the steps to get a separate [Workstation Certificate](#yard-ca-and-workstation-certificates).
+The CA owner signs for the joining Workstation's name, Base Domain and address.
+With a company CA, ask its issuer for that bundle instead.
+Copy only the new Workstation's `ca.crt`, `workstation.crt` and
+`workstation.key` to it through a private channel, then run the printed
+`ws tls import` command before applying the Yard settings.
+Never share `ca.key` or reuse another Workstation's certificate key.
+Public CA certificates can be shared for browser trust, after checking their source.
+Client Certificate `.p12` files are for people using protected Routes, not
+for Workstation membership.
+
+`ws yard join` keeps the Workstation name and existing certificate files.
+If it already uses Consul TLS, import the destination Yard's bundle before
+applying the change. If the destination has no Consul TLS, move
+`consul.d/10-tls.hcl` outside `consul.d` first; the command prints its path.
+This leaves HTTPS files in place. To restore Consul TLS later, import the
+appropriate bundle again.
+After any required TLS steps, run the printed recreation command and check
+`lvh-yard status`. A first start can use `lvh-yard ws start`.
 
 ### Changing settings
 
 `lvh-yard ws show` prints the active settings in `.env`, with the Gossip Key hidden.
 `lvh-yard ws set <name> <value>` checks a value and changes one setting. It keeps
-the comments. Neither `ws set` nor `ws join` restarts services. After either
+the comments. Neither `ws set` nor `ws yard join` restarts services. After either
 command, run the printed `docker compose` commands to recreate the containers.
 `ws restart` restarts existing containers without applying changed environment
 variables. When Traefik is off, the printed commands stop its existing container
@@ -185,7 +220,7 @@ An empty `bind-address` lets Consul choose its address.
 
 To change the Workstation name, export a Backup, run `lvh-yard ws init`
 under the new name, and import the Backup. There is no `ws rename`.
-To change the Gossip Key, use `ws join`. Without `--peers`, it keeps the Peers.
+To change the Gossip Key, use `ws yard join`. Without `--peers`, it keeps the Peers.
 Every `ws` command accepts `--dir <folder>`.
 
 ### Yard CA and Workstation Certificates

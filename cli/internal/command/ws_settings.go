@@ -107,48 +107,6 @@ func newWSSet(folder func() string) *cobra.Command {
 	}
 }
 
-func newWSJoin(folder func() string) *cobra.Command {
-	var key, workstation string
-	var peers []string
-	cmd := &cobra.Command{
-		Use: "join", Short: "Changes the Yard's Gossip Key and Peers without restarting services.", Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if cmd.Flags().Changed("workstation") {
-				return fmt.Errorf("%s", renameWorkstationHint)
-			}
-			if err := checkInitGossipKey(key); err != nil {
-				return err
-			}
-			var checked string
-			var err error
-			if cmd.Flags().Changed("peers") {
-				checked, err = checkWSSetting("peers", strings.Join(peers, " "))
-				if err != nil {
-					return err
-				}
-			}
-			env, err := readWSEnv(folder())
-			if err != nil {
-				return err
-			}
-			if err := env.set("YARD_GOSSIP_KEY", key); err != nil {
-				return err
-			}
-			if cmd.Flags().Changed("peers") {
-				if err := env.set("YARD_PEERS", checked); err != nil {
-					return err
-				}
-			}
-			return saveWSEnv(cmd, folder(), env)
-		},
-	}
-	cmd.Flags().StringVar(&key, "gossip-key", "", "Uses the Yard's shared Gossip Key.")
-	cmd.Flags().StringArrayVar(&peers, "peers", nil, "Sets Peer addresses separated by spaces or commas.")
-	cmd.Flags().StringVar(&workstation, "workstation", "", "Refuses a change of the Workstation name.")
-	_ = cmd.Flags().MarkHidden("workstation")
-	return cmd
-}
-
 func checkWSSetting(name, value string) (string, error) {
 	valid := false
 	rule := ""
@@ -226,7 +184,7 @@ func saveWSEnv(cmd *cobra.Command, folder string, env *envFile) error {
 		return err
 	}
 	fmt.Fprintln(cmd.OutOrStdout(), "Saved .env. Apply the settings:")
-	quotedFolder := "'" + strings.ReplaceAll(folder, "'", "'\"'\"'") + "'"
+	quotedFolder := quoteShell(folder)
 	if strings.Trim(env.get("YARD_TRAEFIK_ENABLED"), "\"'") == "false" {
 		fmt.Fprintf(cmd.OutOrStdout(), "  docker compose --project-directory %s --profile traefik stop traefik\n", quotedFolder)
 	}

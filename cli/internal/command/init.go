@@ -178,7 +178,7 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	if strings.TrimSpace(env.get("YARD_DOCKER_GID")) == "" {
 		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: no Docker socket at %s, so YARD_DOCKER_GID in .env is empty. Set it to the group of /var/run/docker.sock, or the dashboard will not start.\n", f.dockerSocket)
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "Wrote compose.yaml, .env, lvh-yard.yaml to %s.\n\nThe Yard's Gossip Key: %s\nGive this key to every other Workstation: lvh-yard ws init --gossip-key <key>.\n\n", folder, key)
+	fmt.Fprintf(cmd.OutOrStdout(), "Wrote compose.yaml, .env, lvh-yard.yaml to %s.\n\n", folder)
 	printInitNextSteps(cmd.OutOrStdout(), folder, env)
 	return nil
 }
@@ -324,6 +324,15 @@ func printInitNextSteps(out io.Writer, folder string, env *envFile) {
 	if bind == "0.0.0.0" {
 		bind = "127.0.0.1"
 	}
-	fmt.Fprintf(out, "Next steps:\n  1. Open TCP port %s and TCP and UDP port %s to the other Workstations.\n  2. Start this Workstation: cd %s && docker compose up -d\n  3. Open the dashboard: http://%s:%s\n  4. Make sure that LVH Yard works: lvh-yard status\n\n", env.valueOrDefault("YARD_CONSUL_SERVER_PORT"), env.valueOrDefault("YARD_CONSUL_SERF_WAN_PORT"), folder, bind, env.valueOrDefault("YARD_DASHBOARD_PORT"))
-	fmt.Fprintln(out, "To join a Yard later, run this with the address of one of its Workstations:\n  lvh-yard ws join --peers <ip> --gossip-key <key>")
+	dashboard := "http://" + bind + ":" + env.valueOrDefault("YARD_DASHBOARD_PORT")
+	yard := "http://yard." + env.valueOrDefault("YARD_BASE_DOMAIN")
+	if port := env.valueOrDefault("YARD_HTTP_PORT"); port != "80" {
+		yard += ":" + port
+	}
+	dir := quoteShell(folder)
+	fmt.Fprintf(out, "Next steps:\n  1. Start Consul, Traefik and the dashboard:\n     lvh-yard ws --dir %s start\n     Or: docker compose --project-directory %s up -d\n", dir, dir)
+	fmt.Fprintf(out, "  2. Check the status:\n     lvh-yard --dashboard %s status\n", quoteShell(dashboard))
+	fmt.Fprintf(out, "  3. Open %s or %s.\n", dashboard, yard)
+	fmt.Fprintf(out, "  4. Invite another Workstation:\n     lvh-yard ws --dir %s yard share\n", dir)
+	fmt.Fprintln(out, "     To join another Yard, ask its owner for the joining instructions:\n     lvh-yard ws yard join --help")
 }
