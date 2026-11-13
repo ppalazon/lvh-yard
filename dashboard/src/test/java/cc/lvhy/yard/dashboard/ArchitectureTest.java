@@ -80,13 +80,12 @@ class ArchitectureTest {
 
   @Test
   void aFeatureOutsideTheConsulPackageDoesNotSeeTheHttpClientOfTheConsulAdapter() {
-    FreezingArchRule.freeze(
-            noClasses()
-                .that()
-                .resideOutsideOfPackage(BASE + ".consul..")
-                .should()
-                .dependOnClassesThat()
-                .resideInAnyPackage("org.springframework.web.client.."))
+    noClasses()
+        .that()
+        .resideOutsideOfPackage(BASE + ".consul..")
+        .should()
+        .dependOnClassesThat()
+        .resideInAnyPackage("org.springframework.web.client..")
         .check(classes);
   }
 

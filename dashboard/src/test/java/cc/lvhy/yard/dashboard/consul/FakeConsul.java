@@ -1,6 +1,5 @@
 package cc.lvhy.yard.dashboard.consul;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -10,10 +9,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.function.BiPredicate;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.client.HttpServerErrorException;
-import org.springframework.web.client.ResourceAccessException;
 
 /**
  * Consul in memory, for component tests: this Workstation's datacenter and those of other
@@ -332,15 +327,10 @@ public final class FakeConsul implements Consul {
   private Datacenter in(String name) {
     Datacenter datacenter = federation.datacenters.get(name == null ? home : name);
     if (datacenter == null) {
-      throw HttpServerErrorException.create(
-          HttpStatus.INTERNAL_SERVER_ERROR,
-          "Internal Server Error",
-          HttpHeaders.EMPTY,
-          "No path to datacenter".getBytes(StandardCharsets.UTF_8),
-          StandardCharsets.UTF_8);
+      throw new ConsulServerException("500 Internal Server Error: \"No path to datacenter\"");
     }
     if (!datacenter.answering) {
-      throw new ResourceAccessException("I/O error on GET request: request timed out");
+      throw new ConsulUnreachableException("I/O error on GET request: request timed out");
     }
     return datacenter;
   }

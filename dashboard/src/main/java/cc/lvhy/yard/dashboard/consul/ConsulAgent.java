@@ -14,13 +14,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.function.Supplier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriBuilder;
 
 /**
@@ -94,10 +98,11 @@ public class ConsulAgent implements Consul {
   @Override
   public List<String> datacenters() {
     List<String> datacenters =
-        http.get()
-            .uri("/v1/catalog/datacenters")
-            .retrieve()
-            .body(new ParameterizedTypeReference<>() {});
+        call(() ->
+            http.get()
+                .uri("/v1/catalog/datacenters")
+                .retrieve()
+                .body(new ParameterizedTypeReference<List<String>>() {}));
     return datacenters == null ? List.of() : datacenters;
   }
 
@@ -105,10 +110,11 @@ public class ConsulAgent implements Consul {
   @Override
   public String leader(String datacenter) {
     String leader =
-        http.get()
-            .uri(builder -> in(datacenter, builder.path("/v1/status/leader")))
-            .retrieve()
-            .body(String.class);
+        call(() ->
+            http.get()
+                .uri(builder -> in(datacenter, builder.path("/v1/status/leader")))
+                .retrieve()
+                .body(String.class));
     return leader == null ? "" : leader.strip().replace("\"", "");
   }
 
@@ -116,17 +122,18 @@ public class ConsulAgent implements Consul {
   @Override
   public List<WanMember> wanMembers() {
     List<WanMember> members =
-        http.get()
-            .uri("/v1/agent/members?wan=1")
-            .retrieve()
-            .body(new ParameterizedTypeReference<>() {});
+        call(() ->
+            http.get()
+                .uri("/v1/agent/members?wan=1")
+                .retrieve()
+                .body(new ParameterizedTypeReference<List<WanMember>>() {}));
     return members == null ? List.of() : members;
   }
 
   /** compose.yaml sets it to the Workstation's LAN address. */
   @Override
   public String agentAddress() {
-    AgentSelf self = http.get().uri("/v1/agent/self").retrieve().body(AgentSelf.class);
+    AgentSelf self = call(() -> http.get().uri("/v1/agent/self").retrieve().body(AgentSelf.class));
     if (self == null) {
       throw new IllegalStateException("Consul answered /v1/agent/self without a body.");
     }
@@ -136,64 +143,75 @@ public class ConsulAgent implements Consul {
   /** Replaces the registration with the same ID. */
   @Override
   public void register(Registration registration) {
-    http.put()
-        .uri("/v1/agent/service/register")
-        .contentType(MediaType.APPLICATION_JSON)
-        .body(registration)
-        .retrieve()
-        .toBodilessEntity();
+    run(() ->
+        http.put()
+            .uri("/v1/agent/service/register")
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(registration)
+            .retrieve()
+            .toBodilessEntity());
   }
 
   @Override
   public Map<String, AgentService> agentServices() {
     Map<String, AgentService> services =
-        http.get().uri("/v1/agent/services").retrieve().body(new ParameterizedTypeReference<>() {});
+        call(() ->
+            http.get()
+                .uri("/v1/agent/services")
+                .retrieve()
+                .body(new ParameterizedTypeReference<Map<String, AgentService>>() {}));
     return services == null ? Map.of() : services;
   }
 
   @Override
   public Optional<AgentService> agentService(String id) {
-    return http.get()
-        .uri("/v1/agent/service/{id}", id)
-        .exchange((request, response) ->
-            response.getStatusCode() == HttpStatus.NOT_FOUND
-                ? Optional.empty()
-                : Optional.ofNullable(response.bodyTo(AgentService.class)));
+    return call(() ->
+        http.get()
+            .uri("/v1/agent/service/{id}", id)
+            .exchange((request, response) ->
+                response.getStatusCode() == HttpStatus.NOT_FOUND
+                    ? Optional.empty()
+                    : Optional.ofNullable(response.bodyTo(AgentService.class))));
   }
 
   @Override
   public void deregister(String id) {
-    http.put().uri("/v1/agent/service/deregister/{id}", id).retrieve().toBodilessEntity();
+    run(() ->
+        http.put().uri("/v1/agent/service/deregister/{id}", id).retrieve().toBodilessEntity());
   }
 
   @Override
   public List<String> serviceNames(String datacenter) {
     Map<String, List<String>> services =
-        http.get()
-            .uri(builder -> in(datacenter, builder.path("/v1/catalog/services")))
-            .retrieve()
-            .body(new ParameterizedTypeReference<>() {});
+        call(() ->
+            http.get()
+                .uri(builder -> in(datacenter, builder.path("/v1/catalog/services")))
+                .retrieve()
+                .body(new ParameterizedTypeReference<Map<String, List<String>>>() {}));
     return services == null ? List.of() : List.copyOf(services.keySet());
   }
 
   @Override
   public List<HealthEntry> health(String datacenter, String service) {
     List<HealthEntry> entries =
-        http.get()
-            .uri(builder -> in(datacenter, builder.path("/v1/health/service/{service}"), service))
-            .retrieve()
-            .body(new ParameterizedTypeReference<>() {});
+        call(() ->
+            http.get()
+                .uri(builder ->
+                    in(datacenter, builder.path("/v1/health/service/{service}"), service))
+                .retrieve()
+                .body(new ParameterizedTypeReference<List<HealthEntry>>() {}));
     return entries == null ? List.of() : entries;
   }
 
   @Override
   public void putValue(String key, String value) {
-    http.put()
-        .uri(builder -> builder.path("/v1/kv/" + key).build())
-        .contentType(MediaType.TEXT_PLAIN)
-        .body(value)
-        .retrieve()
-        .toBodilessEntity();
+    run(() ->
+        http.put()
+            .uri(builder -> builder.path("/v1/kv/" + key).build())
+            .contentType(MediaType.TEXT_PLAIN)
+            .body(value)
+            .retrieve()
+            .toBodilessEntity());
   }
 
   /**
@@ -224,29 +242,31 @@ public class ConsulAgent implements Consul {
                         Base64.getEncoder()
                             .encodeToString(entry.getValue().getBytes(StandardCharsets.UTF_8)))))
             .toList();
-    http.put()
-        .uri("/v1/txn")
-        .contentType(MediaType.APPLICATION_JSON)
-        .body(writes)
-        .retrieve()
-        .toBodilessEntity();
+    run(() ->
+        http.put()
+            .uri("/v1/txn")
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(writes)
+            .retrieve()
+            .toBodilessEntity());
   }
 
   @Override
   public Map<String, String> values(String datacenter, String prefix) {
-    List<KeyValue> entries;
-    try {
-      // retrieve, not exchange: a 5xx must become an HttpServerErrorException. Consul answers a
-      // datacenter it has no path to with a plain text body, which no JSON reader takes.
-      entries =
-          http.get()
-              .uri(builder ->
-                  in(datacenter, builder.path("/v1/kv/" + prefix).queryParam("recurse", true)))
-              .retrieve()
-              .body(new ParameterizedTypeReference<>() {});
-    } catch (HttpClientErrorException.NotFound e) {
-      entries = List.of();
-    }
+    // retrieve, not exchange: a 5xx must become a ConsulServerException. Consul answers a
+    // datacenter it has no path to with a plain text body, which no JSON reader takes.
+    List<KeyValue> entries =
+        call(() -> {
+          try {
+            return http.get()
+                .uri(builder ->
+                    in(datacenter, builder.path("/v1/kv/" + prefix).queryParam("recurse", true)))
+                .retrieve()
+                .body(new ParameterizedTypeReference<List<KeyValue>>() {});
+          } catch (HttpClientErrorException.NotFound e) {
+            return List.of();
+          }
+        });
     Map<String, String> values = new TreeMap<>();
     if (entries != null) {
       entries.forEach(entry -> values.put(entry.key(), entry.value()));
@@ -257,10 +277,34 @@ public class ConsulAgent implements Consul {
   /** A key that is not there is no error. */
   @Override
   public void deleteValue(String key) {
-    http.delete()
-        .uri(builder -> builder.path("/v1/kv/" + key).build())
-        .retrieve()
-        .toBodilessEntity();
+    run(() ->
+        http.delete()
+            .uri(builder -> builder.path("/v1/kv/" + key).build())
+            .retrieve()
+            .toBodilessEntity());
+  }
+
+  /**
+   * Asks Consul, and gives its failures as the port's own exceptions, with the message of the HTTP
+   * client.
+   */
+  private static <T> T call(Supplier<T> request) {
+    try {
+      return request.get();
+    } catch (ResourceAccessException e) {
+      throw new ConsulUnreachableException(e.getMessage(), e);
+    } catch (HttpServerErrorException e) {
+      throw new ConsulServerException(e.getMessage(), e);
+    } catch (RestClientException e) {
+      throw new ConsulException(e.getMessage(), e);
+    }
+  }
+
+  private static void run(Runnable request) {
+    call(() -> {
+      request.run();
+      return null;
+    });
   }
 
   /** {@code null} asks the agent's own datacenter. */

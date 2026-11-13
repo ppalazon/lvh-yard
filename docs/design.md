@@ -46,13 +46,13 @@ Every arrow points to the core, or goes out through a port that the core owns.
 
 ## SOLID, with this repo
 
-| Principle             | Rule                                                      | Example here                                                                                                                                 | Fix                                                                                                      |
-| --------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Single responsibility | A class has one reason to change.                         | `Registrations` (587 lines) checked input, parsed text and wrote to Consul.                                                                  | Done: `InstanceRules` has the checks and no Spring. `Registrations` (309 lines) keeps the Consul writes. |
-| Open/closed           | A new kind needs a new class, not an edit in many places. | `SourceKind` is a `switch` key in `InstanceSourcesCard` (lines 178, 201, 268, 286, 461) and `BackupExport:79`.                               | Put the behavior on the kind.                                                                            |
-| Liskov substitution   | A subtype works wherever its parent works.                | Not checked. No tool covers it.                                                                                                              | None.                                                                                                    |
-| Interface segregation | A class depends only on the methods it uses.              | `Consul` has 15 methods. Nine classes use it whole.                                                                                          | Split it: KV, catalog and health, agent and WAN.                                                         |
-| Dependency inversion  | The core owns the interface. The adapter follows it.      | `YardReader` imports `org.springframework.web.client.HttpServerErrorException` (lines 33 and 34). `Consul` holds `@JsonProperty` wire types. | The adapter turns its errors and wire types into the port's own.                                         |
+| Principle             | Rule                                                      | Example here                                                                                                                | Fix                                                                                                                              |
+| --------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Single responsibility | A class has one reason to change.                         | `Registrations` (587 lines) checked input, parsed text and wrote to Consul.                                                 | Done: `InstanceRules` has the checks and no Spring. `Registrations` (309 lines) keeps the Consul writes.                         |
+| Open/closed           | A new kind needs a new class, not an edit in many places. | `SourceKind` is a `switch` key in `InstanceSourcesCard` (lines 178, 201, 268, 286, 461) and `BackupExport:79`.              | Put the behavior on the kind.                                                                                                    |
+| Liskov substitution   | A subtype works wherever its parent works.                | Not checked. No tool covers it.                                                                                             | None.                                                                                                                            |
+| Interface segregation | A class depends only on the methods it uses.              | `Consul` has 15 methods. Nine classes use it whole.                                                                         | Split it: KV, catalog and health, agent and WAN.                                                                                 |
+| Dependency inversion  | The core owns the interface. The adapter follows it.      | `YardReader` imported `org.springframework.web.client.HttpServerErrorException`. `Consul` holds `@JsonProperty` wire types. | `ConsulAgent` now throws `ConsulException`, so no class outside `consul` imports the Spring web client. The wire types are next. |
 
 ## Dashboard (Java)
 
@@ -165,8 +165,10 @@ Ports and adapters inside each feature package. The packages keep their names.
 - The `Consul` port is for testing and isolation. Consul stays the one
   registry ([ADR 0001](adr/0001-one-consul-datacenter-per-workstation.md) and
   [ADR 0004](adr/0004-route-profiles-travel-through-consul-kv.md)).
-- Split `Consul` by role. Move the wire types into `ConsulAgent`. Throw one
-  port exception from `ConsulAgent`.
+- `ConsulAgent` throws `ConsulException`, with `ConsulUnreachableException`
+  (no answer in time) and `ConsulServerException` (a 5xx) for the two cases that
+  mean a datacenter cannot be read now. Done.
+- Split `Consul` by role. Move the wire types into `ConsulAgent`.
 - Pure rules import no Spring: `Routing`, `ServiceWarning`, `OutOfRange`, the
   input checks.
 - Use cases may keep `@Component`.
@@ -186,11 +188,11 @@ flowchart LR
     services -- port --> docker
 ```
 
-`ArchitectureTest` checks these rules. A rule that is frozen has its known
-violations in `dashboard/src/test/resources/archunit_store`, and fails only on a
-new one: the Spring web client outside `consul` (9 places, in `YardReader`,
-`ConsulStatus` and `Problems`) and Spring in the pure rules (`OutOfRange`).
-When a violation is fixed, ArchUnit drops it from the store.
+`ArchitectureTest` checks these rules, and no class outside `consul` may use the
+Spring web client. A rule that is frozen has its known violations in
+`dashboard/src/test/resources/archunit_store`, and fails only on a new one. One
+rule is frozen: Spring in the pure rules (`OutOfRange`). When a violation is
+fixed, ArchUnit drops it from the store.
 
 ## CLI (Go)
 

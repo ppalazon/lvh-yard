@@ -11,7 +11,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.web.client.HttpServerErrorException;
 
 /** What the agent says when a datacenter cannot be reached, as real HTTP answers. */
 class ConsulAgentAnswersTest {
@@ -51,7 +50,7 @@ class ConsulAgentAnswersTest {
         agent(500, "rpc error getting client: failed to get conn: no route to host");
 
     assertThatThrownBy(() -> agent.values("nostromo", "lvh-yard/services/"))
-        .isInstanceOf(HttpServerErrorException.class);
+        .isInstanceOf(ConsulServerException.class);
   }
 
   @Test

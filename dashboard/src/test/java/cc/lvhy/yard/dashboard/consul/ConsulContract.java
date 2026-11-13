@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.springframework.web.client.HttpServerErrorException;
 
 /**
  * What the dashboard needs Consul to do, run against {@link FakeConsul} and against a real Consul,
@@ -210,13 +209,12 @@ abstract class ConsulContract {
   @Test
   void unknownDatacenterFailsAsAServerError() {
     assertThatThrownBy(() -> consul().health("nowhere", "web"))
-        .isInstanceOf(HttpServerErrorException.class);
+        .isInstanceOf(ConsulServerException.class);
   }
 
   @Test
   void leaderOfUnknownDatacenterFailsAsAServerError() {
-    assertThatThrownBy(() -> consul().leader("nowhere"))
-        .isInstanceOf(HttpServerErrorException.class);
+    assertThatThrownBy(() -> consul().leader("nowhere")).isInstanceOf(ConsulServerException.class);
   }
 
   private static Registration registration(String id, String name, Check check) {

@@ -2,6 +2,7 @@ package cc.lvhy.yard.dashboard.status;
 
 import cc.lvhy.yard.dashboard.consul.Consul;
 import cc.lvhy.yard.dashboard.consul.Consul.WanMember;
+import cc.lvhy.yard.dashboard.consul.ConsulException;
 import cc.lvhy.yard.dashboard.consul.ConsulSettings;
 import jakarta.annotation.PreDestroy;
 import java.net.InetAddress;
@@ -23,7 +24,6 @@ import java.util.concurrent.TimeoutException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClientException;
 
 /**
  * A Workstation in the WAN pool that is not alive, or a missing Peer, is only a warning, because a
@@ -89,7 +89,7 @@ class ConsulStatus implements PartReader {
     try {
       leader = consul.leader();
       members = consul.wanMembers();
-    } catch (RestClientException e) {
+    } catch (ConsulException e) {
       return Part.failing(
           NAME, "Consul does not answer at " + settings.url() + ": " + e.getMessage());
     }
@@ -175,7 +175,7 @@ class ConsulStatus implements PartReader {
       return consul.leader(datacenter).isEmpty()
           ? Optional.of("its datacenter has no leader")
           : Optional.empty();
-    } catch (RestClientException e) {
+    } catch (ConsulException e) {
       return Optional.of("Consul cannot read from it: " + Failures.message(e));
     }
   }

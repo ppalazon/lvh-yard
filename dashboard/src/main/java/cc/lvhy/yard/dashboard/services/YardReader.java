@@ -6,7 +6,9 @@ import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.consul.Consul;
 import cc.lvhy.yard.dashboard.consul.Consul.AgentService;
 import cc.lvhy.yard.dashboard.consul.Consul.HealthEntry;
+import cc.lvhy.yard.dashboard.consul.ConsulServerException;
 import cc.lvhy.yard.dashboard.consul.ConsulSettings;
+import cc.lvhy.yard.dashboard.consul.ConsulUnreachableException;
 import cc.lvhy.yard.dashboard.profiles.RouteProfileDefinition;
 import cc.lvhy.yard.dashboard.profiles.RouteProfiles;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
@@ -31,8 +33,6 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpServerErrorException;
-import org.springframework.web.client.ResourceAccessException;
 
 /**
  * Gives each published Service its hostname: the one rule for hostnames, which the Routes and the
@@ -107,7 +107,7 @@ public class YardReader {
                 .permittedNumberOfCallsInHalfOpenState(1)
                 // Any other error means the datacenter answered: a fault, not an unreachable
                 // Workstation.
-                .recordExceptions(ResourceAccessException.class, HttpServerErrorException.class)
+                .recordExceptions(ConsulUnreachableException.class, ConsulServerException.class)
                 .build());
   }
 
@@ -279,7 +279,7 @@ public class YardReader {
     }
     try {
       return breakers.circuitBreaker(workstation).executeSupplier(() -> read.apply(workstation));
-    } catch (CallNotPermittedException | ResourceAccessException | HttpServerErrorException e) {
+    } catch (CallNotPermittedException | ConsulUnreachableException | ConsulServerException e) {
       throw new UnreachableWorkstationException(workstation, e);
     }
   }
