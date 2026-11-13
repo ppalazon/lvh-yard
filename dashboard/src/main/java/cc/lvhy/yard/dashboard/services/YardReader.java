@@ -388,7 +388,7 @@ public class YardReader {
                     HealthCheck.format(goDuration(consulCheck.timeout()))))
             .orElse(null);
     Map<String, String> meta = new TreeMap<>(registration.meta());
-    meta.keySet().removeIf(key -> key.startsWith(Registrations.RESERVED_META));
+    meta.keySet().removeIf(key -> key.startsWith(InstanceRules.RESERVED_META));
     String binding = registration.meta().get(Registrations.CONTAINER_BINDING);
     boolean unpublished = registration.meta().containsKey(Registrations.UNPUBLISHED_CONTAINER_PORT);
     return new Instance(

@@ -197,6 +197,7 @@
                     <targetClasses>
                         <param>cc.lvhy.yard.dashboard.services.Routing*</param>
                         <param>cc.lvhy.yard.dashboard.services.Registrations*</param>
+                        <param>cc.lvhy.yard.dashboard.services.InstanceRules*</param>
                         <param>cc.lvhy.yard.dashboard.routes.RouteBuilder*</param>
                         <param>cc.lvhy.yard.dashboard.backups.BackupFormat*</param>
                     </targetClasses>

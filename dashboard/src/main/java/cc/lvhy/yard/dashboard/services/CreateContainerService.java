@@ -35,7 +35,7 @@ public class CreateContainerService {
   /** Validates every input before writing. Failed writes are not undone or retried. */
   public Result create(String name, ContainerBindingRequest binding, boolean publish, Scope scope) {
     String service = name == null ? "" : name.strip();
-    Registrations.checkName(service);
+    InstanceRules.checkName(service);
     if (records.serviceExists(service)) {
       throw existing(service);
     }

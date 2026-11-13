@@ -101,6 +101,8 @@ class ArchitectureTest {
                 .or()
                 .haveSimpleNameStartingWith("OutOfRange")
                 .or()
+                .haveSimpleNameStartingWith("InstanceRules")
+                .or()
                 .haveSimpleNameStartingWith("ServiceState")
                 .or()
                 .haveSimpleNameStartingWith("Health")

@@ -63,7 +63,7 @@ public class Publications implements ProfileUsage {
     if (profiles != null) {
       checkProfiles(profiles);
     }
-    Registrations.checkName(service);
+    InstanceRules.checkName(service);
     // The record keeps a published Service after its Foreign Instances go.
     records.ensure(service);
     Publication existing = all().get(service);

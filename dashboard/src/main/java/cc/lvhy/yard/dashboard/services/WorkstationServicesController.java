@@ -77,7 +77,7 @@ class WorkstationServicesController {
       description = "The Service existed",
       useReturnTypeSchema = true)
   @ApiResponse(responseCode = "201", description = "Created", useReturnTypeSchema = true)
-  @ApiResponse(responseCode = "400", description = Registrations.INVALID_NAME)
+  @ApiResponse(responseCode = "400", description = InstanceRules.INVALID_NAME)
   ResponseEntity<Service> create(@RequestBody NewServiceRequest request) {
     String name = request.name() == null ? "" : request.name().strip();
     boolean created = services.create(workstation.name(), name);
@@ -121,7 +121,7 @@ class WorkstationServicesController {
   @ApiResponse(responseCode = "201", description = "Registered", useReturnTypeSchema = true)
   @ApiResponse(
       responseCode = "400",
-      description = Registrations.INVALID_NAME + ". " + INVALID_INSTANCE)
+      description = InstanceRules.INVALID_NAME + ". " + INVALID_INSTANCE)
   @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
   Instance register(@PathVariable String service, @RequestBody StaticInstanceRequest request) {
     return registrations.register(workstation.name(), service, request);
@@ -173,7 +173,7 @@ class WorkstationServicesController {
   @ApiResponse(
       responseCode = "400",
       description =
-          Registrations.INVALID_NAME
+          InstanceRules.INVALID_NAME
               + ", the body names both or neither of a container and a Compose service, a name is"
               + " not one Docker or Compose allows, or the port is not a TCP port")
   @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
@@ -235,7 +235,7 @@ class WorkstationServicesController {
   @ApiResponse(
       responseCode = "400",
       description =
-          Registrations.INVALID_NAME
+          InstanceRules.INVALID_NAME
               + ", the Workstation or Service name is not a DNS label, the Workstation is this"
               + " one, or the Remote Service is not there with Yard Scope. The answer names the"
               + " field")
@@ -291,7 +291,7 @@ class WorkstationServicesController {
   @ApiResponse(
       responseCode = "400",
       description =
-          Registrations.INVALID_NAME
+          InstanceRules.INVALID_NAME
               + ", the Scope is not local or yard, or a Route Profile is not among this"
               + " Workstation's valid profiles")
   @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")

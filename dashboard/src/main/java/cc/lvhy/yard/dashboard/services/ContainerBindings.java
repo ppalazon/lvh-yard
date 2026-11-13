@@ -96,7 +96,7 @@ public class ContainerBindings {
    */
   public String add(String workstation, String service, ContainerBindingRequest request) {
     checkHome(workstation);
-    Registrations.checkName(service);
+    InstanceRules.checkName(service);
     ContainerBindingRequest binding = checked(request);
     records.ensure(service);
     String id = ContainerBinding.id(binding);
@@ -153,7 +153,7 @@ public class ContainerBindings {
    * @throws InvalidRegistrationException at the first rule that {@code request} breaks
    */
   public static ContainerBindingRequest check(String service, ContainerBindingRequest request) {
-    Registrations.checkName(service);
+    InstanceRules.checkName(service);
     return checked(request);
   }
 
@@ -177,7 +177,7 @@ public class ContainerBindings {
                 + " digit, then use at least one more letter, digit, _, ."
                 + " or -.");
       }
-      Registrations.checkPort("containerPort", "A Container Binding", request.port());
+      InstanceRules.checkPort("containerPort", "A Container Binding", request.port());
       return ContainerBindingRequest.container(container, request.port());
     }
     if (container != null) {
@@ -208,7 +208,7 @@ public class ContainerBindings {
               + composeService
               + "\" is not one Compose allows: use letters, digits, _, . or -.");
     }
-    Registrations.checkPort("containerPort", "A Container Binding", request.port());
+    InstanceRules.checkPort("containerPort", "A Container Binding", request.port());
     return ContainerBindingRequest.compose(project, composeService, request.port());
   }
 

@@ -95,7 +95,7 @@ public record ListedContainer(
   static String proposedService(Optional<String> composeService, String container) {
     return Stream.concat(composeService.stream(), Stream.of(container))
         .map(ListedContainer::cleaned)
-        .filter(Registrations::isDnsLabel)
+        .filter(InstanceRules::isDnsLabel)
         .findFirst()
         .orElse("container");
   }
@@ -106,8 +106,8 @@ public record ListedContainer(
    */
   private static String cleaned(String name) {
     String cleaned = name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9-]", "-");
-    if (cleaned.length() > Registrations.MAX_NAME_LENGTH) {
-      cleaned = cleaned.substring(0, Registrations.MAX_NAME_LENGTH);
+    if (cleaned.length() > InstanceRules.MAX_NAME_LENGTH) {
+      cleaned = cleaned.substring(0, InstanceRules.MAX_NAME_LENGTH);
     }
     return cleaned.replaceAll("^-+|-+$", "");
   }

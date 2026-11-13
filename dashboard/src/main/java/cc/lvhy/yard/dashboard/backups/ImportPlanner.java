@@ -20,6 +20,7 @@ import cc.lvhy.yard.dashboard.services.ContainerBindingRequest;
 import cc.lvhy.yard.dashboard.services.ContainerBindings;
 import cc.lvhy.yard.dashboard.services.Instance;
 import cc.lvhy.yard.dashboard.services.InstancePriorityRequest;
+import cc.lvhy.yard.dashboard.services.InstanceRules;
 import cc.lvhy.yard.dashboard.services.InvalidRegistrationException;
 import cc.lvhy.yard.dashboard.services.PublicationRequest;
 import cc.lvhy.yard.dashboard.services.Publications;
@@ -189,7 +190,7 @@ class ImportPlanner {
     private void service(String name, Service service) {
       String place = "services." + name;
       try {
-        Registrations.checkName("Service", name);
+        InstanceRules.checkName("Service", name);
       } catch (InvalidRegistrationException e) {
         problem(place, e.getMessage());
         return;
