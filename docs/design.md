@@ -260,9 +260,11 @@ is that first run.
 Capitalized error strings are the style of the CLI messages, so `cli/.golangci.yml`
 turns off ST1005 and the revive rule for them. It also skips unchecked
 `fmt.Fprint*` writes. `errcheck`, `errorlint`, `modernize` and the other
-small findings are fixed, and `mise run check` fails on a new one. The
-complexity, `gosec` and revive findings remain, and `mise run quality:go`
-lists them.
+small findings are fixed, and `mise run check` fails on a new one. It also turns
+off three revive rules that say nothing for a command (doc comments on exported
+names, package comments and unused parameters), and `gosec` in the tests. That
+leaves 56 findings in `mise run quality:go`: 35 for complexity, 4 for function
+length and 17 from `gosec` in the code.
 
 ### Target
 

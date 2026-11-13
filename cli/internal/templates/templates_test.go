@@ -14,11 +14,11 @@ func TestCommittedTemplatesMatchRepositoryBytes(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			copy, err := os.ReadFile(name)
+			embedded, err := os.ReadFile(name)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !bytes.Equal(root, copy) {
+			if !bytes.Equal(root, embedded) {
 				t.Fatalf("%s differs from config/; run mise run cli:templates", name)
 			}
 		})

@@ -39,6 +39,13 @@ linters:
         text: "ST1005:"
       - linters: [revive]
         text: "error strings should not be capitalized"
+      # Doc comments on every exported name, a package comment, and the unused args of cobra's
+      # RunE functions say nothing here. The command is no library.
+      - linters: [revive]
+        text: "^(exported|package-comments|unused-parameter):"
+      # Tests read and write files of t.TempDir() by a variable path.
+      - linters: [gosec]
+        path: _test\.go
 
 issues:
   # Show every finding, so the baseline is complete.
