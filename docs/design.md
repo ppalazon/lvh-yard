@@ -110,20 +110,19 @@ The package graph had three cycles at first: `services`↔`profiles`,
 - No port exists for Traefik (`TraefikStatus` and `ReachabilityTester` open
   their own connections), for files (`BackupsFolder` uses `Files.*`) or for the
   clock (`Instant.now()` in nine classes).
-- No use-case layer exists. `PagesController` and the REST controllers call
-  `Registrations`, `Publications`, `Aliases` and `YardReader` and catch their
-  exceptions.
+- No use-case layer exists. The HTML and REST controllers call `Registrations`,
+  `Publications`, `Aliases` and `YardReader` and catch their exceptions.
 
 ### Findings
 
-| Class               | Size                        | PMD                                                 | Problem                                                                                                                                                                               |
-| ------------------- | --------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Registrations`     | 587 lines at first, 309 now | God class, total cyclomatic complexity 105 at first | Split: `InstanceRules` (301 lines, no Spring) has the input rules. The Consul writes stay.                                                                                            |
-| `YardReader`        | 431 lines at first, 169 now | God class, coupling 47 (limit 20) at first          | Split into `DatacenterReads` (the circuit breaker), `DatacenterServices` (a datacenter's Services and the hostname rule) and `InstanceMapping` (Consul entry to Instance, no Spring). |
-| `ImportPlanner`     | 505 lines                   | God class, coupling 34                              | Ten constructor dependencies.                                                                                                                                                         |
-| `ContainerBindings` | 390 lines                   | God class, coupling 25                              | Checks, Consul writes and Docker sync together.                                                                                                                                       |
-| `PagesController`   | 527 lines                   | Total cyclomatic complexity 85, 10 imports too many | Ten constructor dependencies and about 30 handlers.                                                                                                                                   |
-| `BackupsPage`       | 636 lines                   | God class                                           | One view class with 48 branches.                                                                                                                                                      |
+| Class                                              | Size                        | PMD                                                 | Problem                                                                                                                                                                               |
+| -------------------------------------------------- | --------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Registrations`                                    | 587 lines at first, 309 now | God class, total cyclomatic complexity 105 at first | Split: `InstanceRules` (301 lines, no Spring) has the input rules. The Consul writes stay.                                                                                            |
+| `YardReader`                                       | 431 lines at first, 169 now | God class, coupling 47 (limit 20) at first          | Split into `DatacenterReads` (the circuit breaker), `DatacenterServices` (a datacenter's Services and the hostname rule) and `InstanceMapping` (Consul entry to Instance, no Spring). |
+| `ImportPlanner`                                    | 505 lines                   | God class, coupling 34                              | Ten constructor dependencies.                                                                                                                                                         |
+| `ContainerBindings`                                | 390 lines                   | God class, coupling 25                              | Checks, Consul writes and Docker sync together.                                                                                                                                       |
+| `PagesController` and the Service page controllers | 3-6 dependencies each       | Handlers grouped by responsibility                  | The Catalog, Service detail, Service lifecycle, Static Instances, routing controls and Aliases have separate controllers. `ServicePageAccess` shares lookup and edit checks.          |
+| `BackupsPage`                                      | 636 lines                   | God class                                           | One view class with 48 branches.                                                                                                                                                      |
 
 SpotBugs found 80 problems and PMD found 150 when I first ran them. Most are
 noise or style:
@@ -141,23 +140,24 @@ noise or style:
 
 PIT changes the code and runs the unit tests only (`*Test`, not
 `*ComponentTest`). A mutant that no test fails on survives. The component tests
-cover the HTTP path, so these numbers are the unit tests alone. The first
-column is the first run, the second is after the new tests of `Registrations`
-and `RouteBuilder`:
+cover the HTTP path, so these numbers are the unit tests alone. The table
+compares the first run with the current unit tests:
 
 | Class                               | Mutants | Killed at first  | Killed now | Survived now |
 | ----------------------------------- | ------- | ---------------- | ---------- | ------------ |
-| `Registrations` and `InstanceRules` | 137     | 23 (17%)         | 137 (99%)  | 1            |
-| `BackupFormat`                      | 125     | 101 (81%)        | 101 (81%)  | 7            |
-| `Routing`                           | 34      | 29 (85%)         | 29 (85%)   | 0            |
+| `Registrations` and `InstanceRules` | 138     | 23 (17%)         | 137 (99%)  | 1            |
+| `BackupFormat`                      | 125     | 101 (81%)        | 114 (91%)  | 11           |
+| `Routing`                           | 34      | 29 (85%)         | 34 (100%)  | 0            |
 | `RouteBuilder`                      | 28      | 16 (57%)         | 28 (100%)  | 0            |
 | `InstanceMapping`                   | 19      | new              | 19 (100%)  | 0            |
-| All classes                         | 344     | 169 of 325 (52%) | 314 (91%)  | 8            |
+| All classes                         | 344     | 169 of 325 (52%) | 332 (97%)  | 12           |
 
-`dashboard/pom.xml` sets `mutationThreshold` to 90, so `mise run quality` fails
-when the score drops. The one survivor of `InstanceRules` is `parseMeta` returning
-an empty map for no text, which no caller can tell from a new empty map. The 17
-mutants of `BackupFormat` and 5 of `Routing` that no unit test reaches are next.
+`dashboard/pom.xml` sets `mutationThreshold` to 96, so `mise run quality` fails
+when the score drops below it. `mise run quality:mutation` produces the counts
+in this table in `dashboard/target/pit-reports/mutations.xml`. Every mutant has
+test coverage. `Routing` has no survivors. The remaining survivors change
+validation diagnostics or return values that callers cannot distinguish.
+No mutant is excluded to raise the score.
 
 ### Target
 
@@ -193,10 +193,9 @@ flowchart LR
 ```
 
 `ArchitectureTest` checks these rules, and no class outside `consul` may use the
-Spring web client. A rule that is frozen has its known violations in
-`dashboard/src/test/resources/archunit_store`, and fails only on a new one. One
-rule is frozen: Spring in the pure rules (`OutOfRange`). When a violation is
-fixed, ArchUnit drops it from the store.
+Spring web client. All rules reject every violation, with no frozen baseline.
+`OutOfRange` has no Spring dependency. `OutOfRangeConfiguration` binds its
+settings with Spring's `Binder`, so configuration stays outside the rule.
 
 ## CLI (Go)
 
@@ -262,9 +261,9 @@ turns off ST1005 and the revive rule for them. It also skips unchecked
 `fmt.Fprint*` writes. `errcheck`, `errorlint`, `modernize` and the other
 small findings are fixed, and `mise run check` fails on a new one. It also turns
 off three revive rules that say nothing for a command (doc comments on exported
-names, package comments and unused parameters), and `gosec` in the tests. That
-leaves 56 findings in `mise run quality:go`: 35 for complexity, 4 for function
-length and 17 from `gosec` in the code.
+names, package comments and unused parameters), and `gosec` in the tests.
+`mise run quality:go` lists the remaining complexity, function length and
+production `gosec` findings. Test functions still have complexity and length checks.
 
 ### Target
 
@@ -277,9 +276,10 @@ length and 17 from `gosec` in the code.
   list. `NewRemove` (40), `init.create` (38) and `upgradeInit` (27) are now
   split into small functions in `command`: `removeSelection` with its checks and
   selectors, `initPrompt` with one function for each answer, and one function for
-  each step of the upgrade. All three are under 16. The worst left are
-  `newWSTLSIssueRoles` 29, `newWSYardShare` 27, `NewCatalog` 26,
-  `newWSTLSIssueUser` 25 and `newWSTLSInstall` 25.
+  each step of the upgrade. All three are under 16. `newWSTLSIssueRoles`,
+  `newWSYardShare`, `NewCatalog`, `newWSTLSIssueUser` and `newWSTLSInstall`
+  also have complexity at most 15. Their helpers separate prompts, validation,
+  catalog rendering and certificate installation without changing their order.
 
 ## Quality tools
 

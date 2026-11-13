@@ -29,76 +29,11 @@ func NewCatalog(options *Options) *cobra.Command {
 			workstations := make([]client.YardWorkstation, 0, 1+len(yard.Remotes))
 			workstations = append(workstations, client.YardWorkstation{Name: yard.Home.Name, Services: yard.Home.Services})
 			workstations = append(workstations, yard.Remotes...)
-			if workstation != "" {
-				selected := -1
-				for i := range workstations {
-					if workstations[i].Name == workstation {
-						selected = i
-						break
-					}
-				}
-				if selected == -1 {
-					return fmt.Errorf("The Yard has no Workstation %s.", workstation)
-				}
-				workstations = workstations[selected : selected+1]
+			workstations, err = selectCatalogWorkstations(workstations, workstation)
+			if err != nil {
+				return err
 			}
-			nameWidth, stateWidth, hostnameWidth := 1, 1, 1
-			for _, ws := range workstations {
-				for _, service := range ws.Services {
-					if state != "" && service.State != state {
-						continue
-					}
-					nameWidth = max(nameWidth, utf8.RuneCountInString(service.Name))
-					stateWidth = max(stateWidth, utf8.RuneCountInString(service.State))
-					hostnameWidth = max(hostnameWidth, utf8.RuneCountInString(service.Hostname))
-				}
-			}
-			out := cmd.OutOrStdout()
-			anyUnreachable := false
-			for _, ws := range workstations {
-				if ws.Unreachable {
-					anyUnreachable = true
-					fmt.Fprintln(out, ws.Name+": Workstation unreachable")
-					continue
-				}
-				heading := ws.Name
-				if ws.Name == yard.Home.Name {
-					heading += " (this Workstation)"
-				}
-				printed := false
-				for _, service := range ws.Services {
-					if state != "" && service.State != state {
-						continue
-					}
-					if !printed {
-						fmt.Fprintln(out, heading)
-						printed = true
-					}
-					if details {
-						printCatalogDetails(out, service)
-						continue
-					}
-					instances := "No Instances"
-					if service.Empty {
-						instances = "Empty"
-					} else if len(service.Instances) != 0 {
-						passing := 0
-						for _, instance := range service.Instances {
-							if instance.Health == "passing" {
-								passing++
-							}
-						}
-						instances = fmt.Sprintf("%d of %d passing", passing, len(service.Instances))
-					}
-					fmt.Fprintf(out, "  %-*s  %-*s  %-*s  %s\n", nameWidth, service.Name, stateWidth, service.State, hostnameWidth, service.Hostname, instances)
-				}
-				if !printed {
-					fmt.Fprintln(out, heading+": no Services")
-				}
-			}
-			if anyUnreachable {
-				fmt.Fprintln(out, "To see why, read the log of this Workstation's Consul:\n    lvh-yard ws compose logs consul")
-			}
+			printCatalog(cmd.OutOrStdout(), workstations, yard.Home.Name, state, details)
 			return nil
 		},
 	}
@@ -108,7 +43,87 @@ func NewCatalog(options *Options) *cobra.Command {
 	return cmd
 }
 
-func printCatalogDetails(out io.Writer, service client.Service) {
+func selectCatalogWorkstations(workstations []client.YardWorkstation, name string) ([]client.YardWorkstation, error) {
+	if name == "" {
+		return workstations, nil
+	}
+	for i := range workstations {
+		if workstations[i].Name == name {
+			return workstations[i : i+1], nil
+		}
+	}
+	return nil, fmt.Errorf("The Yard has no Workstation %s.", name)
+}
+
+func catalogWidths(workstations []client.YardWorkstation, state string) (nameWidth, stateWidth, hostnameWidth int) {
+	nameWidth, stateWidth, hostnameWidth = 1, 1, 1
+	for _, ws := range workstations {
+		for _, service := range ws.Services {
+			if state != "" && service.State != state {
+				continue
+			}
+			nameWidth = max(nameWidth, utf8.RuneCountInString(service.Name))
+			stateWidth = max(stateWidth, utf8.RuneCountInString(service.State))
+			hostnameWidth = max(hostnameWidth, utf8.RuneCountInString(service.Hostname))
+		}
+	}
+	return nameWidth, stateWidth, hostnameWidth
+}
+
+func printCatalog(out io.Writer, workstations []client.YardWorkstation, home, state string, details bool) {
+	nameWidth, stateWidth, hostnameWidth := catalogWidths(workstations, state)
+	anyUnreachable := false
+	for _, ws := range workstations {
+		if ws.Unreachable {
+			anyUnreachable = true
+			fmt.Fprintln(out, ws.Name+": Workstation unreachable")
+			continue
+		}
+		heading := ws.Name
+		if ws.Name == home {
+			heading += " (this Workstation)"
+		}
+		printed := false
+		for _, service := range ws.Services {
+			if state != "" && service.State != state {
+				continue
+			}
+			if !printed {
+				fmt.Fprintln(out, heading)
+				printed = true
+			}
+			if details {
+				printCatalogDetails(out, &service)
+				continue
+			}
+			fmt.Fprintf(out, "  %-*s  %-*s  %-*s  %s\n", nameWidth, service.Name, stateWidth, service.State, hostnameWidth, service.Hostname, catalogInstances(&service))
+		}
+		if !printed {
+			fmt.Fprintln(out, heading+": no Services")
+		}
+	}
+	if anyUnreachable {
+		fmt.Fprintln(out, "To see why, read the log of this Workstation's Consul:\n    lvh-yard ws compose logs consul")
+	}
+}
+
+func catalogInstances(service *client.Service) string {
+	if service.Empty {
+		return "Empty"
+	}
+	if len(service.Instances) == 0 {
+		return "No Instances"
+	}
+	passing := 0
+	for _, instance := range service.Instances {
+		if instance.Health == "passing" {
+			passing++
+		}
+	}
+	return fmt.Sprintf("%d of %d passing", passing, len(service.Instances))
+}
+
+func printCatalogDetails(out io.Writer, service *client.Service) {
 	hostname := ""
 	if service.Hostname != "" {
 		hostname = " at " + service.Hostname
@@ -120,7 +135,7 @@ func printCatalogDetails(out io.Writer, service client.Service) {
 			priority = "on"
 		}
 		fmt.Fprintf(out, "    Instance Priority: %s\n", priority)
-		printPrioritySources(out, service, "      ")
+		printPrioritySources(out, *service, "      ")
 	}
 	for _, instance := range service.Instances {
 		marks := ""

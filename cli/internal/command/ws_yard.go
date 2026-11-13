@@ -35,31 +35,13 @@ func newWSYardShare(options *Options, folder func() string) *cobra.Command {
 			if err := checkInitGossipKey(key); err != nil {
 				return err
 			}
-			peer := "<this-workstation-lan-ip>"
-			if cmd.Flags().Changed("address") {
-				ip := net.ParseIP(address)
-				if ip == nil || ip.To4() == nil || ip.IsUnspecified() || (!ip.IsGlobalUnicast() && !ip.IsLoopback()) {
-					return fmt.Errorf("--address must be a specific IPv4 address, such as 192.168.1.10")
-				}
-				peer = ip.String()
-			} else if ip := net.ParseIP(env.Get("YARD_BIND_ADDRESS")); ip != nil && ip.To4() != nil && !ip.IsUnspecified() && !ip.IsLoopback() {
-				peer = ip.String()
-			} else if detected, err := options.Process.LANAddress(); err == nil && detected != "" {
-				peer = detected
-			}
-			tlsEnabled, err := consulTLSEnabled(folder())
+			peer, err := yardSharePeer(cmd, options, env, address)
 			if err != nil {
 				return err
 			}
-			if tlsEnabled {
-				ca := filepath.Join(folder(), "tls", "consul", "ca.crt")
-				info, err := os.Stat(ca)
-				if err != nil {
-					return fmt.Errorf("Consul TLS is enabled, but its public CA certificate cannot be read: %w", err)
-				}
-				if !info.Mode().IsRegular() {
-					return fmt.Errorf("the public CA certificate must be a file: %s", ca)
-				}
+			tlsEnabled, err := yardShareTLS(folder)
+			if err != nil {
+				return err
 			}
 			out := cmd.OutOrStdout()
 			ws := wsCommand(folder(), options.WorkstationFolder())
@@ -96,6 +78,41 @@ func newWSYardShare(options *Options, folder func() string) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&address, "address", "", "Overrides the detected LAN IPv4 address in the joining commands.")
 	return cmd
+}
+
+func yardSharePeer(cmd *cobra.Command, options *Options, env *envfile.File, address string) (string, error) {
+	if cmd.Flags().Changed("address") {
+		ip := net.ParseIP(address)
+		if ip == nil || ip.To4() == nil || ip.IsUnspecified() || (!ip.IsGlobalUnicast() && !ip.IsLoopback()) {
+			return "", fmt.Errorf("--address must be a specific IPv4 address, such as 192.168.1.10")
+		}
+		return ip.String(), nil
+	}
+	if ip := net.ParseIP(env.Get("YARD_BIND_ADDRESS")); ip != nil && ip.To4() != nil && !ip.IsUnspecified() && !ip.IsLoopback() {
+		return ip.String(), nil
+	}
+	if detected, err := options.Process.LANAddress(); err == nil && detected != "" {
+		return detected, nil
+	}
+	return "<this-workstation-lan-ip>", nil
+}
+
+func yardShareTLS(folder func() string) (bool, error) {
+	enabled, err := consulTLSEnabled(folder())
+	if err != nil {
+		return false, err
+	}
+	if enabled {
+		ca := filepath.Join(folder(), "tls", "consul", "ca.crt")
+		info, err := os.Stat(ca)
+		if err != nil {
+			return false, fmt.Errorf("Consul TLS is enabled, but its public CA certificate cannot be read: %w", err)
+		}
+		if !info.Mode().IsRegular() {
+			return false, fmt.Errorf("the public CA certificate must be a file: %s", ca)
+		}
+	}
+	return enabled, nil
 }
 
 func consulTLSEnabled(folder string) (bool, error) {

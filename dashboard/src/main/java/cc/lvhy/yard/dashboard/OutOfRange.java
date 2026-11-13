@@ -3,13 +3,11 @@ package cc.lvhy.yard.dashboard;
 import java.net.InetAddress;
 import java.util.List;
 import java.util.Locale;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * From {@code YARD_OUT_OF_RANGE}, by default loopback and 172.17.0.0/16 to 172.31.0.0/16. A Route
  * to such an address would reach this Workstation's own loopback or containers.
  */
-@ConfigurationProperties("lvh-yard.out-of-range")
 public record OutOfRange(List<String> ranges) {
 
   /**

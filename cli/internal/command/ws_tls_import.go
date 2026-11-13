@@ -96,16 +96,9 @@ func newWSTLSInstall(options *Options, folder func() string) *cobra.Command {
 			return err
 		}
 		self := strings.Trim(env.Get("YARD_WORKSTATION"), "\"'")
-		name := self
 		p := newPrompter(cmd, options)
-		if len(args) == 1 {
-			name = args[0]
-		} else if p.terminal {
-			if name, err = p.text("Workstation name, as it is in the Yard", self, checkWorkstationName); err != nil {
-				return err
-			}
-		}
-		if err := checkWorkstationName(name); err != nil {
+		name, err := askTLSWorkstationName(p, args, self)
+		if err != nil {
 			return err
 		}
 		_, _, caPEM, err := readYardCA(folder())
@@ -113,16 +106,7 @@ func newWSTLSInstall(options *Options, folder func() string) *cobra.Command {
 			return err
 		}
 		ws := wsCommand(folder(), options.WorkstationFolder())
-		signed := map[string][2][]byte{}
-		var available []string
-		for _, role := range tlsRoles {
-			certPEM, certErr := os.ReadFile(issuedPath(folder(), name, role, ".crt"))
-			keyPEM, keyErr := os.ReadFile(issuedPath(folder(), name, role, ".key"))
-			if certErr == nil && keyErr == nil {
-				signed[role] = [2][]byte{certPEM, keyPEM}
-				available = append(available, role)
-			}
-		}
+		signed, available := readSignedTLSRoles(folder, name)
 		if len(available) == 0 {
 			return fmt.Errorf("the Yard CA has signed nothing for %s: run %s tls ca issue workstation %s", name, ws, quoteShell(name))
 		}
@@ -145,33 +129,55 @@ func newWSTLSInstall(options *Options, folder func() string) *cobra.Command {
 			return nil
 		}
 		if name == self {
-			for _, role := range roles {
-				if err := installRole(cmd, folder(), env, role, caPEM, signed[role][0], signed[role][1]); err != nil {
-					return err
-				}
-			}
-			if err := finishRoles(cmd, folder(), env, roles); err != nil {
-				return err
-			}
-			return protectWorkstationFolder(folder())
+			return installLocalTLSRoles(cmd, folder, env, roles, caPEM, signed)
 		}
-		if err := protectWorkstationFolder(folder()); err != nil {
-			return err
-		}
-		root := bundleRoot(folder(), name)
-		for _, role := range roles {
-			if err := writeRole(filepath.Join(root, role), role, caPEM, signed[role][0], signed[role][1]); err != nil {
-				return err
-			}
-		}
-		if err := protectWorkstationFolder(folder()); err != nil {
-			return err
-		}
-		return handOverBundle(cmd, options, name, root, roles, remote)
+		return installRemoteTLSRoles(cmd, options, folder, name, roles, caPEM, signed, remote)
 	}}
 	cmd.Flags().StringVar(&remote, "scp", "", "Copies the files of another Workstation into its tls folder with scp: user@host or user@host:folder.")
 	addTLSServiceFlags(cmd, &services)
 	return cmd
+}
+
+func readSignedTLSRoles(folder func() string, name string) (map[string][2][]byte, []string) {
+	signed := map[string][2][]byte{}
+	var available []string
+	for _, role := range tlsRoles {
+		certPEM, certErr := os.ReadFile(issuedPath(folder(), name, role, ".crt"))
+		keyPEM, keyErr := os.ReadFile(issuedPath(folder(), name, role, ".key"))
+		if certErr == nil && keyErr == nil {
+			signed[role] = [2][]byte{certPEM, keyPEM}
+			available = append(available, role)
+		}
+	}
+	return signed, available
+}
+
+func installLocalTLSRoles(cmd *cobra.Command, folder func() string, env *envfile.File, roles []string, caPEM []byte, signed map[string][2][]byte) error {
+	for _, role := range roles {
+		if err := installRole(cmd, folder(), env, role, caPEM, signed[role][0], signed[role][1]); err != nil {
+			return err
+		}
+	}
+	if err := finishRoles(cmd, folder(), env, roles); err != nil {
+		return err
+	}
+	return protectWorkstationFolder(folder())
+}
+
+func installRemoteTLSRoles(cmd *cobra.Command, options *Options, folder func() string, name string, roles []string, caPEM []byte, signed map[string][2][]byte, remote string) error {
+	if err := protectWorkstationFolder(folder()); err != nil {
+		return err
+	}
+	root := bundleRoot(folder(), name)
+	for _, role := range roles {
+		if err := writeRole(filepath.Join(root, role), role, caPEM, signed[role][0], signed[role][1]); err != nil {
+			return err
+		}
+	}
+	if err := protectWorkstationFolder(folder()); err != nil {
+		return err
+	}
+	return handOverBundle(cmd, options, name, root, roles, remote)
 }
 
 // remoteFolderDefault is where ws init puts a Workstation Folder, from the home directory of the

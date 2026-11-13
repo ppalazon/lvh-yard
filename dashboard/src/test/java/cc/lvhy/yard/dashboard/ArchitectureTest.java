@@ -13,16 +13,11 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.library.dependencies.SliceAssignment;
 import com.tngtech.archunit.library.dependencies.SliceIdentifier;
-import com.tngtech.archunit.library.freeze.FreezingArchRule;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-/**
- * The package rules of docs/design.md. A frozen rule has known violations in {@code
- * src/test/resources/archunit_store}, and fails only on a new one. A rule that is not frozen has
- * none.
- */
+/** The package rules of docs/design.md. No known violations are allowed. */
 class ArchitectureTest {
 
   private static final String BASE = "cc.lvhy.yard.dashboard";
@@ -122,27 +117,26 @@ class ArchitectureTest {
 
   @Test
   void pureRulesOfTheDomainImportNoSpring() {
-    FreezingArchRule.freeze(
-            noClasses()
-                .that()
-                .haveSimpleNameStartingWith("Routing")
-                .or()
-                .haveSimpleNameStartingWith("ServiceWarning")
-                .or()
-                .haveSimpleNameStartingWith("OutOfRange")
-                .or()
-                .haveSimpleNameStartingWith("InstanceRules")
-                .or()
-                .haveSimpleNameStartingWith("InstanceMapping")
-                .or()
-                .haveSimpleNameStartingWith("ServiceState")
-                .or()
-                .haveSimpleNameStartingWith("Health")
-                .or()
-                .haveSimpleNameStartingWith("Scope")
-                .should()
-                .dependOnClassesThat(resideInAnyPackage("org.springframework.."))
-                .as("pure rules of the domain import no Spring"))
+    noClasses()
+        .that()
+        .haveNameMatching("cc\\.lvhy\\.yard\\.dashboard\\.services\\.Routing(\\$.*)?")
+        .or()
+        .haveSimpleNameStartingWith("ServiceWarning")
+        .or()
+        .haveNameMatching("cc\\.lvhy\\.yard\\.dashboard\\.OutOfRange(\\$.*)?")
+        .or()
+        .haveSimpleNameStartingWith("InstanceRules")
+        .or()
+        .haveSimpleNameStartingWith("InstanceMapping")
+        .or()
+        .haveSimpleNameStartingWith("ServiceState")
+        .or()
+        .haveSimpleNameStartingWith("Health")
+        .or()
+        .haveSimpleNameStartingWith("Scope")
+        .should()
+        .dependOnClassesThat(resideInAnyPackage("org.springframework.."))
+        .as("pure rules of the domain import no Spring")
         .check(classes);
   }
 
