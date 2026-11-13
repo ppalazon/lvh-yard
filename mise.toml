@@ -206,4 +206,5 @@ run = "./mvnw -B -pl dashboard test-compile org.pitest:pitest-maven:mutationCove
 
 [tasks.quality]
 description = "Run the slow code checks: golangci-lint, SpotBugs, PMD and PIT. Not part of mise run check. It fails when the PIT score is under the threshold"
-depends = ["quality:go", "quality:java", "quality:mutation"]
+# One after the other: the Java tasks share dashboard/target, and two Maven builds there at once fail.
+run = [{ task = "quality:go" }, { task = "quality:java" }, { task = "quality:mutation" }]
