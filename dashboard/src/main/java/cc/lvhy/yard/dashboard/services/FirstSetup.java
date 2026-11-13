@@ -1,10 +1,10 @@
 package cc.lvhy.yard.dashboard.services;
 
 import cc.lvhy.yard.dashboard.BindAddress;
+import cc.lvhy.yard.dashboard.TraefikSettings;
 import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.consul.Consul;
 import cc.lvhy.yard.dashboard.consul.ConsulSettings;
-import cc.lvhy.yard.dashboard.reachability.TraefikSettings;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;

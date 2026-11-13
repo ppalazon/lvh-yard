@@ -1,9 +1,9 @@
 package cc.lvhy.yard.dashboard.web;
 
+import cc.lvhy.yard.dashboard.TraefikSettings;
 import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.profiles.RouteProfiles;
 import cc.lvhy.yard.dashboard.reachability.ReachabilityTester;
-import cc.lvhy.yard.dashboard.reachability.TraefikSettings;
 import cc.lvhy.yard.dashboard.services.Alias;
 import cc.lvhy.yard.dashboard.services.AliasTarget;
 import cc.lvhy.yard.dashboard.services.Aliases;

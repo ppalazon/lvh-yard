@@ -1,6 +1,6 @@
 package cc.lvhy.yard.dashboard.status;
 
-import cc.lvhy.yard.dashboard.reachability.TraefikSettings;
+import cc.lvhy.yard.dashboard.TraefikSettings;
 import cc.lvhy.yard.dashboard.routes.TraefikFetches;
 import java.io.IOException;
 import java.net.URI;

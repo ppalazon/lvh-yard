@@ -1,7 +1,6 @@
-package cc.lvhy.yard.dashboard;
+package cc.lvhy.yard.dashboard.web;
 
 import cc.lvhy.yard.dashboard.consul.ConsulSettings;
-import cc.lvhy.yard.dashboard.web.ErrorPage;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;

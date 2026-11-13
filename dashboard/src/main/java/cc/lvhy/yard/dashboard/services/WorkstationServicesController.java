@@ -1,8 +1,6 @@
 package cc.lvhy.yard.dashboard.services;
 
 import cc.lvhy.yard.dashboard.Workstation;
-import cc.lvhy.yard.dashboard.reachability.Reachability;
-import cc.lvhy.yard.dashboard.reachability.ReachabilityTester;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import java.util.List;
@@ -43,8 +41,6 @@ class WorkstationServicesController {
 
   private final Aliases aliases;
 
-  private final ReachabilityTester reachability;
-
   WorkstationServicesController(
       Workstation workstation,
       YardReader yard,
@@ -52,8 +48,7 @@ class WorkstationServicesController {
       Publications publications,
       ContainerBindings containerBindings,
       Services services,
-      Aliases aliases,
-      ReachabilityTester reachability) {
+      Aliases aliases) {
     this.aliases = aliases;
     this.workstation = workstation;
     this.yard = yard;
@@ -61,7 +56,6 @@ class WorkstationServicesController {
     this.publications = publications;
     this.containerBindings = containerBindings;
     this.services = services;
-    this.reachability = reachability;
   }
 
   @GetMapping
@@ -114,22 +108,6 @@ class WorkstationServicesController {
         .orElseThrow(() ->
             new ResponseStatusException(
                 HttpStatus.NOT_FOUND, "This Workstation has no Service " + service + "."));
-  }
-
-  @GetMapping("/{service}/reachability")
-  @Operation(
-      operationId = "testOwnReachability",
-      summary = "Tests whether this Workstation reaches one of its own Services",
-      description =
-          "As /api/services/{workstation}/{service}/reachability does, without naming this"
-              + " Workstation.")
-  @ApiResponse(
-      responseCode = "200",
-      description = "Tested, whether the checks passed or not",
-      useReturnTypeSchema = true)
-  @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
-  Reachability reachability(@PathVariable String service) {
-    return reachability.test(service(service));
   }
 
   @PostMapping(path = "/{service}/instances", consumes = MediaType.APPLICATION_JSON_VALUE)

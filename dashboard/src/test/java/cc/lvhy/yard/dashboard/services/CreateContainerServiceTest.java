@@ -11,6 +11,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import cc.lvhy.yard.dashboard.OutOfRange;
 import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.consul.Consul;
 import cc.lvhy.yard.dashboard.consul.FakeConsul;

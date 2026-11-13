@@ -1,0 +1,4 @@
+#
+#Fri Nov 13 09:42:38 CET 2026
+no\ classes\ that\ reside\ outside\ of\ package\ 'cc.lvhy.yard.dashboard.consul..'\ should\ depend\ on\ classes\ that\ reside\ in\ any\ package\ ['org.springframework.web.client..']=44bbb023-c31d-4e8d-a284-f1c23136a2d0
+pure\ rules\ of\ the\ domain\ import\ no\ Spring=844f9efa-d505-4b27-a90d-da73d2aafe25

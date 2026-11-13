@@ -2,6 +2,7 @@ package cc.lvhy.yard.dashboard.services;
 
 import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.consul.Consul;
+import cc.lvhy.yard.dashboard.profiles.ProfileUsage;
 import cc.lvhy.yard.dashboard.profiles.RouteProfiles;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.ArrayList;
@@ -20,7 +21,7 @@ import tools.jackson.databind.json.JsonMapper;
  * Instances follow the new Scope.
  */
 @Component
-public class Publications {
+public class Publications implements ProfileUsage {
 
   private static final String PREFIX = "lvh-yard/publications/";
 
@@ -131,7 +132,7 @@ public class Publications {
     return all(null);
   }
 
-  /** The Services of this Workstation whose Publications name each Route Profile, by name. */
+  @Override
   public Map<String, List<String>> servicesByProfile() {
     Map<String, List<String>> services = new TreeMap<>();
     all()

@@ -229,6 +229,13 @@ PMD runs only the rules of `dashboard/pmd-gate.xml`: unused private methods,
 fields, local variables and parameters. [design.md](design.md) explains the
 findings.
 
+`ArchitectureTest` is a unit test of the package rules in
+[design.md](design.md): no package cycles, and `consul`, `docker` and `events`
+import no other feature package. Two of its rules are frozen. Their known
+violations are in `dashboard/src/test/resources/archunit_store`, and a new
+violation fails the test. Fix a violation and ArchUnit drops it from the store
+the next time the test runs. Do not add one by hand.
+
 ## Continuous integration
 
 The CI workflow (`.github/workflows/ci.yml`) runs on each pull request and on

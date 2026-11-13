@@ -136,7 +136,7 @@ paths:
           description: The Workstation is unreachable
       summary: Tests whether this Workstation reaches a Service
       tags:
-      - services-controller
+      - reachability-controller
   /api/status:
     get:
       description: "Each part is ok, warning or failing. The answer is kept for about\
@@ -939,7 +939,7 @@ paths:
           description: This Workstation has no Service of this name
       summary: Tests whether this Workstation reaches one of its own Services
       tags:
-      - workstation-services-controller
+      - reachability-controller
   /api/yard:
     get:
       description: "The other Workstations come by name. An unreachable one has no\

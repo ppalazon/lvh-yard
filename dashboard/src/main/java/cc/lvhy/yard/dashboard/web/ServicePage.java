@@ -2,8 +2,8 @@ package cc.lvhy.yard.dashboard.web;
 
 import static cc.lvhy.yard.dashboard.events.EventBroadcaster.YARD_CHANGED;
 
+import cc.lvhy.yard.dashboard.TraefikSettings;
 import cc.lvhy.yard.dashboard.Workstation;
-import cc.lvhy.yard.dashboard.reachability.TraefikSettings;
 import cc.lvhy.yard.dashboard.services.Alias;
 import cc.lvhy.yard.dashboard.services.ContainerBinding;
 import cc.lvhy.yard.dashboard.services.Health;

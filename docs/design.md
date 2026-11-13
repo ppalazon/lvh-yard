@@ -66,17 +66,16 @@ flowchart LR
     web --> reachability
     web --> status
     web --> events
+    web --> consul
     backups --> services
     backups --> profiles
     backups --> consul
     services --> consul
     services --> docker
     services --> events
-    services -- cycle --> profiles
-    profiles -- cycle --> services
-    services -- cycle --> reachability
-    reachability -- cycle --> services
+    services --> profiles
     profiles --> consul
+    reachability --> services
     routes --> services
     routes --> profiles
     routes --> reachability
@@ -85,9 +84,23 @@ flowchart LR
     status --> reachability
     status --> routes
     status --> events
-    root[Problems] -- cycle --> web
-    web -- cycle --> root
 ```
+
+The package graph had three cycles at first: `services`↔`profiles`,
+`services`↔`reachability` and the base package↔`web`. They are gone, and
+`ArchitectureTest` fails on a new one. What changed:
+
+- `OutOfRange` and `TraefikSettings` moved to the base package, next to
+  `Workstation`. They are settings that every package reads.
+- `Problems` moved to `web`, where `ErrorPage` is.
+- `ProfileUsage` is an interface of `profiles`. `Publications` implements it, so
+  `RouteProfileEditor` no longer imports `services`.
+- `ReachabilityController` holds the two reachability endpoints, in
+  `reachability`. `ServicesController` and `WorkstationServicesController` no
+  longer import `reachability`. The OpenAPI tag of both endpoints is now
+  `reachability-controller`.
+- `ServiceViews` builds the HTTP and HTTPS addresses of a Service, so
+  `TraefikSettings` no longer imports `Service`.
 
 - `services` is the hub: domain rules, Spring beans, four REST controllers and
   JSON DTOs in one package (about 60 files).
@@ -157,7 +170,7 @@ Ports and adapters inside each feature package. The packages keep their names.
 - Pure rules import no Spring: `Routing`, `ServiceWarning`, `OutOfRange`, the
   input checks.
 - Use cases may keep `@Component`.
-- The code has no package cycles.
+- The code has no package cycles, and `ArchitectureTest` checks it.
 
 ```mermaid
 flowchart LR
@@ -165,7 +178,7 @@ flowchart LR
     web --> backups
     web --> profiles
     backups --> services
-    profiles --> services
+    services --> profiles
     reachability --> services
     routes --> services
     status --> services
@@ -173,8 +186,11 @@ flowchart LR
     services -- port --> docker
 ```
 
-ArchUnit rules will check these rules as unit tests. They start in freeze mode,
-so the known violations do not fail the build, and a new one does.
+`ArchitectureTest` checks these rules. A rule that is frozen has its known
+violations in `dashboard/src/test/resources/archunit_store`, and fails only on a
+new one: the Spring web client outside `consul` (9 places, in `YardReader`,
+`ConsulStatus` and `Problems`) and Spring in the pure rules (`OutOfRange`).
+When a violation is fixed, ArchUnit drops it from the store.
 
 ## CLI (Go)
 
@@ -240,7 +256,7 @@ lists them.
 | golangci-lint | Go code            | Yes, the linters with no finding today. The rest are in `quality:go` |
 | SpotBugs, PMD | Java code          | Yes, SpotBugs with a skip list, and PMD for unused code              |
 | PIT           | Java unit tests    | No                                                                   |
-| ArchUnit      | Java package rules | Not yet                                                              |
+| ArchUnit      | Java package rules | Yes, as `ArchitectureTest`                                           |
 
 ### Mutation tests of the CLI
 

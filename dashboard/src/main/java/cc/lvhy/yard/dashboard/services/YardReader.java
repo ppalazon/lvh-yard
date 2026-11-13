@@ -1,5 +1,7 @@
 package cc.lvhy.yard.dashboard.services;
 
+import cc.lvhy.yard.dashboard.OutOfRange;
+import cc.lvhy.yard.dashboard.TraefikSettings;
 import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.consul.Consul;
 import cc.lvhy.yard.dashboard.consul.Consul.AgentService;
@@ -7,7 +9,6 @@ import cc.lvhy.yard.dashboard.consul.Consul.HealthEntry;
 import cc.lvhy.yard.dashboard.consul.ConsulSettings;
 import cc.lvhy.yard.dashboard.profiles.RouteProfileDefinition;
 import cc.lvhy.yard.dashboard.profiles.RouteProfiles;
-import cc.lvhy.yard.dashboard.reachability.TraefikSettings;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;

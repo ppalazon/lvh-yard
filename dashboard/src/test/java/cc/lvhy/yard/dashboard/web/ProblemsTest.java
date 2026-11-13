@@ -1,4 +1,4 @@
-package cc.lvhy.yard.dashboard;
+package cc.lvhy.yard.dashboard.web;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -6,7 +6,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import cc.lvhy.yard.dashboard.consul.ConsulSettings;
-import cc.lvhy.yard.dashboard.web.ErrorPage;
 import java.net.URI;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;

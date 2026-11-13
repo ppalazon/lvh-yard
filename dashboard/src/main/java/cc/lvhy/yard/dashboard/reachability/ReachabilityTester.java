@@ -1,5 +1,6 @@
 package cc.lvhy.yard.dashboard.reachability;
 
+import cc.lvhy.yard.dashboard.TraefikSettings;
 import cc.lvhy.yard.dashboard.services.Alias;
 import cc.lvhy.yard.dashboard.services.Aliases;
 import cc.lvhy.yard.dashboard.services.Instance;

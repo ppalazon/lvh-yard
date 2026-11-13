@@ -1,6 +1,6 @@
 package cc.lvhy.yard.dashboard.profiles;
 
-import cc.lvhy.yard.dashboard.services.OutOfRange;
+import cc.lvhy.yard.dashboard.OutOfRange;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;

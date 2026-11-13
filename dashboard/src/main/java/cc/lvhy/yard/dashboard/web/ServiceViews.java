@@ -1,6 +1,6 @@
 package cc.lvhy.yard.dashboard.web;
 
-import cc.lvhy.yard.dashboard.reachability.TraefikSettings;
+import cc.lvhy.yard.dashboard.TraefikSettings;
 import cc.lvhy.yard.dashboard.services.Service;
 import cc.lvhy.yard.dashboard.services.ServiceState;
 import org.xmlet.htmlapifaster.PhrasingContent;
@@ -40,8 +40,8 @@ final class ServiceViews {
     if (service.hostname() == null) {
       return;
     }
-    String http = settings.httpUrl(service);
-    String https = settings.httpsUrl(service);
+    String http = httpUrl(settings, service);
+    String https = httpsUrl(settings, service);
     if (http != null) {
       Layout.externalLink(parent, service.hostname(), http);
       if (https != null) {
@@ -52,5 +52,23 @@ final class ServiceViews {
     } else {
       parent.text(service.hostname());
     }
+  }
+
+  /** The plain HTTP address of a Publication, or null when it has no hostname or needs HTTPS. */
+  private static String httpUrl(TraefikSettings settings, Service service) {
+    if (service.hostname() == null || service.requiresClientCertificate()) {
+      return null;
+    }
+    return "http://" + service.hostname() + (settings.port() == 80 ? "" : ":" + settings.port());
+  }
+
+  /** The HTTPS address of a Publication, or null when it has no hostname or this has no HTTPS. */
+  private static String httpsUrl(TraefikSettings settings, Service service) {
+    if (service.hostname() == null || !settings.enabled() || settings.httpsPort() == null) {
+      return null;
+    }
+    return "https://"
+        + service.hostname()
+        + (settings.httpsPort() == 443 ? "" : ":" + settings.httpsPort());
   }
 }

@@ -1,5 +1,6 @@
 package cc.lvhy.yard.dashboard.services;
 
+import cc.lvhy.yard.dashboard.OutOfRange;
 import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.consul.Consul;
 import cc.lvhy.yard.dashboard.docker.Docker;
