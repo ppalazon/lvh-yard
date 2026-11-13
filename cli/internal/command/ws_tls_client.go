@@ -25,36 +25,14 @@ func newWSTLSIssueUser(options *Options, folder func() string) *cobra.Command {
 			return err
 		}
 		p := newPrompter(cmd, options)
-		var name string
-		switch {
-		case len(args) == 1:
-			name = args[0]
-		case p.terminal:
-			name, err = p.text("Username or email", "", func(text string) error {
-				if text == "" {
-					return fmt.Errorf("A Client Certificate needs a username or an email.")
-				}
-				return nil
-			})
-			if err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("Missing the username or email: no terminal to ask for it, so give it as an argument")
+		name, err := askTLSClientName(p, args)
+		if err != nil {
+			return err
 		}
-		if strings.TrimSpace(name) == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\\x00") {
-			return fmt.Errorf("invalid username or email: use a name without path separators")
-		}
-		given := cmd.Flags().Changed("password")
-		if given && password == "" {
-			return fmt.Errorf("--password must not be empty")
-		}
-		if !given && p.terminal {
-			typed, err := p.text("Password of the PKCS#12 file (empty for a random one)", "", nil)
-			if err != nil {
-				return err
-			}
-			password, given = typed, typed != ""
+		var given bool
+		password, given, err = askTLSClientPassword(cmd, p, password)
+		if err != nil {
+			return err
 		}
 		days, err := askDays(cmd, p, days, 365, "certificate validity in days")
 		if err != nil {
@@ -91,4 +69,44 @@ func newWSTLSIssueUser(options *Options, folder func() string) *cobra.Command {
 	create.Flags().StringVar(&password, "password", "", "Sets the password of the PKCS#12 file.")
 	create.Flags().IntVar(&days, "days", 365, "Sets the certificate validity in days.")
 	return create
+}
+
+func askTLSClientName(p *prompter, args []string) (string, error) {
+	var name string
+	switch {
+	case len(args) == 1:
+		name = args[0]
+	case p.terminal:
+		var err error
+		name, err = p.text("Username or email", "", func(text string) error {
+			if text == "" {
+				return fmt.Errorf("A Client Certificate needs a username or an email.")
+			}
+			return nil
+		})
+		if err != nil {
+			return "", err
+		}
+	default:
+		return "", fmt.Errorf("Missing the username or email: no terminal to ask for it, so give it as an argument")
+	}
+	if strings.TrimSpace(name) == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\\x00") {
+		return "", fmt.Errorf("invalid username or email: use a name without path separators")
+	}
+	return name, nil
+}
+
+func askTLSClientPassword(cmd *cobra.Command, p *prompter, password string) (string, bool, error) {
+	given := cmd.Flags().Changed("password")
+	if given && password == "" {
+		return password, given, fmt.Errorf("--password must not be empty")
+	}
+	if !given && p.terminal {
+		typed, err := p.text("Password of the PKCS#12 file (empty for a random one)", "", nil)
+		if err != nil {
+			return password, given, err
+		}
+		password, given = typed, typed != ""
+	}
+	return password, given, nil
 }
