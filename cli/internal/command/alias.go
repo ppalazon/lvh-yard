@@ -21,7 +21,7 @@ func NewAlias(options *Options) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			create := true
-			added, err := client.New(options.DashboardAddress()).AddAlias(args[0], client.AliasRequest{
+			added, err := options.connect().AddAlias(args[0], client.AliasRequest{
 				Workstation: workstation,
 				Service:     remoteService,
 				Create:      &create,
@@ -54,7 +54,7 @@ func NewAlias(options *Options) *cobra.Command {
 		Short: "Lists the Aliases of a Service in order, with their state.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			aliases, err := client.New(options.DashboardAddress()).Aliases(args[0])
+			aliases, err := options.connect().Aliases(args[0])
 			if err != nil {
 				return err
 			}
@@ -77,7 +77,7 @@ func NewAlias(options *Options) *cobra.Command {
 		Short: "Removes one Alias of a Service.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := client.New(options.DashboardAddress()).RemoveAlias(args[0], removeWorkstation, removeService); err != nil {
+			if err := options.connect().RemoveAlias(args[0], removeWorkstation, removeService); err != nil {
 				return err
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "Removed the Alias to %s on %s from %s.\n", removeService, removeWorkstation, args[0])

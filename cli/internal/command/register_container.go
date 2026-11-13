@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ppalazon/lvh-yard/cli/internal/client"
 	"github.com/spf13/cobra"
 )
 
@@ -17,7 +16,7 @@ func newRegisterContainer(options *Options) *cobra.Command {
 		Short: "Binds a named container to an existing Service.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			c := client.New(options.DashboardAddress())
+			c := options.connect()
 			container := args[0]
 			name := service
 			if !cmd.Flags().Changed("service") {
@@ -103,7 +102,7 @@ func newRegisterCompose(options *Options) *cobra.Command {
 			if !cmd.Flags().Changed("service") {
 				name = cleanedContainerService(parts[1])
 			}
-			binding, err := client.New(options.DashboardAddress()).BindCompose(name, parts[0], parts[1], port)
+			binding, err := options.connect().BindCompose(name, parts[0], parts[1], port)
 			if err != nil {
 				return err
 			}

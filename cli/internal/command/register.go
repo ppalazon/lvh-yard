@@ -55,7 +55,7 @@ func newRegisterStatic(options *Options) *cobra.Command {
 				}
 				request.Meta = &meta
 			}
-			instance, err := client.New(options.DashboardAddress()).Register(args[0], request)
+			instance, err := options.connect().Register(args[0], request)
 			if err != nil {
 				return err
 			}

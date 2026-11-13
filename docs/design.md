@@ -210,8 +210,12 @@ flowchart LR
 - `client` is clean. It imports no other package of the CLI.
 - `command.Process` is the only interface. It has 7 methods and mixes
   environment, input, terminal, LAN address, editor, `exec` and `id`.
-- Every command calls `client.New(options.DashboardAddress())`. There are 24
-  call sites, so each test starts its own `httptest` server.
+- Each command called `client.New(options.DashboardAddress())` (24 call sites),
+  so each test started its own `httptest` server. Now `command.Dashboard` is an
+  interface of the 26 methods that the commands use. `Options.Dashboard` builds
+  it, and `client.Client` is the default. `commandtest.Harness.Dashboard` sets a
+  fake. `TestStatus` uses one. The other command tests still use `httptest`,
+  which also checks the JSON, and they can move one at a time.
 - Leaks: `ws_yard_peers.go:readWANMembers` makes its own HTTP client to Consul.
   `dashboard.go` reads `.env` with `os.ReadFile`.
 
@@ -239,9 +243,10 @@ lists them.
 
 ### Target
 
-- Define a small dashboard-client interface in `command`, next to where it is
-  used, and inject it through `Options`, as `Process` is. `client.Client` stays
-  the real one. A test then uses a fake and no HTTP server.
+- The dashboard interface is in `command`, next to where it is used, and is
+  injected through `Options`, as `Process` is. It is one interface, not one for
+  each command, so it is wide. A test fake embeds it and gives only the methods
+  that its command calls. Split it by command if a fake gets in the way.
 - Move pure logic out of the cobra closures into packages such as `tlsca` and
   `envfile`. Commands stay thin. The first targets are the gocyclo list above.
 - No port for the filesystem or the clock. `t.TempDir()` is enough.

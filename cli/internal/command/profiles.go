@@ -9,7 +9,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ppalazon/lvh-yard/cli/internal/client"
 	"github.com/spf13/cobra"
 )
 
@@ -19,7 +18,7 @@ func NewProfiles(options *Options) *cobra.Command {
 		Short: "Lists the Route Profiles of this Workstation.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			profiles, err := client.New(options.DashboardAddress()).RouteProfiles()
+			profiles, err := options.connect().RouteProfiles()
 			if err != nil {
 				return err
 			}
@@ -46,7 +45,7 @@ func NewProfiles(options *Options) *cobra.Command {
 		Short: "Prints a Route Profile in Traefik's file format.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			profile, err := client.New(options.DashboardAddress()).RouteProfile(args[0])
+			profile, err := options.connect().RouteProfile(args[0])
 			if err != nil {
 				return err
 			}
@@ -79,7 +78,7 @@ func NewProfiles(options *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if _, err := client.New(options.DashboardAddress()).PutRouteProfiles(set.profiles); err != nil {
+			if _, err := options.connect().PutRouteProfiles(set.profiles); err != nil {
 				return err
 			}
 			label := "Saved the Route Profile "
@@ -99,7 +98,7 @@ func NewProfiles(options *Options) *cobra.Command {
 		Short: "Removes a Route Profile.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := client.New(options.DashboardAddress()).RemoveRouteProfile(args[0]); err != nil {
+			if err := options.connect().RemoveRouteProfile(args[0]); err != nil {
 				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), "Removed the Route Profile "+args[0]+".")
@@ -110,7 +109,7 @@ func NewProfiles(options *Options) *cobra.Command {
 }
 
 func editProfile(cmd *cobra.Command, options *Options, name string) error {
-	dashboard := client.New(options.DashboardAddress())
+	dashboard := options.connect()
 	profile, err := dashboard.RouteProfile(name)
 	if err != nil {
 		return err
@@ -147,7 +146,7 @@ func editProfile(cmd *cobra.Command, options *Options, name string) error {
 }
 
 // editUntilSaved reports true when the Route Profile is saved or has no change.
-func editUntilSaved(cmd *cobra.Command, options *Options, dashboard *client.Client, name, path, editor string, original []byte) (bool, error) {
+func editUntilSaved(cmd *cobra.Command, options *Options, dashboard Dashboard, name, path, editor string, original []byte) (bool, error) {
 	answers := bufio.NewReader(options.Process.Input())
 	for {
 		if err := options.Process.Edit(editor, path); err != nil {

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ppalazon/lvh-yard/cli/internal/client"
 	"github.com/spf13/cobra"
 )
 
@@ -17,7 +16,7 @@ func NewStatus(options *Options) *cobra.Command {
 		Short: "Shows whether LVH Yard works on this Workstation.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			status, err := client.New(options.DashboardAddress()).Status()
+			status, err := options.connect().Status()
 			if err != nil {
 				return err
 			}

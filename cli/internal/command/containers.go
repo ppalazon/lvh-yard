@@ -18,7 +18,7 @@ func NewContainers(options *Options) *cobra.Command {
 		Short: "Lists this Workstation's containers and marks each Unfollowed Container.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			containers, err := client.New(options.DashboardAddress()).Containers()
+			containers, err := options.connect().Containers()
 			if err != nil {
 				return err
 			}

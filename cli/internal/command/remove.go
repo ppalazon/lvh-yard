@@ -24,7 +24,7 @@ func NewRemove(options *Options) *cobra.Command {
 				if binding || flags.Changed("port") || flags.Changed("host") {
 					return fmt.Errorf("Give --id alone, or select an Instance or Container Binding with the other options.")
 				}
-				if err := client.New(options.DashboardAddress()).Remove(service, id); err != nil {
+				if err := options.connect().Remove(service, id); err != nil {
 					return err
 				}
 				fmt.Fprintf(cmd.OutOrStdout(), "Removed Instance %s of %s.\n", id, service)
@@ -43,7 +43,7 @@ func NewRemove(options *Options) *cobra.Command {
 			} else if !flags.Changed("port") {
 				return fmt.Errorf("Say what to remove from %s: give --id, --port, --container, or --compose-project and --compose-service.", service)
 			}
-			dashboard := client.New(options.DashboardAddress())
+			dashboard := options.connect()
 			found, err := dashboard.OwnService(service)
 			if err != nil {
 				return err

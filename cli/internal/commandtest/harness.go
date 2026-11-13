@@ -19,8 +19,10 @@ type Result struct {
 
 type Harness struct {
 	Process *Process
-	Version string
-	Groups  []func(*command.Options) *cobra.Command
+	// Dashboard stands in for the dashboard. With none, commands use the --dashboard address.
+	Dashboard command.Dashboard
+	Version   string
+	Groups    []func(*command.Options) *cobra.Command
 }
 
 func New(t testing.TB) *Harness {
@@ -33,12 +35,16 @@ func New(t testing.TB) *Harness {
 func (h *Harness) Run(args ...string) Result {
 	var stdout, stderr bytes.Buffer
 	h.Process.input = strings.NewReader(h.Process.Stdin)
-	root := command.NewRoot(command.Options{
+	options := command.Options{
 		Version: h.Version,
 		Process: h.Process,
 		Out:     &stdout,
 		Err:     &stderr,
-	}, h.Groups...)
+	}
+	if h.Dashboard != nil {
+		options.Dashboard = func(string) command.Dashboard { return h.Dashboard }
+	}
+	root := command.NewRoot(options, h.Groups...)
 	exitCode := command.Run(root, args)
 	return Result{Stdout: stdout.String(), Stderr: stderr.String(), ExitCode: exitCode}
 }

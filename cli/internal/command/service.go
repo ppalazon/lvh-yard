@@ -3,7 +3,6 @@ package command
 import (
 	"fmt"
 
-	"github.com/ppalazon/lvh-yard/cli/internal/client"
 	"github.com/spf13/cobra"
 )
 
@@ -19,7 +18,7 @@ func NewService(options *Options) *cobra.Command {
 		Short: "Creates an empty, Unpublished Service unless it exists.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			created, err := client.New(options.DashboardAddress()).CreateService(args[0])
+			created, err := options.connect().CreateService(args[0])
 			if err != nil {
 				return err
 			}
@@ -36,7 +35,7 @@ func NewService(options *Options) *cobra.Command {
 		Short: "Deletes a Service with its Publication and Instance Sources.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			existed, err := client.New(options.DashboardAddress()).DeleteService(args[0])
+			existed, err := options.connect().DeleteService(args[0])
 			if err != nil {
 				return err
 			}

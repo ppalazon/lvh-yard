@@ -14,6 +14,8 @@ type Options struct {
 	Process Process
 	Out     io.Writer
 	Err     io.Writer
+	// Dashboard builds the dashboard of an address. The default is the HTTP client.
+	Dashboard func(address string) Dashboard
 
 	dashboard string
 }
@@ -25,6 +27,9 @@ func NewRoot(options Options, groups ...func(*Options) *cobra.Command) *cobra.Co
 	}
 	if options.Process == nil {
 		options.Process = SystemProcess()
+	}
+	if options.Dashboard == nil {
+		options.Dashboard = newDashboard
 	}
 	if options.Out == nil {
 		options.Out = os.Stdout
