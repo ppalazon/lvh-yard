@@ -32,7 +32,9 @@ class RoutingTest {
     assertThat(routing.kind()).isEqualTo(SourceKind.STATIC);
     assertThat(routing.routedInstances()).containsExactly(first);
     assertThat(routing.waiting()).containsExactly(b.id());
+    assertThat(routing.instances()).containsExactly(first.id());
     assertThat(routing.off()).isFalse();
+    assertThat(routing.offWithPassingInstances()).isFalse();
   }
 
   @Test
@@ -195,6 +197,26 @@ class RoutingTest {
     assertThat(Routing.of(List.of(), ON, HOME)).isEmpty();
   }
 
+  @Test
+  void routeMembershipUsesTheInstanceIdAndExcludesUnselectedInstances() {
+    Instance web = instance(PASSING);
+    Instance critical = instance(CRITICAL);
+    Instance waiting = instance(PASSING);
+    Routing routing =
+        Routing.of(
+                List.of(
+                    source(SourceKind.STATIC, web, critical), source(SourceKind.BOUND, waiting)),
+                ON,
+                HOME)
+            .orElseThrow();
+
+    Instance sameRegistration = instance(web.id(), CRITICAL, false);
+    assertThat(routing.routes(sameRegistration)).isTrue();
+    assertThat(routing.routes(critical)).isFalse();
+    assertThat(routing.routes(waiting)).isFalse();
+    assertThat(routing.routes(instance(PASSING))).isFalse();
+  }
+
   private static InstanceSource source(SourceKind kind, Instance... instances) {
     next++;
     return new InstanceSource("source-" + next, kind, List.of(instances));
@@ -210,9 +232,12 @@ class RoutingTest {
   }
 
   private static Instance instance(Health health, boolean outOfRange) {
-    next++;
+    return instance("instance-" + ++next, health, outOfRange);
+  }
+
+  private static Instance instance(String id, Health health, boolean outOfRange) {
     return new Instance(
-        "instance-" + next,
+        id,
         "10.0.0." + next,
         8080,
         health,

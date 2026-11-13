@@ -219,7 +219,7 @@ comparing it.
   `dashboard/target/spotbugsXml.xml` and `dashboard/target/pmd.xml`.
 - `quality:mutation` runs PIT with the dashboard unit tests only. It changes
   the code of a few classes, and a unit test that still passes means that the
-  tests miss that change. It fails when the score of the four classes is under
+  tests miss that change. It fails when the score of the selected classes is under
   the `mutationThreshold` in `dashboard/pom.xml`. Raise that number when the
   score grows. The report is `dashboard/target/pit-reports/index.html`.
 
@@ -232,10 +232,9 @@ findings.
 `ArchitectureTest` is a unit test of the package rules in
 [design.md](design.md): no package cycles, `consul`, `docker` and `events`
 import no other feature package, and only `consul` uses the Spring web client.
-One of its rules is frozen: no Spring in the pure rules. Its known violation is
-in `dashboard/src/test/resources/archunit_store`, and a new violation fails the
-test. Fix a violation and ArchUnit drops it from the store
-the next time the test runs. Do not add one by hand.
+Pure domain rules import no Spring. All rules reject every violation; none uses
+a frozen baseline. `OutOfRangeConfiguration` binds the out-of-range settings and
+supplies the pure `OutOfRange` rule.
 
 ## Continuous integration
 

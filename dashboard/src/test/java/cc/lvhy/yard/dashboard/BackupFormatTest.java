@@ -7,8 +7,14 @@ import cc.lvhy.yard.dashboard.backups.Backup;
 import cc.lvhy.yard.dashboard.backups.BackupFormat;
 import cc.lvhy.yard.dashboard.backups.BackupProblem;
 import cc.lvhy.yard.dashboard.backups.RefusedBackupException;
+import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /** The YAML of a Backup file: what an export writes and an import reads. */
 class BackupFormatTest {
@@ -198,5 +204,108 @@ class BackupFormatTest {
     assertThat(refused.problems()).extracting(BackupProblem::place).containsExactly("");
     assertThat(List.of(refused.getMessage()))
         .allMatch(message -> message.contains("not valid YAML"));
+  }
+
+  @Test
+  void aBackupMustBeAMapping() {
+    RefusedBackupException refused =
+        catchThrowableOfType(RefusedBackupException.class, () -> BackupFormat.read("[]"));
+
+    assertThat(refused.problems()).extracting(BackupProblem::place).containsExactly("");
+  }
+
+  @ParameterizedTest
+  @MethodSource("wrongShapes")
+  void wrongShapesAreRefusedAtTheirPlace(String yaml, String place) {
+    RefusedBackupException refused =
+        catchThrowableOfType(
+            RefusedBackupException.class, () -> BackupFormat.read("version: 3\n" + yaml));
+
+    assertThat(refused.problems()).extracting(BackupProblem::place).containsExactly(place);
+  }
+
+  static Stream<Arguments> wrongShapes() {
+    return Stream.of(
+        Arguments.of("exported-from: {at: yesterday}", "exported-from.at"),
+        Arguments.of("route-profiles: {auth: []}", "route-profiles.auth"),
+        Arguments.of("services: []", "services"),
+        Arguments.of("services: {web: {publication: true}}", "services.web.publication"),
+        Arguments.of("services: {web: {sources: {}}}", "services.web.sources"),
+        Arguments.of("services: {web: {sources: [null]}}", "services.web.sources[0]"),
+        Arguments.of(
+            "services: {web: {sources: [{static-instance: {port: tcp}}]}}",
+            "services.web.sources[0].static-instance.port"),
+        Arguments.of(
+            "services: {web: {sources: [{static-instance: {port: 80, host: []}}]}}",
+            "services.web.sources[0].static-instance.host"),
+        Arguments.of(
+            "services: {web: {sources: [{container-binding: {port: 80}}]}}",
+            "services.web.sources[0].container-binding"),
+        Arguments.of(
+            "services: {web: {sources: [{container-binding: {port: 80, container: web, compose:"
+                + " {project: shop, service: web}}}]}}",
+            "services.web.sources[0].container-binding"),
+        Arguments.of(
+            "services: {web: {sources: [{alias: {workstation: ws-b}}]}}",
+            "services.web.sources[0].alias.service"));
+  }
+
+  @Test
+  void aMissingVersionIsRefused() {
+    RefusedBackupException refused =
+        catchThrowableOfType(RefusedBackupException.class, () -> BackupFormat.read("services: {}"));
+
+    assertThat(refused.problems()).extracting(BackupProblem::place).containsExactly("version");
+  }
+
+  @Test
+  void numericAndBooleanTagsAndMetaReadAsText() {
+    Backup.StaticInstance instance =
+        BackupFormat.read(
+                """
+                version: 3
+                services:
+                  web:
+                    sources:
+                      - static-instance:
+                          port: 80
+                          tags: [42, true]
+                          meta: {build: 42, ready: true, empty: null}
+                """)
+            .services()
+            .get("web")
+            .staticInstances()
+            .getFirst();
+
+    assertThat(instance.tags()).containsExactly("42", "true");
+    assertThat(instance.meta())
+        .isEqualTo(java.util.Map.of("build", "42", "ready", "true", "empty", ""));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"2026-11-05T10:00:00Z", "'2026-11-05T12:00:00+02:00'"})
+  void quotedAndYamlTimestampsKeepTheExportTime(String at) {
+    Backup backup =
+        BackupFormat.read("version: 3\nexported-from: {workstation: ws-a, at: " + at + "}");
+
+    assertThat(backup.exportedFrom().at().toInstant())
+        .isEqualTo(OffsetDateTime.parse("2026-11-05T10:00:00Z").toInstant());
+    assertThat(BackupFormat.read(BackupFormat.write(backup))).isEqualTo(backup);
+  }
+
+  @Test
+  void anExportWithoutATimeKeepsItsWorkstation() {
+    Backup backup = BackupFormat.read("version: 3\nexported-from: {workstation: ws-a}");
+
+    assertThat(backup.exportedFrom()).isEqualTo(new Backup.ExportedFrom("ws-a", null));
+    assertThat(BackupFormat.read(BackupFormat.write(backup))).isEqualTo(backup);
+  }
+
+  @Test
+  void anEmptyServiceNeedsNoOptions() {
+    Backup backup = BackupFormat.read("version: 3\nservices: {web: null}");
+
+    assertThat(backup.services().get("web")).isEqualTo(new Backup.Service(null, null, List.of()));
+    assertThat(BackupFormat.read(BackupFormat.write(backup))).isEqualTo(backup);
   }
 }
