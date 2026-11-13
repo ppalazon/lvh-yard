@@ -133,6 +133,8 @@ class ArchitectureTest {
                 .or()
                 .haveSimpleNameStartingWith("InstanceRules")
                 .or()
+                .haveSimpleNameStartingWith("InstanceMapping")
+                .or()
                 .haveSimpleNameStartingWith("ServiceState")
                 .or()
                 .haveSimpleNameStartingWith("Health")

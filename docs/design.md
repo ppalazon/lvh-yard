@@ -116,14 +116,14 @@ The package graph had three cycles at first: `services`↔`profiles`,
 
 ### Findings
 
-| Class               | Size                        | PMD                                                 | Problem                                                                                    |
-| ------------------- | --------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `Registrations`     | 587 lines at first, 309 now | God class, total cyclomatic complexity 105 at first | Split: `InstanceRules` (301 lines, no Spring) has the input rules. The Consul writes stay. |
-| `YardReader`        | 431 lines                   | God class, coupling 47 (limit 20)                   | Reads Consul, runs a circuit breaker, builds hostnames, maps entries and parses durations. |
-| `ImportPlanner`     | 505 lines                   | God class, coupling 34                              | Ten constructor dependencies.                                                              |
-| `ContainerBindings` | 390 lines                   | God class, coupling 25                              | Checks, Consul writes and Docker sync together.                                            |
-| `PagesController`   | 527 lines                   | Total cyclomatic complexity 85, 10 imports too many | Ten constructor dependencies and about 30 handlers.                                        |
-| `BackupsPage`       | 636 lines                   | God class                                           | One view class with 48 branches.                                                           |
+| Class               | Size                        | PMD                                                 | Problem                                                                                                                                                                               |
+| ------------------- | --------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Registrations`     | 587 lines at first, 309 now | God class, total cyclomatic complexity 105 at first | Split: `InstanceRules` (301 lines, no Spring) has the input rules. The Consul writes stay.                                                                                            |
+| `YardReader`        | 431 lines at first, 169 now | God class, coupling 47 (limit 20) at first          | Split into `DatacenterReads` (the circuit breaker), `DatacenterServices` (a datacenter's Services and the hostname rule) and `InstanceMapping` (Consul entry to Instance, no Spring). |
+| `ImportPlanner`     | 505 lines                   | God class, coupling 34                              | Ten constructor dependencies.                                                                                                                                                         |
+| `ContainerBindings` | 390 lines                   | God class, coupling 25                              | Checks, Consul writes and Docker sync together.                                                                                                                                       |
+| `PagesController`   | 527 lines                   | Total cyclomatic complexity 85, 10 imports too many | Ten constructor dependencies and about 30 handlers.                                                                                                                                   |
+| `BackupsPage`       | 636 lines                   | God class                                           | One view class with 48 branches.                                                                                                                                                      |
 
 SpotBugs found 80 problems and PMD found 150 when I first ran them. Most are
 noise or style:
@@ -145,13 +145,14 @@ cover the HTTP path, so these numbers are the unit tests alone. The first
 column is the first run, the second is after the new tests of `Registrations`
 and `RouteBuilder`:
 
-| Class                               | Mutants | Killed at first | Killed now | Survived now |
-| ----------------------------------- | ------- | --------------- | ---------- | ------------ |
-| `Registrations` and `InstanceRules` | 137     | 23 (17%)        | 137 (99%)  | 1            |
-| `BackupFormat`                      | 125     | 101 (81%)       | 101 (81%)  | 7            |
-| `Routing`                           | 34      | 29 (85%)        | 29 (85%)   | 0            |
-| `RouteBuilder`                      | 28      | 16 (57%)        | 28 (100%)  | 0            |
-| All classes                         | 325     | 169 (52%)       | 295 (91%)  | 8            |
+| Class                               | Mutants | Killed at first  | Killed now | Survived now |
+| ----------------------------------- | ------- | ---------------- | ---------- | ------------ |
+| `Registrations` and `InstanceRules` | 137     | 23 (17%)         | 137 (99%)  | 1            |
+| `BackupFormat`                      | 125     | 101 (81%)        | 101 (81%)  | 7            |
+| `Routing`                           | 34      | 29 (85%)         | 29 (85%)   | 0            |
+| `RouteBuilder`                      | 28      | 16 (57%)         | 28 (100%)  | 0            |
+| `InstanceMapping`                   | 19      | new              | 19 (100%)  | 0            |
+| All classes                         | 344     | 169 of 325 (52%) | 314 (91%)  | 8            |
 
 `dashboard/pom.xml` sets `mutationThreshold` to 90, so `mise run quality` fails
 when the score drops. The one survivor of `InstanceRules` is `parseMeta` returning
@@ -224,9 +225,11 @@ flowchart LR
   - `composefile`: the image values of a `compose.yaml`, and their replacement.
   - `tlsca`: the Yard CA, the Consul and Traefik certificates, the Client
     Certificates, and the checks of a certificate.
-    Each has its own tests. For `settings` and `composefile`, a temporary test
-    compared the new code with the old for many inputs, and the answers were the
-    same.
+
+  Each has its own tests. For `settings` and `composefile`, a temporary test
+  compared the new code with the old for many inputs, and the answers were the
+  same.
+
 - `client` is clean. It imports no other package of the CLI.
 - `command.Process` is the only interface. It has 7 methods and mixes
   environment, input, terminal, LAN address, editor, `exec` and `id`.
