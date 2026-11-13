@@ -13,4 +13,5 @@ paths = [
   '''^dev/workstations\.sh$''',
   '''^cli/internal/command/init(_reinit)?_test\.go$''',
   '''^cli-go/internal/command/init(_reinit)?_test\.go$''',
+  '''^cli/src/test/java/dev/palazon/lvhyard/cli/(Init|Yard)Test\.java$''',
 ]
