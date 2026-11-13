@@ -54,117 +54,32 @@ func newWSInit(options *Options, folder func() string) *cobra.Command {
 	return cmd
 }
 
+// create asks for what the flags left out, fills .env from the template and writes the files.
 func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string) error {
 	env := envfile.Parse(templates.Env())
-	terminal := f.terminal || options.Process.IsTerminal()
-	answers := bufio.NewReader(options.Process.Input())
-	ask := func(question, flag string) (string, error) {
-		if !terminal {
-			return "", fmt.Errorf("Missing %s: no terminal to ask for it, so give it as %s", flag, flag)
-		}
-		fmt.Fprint(cmd.OutOrStdout(), question)
-		line, err := answers.ReadString('\n')
-		if err != nil && (err != io.EOF || len(line) == 0) {
-			fmt.Fprintln(cmd.OutOrStdout())
-			if err == io.EOF {
-				return "", fmt.Errorf("Missing %s: the input ended before it was given", flag)
-			}
-			return "", fmt.Errorf("Missing %s: could not read it: %w", flag, err)
-		}
-		return strings.TrimSpace(line), nil
+	prompt := &initPrompt{
+		out:      cmd.OutOrStdout(),
+		terminal: f.terminal || options.Process.IsTerminal(),
+		answers:  bufio.NewReader(options.Process.Input()),
 	}
-	name := f.workstation
-	if !cmd.Flags().Changed("workstation") && name == "" {
-		hostname := f.hostname
-		if !cmd.Flags().Changed("hostname") {
-			hostname, _ = os.Hostname()
-		}
-		offered := nameFromHostname(hostname)
-		question := "Workstation name, unique in the Yard (lowercase letters, digits and -)"
-		if offered != "" {
-			question += " [" + offered + "]"
-		}
-		for {
-			typed, err := ask(question+": ", "--workstation")
-			if err != nil {
-				return err
-			}
-			name = typed
-			if name == "" {
-				name = offered
-			}
-			if settings.ValidWorkstationName(name) {
-				break
-			}
-			if name == "" {
-				fmt.Fprintln(cmd.OutOrStdout(), "A Workstation needs a name: use lowercase letters, digits and -, at most 63, not starting or ending with -.")
-			} else {
-				fmt.Fprintln(cmd.OutOrStdout(), name+" is not a Workstation name: use lowercase letters, digits and -, at most 63, not starting or ending with -.")
-			}
-		}
-	}
-	if !settings.ValidWorkstationName(name) {
-		return fmt.Errorf("--workstation %s is not a Workstation name: use lowercase letters, digits and -, at most 63, not starting or ending with -", name)
-	}
-	domain := f.baseDomain
-	if !cmd.Flags().Changed("base-domain") {
-		domain = env.Get("YARD_BASE_DOMAIN")
-		if terminal {
-			for {
-				typed, err := ask("Base Domain ["+env.Get("YARD_BASE_DOMAIN")+"]: ", "--base-domain")
-				if err != nil {
-					return err
-				}
-				domain = typed
-				if domain == "" {
-					domain = env.Get("YARD_BASE_DOMAIN")
-				}
-				if settings.ValidBaseDomain(domain) {
-					break
-				}
-				fmt.Fprintln(cmd.OutOrStdout(), domain+" is not a domain name such as lvh.me.")
-			}
-		}
-	}
-	if !settings.ValidBaseDomain(domain) {
-		return fmt.Errorf("--base-domain %s is not a domain name such as lvh.me", domain)
-	}
-	key := f.gossipKey
-	if cmd.Flags().Changed("gossip-key") || key != "" {
-		if err := checkInitGossipKey(key); err != nil {
-			return err
-		}
-	} else {
-		bytes := make([]byte, 32)
-		if _, err := rand.Read(bytes); err != nil {
-			return fmt.Errorf("could not make a Gossip Key: %w", err)
-		}
-		key = base64.StdEncoding.EncodeToString(bytes)
-	}
-	var peers []string
-	for _, list := range f.peers {
-		peers = append(peers, strings.FieldsFunc(list, func(r rune) bool { return r == ',' || unicode.IsSpace(r) })...)
-	}
-	checkedPeers, err := settings.Check("peers", strings.Join(peers, " "))
+	name, err := f.workstationName(cmd, prompt)
 	if err != nil {
 		return err
 	}
-	for _, found := range [][2]string{
-		{"COMPOSE_PROFILES", "dashboard,traefik"},
-		{"YARD_UID", options.Process.ID("-u")},
-		{"YARD_GID", options.Process.ID("-g")},
-		{"YARD_DOCKER_GID", dockerGroup(f.dockerSocket)},
-	} {
-		if err := env.FillIfEmpty(found[0], found[1]); err != nil {
-			return err
-		}
+	domain, err := f.baseDomainValue(cmd, prompt, env.Get("YARD_BASE_DOMAIN"))
+	if err != nil {
+		return err
 	}
-	settings := [][2]string{{"YARD_WORKSTATION", name}, {"YARD_BASE_DOMAIN", domain}, {"YARD_GOSSIP_KEY", key}}
-	settings = append(settings, [2]string{"YARD_PEERS", checkedPeers})
-	for _, setting := range settings {
-		if err := env.Set(setting[0], setting[1]); err != nil {
-			return err
-		}
+	key, err := f.gossipKeyValue(cmd)
+	if err != nil {
+		return err
+	}
+	peers, err := f.checkedPeers()
+	if err != nil {
+		return err
+	}
+	if err := f.fillEnv(env, options, name, domain, key, peers); err != nil {
+		return err
 	}
 	compose, err := templates.Compose(options.Version)
 	if err != nil {
@@ -178,6 +93,142 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "Wrote compose.yaml, .env, lvh-yard.yaml to %s.\n\n", folder)
 	printInitNextSteps(cmd.OutOrStdout(), folder, env, options.WorkstationFolder())
+	return nil
+}
+
+// initPrompt asks at a terminal. Without one, a question is an error that names the flag.
+type initPrompt struct {
+	out      io.Writer
+	terminal bool
+	answers  *bufio.Reader
+}
+
+func (p *initPrompt) ask(question, flag string) (string, error) {
+	if !p.terminal {
+		return "", fmt.Errorf("Missing %s: no terminal to ask for it, so give it as %s", flag, flag)
+	}
+	fmt.Fprint(p.out, question)
+	line, err := p.answers.ReadString('\n')
+	if err != nil && (err != io.EOF || len(line) == 0) {
+		fmt.Fprintln(p.out)
+		if err == io.EOF {
+			return "", fmt.Errorf("Missing %s: the input ended before it was given", flag)
+		}
+		return "", fmt.Errorf("Missing %s: could not read it: %w", flag, err)
+	}
+	return strings.TrimSpace(line), nil
+}
+
+// askValid asks again until the answer, or the fallback for an empty one, is valid.
+func (p *initPrompt) askValid(question, flag, fallback string, valid func(string) bool, refusal func(string) string) (string, error) {
+	for {
+		typed, err := p.ask(question, flag)
+		if err != nil {
+			return "", err
+		}
+		answer := typed
+		if answer == "" {
+			answer = fallback
+		}
+		if valid(answer) {
+			return answer, nil
+		}
+		fmt.Fprintln(p.out, refusal(answer))
+	}
+}
+
+const workstationNameRule = "use lowercase letters, digits and -, at most 63, not starting or ending with -"
+
+// workstationName is the --workstation flag, or the answer to a question that offers the name of
+// this computer.
+func (f *initOptions) workstationName(cmd *cobra.Command, prompt *initPrompt) (string, error) {
+	name := f.workstation
+	if !cmd.Flags().Changed("workstation") && name == "" {
+		hostname := f.hostname
+		if !cmd.Flags().Changed("hostname") {
+			hostname, _ = os.Hostname()
+		}
+		offered := nameFromHostname(hostname)
+		question := "Workstation name, unique in the Yard (lowercase letters, digits and -)"
+		if offered != "" {
+			question += " [" + offered + "]"
+		}
+		var err error
+		name, err = prompt.askValid(question+": ", "--workstation", offered, settings.ValidWorkstationName, func(answer string) string {
+			if answer == "" {
+				return "A Workstation needs a name: " + workstationNameRule + "."
+			}
+			return answer + " is not a Workstation name: " + workstationNameRule + "."
+		})
+		if err != nil {
+			return "", err
+		}
+	}
+	if !settings.ValidWorkstationName(name) {
+		return "", fmt.Errorf("--workstation %s is not a Workstation name: %s", name, workstationNameRule)
+	}
+	return name, nil
+}
+
+// baseDomainValue is the --base-domain flag, or the answer at a terminal, or the template's.
+func (f *initOptions) baseDomainValue(cmd *cobra.Command, prompt *initPrompt, templateDomain string) (string, error) {
+	domain := f.baseDomain
+	if !cmd.Flags().Changed("base-domain") {
+		domain = templateDomain
+		if prompt.terminal {
+			var err error
+			domain, err = prompt.askValid("Base Domain ["+templateDomain+"]: ", "--base-domain", templateDomain, settings.ValidBaseDomain, func(answer string) string {
+				return answer + " is not a domain name such as lvh.me."
+			})
+			if err != nil {
+				return "", err
+			}
+		}
+	}
+	if !settings.ValidBaseDomain(domain) {
+		return "", fmt.Errorf("--base-domain %s is not a domain name such as lvh.me", domain)
+	}
+	return domain, nil
+}
+
+// gossipKeyValue is the --gossip-key flag, checked, or a new random key.
+func (f *initOptions) gossipKeyValue(cmd *cobra.Command) (string, error) {
+	if cmd.Flags().Changed("gossip-key") || f.gossipKey != "" {
+		return f.gossipKey, checkInitGossipKey(f.gossipKey)
+	}
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("could not make a Gossip Key: %w", err)
+	}
+	return base64.StdEncoding.EncodeToString(bytes), nil
+}
+
+// checkedPeers joins the --peers values, which may hold several addresses, and checks them.
+func (f *initOptions) checkedPeers() (string, error) {
+	var peers []string
+	for _, list := range f.peers {
+		peers = append(peers, strings.FieldsFunc(list, func(r rune) bool { return r == ',' || unicode.IsSpace(r) })...)
+	}
+	return settings.Check("peers", strings.Join(peers, " "))
+}
+
+// fillEnv gives the template's empty settings a value of this computer, and sets the answers.
+func (f *initOptions) fillEnv(env *envfile.File, options *Options, name, domain, key, peers string) error {
+	for _, found := range [][2]string{
+		{"COMPOSE_PROFILES", "dashboard,traefik"},
+		{"YARD_UID", options.Process.ID("-u")},
+		{"YARD_GID", options.Process.ID("-g")},
+		{"YARD_DOCKER_GID", dockerGroup(f.dockerSocket)},
+	} {
+		if err := env.FillIfEmpty(found[0], found[1]); err != nil {
+			return err
+		}
+	}
+	for _, setting := range [][2]string{{"YARD_WORKSTATION", name}, {"YARD_BASE_DOMAIN", domain}, {"YARD_GOSSIP_KEY", key}, {"YARD_PEERS", peers}} {
+		if err := env.Set(setting[0], setting[1]); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

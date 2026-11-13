@@ -269,12 +269,12 @@ lists them.
   that its command calls. Split it by command if a fake gets in the way.
 - Move pure logic out of the cobra closures into packages. Done for the four
   above, and `checkWSSetting` (31) and `composeImages` (20) left the gocyclo
-  list. The worst closures remain: `NewRemove` 40, `init.create` 38,
-  `newWSTLSIssueRoles` 29, `upgradeInit` 27 and `newWSYardShare` 27. They mostly
-  orchestrate prompts, files and output, so the next step is smaller functions in
-  `command`, not more packages.
-- No port for the filesystem or the clock. `t.TempDir()` is enough.
-- Split `Process` only if the client change shows the need.
+  list. `NewRemove` (40), `init.create` (38) and `upgradeInit` (27) are now
+  split into small functions in `command`: `removeSelection` with its checks and
+  selectors, `initPrompt` with one function for each answer, and one function for
+  each step of the upgrade. All three are under 16. The worst left are
+  `newWSTLSIssueRoles` 29, `newWSYardShare` 27, `NewCatalog` 26,
+  `newWSTLSIssueUser` 25 and `newWSTLSInstall` 25.
 
 ## Quality tools
 
