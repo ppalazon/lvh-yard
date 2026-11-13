@@ -63,7 +63,7 @@ func newWSTLSIssueRoles(options *Options, folder func() string, use, short, long
 			return err
 		}
 		p := newPrompter(cmd, options)
-		self := strings.Trim(env.get("YARD_WORKSTATION"), "\"'")
+		self := strings.Trim(env.Get("YARD_WORKSTATION"), "\"'")
 		name := self
 		if len(args) == 1 {
 			name = args[0]
@@ -76,7 +76,7 @@ func newWSTLSIssueRoles(options *Options, folder func() string, use, short, long
 		if err := checkWorkstationName(name); err != nil {
 			return err
 		}
-		base := env.valueOrDefault("YARD_BASE_DOMAIN")
+		base := env.ValueOrDefault("YARD_BASE_DOMAIN")
 		if forTraefik {
 			if cmd.Flags().Changed("base-domain") {
 				base = domain

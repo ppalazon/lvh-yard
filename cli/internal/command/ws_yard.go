@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
 	"io"
 	"net"
 	"os"
@@ -29,7 +30,7 @@ func newWSYardShare(options *Options, folder func() string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			key := strings.Trim(env.get("YARD_GOSSIP_KEY"), "\"'")
+			key := strings.Trim(env.Get("YARD_GOSSIP_KEY"), "\"'")
 			if err := checkInitGossipKey(key); err != nil {
 				return err
 			}
@@ -40,7 +41,7 @@ func newWSYardShare(options *Options, folder func() string) *cobra.Command {
 					return fmt.Errorf("--address must be a specific IPv4 address, such as 192.168.1.10")
 				}
 				peer = ip.String()
-			} else if ip := net.ParseIP(env.get("YARD_BIND_ADDRESS")); ip != nil && ip.To4() != nil && !ip.IsUnspecified() && !ip.IsLoopback() {
+			} else if ip := net.ParseIP(env.Get("YARD_BIND_ADDRESS")); ip != nil && ip.To4() != nil && !ip.IsUnspecified() && !ip.IsLoopback() {
 				peer = ip.String()
 			} else if detected, err := options.Process.LANAddress(); err == nil && detected != "" {
 				peer = detected
@@ -61,15 +62,15 @@ func newWSYardShare(options *Options, folder func() string) *cobra.Command {
 			}
 			out := cmd.OutOrStdout()
 			ws := wsCommand(folder(), options.WorkstationFolder())
-			fmt.Fprintf(out, "Yard invitation from %s.\nKeep these instructions private: they contain the Yard's Gossip Key.\n\n", env.get("YARD_WORKSTATION"))
-			fmt.Fprintf(out, "1. Prepare this Workstation for incoming connections.\n   Peer address: %s:%s\n   Allow TCP port %s and TCP and UDP port %s from other Workstations.\n", peer, env.valueOrDefault("YARD_CONSUL_SERF_WAN_PORT"), env.valueOrDefault("YARD_CONSUL_SERVER_PORT"), env.valueOrDefault("YARD_CONSUL_SERF_WAN_PORT"))
+			fmt.Fprintf(out, "Yard invitation from %s.\nKeep these instructions private: they contain the Yard's Gossip Key.\n\n", env.Get("YARD_WORKSTATION"))
+			fmt.Fprintf(out, "1. Prepare this Workstation for incoming connections.\n   Peer address: %s:%s\n   Allow TCP port %s and TCP and UDP port %s from other Workstations.\n", peer, env.ValueOrDefault("YARD_CONSUL_SERF_WAN_PORT"), env.ValueOrDefault("YARD_CONSUL_SERVER_PORT"), env.ValueOrDefault("YARD_CONSUL_SERF_WAN_PORT"))
 			if peer == "<this-workstation-lan-ip>" {
 				fmt.Fprintln(out, "   No LAN IPv4 address could be detected. Set it explicitly:")
 			} else {
 				fmt.Fprintln(out, "   If this address is not reachable from other Workstations, override it:")
 			}
 			fmt.Fprintf(out, "      %s yard share --address '<lan-ip>'\n", ws)
-			if ip := net.ParseIP(env.get("YARD_BIND_ADDRESS")); ip != nil && ip.IsLoopback() {
+			if ip := net.ParseIP(env.Get("YARD_BIND_ADDRESS")); ip != nil && ip.IsLoopback() {
 				fmt.Fprintln(out, "   Consul listens only on this computer.")
 				if ip := net.ParseIP(peer); ip == nil || !ip.IsLoopback() {
 					fmt.Fprintf(out, "   Before another computer joins, change the binding:\n      %s set bind-address %s\n   Apply the commands it prints.\n", ws, quoteShell(peer))
@@ -78,7 +79,7 @@ func newWSYardShare(options *Options, folder func() string) *cobra.Command {
 			if ip := net.ParseIP(peer); ip != nil && ip.IsLoopback() {
 				fmt.Fprintln(out, "   This Peer works only for Workstations on the same computer.")
 			}
-			peer += ":" + env.valueOrDefault("YARD_CONSUL_SERF_WAN_PORT")
+			peer += ":" + env.ValueOrDefault("YARD_CONSUL_SERF_WAN_PORT")
 			fmt.Fprintln(out, "\n2. On the joining Workstation, not on this one, run ONE of these commands:")
 			fmt.Fprintf(out, "\n   A. New Workstation (asks for its name and Base Domain):\n      lvh-yard ws init --gossip-key %s --peers %s\n", quoteShell(key), quoteShell(peer))
 			fmt.Fprintf(out, "\n   B. Already initialized Workstation:\n      lvh-yard ws yard join --gossip-key %s --peers %s\n", quoteShell(key), quoteShell(peer))
@@ -108,8 +109,8 @@ func printYardTLSImport(out io.Writer, ws, bundle string) {
 	fmt.Fprintf(out, "      %s tls import consul --ca %s --cert %s --key %s\n", ws, quoteShell(filepath.Join(bundle, "ca.crt")), quoteShell(filepath.Join(bundle, "consul.crt")), quoteShell(filepath.Join(bundle, "consul.key")))
 }
 
-func printYardJoinTLS(out io.Writer, ws, folder string, env *envFile, tlsEnabled bool) {
-	fmt.Fprintf(out, "1. Match the destination Yard's Consul TLS mode. Choose ONE:\n\n   A. Destination uses TLS:\n      Get its public CA and a separate Consul certificate for server.%s.consul.\n      Import the received files:\n", env.get("YARD_WORKSTATION"))
+func printYardJoinTLS(out io.Writer, ws, folder string, env *envfile.File, tlsEnabled bool) {
+	fmt.Fprintf(out, "1. Match the destination Yard's Consul TLS mode. Choose ONE:\n\n   A. Destination uses TLS:\n      Get its public CA and a separate Consul certificate for server.%s.consul.\n      Import the received files:\n", env.Get("YARD_WORKSTATION"))
 	printYardTLSImport(out, ws, "<received-folder>")
 	fmt.Fprintln(out, "      Never copy the CA key or reuse another Workstation's certificate keys.\n\n   B. Destination does not use TLS:")
 	if tlsEnabled {
@@ -149,11 +150,11 @@ func newWSJoin(options *Options, folder func() string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := env.set("YARD_GOSSIP_KEY", key); err != nil {
+			if err := env.Set("YARD_GOSSIP_KEY", key); err != nil {
 				return err
 			}
 			if cmd.Flags().Changed("peers") {
-				if err := env.set("YARD_PEERS", checked); err != nil {
+				if err := env.Set("YARD_PEERS", checked); err != nil {
 					return err
 				}
 			}

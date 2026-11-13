@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
 	"io"
 	"os"
 	"path/filepath"
@@ -57,7 +58,7 @@ func newWSInit(options *Options, folder func() string) *cobra.Command {
 }
 
 func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string) error {
-	env := parseEnvFile(templates.Env())
+	env := envfile.Parse(templates.Env())
 	terminal := f.terminal || options.Process.IsTerminal()
 	answers := bufio.NewReader(options.Process.Input())
 	ask := func(question, flag string) (string, error) {
@@ -110,16 +111,16 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	}
 	domain := f.baseDomain
 	if !cmd.Flags().Changed("base-domain") {
-		domain = env.get("YARD_BASE_DOMAIN")
+		domain = env.Get("YARD_BASE_DOMAIN")
 		if terminal {
 			for {
-				typed, err := ask("Base Domain ["+env.get("YARD_BASE_DOMAIN")+"]: ", "--base-domain")
+				typed, err := ask("Base Domain ["+env.Get("YARD_BASE_DOMAIN")+"]: ", "--base-domain")
 				if err != nil {
 					return err
 				}
 				domain = typed
 				if domain == "" {
-					domain = env.get("YARD_BASE_DOMAIN")
+					domain = env.Get("YARD_BASE_DOMAIN")
 				}
 				if baseDomainName.MatchString(domain) {
 					break
@@ -157,14 +158,14 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 		{"YARD_GID", options.Process.ID("-g")},
 		{"YARD_DOCKER_GID", dockerGroup(f.dockerSocket)},
 	} {
-		if err := env.fillIfEmpty(found[0], found[1]); err != nil {
+		if err := env.FillIfEmpty(found[0], found[1]); err != nil {
 			return err
 		}
 	}
 	settings := [][2]string{{"YARD_WORKSTATION", name}, {"YARD_BASE_DOMAIN", domain}, {"YARD_GOSSIP_KEY", key}}
 	settings = append(settings, [2]string{"YARD_PEERS", checkedPeers})
 	for _, setting := range settings {
-		if err := env.set(setting[0], setting[1]); err != nil {
+		if err := env.Set(setting[0], setting[1]); err != nil {
 			return err
 		}
 	}
@@ -172,10 +173,10 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	if err != nil {
 		return err
 	}
-	if err := writeWorkstationFiles(folder, compose, env.text(), f.force); err != nil {
+	if err := writeWorkstationFiles(folder, compose, env.Text(), f.force); err != nil {
 		return err
 	}
-	if strings.TrimSpace(env.get("YARD_DOCKER_GID")) == "" {
+	if strings.TrimSpace(env.Get("YARD_DOCKER_GID")) == "" {
 		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: no Docker socket at %s, so YARD_DOCKER_GID in .env is empty. Set it to the group of /var/run/docker.sock, or the dashboard will not start.\n", f.dockerSocket)
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "Wrote compose.yaml, .env, lvh-yard.yaml to %s.\n\n", folder)
@@ -274,59 +275,14 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 	return protectWorkstationFolder(folder)
 }
 
-type envFile struct {
-	lines []string
-}
-
-func parseEnvFile(text string) *envFile {
-	return &envFile{lines: strings.Split(strings.TrimSuffix(strings.ReplaceAll(text, "\r\n", "\n"), "\n"), "\n")}
-}
-
-func (e *envFile) get(key string) string {
-	for _, line := range e.lines {
-		if value, ok := strings.CutPrefix(line, key+"="); ok {
-			return value
-		}
-	}
-	return ""
-}
-
-func (e *envFile) set(key, value string) error {
-	for i, line := range e.lines {
-		if strings.HasPrefix(strings.TrimPrefix(line, "#"), key+"=") {
-			e.lines[i] = key + "=" + value
-			return nil
-		}
-	}
-	return fmt.Errorf(".env has no setting %s", key)
-}
-
-func (e *envFile) fillIfEmpty(key, found string) error {
-	if strings.TrimSpace(e.get(key)) == "" && found != "" {
-		return e.set(key, found)
-	}
-	return nil
-}
-
-func (e *envFile) text() string {
-	return strings.Join(e.lines, "\n") + "\n"
-}
-
-func (e *envFile) valueOrDefault(key string) string {
-	if value := e.get(key); strings.TrimSpace(value) != "" {
-		return value
-	}
-	return envSetting(templates.Env(), key, "")
-}
-
-func printInitNextSteps(out io.Writer, folder string, env *envFile, defaultFolder string) {
-	bind := env.valueOrDefault("YARD_DASHBOARD_BIND_ADDRESS")
+func printInitNextSteps(out io.Writer, folder string, env *envfile.File, defaultFolder string) {
+	bind := env.ValueOrDefault("YARD_DASHBOARD_BIND_ADDRESS")
 	if bind == "0.0.0.0" {
 		bind = "127.0.0.1"
 	}
-	dashboard := "http://" + bind + ":" + env.valueOrDefault("YARD_DASHBOARD_PORT")
-	yard := "http://yard." + env.valueOrDefault("YARD_BASE_DOMAIN")
-	if port := env.valueOrDefault("YARD_HTTP_PORT"); port != "80" {
+	dashboard := "http://" + bind + ":" + env.ValueOrDefault("YARD_DASHBOARD_PORT")
+	yard := "http://yard." + env.ValueOrDefault("YARD_BASE_DOMAIN")
+	if port := env.ValueOrDefault("YARD_HTTP_PORT"); port != "80" {
 		yard += ":" + port
 	}
 	ws := wsCommand(folder, defaultFolder)

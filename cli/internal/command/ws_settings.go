@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
 	"net"
 	"os"
 	"path/filepath"
@@ -43,11 +44,8 @@ func newWSShow(folder func() string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			for _, line := range env.lines {
-				key, value, ok := strings.Cut(line, "=")
-				if !ok || strings.HasPrefix(key, "#") {
-					continue
-				}
+			for _, setting := range env.Settings() {
+				key, value := setting[0], setting[1]
 				if key == "YARD_GOSSIP_KEY" {
 					value = "[hidden]"
 				}
@@ -78,11 +76,11 @@ func newWSSet(folder func() string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := env.set(key, checked); err != nil {
+			if err := env.Set(key, checked); err != nil {
 				return err
 			}
 			if name == "traefik" {
-				profiles := strings.FieldsFunc(strings.Trim(env.get("COMPOSE_PROFILES"), "\"'"), func(r rune) bool { return r == ',' || unicode.IsSpace(r) })
+				profiles := strings.FieldsFunc(strings.Trim(env.Get("COMPOSE_PROFILES"), "\"'"), func(r rune) bool { return r == ',' || unicode.IsSpace(r) })
 				kept := make([]string, 0, len(profiles)+1)
 				for _, profile := range profiles {
 					if profile != "traefik" {
@@ -92,7 +90,7 @@ func newWSSet(folder func() string) *cobra.Command {
 				if checked == "true" {
 					kept = append(kept, "traefik")
 				}
-				if err := env.set("COMPOSE_PROFILES", strings.Join(kept, ",")); err != nil {
+				if err := env.Set("COMPOSE_PROFILES", strings.Join(kept, ",")); err != nil {
 					return err
 				}
 			}
@@ -167,25 +165,25 @@ func checkWSSetting(name, value string) (string, error) {
 	return value, nil
 }
 
-func readWSEnv(folder string) (*envFile, error) {
+func readWSEnv(folder string) (*envfile.File, error) {
 	path := filepath.Join(folder, ".env")
 	text, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("could not read %s: %w", path, err)
 	}
-	return parseEnvFile(string(text)), nil
+	return envfile.Parse(string(text)), nil
 }
 
-func saveWSEnv(cmd *cobra.Command, folder string, env *envFile) error {
+func saveWSEnv(cmd *cobra.Command, folder string, env *envfile.File) error {
 	if err := protectWorkstationFolder(folder); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(folder, ".env"), []byte(env.text()), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(folder, ".env"), []byte(env.Text()), 0600); err != nil {
 		return err
 	}
 	fmt.Fprintln(cmd.OutOrStdout(), "Saved .env. Apply the settings:")
 	quotedFolder := quoteShell(folder)
-	if strings.Trim(env.get("YARD_TRAEFIK_ENABLED"), "\"'") == "false" {
+	if strings.Trim(env.Get("YARD_TRAEFIK_ENABLED"), "\"'") == "false" {
 		fmt.Fprintf(cmd.OutOrStdout(), "  docker compose --project-directory %s --profile traefik stop traefik\n", quotedFolder)
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "  %s compose recreate\n", wsCommandOf(cmd, folder))

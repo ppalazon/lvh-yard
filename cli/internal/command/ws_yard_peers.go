@@ -36,8 +36,8 @@ func newWSYardPeers(folder func() string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			self := strings.Trim(env.get("YARD_WORKSTATION"), "\"'")
-			members, err := readWANMembers(env.valueOrDefault("YARD_CONSUL_HTTP_PORT"))
+			self := strings.Trim(env.Get("YARD_WORKSTATION"), "\"'")
+			members, err := readWANMembers(env.ValueOrDefault("YARD_CONSUL_HTTP_PORT"))
 			if err != nil {
 				return err
 			}
@@ -82,11 +82,11 @@ func newWSYardPeers(folder func() string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if strings.Join(strings.FieldsFunc(env.get("YARD_PEERS"), func(r rune) bool { return r == ',' || r == ' ' }), " ") == value {
+			if strings.Join(strings.FieldsFunc(env.Get("YARD_PEERS"), func(r rune) bool { return r == ',' || r == ' ' }), " ") == value {
 				fmt.Fprintln(out, "YARD_PEERS is already up to date.")
 				return nil
 			}
-			if err := env.set("YARD_PEERS", value); err != nil {
+			if err := env.Set("YARD_PEERS", value); err != nil {
 				return err
 			}
 			return saveWSEnv(cmd, folder(), env)

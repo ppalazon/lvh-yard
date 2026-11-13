@@ -65,7 +65,7 @@ func upgradeInit(options *Options, folder, ws string, out io.Writer) error {
 		if err != nil {
 			return err
 		}
-		if env.get("YARD_TRAEFIK_ENABLED") != "false" {
+		if env.Get("YARD_TRAEFIK_ENABLED") != "false" {
 			if err := writeTraefikTLS(folder); err != nil {
 				return err
 			}
