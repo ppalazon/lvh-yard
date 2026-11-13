@@ -3,6 +3,7 @@ package command
 import (
 	"crypto/x509"
 	"fmt"
+	"github.com/ppalazon/lvh-yard/cli/internal/settings"
 	"net"
 	"path/filepath"
 	"slices"
@@ -28,14 +29,14 @@ func checkTLSAddress(address string) error {
 		return nil
 	}
 	dns := strings.TrimPrefix(address, "*.")
-	if !baseDomainName.MatchString(dns) || net.ParseIP(dns) != nil {
+	if !settings.ValidBaseDomain(dns) || net.ParseIP(dns) != nil {
 		return fmt.Errorf("invalid --address %q: use an IP address, DNS name or leftmost-label wildcard such as *.ws-b.lvh.me", address)
 	}
 	return nil
 }
 
 func checkWorkstationName(name string) error {
-	if !workstationName.MatchString(name) {
+	if !settings.ValidWorkstationName(name) {
 		return fmt.Errorf("invalid Workstation name: use lowercase letters, digits and -, at most 63, not starting or ending with -")
 	}
 	return nil
@@ -82,14 +83,14 @@ func newWSTLSIssueRoles(options *Options, folder func() string, use, short, long
 				base = domain
 			} else if p.terminal {
 				base, err = p.text("Base Domain of that Workstation", base, func(text string) error {
-					_, err := checkWSSetting("base-domain", text)
+					_, err := settings.Check("base-domain", text)
 					return err
 				})
 				if err != nil {
 					return err
 				}
 			}
-			if _, err := checkWSSetting("base-domain", base); err != nil {
+			if _, err := settings.Check("base-domain", base); err != nil {
 				return err
 			}
 			if !cmd.Flags().Changed("address") && p.terminal {

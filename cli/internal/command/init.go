@@ -6,10 +6,10 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
+	"github.com/ppalazon/lvh-yard/cli/internal/settings"
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"syscall"
 	"unicode"
@@ -17,9 +17,6 @@ import (
 	"github.com/ppalazon/lvh-yard/cli/internal/templates"
 	"github.com/spf13/cobra"
 )
-
-var workstationName = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
-var baseDomainName = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$`)
 
 type initOptions struct {
 	workstation  string
@@ -96,7 +93,7 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 			if name == "" {
 				name = offered
 			}
-			if workstationName.MatchString(name) {
+			if settings.ValidWorkstationName(name) {
 				break
 			}
 			if name == "" {
@@ -106,7 +103,7 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 			}
 		}
 	}
-	if !workstationName.MatchString(name) {
+	if !settings.ValidWorkstationName(name) {
 		return fmt.Errorf("--workstation %s is not a Workstation name: use lowercase letters, digits and -, at most 63, not starting or ending with -", name)
 	}
 	domain := f.baseDomain
@@ -122,14 +119,14 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 				if domain == "" {
 					domain = env.Get("YARD_BASE_DOMAIN")
 				}
-				if baseDomainName.MatchString(domain) {
+				if settings.ValidBaseDomain(domain) {
 					break
 				}
 				fmt.Fprintln(cmd.OutOrStdout(), domain+" is not a domain name such as lvh.me.")
 			}
 		}
 	}
-	if !baseDomainName.MatchString(domain) {
+	if !settings.ValidBaseDomain(domain) {
 		return fmt.Errorf("--base-domain %s is not a domain name such as lvh.me", domain)
 	}
 	key := f.gossipKey
@@ -148,7 +145,7 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	for _, list := range f.peers {
 		peers = append(peers, strings.FieldsFunc(list, func(r rune) bool { return r == ',' || unicode.IsSpace(r) })...)
 	}
-	checkedPeers, err := checkWSSetting("peers", strings.Join(peers, " "))
+	checkedPeers, err := settings.Check("peers", strings.Join(peers, " "))
 	if err != nil {
 		return err
 	}

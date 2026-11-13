@@ -3,6 +3,7 @@ package command
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ppalazon/lvh-yard/cli/internal/settings"
 	"net"
 	"net/http"
 	"sort"
@@ -78,7 +79,7 @@ func newWSYardPeers(folder func() string) *cobra.Command {
 			if len(addresses) == 0 {
 				return fmt.Errorf("no other Workstation answers, so YARD_PEERS stays as it is")
 			}
-			value, err := checkWSSetting("peers", strings.Join(addresses, " "))
+			value, err := settings.Check("peers", strings.Join(addresses, " "))
 			if err != nil {
 				return err
 			}

@@ -3,10 +3,9 @@ package command
 import (
 	"fmt"
 	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
-	"net"
+	"github.com/ppalazon/lvh-yard/cli/internal/settings"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"unicode"
 
@@ -14,27 +13,6 @@ import (
 )
 
 const renameWorkstationHint = "To change the Workstation name, export a Backup, run lvh-yard ws init under the new name, and import the Backup"
-
-var wsSettings = map[string]string{
-	"base-domain":            "YARD_BASE_DOMAIN",
-	"peers":                  "YARD_PEERS",
-	"bind-address":           "YARD_BIND_ADDRESS",
-	"traefik-bind-address":   "YARD_TRAEFIK_BIND_ADDRESS",
-	"dashboard-bind-address": "YARD_DASHBOARD_BIND_ADDRESS",
-	"http-port":              "YARD_HTTP_PORT",
-	"https-port":             "YARD_HTTPS_PORT",
-	"traefik-admin-port":     "YARD_TRAEFIK_ADMIN_PORT",
-	"dashboard-port":         "YARD_DASHBOARD_PORT",
-	"consul-http-port":       "YARD_CONSUL_HTTP_PORT",
-	"consul-dns-port":        "YARD_CONSUL_DNS_PORT",
-	"consul-grpc-tls-port":   "YARD_CONSUL_GRPC_TLS_PORT",
-	"consul-server-port":     "YARD_CONSUL_SERVER_PORT",
-	"consul-serf-lan-port":   "YARD_CONSUL_SERF_LAN_PORT",
-	"consul-serf-wan-port":   "YARD_CONSUL_SERF_WAN_PORT",
-	"out-of-range":           "YARD_OUT_OF_RANGE",
-	"stack-traces":           "YARD_STACK_TRACES",
-	"traefik":                "YARD_TRAEFIK_ENABLED",
-}
 
 func newWSShow(folder func() string) *cobra.Command {
 	return &cobra.Command{
@@ -64,11 +42,11 @@ func newWSSet(folder func() string) *cobra.Command {
 			if name == "workstation" || name == "workstation-name" || name == "YARD_WORKSTATION" {
 				return fmt.Errorf("%s", renameWorkstationHint)
 			}
-			key, ok := wsSettings[name]
+			key, ok := settings.EnvKey(name)
 			if !ok {
 				return fmt.Errorf("unknown setting %q: use base-domain, peers, bind-address, traefik-bind-address, dashboard-bind-address, http-port, https-port, traefik-admin-port, dashboard-port, consul-http-port, consul-dns-port, consul-grpc-tls-port, consul-server-port, consul-serf-lan-port, consul-serf-wan-port, out-of-range, stack-traces or traefik", name)
 			}
-			checked, err := checkWSSetting(name, value)
+			checked, err := settings.Check(name, value)
 			if err != nil {
 				return err
 			}
@@ -103,66 +81,6 @@ func newWSSet(folder func() string) *cobra.Command {
 			return nil
 		},
 	}
-}
-
-func checkWSSetting(name, value string) (string, error) {
-	valid := false
-	rule := ""
-	switch {
-	case name == "traefik":
-		valid, rule = value == "on" || value == "off", "on or off"
-		if valid {
-			value = strconv.FormatBool(value == "on")
-		}
-	case name == "base-domain":
-		valid, rule = baseDomainName.MatchString(value), "a domain name such as lvh.me"
-	case name == "peers":
-		peers := strings.FieldsFunc(value, func(r rune) bool { return r == ',' || unicode.IsSpace(r) })
-		valid, rule = true, "IPv4 addresses with an optional port from 1 to 65535, separated by spaces or commas"
-		for _, peer := range peers {
-			host := peer
-			if strings.Contains(peer, ":") {
-				var port string
-				var err error
-				host, port, err = net.SplitHostPort(peer)
-				n, portErr := strconv.Atoi(port)
-				if err != nil || portErr != nil || n < 1 || n > 65535 {
-					valid = false
-				}
-			}
-			if ip := net.ParseIP(host); ip == nil || ip.To4() == nil {
-				valid = false
-			}
-		}
-		value = strings.Join(peers, " ")
-	case strings.HasSuffix(name, "bind-address"):
-		ip := net.ParseIP(value)
-		valid, rule = ip != nil && ip.To4() != nil, "an IPv4 address such as 127.0.0.1"
-		if name == "bind-address" && value == "" {
-			valid = true
-		}
-	case strings.HasSuffix(name, "-port"):
-		n, err := strconv.Atoi(value)
-		valid, rule = err == nil && n >= 1 && n <= 65535, "a port from 1 to 65535"
-		if name == "https-port" && value == "" {
-			valid = true
-		}
-	case name == "out-of-range":
-		valid, rule = true, "CIDR ranges separated by commas, or an empty value"
-		if value != "" {
-			for cidr := range strings.SplitSeq(value, ",") {
-				if _, _, err := net.ParseCIDR(strings.TrimSpace(cidr)); err != nil {
-					valid = false
-				}
-			}
-		}
-	case name == "stack-traces":
-		valid, rule = value == "true" || value == "false", "true or false"
-	}
-	if !valid {
-		return "", fmt.Errorf("invalid %s: use %s", name, rule)
-	}
-	return value, nil
 }
 
 func readWSEnv(folder string) (*envfile.File, error) {

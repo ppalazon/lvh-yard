@@ -3,6 +3,7 @@ package command
 import (
 	"fmt"
 	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
+	"github.com/ppalazon/lvh-yard/cli/internal/settings"
 	"io"
 	"net"
 	"os"
@@ -137,7 +138,7 @@ func newWSJoin(options *Options, folder func() string) *cobra.Command {
 			var checked string
 			var err error
 			if cmd.Flags().Changed("peers") {
-				checked, err = checkWSSetting("peers", strings.Join(peers, " "))
+				checked, err = settings.Check("peers", strings.Join(peers, " "))
 				if err != nil {
 					return err
 				}
