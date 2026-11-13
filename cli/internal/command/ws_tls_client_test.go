@@ -41,9 +41,9 @@ func TestWSTLSClientCertificate(t *testing.T) {
 				t.Fatal("explicit password was printed")
 			}
 		} else {
-			for _, line := range strings.Split(r.Stdout, "\n") {
-				if strings.HasPrefix(line, "Password: ") {
-					password = strings.TrimPrefix(line, "Password: ")
+			for line := range strings.SplitSeq(r.Stdout, "\n") {
+				if after, ok := strings.CutPrefix(line, "Password: "); ok {
+					password = after
 				}
 			}
 			if password == "browser-secret" || len(password) < 24 || strings.Count(r.Stdout+r.Stderr, password) != 1 {

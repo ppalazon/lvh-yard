@@ -66,7 +66,7 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 		}
 		fmt.Fprint(cmd.OutOrStdout(), question)
 		line, err := answers.ReadString('\n')
-		if err != nil && !(err == io.EOF && len(line) > 0) {
+		if err != nil && (err != io.EOF || len(line) == 0) {
 			fmt.Fprintln(cmd.OutOrStdout())
 			if err == io.EOF {
 				return "", fmt.Errorf("Missing %s: the input ended before it was given", flag)

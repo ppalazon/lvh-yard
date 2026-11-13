@@ -25,9 +25,10 @@ func NewStatus(options *Options) *cobra.Command {
 			fmt.Fprintln(out, "LVH Yard on this Workstation: "+status.Overall)
 			for _, part := range status.Parts {
 				mark := "FAIL  "
-				if part.State == "ok" {
+				switch part.State {
+				case "ok":
 					mark = "ok    "
-				} else if part.State == "warning" {
+				case "warning":
 					mark = "WARN  "
 				}
 				fmt.Fprintf(out, "  %s%s: %s\n", mark, part.Name, part.Reason)

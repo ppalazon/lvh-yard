@@ -77,11 +77,10 @@ func Run(root *cobra.Command, args []string) int {
 	}
 	root.SetArgs(args)
 	if err := root.Execute(); err != nil {
-		var exit *processExit
-		if errors.As(err, &exit) {
+		if exit, ok := errors.AsType[*processExit](err); ok {
 			return exit.code
 		}
-		if err != errStatusFailed && err != errReachabilityFailed {
+		if !errors.Is(err, errStatusFailed) && !errors.Is(err, errReachabilityFailed) {
 			fmt.Fprintln(root.ErrOrStderr(), err)
 		}
 		return 1

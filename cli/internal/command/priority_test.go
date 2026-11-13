@@ -131,7 +131,7 @@ func TestPriorityShowsDashboardRefusals(t *testing.T) {
 					t.Errorf("failed update read the Service: %s %s", r.Method, r.URL)
 				}
 				w.WriteHeader(tc.status)
-				json.NewEncoder(w).Encode(map[string]string{"detail": tc.detail})
+				_ = json.NewEncoder(w).Encode(map[string]string{"detail": tc.detail})
 			}))
 			defer server.Close()
 			run := commandtest.New(t).Run(append([]string{"--dashboard", server.URL, "priority", "web"}, tc.args...)...)

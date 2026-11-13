@@ -5,6 +5,7 @@ import (
 	"github.com/ppalazon/lvh-yard/cli/internal/templates"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -123,10 +124,8 @@ func announceRole(cmd *cobra.Command, role string) {
 // finishRoles saves .env when Traefik was turned on, which prints the apply command, and prints
 // that command otherwise.
 func finishRoles(cmd *cobra.Command, folder string, env *envFile, roles []string) error {
-	for _, role := range roles {
-		if role == roleTraefik {
-			return saveWSEnv(cmd, folder, env)
-		}
+	if slices.Contains(roles, roleTraefik) {
+		return saveWSEnv(cmd, folder, env)
 	}
 	if len(roles) > 0 {
 		printApplyHint(cmd, folder)

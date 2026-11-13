@@ -69,8 +69,7 @@ func (systemProcess) Run(name string, args []string, dir string, stdout, stderr 
 	command.Stdout = stdout
 	command.Stderr = stderr
 	err := command.Run()
-	var exit *exec.ExitError
-	if errors.As(err, &exit) {
+	if exit, ok := errors.AsType[*exec.ExitError](err); ok {
 		return exit.ExitCode(), nil
 	}
 	return 0, err

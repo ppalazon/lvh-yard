@@ -89,9 +89,9 @@ func TestDeleteServiceCanBeRepeatedButPreservesRefusals(t *testing.T) {
 
 func TestServiceOperationsMatchOpenAPI(t *testing.T) {
 	clienttest.AssertOperations(t,
-		func(c *client.Client) { c.OwnServices() },
-		func(c *client.Client) { c.OwnService("web/blue") },
-		func(c *client.Client) { c.CreateService("web") },
-		func(c *client.Client) { c.DeleteService("web/blue") },
+		func(c *client.Client) { _, _ = c.OwnServices() },
+		func(c *client.Client) { _, _ = c.OwnService("web/blue") },
+		func(c *client.Client) { _, _ = c.CreateService("web") },
+		func(c *client.Client) { _, _ = c.DeleteService("web/blue") },
 	)
 }

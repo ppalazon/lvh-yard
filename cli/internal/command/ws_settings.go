@@ -152,7 +152,7 @@ func checkWSSetting(name, value string) (string, error) {
 	case name == "out-of-range":
 		valid, rule = true, "CIDR ranges separated by commas, or an empty value"
 		if value != "" {
-			for _, cidr := range strings.Split(value, ",") {
+			for cidr := range strings.SplitSeq(value, ",") {
 				if _, _, err := net.ParseCIDR(strings.TrimSpace(cidr)); err != nil {
 					valid = false
 				}

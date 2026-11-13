@@ -47,7 +47,7 @@ func TestStatusStoppedDashboard(t *testing.T) {
 		t.Fatal(err)
 	}
 	address := "http://" + listener.Addr().String()
-	listener.Close()
+	_ = listener.Close()
 	result := commandtest.New(t).Run("--dashboard", address, "status")
 	if result.ExitCode != 1 || result.Stdout != "" || !strings.Contains(result.Stderr, address) || strings.Count(result.Stderr, "\n") != 1 {
 		t.Fatalf("unexpected stopped dashboard result: %+v", result)

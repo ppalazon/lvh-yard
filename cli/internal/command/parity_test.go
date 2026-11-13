@@ -57,7 +57,7 @@ func findCommand(root *cobra.Command, path string) *cobra.Command {
 	if path == "" {
 		return cmd
 	}
-	for _, name := range strings.Fields(path) {
+	for name := range strings.FieldsSeq(path) {
 		var next *cobra.Command
 		for _, child := range cmd.Commands() {
 			if child.Name() == name {

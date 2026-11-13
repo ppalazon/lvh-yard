@@ -1,0 +1,46 @@
+version: "2"
+
+run:
+  # Test files follow the same rules as the code.
+  tests: true
+
+linters:
+  # errcheck, govet, ineffassign, staticcheck and unused are on by default.
+  enable:
+    - errorlint
+    - gocyclo
+    - funlen
+    - gosec
+    - revive
+    - modernize
+    - bodyclose
+    - misspell
+    - unconvert
+  settings:
+    gocyclo:
+      min-complexity: 15
+    funlen:
+      lines: 60
+      statements: 40
+    errcheck:
+      # A failed write to the terminal or to a test response has no recovery.
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - io.WriteString
+        - (net/http.ResponseWriter).Write
+        # A response body that was read has no Close error to handle.
+        - (io.ReadCloser).Close
+  exclusions:
+    rules:
+      # CLI messages are sentences, so they start with a capital letter.
+      - linters: [staticcheck]
+        text: "ST1005:"
+      - linters: [revive]
+        text: "error strings should not be capitalized"
+
+issues:
+  # Show every finding, so the baseline is complete.
+  max-issues-per-linter: 0
+  max-same-issues: 0

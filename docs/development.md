@@ -148,7 +148,9 @@ passing health check, the other Workstation's own dashboard, and Traefik.
 While you work, run `mise run test:unit` or `mise run test:component`. Both
 run in seconds, without Docker. Before you commit, run `mise run check`. It
 builds the stylesheet, builds the dashboard from scratch and runs every test.
-Both `test:unit` and `check` also run `go vet` and `go test ./...` in `cli/`.
+Both `test:unit` and `check` also run `go vet`, golangci-lint and `go test ./...`
+in `cli/`. The golangci-lint run in these two tasks uses only the linters that
+report nothing today. `mise run quality:go` runs all of them.
 `check` also runs `mise run cli:smoke`. This one integration test builds the Go
 CLI, runs the executable against a fake dashboard, and checks the output, the
 version and the exit codes. Its file has the build tag `integration`, so
@@ -204,6 +206,25 @@ differs from the API that the dashboard serves, `OpenApiComponentTest` fails.
 After you change the API, run `mise run openapi` to write it again. The task
 runs that test with `-Dopenapi.update=true`, so it writes the file instead of
 comparing it.
+
+## Code quality
+
+`mise run quality` runs the slow code checks. It is not part of
+`mise run check`, and it does not fail on a finding. It runs three tasks:
+
+- `quality:go` runs golangci-lint on `cli/`. The rules are in
+  `cli/.golangci.yml`.
+- `quality:java` runs SpotBugs and PMD on the dashboard. The PMD rules are in
+  `dashboard/pmd-ruleset.xml`. The reports are
+  `dashboard/target/spotbugsXml.xml` and `dashboard/target/pmd.xml`.
+- `quality:mutation` runs PIT with the dashboard unit tests only. It changes
+  the code of a few classes, and a unit test that still passes means that the
+  tests miss that change. The report is
+  `dashboard/target/pit-reports/index.html`. The classes are in the `quality`
+  profile of `dashboard/pom.xml`.
+
+The Java plugins are in the Maven profile `quality`, so the normal build does
+not run them. [design.md](design.md) explains the findings.
 
 ## Continuous integration
 

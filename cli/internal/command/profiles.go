@@ -128,7 +128,7 @@ func editProfile(cmd *cobra.Command, options *Options, name string) error {
 	_, writeErr := file.Write(original)
 	closeErr := file.Close()
 	if err := errors.Join(writeErr, closeErr); err != nil {
-		os.Remove(path)
+		_ = os.Remove(path)
 		return fmt.Errorf("Cannot write a temporary file: %w", err)
 	}
 	editor := options.Process.Getenv("EDITOR")
