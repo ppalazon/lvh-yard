@@ -1,5 +1,6 @@
 package cc.lvhy.yard.dashboard.consul;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -10,6 +11,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -121,13 +123,13 @@ public class ConsulAgent implements Consul {
   /** The members of the agent's WAN pool: one server for each federated datacenter. */
   @Override
   public List<WanMember> wanMembers() {
-    List<WanMember> members =
+    List<WireWanMember> members =
         call(() ->
             http.get()
                 .uri("/v1/agent/members?wan=1")
                 .retrieve()
-                .body(new ParameterizedTypeReference<List<WanMember>>() {}));
-    return members == null ? List.of() : members;
+                .body(new ParameterizedTypeReference<List<WireWanMember>>() {}));
+    return members == null ? List.of() : members.stream().map(WireWanMember::toPort).toList();
   }
 
   /** compose.yaml sets it to the Workstation's LAN address. */
@@ -147,20 +149,24 @@ public class ConsulAgent implements Consul {
         http.put()
             .uri("/v1/agent/service/register")
             .contentType(MediaType.APPLICATION_JSON)
-            .body(registration)
+            .body(WireRegistration.of(registration))
             .retrieve()
             .toBodilessEntity());
   }
 
   @Override
   public Map<String, AgentService> agentServices() {
-    Map<String, AgentService> services =
+    Map<String, WireAgentService> services =
         call(() ->
             http.get()
                 .uri("/v1/agent/services")
                 .retrieve()
-                .body(new ParameterizedTypeReference<Map<String, AgentService>>() {}));
-    return services == null ? Map.of() : services;
+                .body(new ParameterizedTypeReference<Map<String, WireAgentService>>() {}));
+    Map<String, AgentService> result = new LinkedHashMap<>();
+    if (services != null) {
+      services.forEach((id, service) -> result.put(id, service.toPort()));
+    }
+    return result;
   }
 
   @Override
@@ -171,7 +177,8 @@ public class ConsulAgent implements Consul {
             .exchange((request, response) ->
                 response.getStatusCode() == HttpStatus.NOT_FOUND
                     ? Optional.empty()
-                    : Optional.ofNullable(response.bodyTo(AgentService.class))));
+                    : Optional.ofNullable(response.bodyTo(WireAgentService.class))
+                        .map(WireAgentService::toPort)));
   }
 
   @Override
@@ -193,14 +200,14 @@ public class ConsulAgent implements Consul {
 
   @Override
   public List<HealthEntry> health(String datacenter, String service) {
-    List<HealthEntry> entries =
+    List<WireHealthEntry> entries =
         call(() ->
             http.get()
                 .uri(builder ->
                     in(datacenter, builder.path("/v1/health/service/{service}"), service))
                 .retrieve()
-                .body(new ParameterizedTypeReference<List<HealthEntry>>() {}));
-    return entries == null ? List.of() : entries;
+                .body(new ParameterizedTypeReference<List<WireHealthEntry>>() {}));
+    return entries == null ? List.of() : entries.stream().map(WireHealthEntry::toPort).toList();
   }
 
   @Override
@@ -325,4 +332,89 @@ public class ConsulAgent implements Consul {
   record AgentSelf(@JsonProperty("Member") Member member) {}
 
   record Member(@JsonProperty("Addr") String address) {}
+
+  // The JSON of Consul's HTTP API, with its field names. Nothing outside this class sees it.
+
+  record WireWanMember(
+      @JsonProperty("Addr") String address,
+      @JsonProperty("Port") int port,
+      @JsonProperty("Status") Integer status,
+      @JsonProperty("Tags") Map<String, String> tags) {
+
+    WanMember toPort() {
+      return new WanMember(
+          address, port, status == null ? SerfStatus.UNKNOWN : SerfStatus.of(status), tags);
+    }
+  }
+
+  record WireAgentService(
+      @JsonProperty("ID") String id,
+      @JsonProperty("Service") String name,
+      @JsonProperty("Address") String address,
+      @JsonProperty("Port") Integer port,
+      @JsonProperty("Tags") List<String> tags,
+      @JsonProperty("Meta") Map<String, String> meta) {
+
+    AgentService toPort() {
+      return new AgentService(id, name, address, port, tags, meta);
+    }
+  }
+
+  record WireCheckStatus(
+      @JsonProperty("Name") String name,
+      @JsonProperty("Status") String status,
+      @JsonProperty("Output") String output,
+      @JsonProperty("ServiceID") String serviceId,
+      @JsonProperty("Type") String type,
+      @JsonProperty("Interval") String interval,
+      @JsonProperty("Timeout") String timeout) {
+
+    CheckStatus toPort() {
+      return new CheckStatus(name, status, output, serviceId, type, interval, timeout);
+    }
+  }
+
+  record WireHealthEntry(
+      @JsonProperty("Service") WireAgentService service,
+      @JsonProperty("Checks") List<WireCheckStatus> checks) {
+
+    HealthEntry toPort() {
+      return new HealthEntry(
+          service.toPort(),
+          checks == null ? List.of() : checks.stream().map(WireCheckStatus::toPort).toList());
+    }
+  }
+
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  record WireCheck(
+      @JsonProperty("Name") String name,
+      @JsonProperty("HTTP") String http,
+      @JsonProperty("TCP") String tcp,
+      @JsonProperty("Interval") String interval,
+      @JsonProperty("Timeout") String timeout) {}
+
+  record WireRegistration(
+      @JsonProperty("ID") String id,
+      @JsonProperty("Name") String name,
+      @JsonProperty("Address") String address,
+      @JsonProperty("Port") int port,
+      @JsonProperty("Tags") List<String> tags,
+      @JsonProperty("Meta") Map<String, String> meta,
+      @JsonProperty("Check") WireCheck check) {
+
+    static WireRegistration of(Registration registration) {
+      Check check = registration.check();
+      return new WireRegistration(
+          registration.id(),
+          registration.name(),
+          registration.address(),
+          registration.port(),
+          registration.tags(),
+          registration.meta(),
+          check == null
+              ? null
+              : new WireCheck(
+                  check.name(), check.http(), check.tcp(), check.interval(), check.timeout()));
+    }
+  }
 }

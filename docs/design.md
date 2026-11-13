@@ -170,7 +170,8 @@ Ports and adapters inside each feature package. The packages keep their names.
   mean a datacenter cannot be read now. Done.
 - `Consul` is split by role into five interfaces, and `ArchitectureTest` fails on a
   class outside `consul` that holds all of `Consul`. Done.
-- Move the wire types into `ConsulAgent`.
+- The wire types (Consul's JSON field names) are private to `ConsulAgent`, and
+  the types of the port have no Jackson annotation. Done.
 - Pure rules import no Spring: `Routing`, `ServiceWarning`, `OutOfRange`, the
   input checks.
 - Use cases may keep `@Component`.

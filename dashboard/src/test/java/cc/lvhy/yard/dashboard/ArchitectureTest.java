@@ -107,6 +107,20 @@ class ArchitectureTest {
   }
 
   @Test
+  void thePortTypesOfConsulKnowNoJson() {
+    noClasses()
+        .that()
+        .resideInAPackage(BASE + ".consul..")
+        .and()
+        .haveNameNotMatching(".*ConsulAgent.*")
+        .should()
+        .dependOnClassesThat()
+        .resideInAnyPackage("com.fasterxml.jackson..", "tools.jackson..")
+        .because("only ConsulAgent turns Consul's JSON into the types of the port")
+        .check(classes);
+  }
+
+  @Test
   void pureRulesOfTheDomainImportNoSpring() {
     FreezingArchRule.freeze(
             noClasses()

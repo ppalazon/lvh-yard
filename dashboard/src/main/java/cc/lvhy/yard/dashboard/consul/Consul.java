@@ -1,8 +1,5 @@
 package cc.lvhy.yard.dashboard.consul;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Map;
 
@@ -26,11 +23,7 @@ public interface Consul
   }
 
   /** {@code status} is alive, leaving, left or failed. The {@code dc} tag is its datacenter. */
-  record WanMember(
-      @JsonProperty("Addr") String address,
-      @JsonProperty("Port") int port,
-      @JsonProperty("Status") SerfStatus status,
-      @JsonProperty("Tags") Map<String, String> tags) {
+  record WanMember(String address, int port, SerfStatus status, Map<String, String> tags) {
 
     public WanMember {
       status = status == null ? SerfStatus.UNKNOWN : status;
@@ -56,7 +49,6 @@ public interface Consul
     FAILED;
 
     /** 1 alive, 2 leaving, 3 left, 4 failed. */
-    @JsonCreator
     public static SerfStatus of(int code) {
       SerfStatus[] all = values();
       return code > 0 && code < all.length ? all[code] : UNKNOWN;
@@ -69,31 +61,25 @@ public interface Consul
   }
 
   record Registration(
-      @JsonProperty("ID") String id,
-      @JsonProperty("Name") String name,
-      @JsonProperty("Address") String address,
-      @JsonProperty("Port") int port,
-      @JsonProperty("Tags") List<String> tags,
-      @JsonProperty("Meta") Map<String, String> meta,
-      @JsonProperty("Check") Check check) {}
+      String id,
+      String name,
+      String address,
+      int port,
+      List<String> tags,
+      Map<String, String> meta,
+      Check check) {}
 
   /** Consul starts every check as critical until it first passes. */
-  @JsonInclude(JsonInclude.Include.NON_NULL)
-  record Check(
-      @JsonProperty("Name") String name,
-      @JsonProperty("HTTP") String http,
-      @JsonProperty("TCP") String tcp,
-      @JsonProperty("Interval") String interval,
-      @JsonProperty("Timeout") String timeout) {}
+  record Check(String name, String http, String tcp, String interval, String timeout) {}
 
   /** Consul leaves out a port of 0 and empty meta. */
   record AgentService(
-      @JsonProperty("ID") String id,
-      @JsonProperty("Service") String name,
-      @JsonProperty("Address") String address,
-      @JsonProperty("Port") Integer port,
-      @JsonProperty("Tags") List<String> tags,
-      @JsonProperty("Meta") Map<String, String> meta) {
+      String id,
+      String name,
+      String address,
+      Integer port,
+      List<String> tags,
+      Map<String, String> meta) {
 
     public AgentService {
       if (port == null) {
@@ -104,20 +90,18 @@ public interface Consul
     }
   }
 
-  record HealthEntry(
-      @JsonProperty("Service") AgentService service,
-      @JsonProperty("Checks") List<CheckStatus> checks) {}
+  record HealthEntry(AgentService service, List<CheckStatus> checks) {}
 
   /**
    * Maintenance counts as critical. A node's check has no service ID, type, interval or timeout.
    * Consul gives durations in Go format, such as {@code 1m30s}.
    */
   record CheckStatus(
-      @JsonProperty("Name") String name,
-      @JsonProperty("Status") String status,
-      @JsonProperty("Output") String output,
-      @JsonProperty("ServiceID") String serviceId,
-      @JsonProperty("Type") String type,
-      @JsonProperty("Interval") String interval,
-      @JsonProperty("Timeout") String timeout) {}
+      String name,
+      String status,
+      String output,
+      String serviceId,
+      String type,
+      String interval,
+      String timeout) {}
 }
