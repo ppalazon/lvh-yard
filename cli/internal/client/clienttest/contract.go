@@ -36,7 +36,7 @@ func AssertOperations(t testing.TB, operations ...func(*client.Client)) {
 			t.Errorf("OpenAPI lacks %s %s", r.Method, r.URL.EscapedPath())
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{}`))
+		_, _ = w.Write([]byte(`{}`))
 	}))
 	defer server.Close()
 	for _, operation := range operations {

@@ -214,6 +214,8 @@ comparing it.
 
 - `quality:go` runs golangci-lint on `cli/`. The rules are in
   `cli/.golangci.yml`.
+  `gosec` also runs in `cli:check`, so a new unsuppressed security finding
+  fails the normal checks.
 - `quality:java` runs SpotBugs and PMD on the dashboard, with every PMD rule of
   `dashboard/pmd-ruleset.xml`. The reports are
   `dashboard/target/spotbugsXml.xml` and `dashboard/target/pmd.xml`.
@@ -228,6 +230,13 @@ fails on a finding. SpotBugs skips what `dashboard/spotbugs-exclude.xml` lists.
 PMD runs only the rules of `dashboard/pmd-gate.xml`: unused private methods,
 fields, local variables and parameters. [design.md](design.md) explains the
 findings.
+
+Managed CLI file operations use `os.Root` at the selected Workstation Folder,
+not a derived subfolder. The command tests in `ws_security_test.go` check
+escaping links and a relative link that stays inside. The
+[user guide](user-guide.md#running-on-a-workstation) states the file-access policy.
+Intentional user-selected paths and subprocesses have local `#nosec` comments
+with a rule ID and a reason. Keep each exception beside the operation it permits.
 
 `ArchitectureTest` is a unit test of the package rules in
 [design.md](design.md): no package cycles, `consul`, `docker` and `events`

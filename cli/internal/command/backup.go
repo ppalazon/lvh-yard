@@ -35,6 +35,7 @@ func NewExport(options *Options) *cobra.Command {
 }
 
 func writeBackup(path, backup string) error {
+	// #nosec G304 -- The user selects the output path with --output.
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return err

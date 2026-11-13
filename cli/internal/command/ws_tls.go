@@ -39,9 +39,14 @@ func newWSTLSCA(options *Options, folder func() string) *cobra.Command {
 		if err := protectWorkstationFolder(folder()); err != nil {
 			return err
 		}
+		root, err := os.OpenRoot(folder())
+		if err != nil {
+			return err
+		}
+		defer func() { _ = root.Close() }()
 		dir := filepath.Join(folder(), "ca")
 		for _, name := range []string{"ca.crt", "ca.key"} {
-			if _, err := os.Lstat(filepath.Join(dir, name)); err == nil && !force {
+			if _, err := root.Lstat(filepath.Join("ca", name)); err == nil && !force {
 				return fmt.Errorf("a Yard CA exists: use --force to replace it")
 			} else if err != nil && !os.IsNotExist(err) {
 				return err
@@ -55,7 +60,7 @@ func newWSTLSCA(options *Options, folder func() string) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		if err := writeTLSCertificate(dir, "ca", cert, cert, key, key); err != nil {
+		if err := writeTLSCertificate(root, "ca", "ca", cert, cert, key, key); err != nil {
 			return err
 		}
 		fmt.Fprintf(cmd.OutOrStdout(), "Yard CA saved in %s.\nImport ca.crt into your browser's trusted certificate authorities. Never share ca.key.\n", dir)
@@ -84,22 +89,39 @@ func askDays(cmd *cobra.Command, p *prompter, flag, fallback int, question strin
 	return strconv.Atoi(answer)
 }
 
-func writeTLSCertificate(dir, name string, cert, parent *x509.Certificate, key, signer *ecdsa.PrivateKey) error {
+func writeTLSCertificate(root *os.Root, dir, name string, cert, parent *x509.Certificate, key, signer *ecdsa.PrivateKey) error {
 	certPEM, keyPEM, err := tlsca.Sign(cert, parent, key, signer)
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	if err := root.MkdirAll(dir, 0700); err != nil {
 		return err
 	}
-	if err := os.Chmod(dir, 0700); err != nil {
+	directory, err := root.Open(dir)
+	if err != nil {
+		return err
+	}
+	if err := directory.Chmod(0700); err != nil {
+		_ = directory.Close()
+		return err
+	}
+	if err := directory.Close(); err != nil {
 		return err
 	}
 	for filename, data := range map[string][]byte{name + ".crt": certPEM, name + ".key": keyPEM} {
-		if err := os.WriteFile(filepath.Join(dir, filename), data, 0600); err != nil {
+		file, err := root.OpenFile(filepath.Join(dir, filename), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+		if err != nil {
 			return err
 		}
-		if err := os.Chmod(filepath.Join(dir, filename), 0600); err != nil {
+		if err := file.Chmod(0600); err != nil {
+			_ = file.Close()
+			return err
+		}
+		if _, err := file.Write(data); err != nil {
+			_ = file.Close()
+			return err
+		}
+		if err := file.Close(); err != nil {
 			return err
 		}
 	}
@@ -107,11 +129,16 @@ func writeTLSCertificate(dir, name string, cert, parent *x509.Certificate, key, 
 }
 
 func readYardCA(folder string) (*x509.Certificate, *ecdsa.PrivateKey, []byte, error) {
-	caPEM, err := os.ReadFile(filepath.Join(folder, "ca", "ca.crt"))
+	root, err := os.OpenRoot(folder)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	defer func() { _ = root.Close() }()
+	caPEM, err := root.ReadFile(filepath.Join("ca", "ca.crt"))
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("this Workstation has no readable Yard CA: run lvh-yard ws tls ca create on the signing Workstation: %w", err)
 	}
-	keyPEM, err := os.ReadFile(filepath.Join(folder, "ca", "ca.key"))
+	keyPEM, err := root.ReadFile(filepath.Join("ca", "ca.key"))
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("this Workstation has no readable Yard CA key: sign certificates on the Workstation that made the CA: %w", err)
 	}

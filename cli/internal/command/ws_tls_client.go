@@ -50,11 +50,16 @@ func newWSTLSIssueUser(options *Options, folder func() string) *cobra.Command {
 			return err
 		}
 		dir := filepath.Join(folder(), "ca", "clients")
-		if err := os.MkdirAll(dir, 0700); err != nil {
+		root, err := os.OpenRoot(folder())
+		if err != nil {
+			return err
+		}
+		defer func() { _ = root.Close() }()
+		if err := root.MkdirAll(filepath.Join("ca", "clients"), 0700); err != nil {
 			return err
 		}
 		path := filepath.Join(dir, name+".p12")
-		if err := os.WriteFile(path, data, 0600); err != nil {
+		if err := root.WriteFile(filepath.Join("ca", "clients", name+".p12"), data, 0600); err != nil {
 			return err
 		}
 		if err := protectWorkstationFolder(folder()); err != nil {

@@ -152,6 +152,7 @@ func editUntilSaved(cmd *cobra.Command, options *Options, dashboard Dashboard, n
 		if err := options.Process.Edit(editor, path); err != nil {
 			return false, fmt.Errorf("Cannot edit the Route Profile with %s: %w", editor, err)
 		}
+		// #nosec G304 -- This is the private temporary file passed to the user's editor.
 		text, err := os.ReadFile(path)
 		if err != nil {
 			return false, fmt.Errorf("Cannot read %s: %w", path, err)

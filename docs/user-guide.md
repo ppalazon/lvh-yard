@@ -68,6 +68,15 @@ Java or a copy of this repository.
    Only your user can read them. `ws init`, `ws compose upgrade` and `ws set`
    fix these modes on an existing Workstation Folder.
 
+   For settings, generated options and certificates, use real files or relative
+   symbolic links whose targets stay inside the Workstation Folder. The CLI
+   refuses file access through links that leave it. Backup input and output
+   paths, and the TLS import flags `--ca`, `--cert` and `--key`, may name files
+   elsewhere.
+
+   This restriction covers the CLI's own file operations. Docker Compose,
+   your editor and `scp` or `ssh` still run with your normal permissions.
+
    `ws init` makes a new Gossip Key and stores it in `.env`. It does not print
    the key. This Workstation then starts a Yard of its own.
 

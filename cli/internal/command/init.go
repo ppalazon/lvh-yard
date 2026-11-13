@@ -278,10 +278,18 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 		text string
 		mode os.FileMode
 	}{{"compose.yaml", compose, 0600}, {".env", env, 0600}, {"lvh-yard.yaml", templates.Dashboard(), 0600}, {"consul.d/00-lvh-yard.hcl", templates.Consul(), 0600}}
+	if err := os.MkdirAll(folder, 0700); err != nil {
+		return fmt.Errorf("could not create %s: %w", folder, err)
+	}
+	root, err := os.OpenRoot(folder)
+	if err != nil {
+		return fmt.Errorf("could not read %s: %w", folder, err)
+	}
+	defer func() { _ = root.Close() }()
 	if !force {
 		for _, file := range files {
 			path := filepath.Join(folder, file.name)
-			if _, err := os.Lstat(path); err == nil {
+			if _, err := root.Lstat(file.name); err == nil {
 				return fmt.Errorf("%s already exists: nothing was written. Give --force to overwrite", path)
 			} else if !os.IsNotExist(err) {
 				return fmt.Errorf("could not read %s: %w", path, err)
@@ -290,7 +298,7 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 	}
 	// Create these before Compose starts, or Docker creates them owned by root.
 	for _, name := range []string{"backups", "consul-data", "consul.d", "traefik/dynamic", "tls/consul", "tls/traefik"} {
-		if err := os.MkdirAll(filepath.Join(folder, name), 0700); err != nil {
+		if err := root.MkdirAll(name, 0700); err != nil {
 			return fmt.Errorf("could not create %s: %w", folder, err)
 		}
 	}
@@ -303,7 +311,7 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 		if force {
 			flags = os.O_WRONLY | os.O_CREATE | os.O_TRUNC
 		}
-		output, err := os.OpenFile(path, flags, file.mode)
+		output, err := root.OpenFile(file.name, flags, file.mode)
 		if err != nil {
 			return fmt.Errorf("could not write %s: %w", path, err)
 		}

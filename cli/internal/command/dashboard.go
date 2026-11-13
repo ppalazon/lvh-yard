@@ -17,7 +17,12 @@ func (o *Options) DashboardAddress() string {
 	if url := o.Process.Getenv("YARD_DASHBOARD_URL"); strings.TrimSpace(url) != "" {
 		return url
 	}
-	text, err := os.ReadFile(filepath.Join(o.WorkstationFolder(), ".env"))
+	root, err := os.OpenRoot(o.WorkstationFolder())
+	if err != nil {
+		return defaultDashboard
+	}
+	defer func() { _ = root.Close() }()
+	text, err := root.ReadFile(".env")
 	if err != nil {
 		return defaultDashboard
 	}

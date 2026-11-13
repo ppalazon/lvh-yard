@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -82,6 +83,11 @@ func newWSTLSIssueRoles(options *Options, folder func() string, use, short, long
 			return err
 		}
 		dir := filepath.Dir(issuedPath(folder(), name, roles[0], ".crt"))
+		root, err := os.OpenRoot(folder())
+		if err != nil {
+			return err
+		}
+		defer func() { _ = root.Close() }()
 		out := cmd.OutOrStdout()
 		for _, role := range roles {
 			leaf, key, err := tlsca.NewCertificate(name, days)
@@ -96,7 +102,7 @@ func newWSTLSIssueRoles(options *Options, folder func() string, use, short, long
 			if err := tlsca.CheckWithin(leaf, ca); err != nil {
 				return err
 			}
-			if err := writeTLSCertificate(dir, role, leaf, ca, key, signer); err != nil {
+			if err := writeTLSCertificate(root, filepath.Dir(issuedPath("", name, role, ".crt")), role, leaf, ca, key, signer); err != nil {
 				return err
 			}
 			fmt.Fprintf(out, "%s certificate for %s saved in %s.\nIt names: %s\n", roleSettingName(role), name, filepath.Join(dir, role+".crt"), strings.Join(tlsca.Names(leaf), ", "))

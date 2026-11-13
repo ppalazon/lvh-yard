@@ -96,7 +96,7 @@ dir = "{{config_root}}/cli"
 # The gate runs only the linters that report nothing today. quality:go runs the full set of cli/.golangci.yml.
 run = [
   "go vet ./...",
-  "golangci-lint run --enable-only=errcheck,errorlint,modernize,staticcheck,bodyclose,misspell,unconvert,govet,ineffassign,unused ./...",
+  "golangci-lint run --enable-only=errcheck,errorlint,modernize,staticcheck,bodyclose,misspell,unconvert,govet,ineffassign,unused,gosec ./...",
   "go test ./...",
 ]
 

@@ -21,8 +21,13 @@ func installRole(cmd *cobra.Command, folder string, env *envfile.File, role stri
 	if err := protectWorkstationFolder(folder); err != nil {
 		return err
 	}
+	root, err := os.OpenRoot(folder)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = root.Close() }()
 	dir := roleDir(folder, role)
-	if err := writeRole(dir, role, caPEM, certPEM, keyPEM); err != nil {
+	if err := writeRole(root, roleDir("", role), role, caPEM, certPEM, keyPEM); err != nil {
 		return err
 	}
 	if err := turnOnRole(folder, role, env); err != nil {
@@ -55,15 +60,15 @@ uses to check Client Certificates.`,
 			if role == roleTraefik && traefikOff(env) {
 				return fmt.Errorf("Traefik is off on this Workstation: turn it on with lvh-yard ws set traefik on")
 			}
-			caPEM, err := os.ReadFile(caFile)
+			caPEM, err := os.ReadFile(caFile) // #nosec G304 -- --ca selects an input file outside the Workstation Folder.
 			if err != nil {
 				return fmt.Errorf("read CA: %w", err)
 			}
-			certPEM, err := os.ReadFile(certFile)
+			certPEM, err := os.ReadFile(certFile) // #nosec G304 -- --cert selects an input file outside the Workstation Folder.
 			if err != nil {
 				return fmt.Errorf("read certificate: %w", err)
 			}
-			keyPEM, err := os.ReadFile(keyFile)
+			keyPEM, err := os.ReadFile(keyFile) // #nosec G304 -- --key selects an input file outside the Workstation Folder.
 			if err != nil {
 				return fmt.Errorf("read key: %w", err)
 			}
@@ -106,7 +111,10 @@ func newWSTLSInstall(options *Options, folder func() string) *cobra.Command {
 			return err
 		}
 		ws := wsCommand(folder(), options.WorkstationFolder())
-		signed, available := readSignedTLSRoles(folder, name)
+		signed, available, err := readSignedTLSRoles(folder(), name)
+		if err != nil {
+			return err
+		}
 		if len(available) == 0 {
 			return fmt.Errorf("the Yard CA has signed nothing for %s: run %s tls ca issue workstation %s", name, ws, quoteShell(name))
 		}
@@ -138,18 +146,29 @@ func newWSTLSInstall(options *Options, folder func() string) *cobra.Command {
 	return cmd
 }
 
-func readSignedTLSRoles(folder func() string, name string) (map[string][2][]byte, []string) {
+func readSignedTLSRoles(folder, name string) (map[string][2][]byte, []string, error) {
+	root, err := os.OpenRoot(folder)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() { _ = root.Close() }()
 	signed := map[string][2][]byte{}
 	var available []string
 	for _, role := range tlsRoles {
-		certPEM, certErr := os.ReadFile(issuedPath(folder(), name, role, ".crt"))
-		keyPEM, keyErr := os.ReadFile(issuedPath(folder(), name, role, ".key"))
+		certPEM, certErr := root.ReadFile(issuedPath("", name, role, ".crt"))
+		keyPEM, keyErr := root.ReadFile(issuedPath("", name, role, ".key"))
+		if certErr != nil && !os.IsNotExist(certErr) {
+			return nil, nil, certErr
+		}
+		if keyErr != nil && !os.IsNotExist(keyErr) {
+			return nil, nil, keyErr
+		}
 		if certErr == nil && keyErr == nil {
 			signed[role] = [2][]byte{certPEM, keyPEM}
 			available = append(available, role)
 		}
 	}
-	return signed, available
+	return signed, available, nil
 }
 
 func installLocalTLSRoles(cmd *cobra.Command, folder func() string, env *envfile.File, roles []string, caPEM []byte, signed map[string][2][]byte) error {
@@ -168,9 +187,14 @@ func installRemoteTLSRoles(cmd *cobra.Command, options *Options, folder func() s
 	if err := protectWorkstationFolder(folder()); err != nil {
 		return err
 	}
+	workstationRoot, err := os.OpenRoot(folder())
+	if err != nil {
+		return err
+	}
+	defer func() { _ = workstationRoot.Close() }()
 	root := bundleRoot(folder(), name)
 	for _, role := range roles {
-		if err := writeRole(filepath.Join(root, role), role, caPEM, signed[role][0], signed[role][1]); err != nil {
+		if err := writeRole(workstationRoot, filepath.Join(bundleRoot("", name), role), role, caPEM, signed[role][0], signed[role][1]); err != nil {
 			return err
 		}
 	}

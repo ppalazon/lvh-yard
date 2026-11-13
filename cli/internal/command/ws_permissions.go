@@ -8,7 +8,13 @@ import (
 )
 
 func protectWorkstationFolder(folder string) error {
-	return filepath.WalkDir(folder, func(path string, entry fs.DirEntry, err error) error {
+	root, err := os.OpenRoot(folder)
+	if err != nil {
+		return fmt.Errorf("could not read %s: %w", folder, err)
+	}
+	defer func() { _ = root.Close() }()
+	return fs.WalkDir(root.FS(), ".", func(name string, entry fs.DirEntry, err error) error {
+		path := filepath.Join(folder, name)
 		if err != nil {
 			return fmt.Errorf("could not read %s: %w", path, err)
 		}
@@ -20,7 +26,7 @@ func protectWorkstationFolder(folder string) error {
 		if entry.IsDir() {
 			mode = 0700
 		}
-		if err := os.Chmod(path, mode); err != nil {
+		if err := root.Chmod(name, mode); err != nil {
 			return fmt.Errorf("could not protect %s: %w", path, err)
 		}
 		return nil

@@ -85,7 +85,12 @@ func newWSSet(folder func() string) *cobra.Command {
 
 func readWSEnv(folder string) (*envfile.File, error) {
 	path := filepath.Join(folder, ".env")
-	text, err := os.ReadFile(path)
+	root, err := os.OpenRoot(folder)
+	if err != nil {
+		return nil, fmt.Errorf("could not read %s: %w", path, err)
+	}
+	defer func() { _ = root.Close() }()
+	text, err := root.ReadFile(".env")
 	if err != nil {
 		return nil, fmt.Errorf("could not read %s: %w", path, err)
 	}
@@ -96,7 +101,12 @@ func saveWSEnv(cmd *cobra.Command, folder string, env *envfile.File) error {
 	if err := protectWorkstationFolder(folder); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(folder, ".env"), []byte(env.Text()), 0600); err != nil {
+	root, err := os.OpenRoot(folder)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = root.Close() }()
+	if err := root.WriteFile(".env", []byte(env.Text()), 0600); err != nil {
 		return err
 	}
 	fmt.Fprintln(cmd.OutOrStdout(), "Saved .env. Apply the settings:")

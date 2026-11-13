@@ -104,7 +104,12 @@ func yardShareTLS(folder func() string) (bool, error) {
 	}
 	if enabled {
 		ca := filepath.Join(folder(), "tls", "consul", "ca.crt")
-		info, err := os.Stat(ca)
+		root, err := os.OpenRoot(folder())
+		if err != nil {
+			return false, err
+		}
+		defer func() { _ = root.Close() }()
+		info, err := root.Stat(filepath.Join("tls", "consul", "ca.crt"))
 		if err != nil {
 			return false, fmt.Errorf("Consul TLS is enabled, but its public CA certificate cannot be read: %w", err)
 		}
@@ -116,7 +121,15 @@ func yardShareTLS(folder func() string) (bool, error) {
 }
 
 func consulTLSEnabled(folder string) (bool, error) {
-	_, err := os.Stat(filepath.Join(folder, "consul.d", "10-tls.hcl"))
+	root, err := os.OpenRoot(folder)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = root.Close() }()
+	_, err = root.Stat(filepath.Join("consul.d", "10-tls.hcl"))
 	if os.IsNotExist(err) {
 		return false, nil
 	}

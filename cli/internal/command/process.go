@@ -40,7 +40,7 @@ func (systemProcess) IsTerminal() bool {
 }
 
 func (systemProcess) Edit(editor, path string) error {
-	// The shell reads editor arguments; the file path stays a separate argument.
+	// #nosec G204 -- EDITOR is the user's command; the file path stays a separate argument.
 	edit := exec.Command("sh", "-c", editor+" \"$1\"", "sh", path)
 	edit.Stdin = os.Stdin
 	edit.Stdout = os.Stdout
@@ -49,6 +49,7 @@ func (systemProcess) Edit(editor, path string) error {
 }
 
 func (systemProcess) ID(flag string) string {
+	// #nosec G204 -- Initialization passes only the fixed id flags -u and -g.
 	printed, err := exec.Command("id", flag).Output()
 	if err != nil {
 		return ""
@@ -63,6 +64,7 @@ func (systemProcess) ID(flag string) string {
 }
 
 func (systemProcess) Run(name string, args []string, dir string, stdout, stderr io.Writer) (int, error) {
+	// #nosec G204 -- CLI actions select docker, ssh or scp; arguments are passed without a shell.
 	command := exec.Command(name, args...)
 	command.Dir = dir
 	command.Stdin = os.Stdin
