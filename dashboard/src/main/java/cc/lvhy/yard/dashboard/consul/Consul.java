@@ -167,7 +167,9 @@ public interface Consul {
       @JsonProperty("Meta") Map<String, String> meta) {
 
     public AgentService {
-      port = port == null ? 0 : port;
+      if (port == null) {
+        port = 0;
+      }
       tags = tags == null ? List.of() : tags;
       meta = meta == null ? Map.of() : meta;
     }

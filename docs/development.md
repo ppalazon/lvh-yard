@@ -214,17 +214,20 @@ comparing it.
 
 - `quality:go` runs golangci-lint on `cli/`. The rules are in
   `cli/.golangci.yml`.
-- `quality:java` runs SpotBugs and PMD on the dashboard. The PMD rules are in
+- `quality:java` runs SpotBugs and PMD on the dashboard, with every PMD rule of
   `dashboard/pmd-ruleset.xml`. The reports are
   `dashboard/target/spotbugsXml.xml` and `dashboard/target/pmd.xml`.
 - `quality:mutation` runs PIT with the dashboard unit tests only. It changes
   the code of a few classes, and a unit test that still passes means that the
   tests miss that change. The report is
-  `dashboard/target/pit-reports/index.html`. The classes are in the `quality`
-  profile of `dashboard/pom.xml`.
+  `dashboard/target/pit-reports/index.html`. The classes are in
+  `dashboard/pom.xml`.
 
-The Java plugins are in the Maven profile `quality`, so the normal build does
-not run them. [design.md](design.md) explains the findings.
+`./mvnw verify`, and so `mise run check`, also runs SpotBugs and PMD, and
+fails on a finding. SpotBugs skips what `dashboard/spotbugs-exclude.xml` lists.
+PMD runs only the rules of `dashboard/pmd-gate.xml`: unused private methods,
+fields, local variables and parameters. [design.md](design.md) explains the
+findings.
 
 ## Continuous integration
 

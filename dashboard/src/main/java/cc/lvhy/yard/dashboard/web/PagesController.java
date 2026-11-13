@@ -124,12 +124,6 @@ class PagesController {
     return value == null || value.isBlank();
   }
 
-  /** A form that names a Service shows this at its name field. */
-  private static InvalidRegistrationException notCreated(UnknownServiceException e) {
-    return new InvalidRegistrationException(
-        "name", e.getMessage() + " Create it first, with New Service in the catalog.");
-  }
-
   @GetMapping(path = NewServicePage.PATH, produces = MediaType.TEXT_HTML_VALUE)
   @ResponseBody
   String newService() {

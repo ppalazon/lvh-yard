@@ -112,16 +112,17 @@ flowchart LR
 | `PagesController`   | 527 lines | Total cyclomatic complexity 85, 10 imports too many                 | Ten constructor dependencies and about 30 handlers.                                        |
 | `BackupsPage`       | 636 lines | God class                                                           | One view class with 48 branches.                                                           |
 
-SpotBugs found 80 problems and PMD found 150. Most are noise or style:
+SpotBugs found 80 problems and PMD found 150 when I first ran them. Most are
+noise or style:
 
-| Finding                                           | Count | Verdict                                                                                                                                                               |
-| ------------------------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| SpotBugs `EI_EXPOSE_REP` and `EI_EXPOSE_REP2`     | 75    | A record or class holds a list or map that the caller can change. Wrap the value in an unmodifiable copy where the object crosses a package, and ignore the rest.     |
-| SpotBugs `NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE` | 3     | Read each one: `BackupsFolder:93`, `ConsulAgent:129`, `BackupsPagesController:89`.                                                                                    |
-| SpotBugs and PMD, unused private method           | 3     | `Registrations.notATcpPort` (both tools) and `PagesController.notCreated`. Delete them if nothing calls them.                                                         |
-| PMD `PreserveStackTrace`                          | 6     | A rethrown exception drops its cause: `BackupFormat:160`, `BackupsFolder:125` and `:138`, `ReachabilityTester:238`, `CreateContainerService:52`, `Registrations:307`. |
-| PMD `CompareObjectsWithEquals`                    | 9     | Check that each `==` on objects is on purpose.                                                                                                                        |
-| PMD `TooManyMethods`                              | 22    | Follows from the god classes.                                                                                                                                         |
+| Finding                                           | Count | Verdict                                                                                                                                                                                    |
+| ------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| SpotBugs `EI_EXPOSE_REP` and `EI_EXPOSE_REP2`     | 75    | A record or class holds a list or map that the caller can change. Nothing changes them after the dashboard builds them, so `spotbugs-exclude.xml` skips both patterns.                     |
+| SpotBugs `NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE` | 3     | Fixed in `ConsulAgent` and `BackupsPagesController`. `BackupsFolder:93` is a false alarm: a child path always has a file name. `spotbugs-exclude.xml` lists it.                            |
+| SpotBugs and PMD, unused private method           | 3     | `Registrations.notATcpPort` and `PagesController.notCreated` are deleted. `mise run check` fails on a new one.                                                                             |
+| PMD `PreserveStackTrace`                          | 6     | Not a fault. Each one turns a low-level error into a domain exception whose message already holds the cause text, or unwraps `ExecutionException` on purpose. The rule is not in the gate. |
+| PMD `CompareObjectsWithEquals`                    | 9     | Not a fault. Each `==` compares a thread or an object by identity on purpose. The rule is not in the gate.                                                                                 |
+| PMD `TooManyMethods`                              | 22    | Follows from the god classes.                                                                                                                                                              |
 
 ### Mutation tests
 
@@ -233,7 +234,7 @@ lists them.
 | Tool          | Checks             | Runs in `mise run check`                                             |
 | ------------- | ------------------ | -------------------------------------------------------------------- |
 | golangci-lint | Go code            | Yes, the linters with no finding today. The rest are in `quality:go` |
-| SpotBugs, PMD | Java code          | No                                                                   |
+| SpotBugs, PMD | Java code          | Yes, SpotBugs with a skip list, and PMD for unused code              |
 | PIT           | Java unit tests    | No                                                                   |
 | ArchUnit      | Java package rules | Not yet                                                              |
 

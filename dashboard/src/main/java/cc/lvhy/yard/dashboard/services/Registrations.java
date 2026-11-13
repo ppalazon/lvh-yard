@@ -495,10 +495,6 @@ public class Registrations {
     }
   }
 
-  private static InvalidRegistrationException notATcpPort(String port) {
-    return notATcpPort("port", port);
-  }
-
   private static InvalidRegistrationException notATcpPort(String field, String port) {
     return new InvalidRegistrationException(
         field, "The port " + port + " is not a TCP port: use 1 to 65535.");

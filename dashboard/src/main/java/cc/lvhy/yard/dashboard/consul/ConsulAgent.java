@@ -126,7 +126,11 @@ public class ConsulAgent implements Consul {
   /** compose.yaml sets it to the Workstation's LAN address. */
   @Override
   public String agentAddress() {
-    return http.get().uri("/v1/agent/self").retrieve().body(AgentSelf.class).member().address();
+    AgentSelf self = http.get().uri("/v1/agent/self").retrieve().body(AgentSelf.class);
+    if (self == null) {
+      throw new IllegalStateException("Consul answered /v1/agent/self without a body.");
+    }
+    return self.member().address();
   }
 
   /** Replaces the registration with the same ID. */
