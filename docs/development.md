@@ -210,7 +210,7 @@ comparing it.
 ## Code quality
 
 `mise run quality` runs the slow code checks. It is not part of
-`mise run check`, and it does not fail on a finding. It runs three tasks:
+`mise run check`. It runs three tasks:
 
 - `quality:go` runs golangci-lint on `cli/`. The rules are in
   `cli/.golangci.yml`.
@@ -219,9 +219,9 @@ comparing it.
   `dashboard/target/spotbugsXml.xml` and `dashboard/target/pmd.xml`.
 - `quality:mutation` runs PIT with the dashboard unit tests only. It changes
   the code of a few classes, and a unit test that still passes means that the
-  tests miss that change. The report is
-  `dashboard/target/pit-reports/index.html`. The classes are in
-  `dashboard/pom.xml`.
+  tests miss that change. It fails when the score of the four classes is under
+  the `mutationThreshold` in `dashboard/pom.xml`. Raise that number when the
+  score grows. The report is `dashboard/target/pit-reports/index.html`.
 
 `./mvnw verify`, and so `mise run check`, also runs SpotBugs and PMD, and
 fails on a finding. SpotBugs skips what `dashboard/spotbugs-exclude.xml` lists.

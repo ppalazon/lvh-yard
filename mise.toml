@@ -205,5 +205,5 @@ description = "Run PIT mutation tests with the dashboard unit tests. The report 
 run = "./mvnw -B -pl dashboard test-compile org.pitest:pitest-maven:mutationCoverage"
 
 [tasks.quality]
-description = "Run the slow code checks: golangci-lint, SpotBugs, PMD and PIT. Not part of mise run check"
+description = "Run the slow code checks: golangci-lint, SpotBugs, PMD and PIT. Not part of mise run check. It fails when the PIT score is under the threshold"
 depends = ["quality:go", "quality:java", "quality:mutation"]

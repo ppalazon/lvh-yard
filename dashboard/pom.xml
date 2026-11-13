@@ -200,6 +200,8 @@
                         <param>*ComponentTest</param>
                         <param>*IT</param>
                     </excludedTestClasses>
+                    <!-- The score on 2026-11-13 was 90.7%. Raise it with the tests, never lower it. -->
+                    <mutationThreshold>90</mutationThreshold>
                     <threads>4</threads>
                     <outputFormats>
                         <param>HTML</param>

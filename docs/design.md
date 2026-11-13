@@ -128,18 +128,22 @@ noise or style:
 
 PIT changes the code and runs the unit tests only (`*Test`, not
 `*ComponentTest`). A mutant that no test fails on survives. The component tests
-cover the HTTP path, so these numbers are the unit tests alone:
+cover the HTTP path, so these numbers are the unit tests alone. The first
+column is the first run, the second is after the new tests of `Registrations`
+and `RouteBuilder`:
 
-| Class           | Mutants | Killed    | No coverage | Survived |
-| --------------- | ------- | --------- | ----------- | -------- |
-| `Registrations` | 138     | 23 (17%)  | 107         | 8        |
-| `BackupFormat`  | 125     | 101 (81%) | 17          | 7        |
-| `Routing`       | 34      | 29 (85%)  | 5           | 0        |
-| `RouteBuilder`  | 28      | 16 (57%)  | 5           | 7        |
-| All four        | 325     | 169 (52%) | 134         | 22       |
+| Class           | Mutants | Killed at first | Killed now | Survived now |
+| --------------- | ------- | --------------- | ---------- | ------------ |
+| `Registrations` | 137     | 23 (17%)        | 136 (99%)  | 1            |
+| `BackupFormat`  | 125     | 101 (81%)       | 101 (81%)  | 7            |
+| `Routing`       | 34      | 29 (85%)        | 29 (85%)   | 0            |
+| `RouteBuilder`  | 28      | 16 (57%)        | 28 (100%)  | 0            |
+| All four        | 324     | 169 (52%)       | 294 (91%)  | 8            |
 
-`Registrations` has no unit-test net, so split it only after tests exist.
-`RouteBuilder` survivors are in lines 31, 35, 45, 76 and 123.
+`dashboard/pom.xml` sets `mutationThreshold` to 90, so `mise run quality` fails
+when the score drops. The one survivor of `Registrations` is `parseMeta` returning
+an empty map for no text, which no caller can tell from a new empty map. The 17
+mutants of `BackupFormat` and 5 of `Routing` that no unit test reaches are next.
 
 ### Target
 
