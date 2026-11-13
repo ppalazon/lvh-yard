@@ -3,7 +3,6 @@ package command
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ppalazon/lvh-yard/cli/internal/settings"
 	"net"
 	"net/http"
 	"sort"
@@ -12,6 +11,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/ppalazon/lvh-yard/cli/internal/settings"
 	"github.com/spf13/cobra"
 )
 

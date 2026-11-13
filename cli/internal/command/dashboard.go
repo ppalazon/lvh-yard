@@ -1,10 +1,11 @@
 package command
 
 import (
-	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
 )
 
 const defaultDashboard = "http://127.0.0.1:7780"

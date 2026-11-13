@@ -2,13 +2,13 @@ package command
 
 import (
 	"fmt"
-	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
-	"github.com/ppalazon/lvh-yard/cli/internal/templates"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 
+	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
+	"github.com/ppalazon/lvh-yard/cli/internal/templates"
 	"github.com/spf13/cobra"
 )
 

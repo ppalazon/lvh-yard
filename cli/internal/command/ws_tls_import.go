@@ -3,12 +3,12 @@ package command
 import (
 	"errors"
 	"fmt"
-	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
 	"github.com/spf13/cobra"
 )
 

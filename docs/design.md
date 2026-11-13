@@ -206,12 +206,27 @@ flowchart LR
     main[cmd/lvh-yard] --> command
     command --> client
     command --> templates
+    command --> envfile
+    command --> settings
+    command --> composefile
+    command --> tlsca
+    envfile --> templates
     commandtest --> command
     clienttest --> client
 ```
 
-- `command` has 4,307 lines in 34 flat files. It holds cobra commands, output,
-  env-file editing, TLS and CA work, `docker compose` calls and prompts.
+- `command` had 4,307 lines in 34 flat files. It holds cobra commands, output,
+  `docker compose` calls and prompts. The pure logic moved out into four
+  packages that read and write no file and print nothing:
+  - `envfile`: the text of a `.env` file.
+  - `settings`: the name of each Workstation setting and what it accepts, with one
+    rule for each in a table, in place of one switch.
+  - `composefile`: the image values of a `compose.yaml`, and their replacement.
+  - `tlsca`: the Yard CA, the Consul and Traefik certificates, the Client
+    Certificates, and the checks of a certificate.
+    Each has its own tests. For `settings` and `composefile`, a temporary test
+    compared the new code with the old for many inputs, and the answers were the
+    same.
 - `client` is clean. It imports no other package of the CLI.
 - `command.Process` is the only interface. It has 7 methods and mixes
   environment, input, terminal, LAN address, editor, `exec` and `id`.
@@ -252,8 +267,12 @@ lists them.
   injected through `Options`, as `Process` is. It is one interface, not one for
   each command, so it is wide. A test fake embeds it and gives only the methods
   that its command calls. Split it by command if a fake gets in the way.
-- Move pure logic out of the cobra closures into packages such as `tlsca` and
-  `envfile`. Commands stay thin. The first targets are the gocyclo list above.
+- Move pure logic out of the cobra closures into packages. Done for the four
+  above, and `checkWSSetting` (31) and `composeImages` (20) left the gocyclo
+  list. The worst closures remain: `NewRemove` 40, `init.create` 38,
+  `newWSTLSIssueRoles` 29, `upgradeInit` 27 and `newWSYardShare` 27. They mostly
+  orchestrate prompts, files and output, so the next step is smaller functions in
+  `command`, not more packages.
 - No port for the filesystem or the clock. `t.TempDir()` is enough.
 - Split `Process` only if the client change shows the need.
 

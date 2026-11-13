@@ -5,8 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
-	"github.com/ppalazon/lvh-yard/cli/internal/settings"
 	"io"
 	"os"
 	"path/filepath"
@@ -14,6 +12,8 @@ import (
 	"syscall"
 	"unicode"
 
+	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
+	"github.com/ppalazon/lvh-yard/cli/internal/settings"
 	"github.com/ppalazon/lvh-yard/cli/internal/templates"
 	"github.com/spf13/cobra"
 )

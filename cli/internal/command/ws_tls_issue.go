@@ -1,15 +1,15 @@
 package command
 
 import (
-	"crypto/x509"
 	"fmt"
-	"github.com/ppalazon/lvh-yard/cli/internal/settings"
 	"net"
 	"path/filepath"
 	"slices"
 	"strings"
 	"unicode"
 
+	"github.com/ppalazon/lvh-yard/cli/internal/settings"
+	"github.com/ppalazon/lvh-yard/cli/internal/tlsca"
 	"github.com/spf13/cobra"
 )
 
@@ -121,18 +121,22 @@ func newWSTLSIssueRoles(options *Options, folder func() string, use, short, long
 		dir := filepath.Dir(issuedPath(folder(), name, roles[0], ".crt"))
 		out := cmd.OutOrStdout()
 		for _, role := range roles {
-			leaf, key, err := newTLSCertificate(name, days)
+			leaf, key, err := tlsca.NewCertificate(name, days)
 			if err != nil {
 				return err
 			}
-			fillRoleCertificate(leaf, role, name, base, addresses)
-			if leaf.NotAfter.After(ca.NotAfter) || leaf.NotBefore.Before(ca.NotBefore) {
-				return fmt.Errorf("certificate validity is outside the Yard CA validity: use a shorter --days value or make a new CA")
+			if role == roleConsul {
+				tlsca.FillConsul(leaf, name)
+			} else {
+				tlsca.FillTraefik(leaf, base, addresses)
+			}
+			if err := tlsca.CheckWithin(leaf, ca); err != nil {
+				return err
 			}
 			if err := writeTLSCertificate(dir, role, leaf, ca, key, signer); err != nil {
 				return err
 			}
-			fmt.Fprintf(out, "%s certificate for %s saved in %s.\nIt names: %s\n", roleSettingName(role), name, filepath.Join(dir, role+".crt"), strings.Join(certificateNames(leaf), ", "))
+			fmt.Fprintf(out, "%s certificate for %s saved in %s.\nIt names: %s\n", roleSettingName(role), name, filepath.Join(dir, role+".crt"), strings.Join(tlsca.Names(leaf), ", "))
 		}
 		if err := protectWorkstationFolder(folder()); err != nil {
 			return err
@@ -151,27 +155,6 @@ func newWSTLSIssueRoles(options *Options, folder func() string, use, short, long
 	}
 	cmd.Flags().IntVar(&days, "days", 365, "Sets the certificate validity in days.")
 	return cmd
-}
-
-// fillRoleCertificate sets the names and usages of a role. Consul checks server.<name>.consul and
-// needs both usages. Traefik answers browsers, which need the Route names and a server usage.
-func fillRoleCertificate(leaf *x509.Certificate, role, name, base string, addresses []string) {
-	leaf.KeyUsage = x509.KeyUsageDigitalSignature
-	leaf.IPAddresses = []net.IP{net.ParseIP("127.0.0.1")}
-	if role == roleConsul {
-		leaf.DNSNames = []string{"server." + name + ".consul", "localhost"}
-		leaf.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
-		return
-	}
-	leaf.DNSNames = []string{"*." + base, "localhost"}
-	leaf.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
-	for _, address := range addresses {
-		if ip := net.ParseIP(address); ip != nil {
-			leaf.IPAddresses = append(leaf.IPAddresses, ip)
-			continue
-		}
-		leaf.DNSNames = append(leaf.DNSNames, address)
-	}
 }
 
 const issueWorkstationHelp = `Signs the Consul and the Traefik certificate of a Workstation with the Yard CA. It does not copy
@@ -203,14 +186,3 @@ A wildcard covers one label, so *.lvh.me does not cover app.ws-b.lvh.me.
 Add more names with --address, once for each:
   *.<workstation>.<Base Domain>   a remote Workstation whose Routes this Workstation serves
   an IP address or DNS name       an address that people or tools reach this Workstation by`
-
-func certificateNames(cert *x509.Certificate) []string {
-	names := make([]string, 0, len(cert.DNSNames)+len(cert.IPAddresses))
-	for _, name := range cert.DNSNames {
-		names = append(names, "DNS:"+name)
-	}
-	for _, ip := range cert.IPAddresses {
-		names = append(names, "IP:"+ip.String())
-	}
-	return names
-}
