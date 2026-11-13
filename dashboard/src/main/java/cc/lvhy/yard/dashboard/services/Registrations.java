@@ -1,10 +1,10 @@
 package cc.lvhy.yard.dashboard.services;
 
 import cc.lvhy.yard.dashboard.Workstation;
-import cc.lvhy.yard.dashboard.consul.Consul;
 import cc.lvhy.yard.dashboard.consul.Consul.AgentService;
 import cc.lvhy.yard.dashboard.consul.Consul.Check;
 import cc.lvhy.yard.dashboard.consul.Consul.Registration;
+import cc.lvhy.yard.dashboard.consul.ConsulRegistrations;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -47,7 +47,7 @@ public class Registrations {
 
   private final Workstation workstation;
 
-  private final Consul consul;
+  private final ConsulRegistrations consul;
 
   private final ServiceRecords records;
 
@@ -56,7 +56,7 @@ public class Registrations {
 
   Registrations(
       Workstation workstation,
-      Consul consul,
+      ConsulRegistrations consul,
       ServiceRecords records,
       @Value("${lvh-yard.bound-instances.check-interval:10s}") Duration boundCheckInterval) {
     this.workstation = workstation;

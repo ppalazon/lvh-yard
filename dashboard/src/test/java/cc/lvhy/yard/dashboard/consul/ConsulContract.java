@@ -8,7 +8,7 @@ import cc.lvhy.yard.dashboard.consul.Consul.Check;
 import cc.lvhy.yard.dashboard.consul.Consul.CheckStatus;
 import cc.lvhy.yard.dashboard.consul.Consul.HealthEntry;
 import cc.lvhy.yard.dashboard.consul.Consul.Registration;
-import cc.lvhy.yard.dashboard.consul.Consul.Watched;
+import cc.lvhy.yard.dashboard.consul.ConsulWatching.Watched;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;

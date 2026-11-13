@@ -28,7 +28,7 @@ class CreateContainerServiceTest {
 
   private final Consul consul = mock(Consul.class, delegatesTo(stored));
 
-  private final ServiceRecords records = new ServiceRecords(consul);
+  private final ServiceRecords records = new ServiceRecords(consul, consul);
 
   private final Registrations registrations =
       new Registrations(workstation, consul, records, Duration.ofSeconds(10));

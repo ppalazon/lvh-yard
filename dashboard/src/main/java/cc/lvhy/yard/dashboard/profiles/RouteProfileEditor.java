@@ -1,6 +1,7 @@
 package cc.lvhy.yard.dashboard.profiles;
 
 import cc.lvhy.yard.dashboard.consul.Consul;
+import cc.lvhy.yard.dashboard.consul.ConsulKv;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,10 +20,10 @@ public class RouteProfileEditor {
 
   private final ProfileUsage usage;
 
-  private final Consul consul;
+  private final ConsulKv consul;
 
   RouteProfileEditor(
-      RouteProfiles profiles, RouteProfileChecks checks, ProfileUsage usage, Consul consul) {
+      RouteProfiles profiles, RouteProfileChecks checks, ProfileUsage usage, ConsulKv consul) {
     this.profiles = profiles;
     this.checks = checks;
     this.usage = usage;

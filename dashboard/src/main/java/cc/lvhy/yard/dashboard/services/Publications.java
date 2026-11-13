@@ -1,7 +1,7 @@
 package cc.lvhy.yard.dashboard.services;
 
 import cc.lvhy.yard.dashboard.Workstation;
-import cc.lvhy.yard.dashboard.consul.Consul;
+import cc.lvhy.yard.dashboard.consul.ConsulKv;
 import cc.lvhy.yard.dashboard.profiles.ProfileUsage;
 import cc.lvhy.yard.dashboard.profiles.RouteProfiles;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -29,7 +29,7 @@ public class Publications implements ProfileUsage {
 
   private final Workstation workstation;
 
-  private final Consul consul;
+  private final ConsulKv consul;
 
   private final ServiceRecords records;
 
@@ -39,7 +39,7 @@ public class Publications implements ProfileUsage {
 
   Publications(
       Workstation workstation,
-      Consul consul,
+      ConsulKv consul,
       ServiceRecords records,
       RouteProfiles routeProfiles,
       ApplicationEventPublisher events) {

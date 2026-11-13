@@ -1,8 +1,8 @@
 package cc.lvhy.yard.dashboard.status;
 
-import cc.lvhy.yard.dashboard.consul.Consul;
 import cc.lvhy.yard.dashboard.consul.Consul.WanMember;
 import cc.lvhy.yard.dashboard.consul.ConsulException;
+import cc.lvhy.yard.dashboard.consul.ConsulFederation;
 import cc.lvhy.yard.dashboard.consul.ConsulSettings;
 import jakarta.annotation.PreDestroy;
 import java.net.InetAddress;
@@ -52,7 +52,7 @@ class ConsulStatus implements PartReader {
     InetAddress[] addresses(String host) throws UnknownHostException;
   }
 
-  private final Consul consul;
+  private final ConsulFederation consul;
 
   private final ConsulSettings settings;
 
@@ -62,11 +62,11 @@ class ConsulStatus implements PartReader {
   private final ExecutorService lookups = Executors.newVirtualThreadPerTaskExecutor();
 
   @Autowired
-  ConsulStatus(Consul consul, ConsulSettings settings) {
+  ConsulStatus(ConsulFederation consul, ConsulSettings settings) {
     this(consul, settings, InetAddress::getAllByName);
   }
 
-  ConsulStatus(Consul consul, ConsulSettings settings, Lookup lookup) {
+  ConsulStatus(ConsulFederation consul, ConsulSettings settings, Lookup lookup) {
     this.consul = consul;
     this.settings = settings;
     this.lookup = lookup;

@@ -24,7 +24,7 @@ class RegistrationsTest {
 
   private final FakeConsul consul = new FakeConsul("home");
 
-  private final ServiceRecords records = new ServiceRecords(consul);
+  private final ServiceRecords records = new ServiceRecords(consul, consul);
 
   private final Registrations registrations =
       new Registrations(

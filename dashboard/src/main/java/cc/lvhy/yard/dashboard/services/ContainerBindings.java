@@ -2,7 +2,7 @@ package cc.lvhy.yard.dashboard.services;
 
 import cc.lvhy.yard.dashboard.OutOfRange;
 import cc.lvhy.yard.dashboard.Workstation;
-import cc.lvhy.yard.dashboard.consul.Consul;
+import cc.lvhy.yard.dashboard.consul.ConsulKv;
 import cc.lvhy.yard.dashboard.docker.Docker;
 import cc.lvhy.yard.dashboard.docker.Docker.Container;
 import cc.lvhy.yard.dashboard.docker.Docker.Port;
@@ -57,7 +57,7 @@ public class ContainerBindings {
 
   private final Workstation workstation;
 
-  private final Consul consul;
+  private final ConsulKv consul;
 
   private final Docker docker;
 
@@ -71,7 +71,7 @@ public class ContainerBindings {
 
   ContainerBindings(
       Workstation workstation,
-      Consul consul,
+      ConsulKv consul,
       Docker docker,
       Registrations registrations,
       ServiceRecords records,

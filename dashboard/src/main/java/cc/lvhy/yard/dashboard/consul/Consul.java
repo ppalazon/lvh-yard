@@ -3,94 +3,23 @@ package cc.lvhy.yard.dashboard.consul;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
- * Only the calls LVH Yard makes, with Consul's own names. A read can name another datacenter, which
- * the agent forwards over WAN federation. {@code null} names the agent's own. {@link ConsulAgent}
- * is the real one.
+ * Only the calls LVH Yard makes, with Consul's own names, in five roles. A class asks for the role
+ * that it uses, and this is all of them. A read can name another datacenter, which the agent
+ * forwards over WAN federation. {@code null} names the agent's own. {@link ConsulAgent} is the real
+ * one.
  */
-public interface Consul {
+public interface Consul
+    extends ConsulFederation, ConsulRegistrations, ConsulCatalog, ConsulKv, ConsulWatching {
 
   /**
    * The name and ID of the Consul server's own entry in its catalog, which is no Instance of the
    * Yard.
    */
   String CONSUL_SERVICE = "consul";
-
-  /** Consul's own limit on the operations of one transaction. */
-  int TRANSACTION_SIZE = 64;
-
-  /** Every federated datacenter, answering or not. */
-  List<String> datacenters();
-
-  /** Empty while this Workstation's datacenter has no leader. */
-  default String leader() {
-    return leader(null);
-  }
-
-  /**
-   * Empty while the datacenter has no leader. A datacenter that the agent has no path to fails, so
-   * this tells whether the agent can read from it, which its WAN member being alive does not.
-   */
-  String leader(String datacenter);
-
-  /** The members of the agent's WAN pool: one server for each federated datacenter. */
-  List<WanMember> wanMembers();
-
-  /** compose.yaml sets it to the Workstation's LAN address. */
-  String agentAddress();
-
-  /** Replaces the registration with the same ID. */
-  void register(Registration registration);
-
-  Map<String, AgentService> agentServices();
-
-  Optional<AgentService> agentService(String id);
-
-  void deregister(String id);
-
-  List<String> serviceNames(String datacenter);
-
-  /** Each registration comes with its own checks and its node's. */
-  default List<HealthEntry> health(String service) {
-    return health(null, service);
-  }
-
-  List<HealthEntry> health(String datacenter, String service);
-
-  void putValue(String key, String value);
-
-  /**
-   * Writes each value at its key in one Consul transaction, so Consul takes all or none.
-   *
-   * @param values at most {@link #TRANSACTION_SIZE}
-   */
-  void putValues(Map<String, String> values);
-
-  Map<String, String> values(String datacenter, String prefix);
-
-  /** A key that is not there is no error. */
-  void deleteValue(String key);
-
-  /**
-   * Waits until {@code watched} changes after {@code index}, or for {@code wait}, and answers its
-   * index then. Index 0 answers at once.
-   */
-  long awaitChange(Watched watched, long index, Duration wait);
-
-  /** What {@link #awaitChange} can wait for, in this datacenter. */
-  enum Watched {
-    /** The Health of every check. */
-    HEALTH,
-    /** Every key under {@code lvh-yard/}. */
-    KV,
-    /** The names of the Services in the catalog. */
-    SERVICES
-  }
 
   static boolean isServerItself(AgentService registration) {
     return registration.name().equals(CONSUL_SERVICE) && registration.id().equals(CONSUL_SERVICE);

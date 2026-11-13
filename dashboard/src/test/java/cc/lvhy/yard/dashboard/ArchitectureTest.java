@@ -1,9 +1,11 @@
 package cc.lvhy.yard.dashboard;
 
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAnyPackage;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.fields;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
+import cc.lvhy.yard.dashboard.consul.Consul;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
@@ -86,6 +88,21 @@ class ArchitectureTest {
         .should()
         .dependOnClassesThat()
         .resideInAnyPackage("org.springframework.web.client..")
+        .check(classes);
+  }
+
+  @Test
+  void aClassAsksForARoleOfConsulNotForAllOfIt() {
+    fields()
+        .that()
+        .haveRawType(Consul.class)
+        .should()
+        .beDeclaredInClassesThat()
+        .resideInAPackage(BASE + ".consul..")
+        .because(
+            "a class holds ConsulKv, ConsulCatalog, ConsulFederation, ConsulRegistrations or"
+                + " ConsulWatching, whichever it uses")
+        .allowEmptyShould(true)
         .check(classes);
   }
 

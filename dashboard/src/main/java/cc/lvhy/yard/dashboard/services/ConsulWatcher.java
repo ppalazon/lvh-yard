@@ -2,9 +2,10 @@ package cc.lvhy.yard.dashboard.services;
 
 import static cc.lvhy.yard.dashboard.events.EventBroadcaster.YARD_CHANGED;
 
-import cc.lvhy.yard.dashboard.consul.Consul;
 import cc.lvhy.yard.dashboard.consul.Consul.WanMember;
-import cc.lvhy.yard.dashboard.consul.Consul.Watched;
+import cc.lvhy.yard.dashboard.consul.ConsulFederation;
+import cc.lvhy.yard.dashboard.consul.ConsulWatching;
+import cc.lvhy.yard.dashboard.consul.ConsulWatching.Watched;
 import cc.lvhy.yard.dashboard.events.EventDebouncer;
 import java.time.Duration;
 import java.util.List;
@@ -30,7 +31,8 @@ public class ConsulWatcher implements SmartLifecycle {
   private static final Duration DEFAULT_BACKOFF = Duration.ofSeconds(5);
   private static final Duration DEFAULT_WAIT = Duration.ofSeconds(60);
 
-  private final Consul consul;
+  private final ConsulWatching watching;
+  private final ConsulFederation federation;
   private final EventDebouncer debouncer;
   private final Duration backoffPause;
   private final Duration queryWait;
@@ -42,18 +44,21 @@ public class ConsulWatcher implements SmartLifecycle {
   private ExecutorService executor;
 
   @Autowired
-  public ConsulWatcher(Consul consul, EventDebouncer debouncer) {
-    this(consul, debouncer, DEFAULT_BACKOFF, DEFAULT_WAIT, LOG::warn, LOG::info);
+  public ConsulWatcher(
+      ConsulWatching watching, ConsulFederation federation, EventDebouncer debouncer) {
+    this(watching, federation, debouncer, DEFAULT_BACKOFF, DEFAULT_WAIT, LOG::warn, LOG::info);
   }
 
   public ConsulWatcher(
-      Consul consul,
+      ConsulWatching watching,
+      ConsulFederation federation,
       EventDebouncer debouncer,
       Duration backoffPause,
       Duration queryWait,
       Consumer<String> warnLogger,
       Consumer<String> infoLogger) {
-    this.consul = consul;
+    this.watching = watching;
+    this.federation = federation;
     this.debouncer = debouncer;
     this.backoffPause = backoffPause;
     this.queryWait = queryWait;
@@ -94,7 +99,7 @@ public class ConsulWatcher implements SmartLifecycle {
 
     while (running && !Thread.currentThread().isInterrupted()) {
       try {
-        long changed = consul.awaitChange(watched, index, queryWait);
+        long changed = watching.awaitChange(watched, index, queryWait);
         recovered();
 
         if (index > 0 && changed != index) {
@@ -119,7 +124,7 @@ public class ConsulWatcher implements SmartLifecycle {
 
     while (running && !Thread.currentThread().isInterrupted()) {
       try {
-        List<WanMember> members = consul.wanMembers();
+        List<WanMember> members = federation.wanMembers();
         recovered();
 
         if (last != null && !last.equals(members)) {

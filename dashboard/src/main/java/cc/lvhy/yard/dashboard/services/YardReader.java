@@ -6,6 +6,8 @@ import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.consul.Consul;
 import cc.lvhy.yard.dashboard.consul.Consul.AgentService;
 import cc.lvhy.yard.dashboard.consul.Consul.HealthEntry;
+import cc.lvhy.yard.dashboard.consul.ConsulCatalog;
+import cc.lvhy.yard.dashboard.consul.ConsulFederation;
 import cc.lvhy.yard.dashboard.consul.ConsulServerException;
 import cc.lvhy.yard.dashboard.consul.ConsulSettings;
 import cc.lvhy.yard.dashboard.consul.ConsulUnreachableException;
@@ -56,7 +58,9 @@ public class YardReader {
 
   private final Workstation workstation;
 
-  private final Consul consul;
+  private final ConsulFederation federation;
+
+  private final ConsulCatalog catalog;
 
   private final ServiceRecords records;
 
@@ -80,7 +84,8 @@ public class YardReader {
 
   YardReader(
       Workstation workstation,
-      Consul consul,
+      ConsulFederation federation,
+      ConsulCatalog catalog,
       ServiceRecords records,
       Publications publications,
       ContainerBindings containerBindings,
@@ -89,7 +94,8 @@ public class YardReader {
       ConsulSettings consulSettings,
       TraefikSettings traefikSettings) {
     this.workstation = workstation;
-    this.consul = consul;
+    this.federation = federation;
+    this.catalog = catalog;
     this.records = records;
     this.publications = publications;
     this.containerBindings = containerBindings;
@@ -143,7 +149,7 @@ public class YardReader {
   private Yard yard(Function<String, YardWorkstation> remote) {
     try (ExecutorService readers = Executors.newVirtualThreadPerTaskExecutor()) {
       List<CompletableFuture<YardWorkstation>> remotes =
-          consul.datacenters().stream()
+          federation.datacenters().stream()
               .filter(datacenter -> !workstation.is(datacenter))
               .sorted()
               .map(name -> CompletableFuture.supplyAsync(() -> remote.apply(name), readers))
@@ -236,7 +242,7 @@ public class YardReader {
   }
 
   private void checkInYard(String workstation) {
-    if (!this.workstation.is(workstation) && !consul.datacenters().contains(workstation)) {
+    if (!this.workstation.is(workstation) && !federation.datacenters().contains(workstation)) {
       throw new UnknownWorkstationException(workstation);
     }
   }
@@ -250,7 +256,7 @@ public class YardReader {
           Map<String, Map<String, ContainerBindingRequest>> bindings =
               containerBindings.all(datacenter);
           Map<String, RouteProfileDefinition> profiles = routeProfiles.stored(datacenter);
-          TreeSet<String> names = new TreeSet<>(consul.serviceNames(datacenter));
+          TreeSet<String> names = new TreeSet<>(catalog.serviceNames(datacenter));
           names.addAll(created.keySet());
           return names.stream()
               .flatMap(name ->
@@ -293,7 +299,7 @@ public class YardReader {
       Map<String, ContainerBindingRequest> bindings,
       Map<String, RouteProfileDefinition> profiles) {
     List<Instance> instances =
-        consul.health(datacenter, name).stream()
+        catalog.health(datacenter, name).stream()
             .filter(entry -> !Consul.isServerItself(entry.service()))
             .map(entry -> instance(entry, !workstation.is(home)))
             .sorted(BY_ADDRESS)
