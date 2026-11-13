@@ -8,17 +8,15 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"syscall"
 	"unicode"
 
+	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
+	"github.com/ppalazon/lvh-yard/cli/internal/settings"
 	"github.com/ppalazon/lvh-yard/cli/internal/templates"
 	"github.com/spf13/cobra"
 )
-
-var workstationName = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
-var baseDomainName = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$`)
 
 type initOptions struct {
 	workstation  string
@@ -56,25 +54,94 @@ func newWSInit(options *Options, folder func() string) *cobra.Command {
 	return cmd
 }
 
+// create asks for what the flags left out, fills .env from the template and writes the files.
 func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string) error {
-	env := parseEnvFile(templates.Env())
-	terminal := f.terminal || options.Process.IsTerminal()
-	answers := bufio.NewReader(options.Process.Input())
-	ask := func(question, flag string) (string, error) {
-		if !terminal {
-			return "", fmt.Errorf("Missing %s: no terminal to ask for it, so give it as %s", flag, flag)
-		}
-		fmt.Fprint(cmd.OutOrStdout(), question)
-		line, err := answers.ReadString('\n')
-		if err != nil && !(err == io.EOF && len(line) > 0) {
-			fmt.Fprintln(cmd.OutOrStdout())
-			if err == io.EOF {
-				return "", fmt.Errorf("Missing %s: the input ended before it was given", flag)
-			}
-			return "", fmt.Errorf("Missing %s: could not read it: %w", flag, err)
-		}
-		return strings.TrimSpace(line), nil
+	env := envfile.Parse(templates.Env())
+	prompt := &initPrompt{
+		out:      cmd.OutOrStdout(),
+		terminal: f.terminal || options.Process.IsTerminal(),
+		answers:  bufio.NewReader(options.Process.Input()),
 	}
+	name, err := f.workstationName(cmd, prompt)
+	if err != nil {
+		return err
+	}
+	domain, err := f.baseDomainValue(cmd, prompt, env.Get("YARD_BASE_DOMAIN"))
+	if err != nil {
+		return err
+	}
+	key, err := f.gossipKeyValue(cmd)
+	if err != nil {
+		return err
+	}
+	peers, err := f.checkedPeers()
+	if err != nil {
+		return err
+	}
+	if err := f.fillEnv(env, options, name, domain, key, peers); err != nil {
+		return err
+	}
+	compose, err := templates.Compose(options.Version)
+	if err != nil {
+		return err
+	}
+	if err := writeWorkstationFiles(folder, compose, env.Text(), f.force); err != nil {
+		return err
+	}
+	if strings.TrimSpace(env.Get("YARD_DOCKER_GID")) == "" {
+		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: no Docker socket at %s, so YARD_DOCKER_GID in .env is empty. Set it to the group of /var/run/docker.sock, or the dashboard will not start.\n", f.dockerSocket)
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "Wrote compose.yaml, .env, lvh-yard.yaml to %s.\n\n", folder)
+	printInitNextSteps(cmd.OutOrStdout(), folder, env, options.WorkstationFolder())
+	return nil
+}
+
+// initPrompt asks at a terminal. Without one, a question is an error that names the flag.
+type initPrompt struct {
+	out      io.Writer
+	terminal bool
+	answers  *bufio.Reader
+}
+
+func (p *initPrompt) ask(question, flag string) (string, error) {
+	if !p.terminal {
+		return "", fmt.Errorf("Missing %s: no terminal to ask for it, so give it as %s", flag, flag)
+	}
+	fmt.Fprint(p.out, question)
+	line, err := p.answers.ReadString('\n')
+	if err != nil && (err != io.EOF || len(line) == 0) {
+		fmt.Fprintln(p.out)
+		if err == io.EOF {
+			return "", fmt.Errorf("Missing %s: the input ended before it was given", flag)
+		}
+		return "", fmt.Errorf("Missing %s: could not read it: %w", flag, err)
+	}
+	return strings.TrimSpace(line), nil
+}
+
+// askValid asks again until the answer, or the fallback for an empty one, is valid.
+func (p *initPrompt) askValid(question, flag, fallback string, valid func(string) bool, refusal func(string) string) (string, error) {
+	for {
+		typed, err := p.ask(question, flag)
+		if err != nil {
+			return "", err
+		}
+		answer := typed
+		if answer == "" {
+			answer = fallback
+		}
+		if valid(answer) {
+			return answer, nil
+		}
+		fmt.Fprintln(p.out, refusal(answer))
+	}
+}
+
+const workstationNameRule = "use lowercase letters, digits and -, at most 63, not starting or ending with -"
+
+// workstationName is the --workstation flag, or the answer to a question that offers the name of
+// this computer.
+func (f *initOptions) workstationName(cmd *cobra.Command, prompt *initPrompt) (string, error) {
 	name := f.workstation
 	if !cmd.Flags().Changed("workstation") && name == "" {
 		hostname := f.hostname
@@ -86,100 +153,82 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 		if offered != "" {
 			question += " [" + offered + "]"
 		}
-		for {
-			typed, err := ask(question+": ", "--workstation")
-			if err != nil {
-				return err
+		var err error
+		name, err = prompt.askValid(question+": ", "--workstation", offered, settings.ValidWorkstationName, func(answer string) string {
+			if answer == "" {
+				return "A Workstation needs a name: " + workstationNameRule + "."
 			}
-			name = typed
-			if name == "" {
-				name = offered
-			}
-			if workstationName.MatchString(name) {
-				break
-			}
-			if name == "" {
-				fmt.Fprintln(cmd.OutOrStdout(), "A Workstation needs a name: use lowercase letters, digits and -, at most 63, not starting or ending with -.")
-			} else {
-				fmt.Fprintln(cmd.OutOrStdout(), name+" is not a Workstation name: use lowercase letters, digits and -, at most 63, not starting or ending with -.")
-			}
+			return answer + " is not a Workstation name: " + workstationNameRule + "."
+		})
+		if err != nil {
+			return "", err
 		}
 	}
-	if !workstationName.MatchString(name) {
-		return fmt.Errorf("--workstation %s is not a Workstation name: use lowercase letters, digits and -, at most 63, not starting or ending with -", name)
+	if !settings.ValidWorkstationName(name) {
+		return "", fmt.Errorf("--workstation %s is not a Workstation name: %s", name, workstationNameRule)
 	}
+	return name, nil
+}
+
+// baseDomainValue is the --base-domain flag, or the answer at a terminal, or the template's.
+func (f *initOptions) baseDomainValue(cmd *cobra.Command, prompt *initPrompt, templateDomain string) (string, error) {
 	domain := f.baseDomain
 	if !cmd.Flags().Changed("base-domain") {
-		domain = env.get("YARD_BASE_DOMAIN")
-		if terminal {
-			for {
-				typed, err := ask("Base Domain ["+env.get("YARD_BASE_DOMAIN")+"]: ", "--base-domain")
-				if err != nil {
-					return err
-				}
-				domain = typed
-				if domain == "" {
-					domain = env.get("YARD_BASE_DOMAIN")
-				}
-				if baseDomainName.MatchString(domain) {
-					break
-				}
-				fmt.Fprintln(cmd.OutOrStdout(), domain+" is not a domain name such as lvh.me.")
+		domain = templateDomain
+		if prompt.terminal {
+			var err error
+			domain, err = prompt.askValid("Base Domain ["+templateDomain+"]: ", "--base-domain", templateDomain, settings.ValidBaseDomain, func(answer string) string {
+				return answer + " is not a domain name such as lvh.me."
+			})
+			if err != nil {
+				return "", err
 			}
 		}
 	}
-	if !baseDomainName.MatchString(domain) {
-		return fmt.Errorf("--base-domain %s is not a domain name such as lvh.me", domain)
+	if !settings.ValidBaseDomain(domain) {
+		return "", fmt.Errorf("--base-domain %s is not a domain name such as lvh.me", domain)
 	}
-	key := f.gossipKey
-	if cmd.Flags().Changed("gossip-key") || key != "" {
-		if err := checkInitGossipKey(key); err != nil {
-			return err
-		}
-	} else {
-		bytes := make([]byte, 32)
-		if _, err := rand.Read(bytes); err != nil {
-			return fmt.Errorf("could not make a Gossip Key: %w", err)
-		}
-		key = base64.StdEncoding.EncodeToString(bytes)
+	return domain, nil
+}
+
+// gossipKeyValue is the --gossip-key flag, checked, or a new random key.
+func (f *initOptions) gossipKeyValue(cmd *cobra.Command) (string, error) {
+	if cmd.Flags().Changed("gossip-key") || f.gossipKey != "" {
+		return f.gossipKey, checkInitGossipKey(f.gossipKey)
 	}
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("could not make a Gossip Key: %w", err)
+	}
+	return base64.StdEncoding.EncodeToString(bytes), nil
+}
+
+// checkedPeers joins the --peers values, which may hold several addresses, and checks them.
+func (f *initOptions) checkedPeers() (string, error) {
 	var peers []string
 	for _, list := range f.peers {
 		peers = append(peers, strings.FieldsFunc(list, func(r rune) bool { return r == ',' || unicode.IsSpace(r) })...)
 	}
-	checkedPeers, err := checkWSSetting("peers", strings.Join(peers, " "))
-	if err != nil {
-		return err
-	}
+	return settings.Check("peers", strings.Join(peers, " "))
+}
+
+// fillEnv gives the template's empty settings a value of this computer, and sets the answers.
+func (f *initOptions) fillEnv(env *envfile.File, options *Options, name, domain, key, peers string) error {
 	for _, found := range [][2]string{
 		{"COMPOSE_PROFILES", "dashboard,traefik"},
 		{"YARD_UID", options.Process.ID("-u")},
 		{"YARD_GID", options.Process.ID("-g")},
 		{"YARD_DOCKER_GID", dockerGroup(f.dockerSocket)},
 	} {
-		if err := env.fillIfEmpty(found[0], found[1]); err != nil {
+		if err := env.FillIfEmpty(found[0], found[1]); err != nil {
 			return err
 		}
 	}
-	settings := [][2]string{{"YARD_WORKSTATION", name}, {"YARD_BASE_DOMAIN", domain}, {"YARD_GOSSIP_KEY", key}}
-	settings = append(settings, [2]string{"YARD_PEERS", checkedPeers})
-	for _, setting := range settings {
-		if err := env.set(setting[0], setting[1]); err != nil {
+	for _, setting := range [][2]string{{"YARD_WORKSTATION", name}, {"YARD_BASE_DOMAIN", domain}, {"YARD_GOSSIP_KEY", key}, {"YARD_PEERS", peers}} {
+		if err := env.Set(setting[0], setting[1]); err != nil {
 			return err
 		}
 	}
-	compose, err := templates.Compose(options.Version)
-	if err != nil {
-		return err
-	}
-	if err := writeWorkstationFiles(folder, compose, env.text(), f.force); err != nil {
-		return err
-	}
-	if strings.TrimSpace(env.get("YARD_DOCKER_GID")) == "" {
-		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: no Docker socket at %s, so YARD_DOCKER_GID in .env is empty. Set it to the group of /var/run/docker.sock, or the dashboard will not start.\n", f.dockerSocket)
-	}
-	fmt.Fprintf(cmd.OutOrStdout(), "Wrote compose.yaml, .env, lvh-yard.yaml to %s.\n\n", folder)
-	printInitNextSteps(cmd.OutOrStdout(), folder, env, options.WorkstationFolder())
 	return nil
 }
 
@@ -274,59 +323,14 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 	return protectWorkstationFolder(folder)
 }
 
-type envFile struct {
-	lines []string
-}
-
-func parseEnvFile(text string) *envFile {
-	return &envFile{lines: strings.Split(strings.TrimSuffix(strings.ReplaceAll(text, "\r\n", "\n"), "\n"), "\n")}
-}
-
-func (e *envFile) get(key string) string {
-	for _, line := range e.lines {
-		if value, ok := strings.CutPrefix(line, key+"="); ok {
-			return value
-		}
-	}
-	return ""
-}
-
-func (e *envFile) set(key, value string) error {
-	for i, line := range e.lines {
-		if strings.HasPrefix(strings.TrimPrefix(line, "#"), key+"=") {
-			e.lines[i] = key + "=" + value
-			return nil
-		}
-	}
-	return fmt.Errorf(".env has no setting %s", key)
-}
-
-func (e *envFile) fillIfEmpty(key, found string) error {
-	if strings.TrimSpace(e.get(key)) == "" && found != "" {
-		return e.set(key, found)
-	}
-	return nil
-}
-
-func (e *envFile) text() string {
-	return strings.Join(e.lines, "\n") + "\n"
-}
-
-func (e *envFile) valueOrDefault(key string) string {
-	if value := e.get(key); strings.TrimSpace(value) != "" {
-		return value
-	}
-	return envSetting(templates.Env(), key, "")
-}
-
-func printInitNextSteps(out io.Writer, folder string, env *envFile, defaultFolder string) {
-	bind := env.valueOrDefault("YARD_DASHBOARD_BIND_ADDRESS")
+func printInitNextSteps(out io.Writer, folder string, env *envfile.File, defaultFolder string) {
+	bind := env.ValueOrDefault("YARD_DASHBOARD_BIND_ADDRESS")
 	if bind == "0.0.0.0" {
 		bind = "127.0.0.1"
 	}
-	dashboard := "http://" + bind + ":" + env.valueOrDefault("YARD_DASHBOARD_PORT")
-	yard := "http://yard." + env.valueOrDefault("YARD_BASE_DOMAIN")
-	if port := env.valueOrDefault("YARD_HTTP_PORT"); port != "80" {
+	dashboard := "http://" + bind + ":" + env.ValueOrDefault("YARD_DASHBOARD_PORT")
+	yard := "http://yard." + env.ValueOrDefault("YARD_BASE_DOMAIN")
+	if port := env.ValueOrDefault("YARD_HTTP_PORT"); port != "80" {
 		yard += ":" + port
 	}
 	ws := wsCommand(folder, defaultFolder)

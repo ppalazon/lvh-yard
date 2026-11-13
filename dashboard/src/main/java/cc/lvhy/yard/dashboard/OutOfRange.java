@@ -1,4 +1,4 @@
-package cc.lvhy.yard.dashboard.services;
+package cc.lvhy.yard.dashboard;
 
 import java.net.InetAddress;
 import java.util.List;

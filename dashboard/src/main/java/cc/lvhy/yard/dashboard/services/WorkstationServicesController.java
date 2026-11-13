@@ -1,8 +1,6 @@
 package cc.lvhy.yard.dashboard.services;
 
 import cc.lvhy.yard.dashboard.Workstation;
-import cc.lvhy.yard.dashboard.reachability.Reachability;
-import cc.lvhy.yard.dashboard.reachability.ReachabilityTester;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import java.util.List;
@@ -43,8 +41,6 @@ class WorkstationServicesController {
 
   private final Aliases aliases;
 
-  private final ReachabilityTester reachability;
-
   WorkstationServicesController(
       Workstation workstation,
       YardReader yard,
@@ -52,8 +48,7 @@ class WorkstationServicesController {
       Publications publications,
       ContainerBindings containerBindings,
       Services services,
-      Aliases aliases,
-      ReachabilityTester reachability) {
+      Aliases aliases) {
     this.aliases = aliases;
     this.workstation = workstation;
     this.yard = yard;
@@ -61,7 +56,6 @@ class WorkstationServicesController {
     this.publications = publications;
     this.containerBindings = containerBindings;
     this.services = services;
-    this.reachability = reachability;
   }
 
   @GetMapping
@@ -83,7 +77,7 @@ class WorkstationServicesController {
       description = "The Service existed",
       useReturnTypeSchema = true)
   @ApiResponse(responseCode = "201", description = "Created", useReturnTypeSchema = true)
-  @ApiResponse(responseCode = "400", description = Registrations.INVALID_NAME)
+  @ApiResponse(responseCode = "400", description = InstanceRules.INVALID_NAME)
   ResponseEntity<Service> create(@RequestBody NewServiceRequest request) {
     String name = request.name() == null ? "" : request.name().strip();
     boolean created = services.create(workstation.name(), name);
@@ -116,22 +110,6 @@ class WorkstationServicesController {
                 HttpStatus.NOT_FOUND, "This Workstation has no Service " + service + "."));
   }
 
-  @GetMapping("/{service}/reachability")
-  @Operation(
-      operationId = "testOwnReachability",
-      summary = "Tests whether this Workstation reaches one of its own Services",
-      description =
-          "As /api/services/{workstation}/{service}/reachability does, without naming this"
-              + " Workstation.")
-  @ApiResponse(
-      responseCode = "200",
-      description = "Tested, whether the checks passed or not",
-      useReturnTypeSchema = true)
-  @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
-  Reachability reachability(@PathVariable String service) {
-    return reachability.test(service(service));
-  }
-
   @PostMapping(path = "/{service}/instances", consumes = MediaType.APPLICATION_JSON_VALUE)
   @ResponseStatus(HttpStatus.CREATED)
   @Operation(
@@ -143,7 +121,7 @@ class WorkstationServicesController {
   @ApiResponse(responseCode = "201", description = "Registered", useReturnTypeSchema = true)
   @ApiResponse(
       responseCode = "400",
-      description = Registrations.INVALID_NAME + ". " + INVALID_INSTANCE)
+      description = InstanceRules.INVALID_NAME + ". " + INVALID_INSTANCE)
   @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
   Instance register(@PathVariable String service, @RequestBody StaticInstanceRequest request) {
     return registrations.register(workstation.name(), service, request);
@@ -195,7 +173,7 @@ class WorkstationServicesController {
   @ApiResponse(
       responseCode = "400",
       description =
-          Registrations.INVALID_NAME
+          InstanceRules.INVALID_NAME
               + ", the body names both or neither of a container and a Compose service, a name is"
               + " not one Docker or Compose allows, or the port is not a TCP port")
   @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")
@@ -257,7 +235,7 @@ class WorkstationServicesController {
   @ApiResponse(
       responseCode = "400",
       description =
-          Registrations.INVALID_NAME
+          InstanceRules.INVALID_NAME
               + ", the Workstation or Service name is not a DNS label, the Workstation is this"
               + " one, or the Remote Service is not there with Yard Scope. The answer names the"
               + " field")
@@ -313,7 +291,7 @@ class WorkstationServicesController {
   @ApiResponse(
       responseCode = "400",
       description =
-          Registrations.INVALID_NAME
+          InstanceRules.INVALID_NAME
               + ", the Scope is not local or yard, or a Route Profile is not among this"
               + " Workstation's valid profiles")
   @ApiResponse(responseCode = "404", description = "This Workstation has no Service of this name")

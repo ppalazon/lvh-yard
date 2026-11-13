@@ -95,9 +95,10 @@ func TestBackupFailures(t *testing.T) {
 			}
 			_, err = client.New(server.URL).Backup()
 			want := tc.want
-			if tc.name == "partly applied" {
+			switch tc.name {
+			case "partly applied":
 				want = "The import stopped at Publication of web: Consul does not answer."
-			} else if tc.name == "nothing applied" {
+			case "nothing applied":
 				want = "The import stopped."
 			}
 			if err == nil || err.Error() != want {

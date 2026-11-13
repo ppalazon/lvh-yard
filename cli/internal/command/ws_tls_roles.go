@@ -1,12 +1,13 @@
 package command
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
+	"github.com/ppalazon/lvh-yard/cli/internal/tlsca"
 )
 
 // A Workstation has one certificate for each job. Consul uses its own with the Yard CA. Traefik
@@ -71,59 +72,16 @@ func bundleRoot(folder, workstation string) string {
 }
 
 // checkRoleCertificate refuses a certificate that Consul or Traefik could not use here.
-func checkRoleCertificate(role string, env *envFile, caPEM, certPEM, keyPEM []byte) error {
-	pair, err := tls.X509KeyPair(certPEM, keyPEM)
-	if err != nil {
-		return fmt.Errorf("certificate and key do not match or are invalid: %w", err)
-	}
-	leaf, err := x509.ParseCertificate(pair.Certificate[0])
-	if err != nil {
-		return err
-	}
-	roots := x509.NewCertPool()
-	if !roots.AppendCertsFromPEM(caPEM) {
-		return fmt.Errorf("invalid CA certificate")
-	}
-	intermediates := x509.NewCertPool()
-	for _, der := range pair.Certificate[1:] {
-		cert, err := x509.ParseCertificate(der)
-		if err != nil {
-			return err
-		}
-		intermediates.AddCert(cert)
-	}
+func checkRoleCertificate(role string, env *envfile.File, caPEM, certPEM, keyPEM []byte) error {
 	if role == roleConsul {
-		for _, usage := range []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth} {
-			if _, err := leaf.Verify(x509.VerifyOptions{Roots: roots, Intermediates: intermediates, KeyUsages: []x509.ExtKeyUsage{usage}}); err != nil {
-				return fmt.Errorf("certificate is not valid for this CA and RPC usage: %w", err)
-			}
-		}
-		name := "server." + strings.Trim(env.get("YARD_WORKSTATION"), "\"'") + ".consul"
-		if err := leaf.VerifyHostname(name); err != nil {
-			return fmt.Errorf("certificate needs %s: %w", name, err)
-		}
-		return nil
+		return tlsca.CheckConsul(caPEM, certPEM, keyPEM, strings.Trim(env.Get("YARD_WORKSTATION"), "\"'"))
 	}
-	// Browsers need only a server certificate, and a public CA may have signed it. The Yard CA
-	// file is what Traefik checks Client Certificates with.
-	options := x509.VerifyOptions{Intermediates: intermediates, KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}
-	options.Roots = roots
-	if _, yardErr := leaf.Verify(options); yardErr != nil {
-		options.Roots = nil
-		if _, publicErr := leaf.Verify(options); publicErr != nil {
-			return fmt.Errorf("certificate is valid neither for the given CA nor for a public CA: %w", yardErr)
-		}
-	}
-	name := "yard." + env.valueOrDefault("YARD_BASE_DOMAIN")
-	if err := leaf.VerifyHostname(name); err != nil {
-		return fmt.Errorf("certificate needs %s, the address of the Yard Route: %w", name, err)
-	}
-	return nil
+	return tlsca.CheckTraefik(caPEM, certPEM, keyPEM, "yard."+env.ValueOrDefault("YARD_BASE_DOMAIN"))
 }
 
 // checkInstalledRole runs the checks of an import on what is in tls/<role>/, so a certificate
 // that was copied there by hand is checked too.
-func checkInstalledRole(folder, role string, env *envFile) error {
+func checkInstalledRole(folder, role string, env *envfile.File) error {
 	caPEM, certPEM, keyPEM, err := readRole(roleDir(folder, role), role)
 	if err != nil {
 		return fmt.Errorf("this Workstation has no %s certificate in tls/%s: install one with lvh-yard ws tls import %s, or with lvh-yard ws tls ca install on the Workstation with the Yard CA: %w", role, role, role, err)

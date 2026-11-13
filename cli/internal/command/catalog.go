@@ -22,7 +22,7 @@ func NewCatalog(options *Options) *cobra.Command {
 			if state != "" && !slices.Contains([]string{"unpublished", "unavailable", "unhealthy", "degraded", "healthy"}, state) {
 				return fmt.Errorf("unknown Service state %q: use unpublished, unavailable, unhealthy, degraded or healthy", state)
 			}
-			yard, err := client.New(options.DashboardAddress()).Yard()
+			yard, err := options.connect().Yard()
 			if err != nil {
 				return err
 			}

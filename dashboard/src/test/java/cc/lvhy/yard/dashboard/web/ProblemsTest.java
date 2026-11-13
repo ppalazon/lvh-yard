@@ -1,4 +1,4 @@
-package cc.lvhy.yard.dashboard;
+package cc.lvhy.yard.dashboard.web;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -6,7 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import cc.lvhy.yard.dashboard.consul.ConsulSettings;
-import cc.lvhy.yard.dashboard.web.ErrorPage;
+import cc.lvhy.yard.dashboard.consul.ConsulUnreachableException;
 import java.net.URI;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
@@ -15,7 +15,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.server.ResponseStatusException;
 
 class ProblemsTest {
@@ -24,7 +23,7 @@ class ProblemsTest {
   static class Failing {
     @GetMapping({"/api/unanswered", "/unanswered"})
     String unanswered() {
-      throw new ResourceAccessException("I/O error on GET request: Request cancelled");
+      throw new ConsulUnreachableException("I/O error on GET request: Request cancelled");
     }
 
     @GetMapping({"/api/broken", "/broken"})

@@ -43,7 +43,7 @@ func TestStatusRefusedConnectionNamesAddress(t *testing.T) {
 		t.Fatal(err)
 	}
 	address := "http://" + listener.Addr().String()
-	listener.Close()
+	_ = listener.Close()
 	_, err = client.New(address).Status()
 	if err == nil || !strings.Contains(err.Error(), "does not answer at "+address) {
 		t.Fatalf("got %v", err)

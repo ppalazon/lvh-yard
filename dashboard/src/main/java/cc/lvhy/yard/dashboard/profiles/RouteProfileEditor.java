@@ -1,7 +1,7 @@
 package cc.lvhy.yard.dashboard.profiles;
 
 import cc.lvhy.yard.dashboard.consul.Consul;
-import cc.lvhy.yard.dashboard.services.Publications;
+import cc.lvhy.yard.dashboard.consul.ConsulKv;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,21 +18,21 @@ public class RouteProfileEditor {
 
   private final RouteProfileChecks checks;
 
-  private final Publications publications;
+  private final ProfileUsage usage;
 
-  private final Consul consul;
+  private final ConsulKv consul;
 
   RouteProfileEditor(
-      RouteProfiles profiles, RouteProfileChecks checks, Publications publications, Consul consul) {
+      RouteProfiles profiles, RouteProfileChecks checks, ProfileUsage usage, ConsulKv consul) {
     this.profiles = profiles;
     this.checks = checks;
-    this.publications = publications;
+    this.usage = usage;
     this.consul = consul;
   }
 
   /** By name. */
   public List<RouteProfile> list() {
-    Map<String, List<String>> services = publications.servicesByProfile();
+    Map<String, List<String>> services = usage.servicesByProfile();
     return profiles.stored(null).values().stream()
         .map(definition ->
             new RouteProfile(
@@ -53,7 +53,7 @@ public class RouteProfileEditor {
     return new RouteProfileDetail(
         name,
         RouteProfileChecks.type(definition.own()),
-        publications.servicesByProfile().getOrDefault(name, List.of()),
+        usage.servicesByProfile().getOrDefault(name, List.of()),
         definition.own());
   }
 
@@ -97,7 +97,7 @@ public class RouteProfileEditor {
     if (!stored.containsKey(name)) {
       throw new NoRouteProfileException(name);
     }
-    List<String> services = publications.servicesByProfile().getOrDefault(name, List.of());
+    List<String> services = usage.servicesByProfile().getOrDefault(name, List.of());
     List<String> chains =
         stored.values().stream()
             .filter(definition -> RouteProfileChecks.chainMembers(definition.own()).contains(name))

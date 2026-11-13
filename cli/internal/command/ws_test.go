@@ -18,7 +18,7 @@ func TestWSReplacesTopLevelInit(t *testing.T) {
 		if run.ExitCode != 0 || !strings.Contains(run.Stdout, "ws") {
 			t.Fatalf("missing ws: %+v", run)
 		}
-		for _, line := range strings.Split(run.Stdout, "\n") {
+		for line := range strings.SplitSeq(run.Stdout, "\n") {
 			if fields := strings.Fields(line); len(fields) > 0 && fields[0] == "init" {
 				t.Fatalf("root still lists init: %s", run.Stdout)
 			}

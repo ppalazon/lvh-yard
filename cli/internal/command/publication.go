@@ -37,7 +37,7 @@ func NewPublish(options *Options) *cobra.Command {
 				empty := []string{}
 				request.Profiles = &empty
 			}
-			published, err := client.New(options.DashboardAddress()).Publish(args[0], request)
+			published, err := options.connect().Publish(args[0], request)
 			if err != nil {
 				return err
 			}
@@ -76,7 +76,7 @@ func NewUnpublish(options *Options) *cobra.Command {
 		Short: "Removes a Service's Publication and keeps its Instances.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := client.New(options.DashboardAddress()).Unpublish(args[0]); err != nil {
+			if err := options.connect().Unpublish(args[0]); err != nil {
 				return err
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "Unpublished %s. Its Instances stay registered.\n", args[0])

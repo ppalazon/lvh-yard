@@ -11,6 +11,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import cc.lvhy.yard.dashboard.OutOfRange;
 import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.consul.Consul;
 import cc.lvhy.yard.dashboard.consul.FakeConsul;
@@ -27,7 +28,7 @@ class CreateContainerServiceTest {
 
   private final Consul consul = mock(Consul.class, delegatesTo(stored));
 
-  private final ServiceRecords records = new ServiceRecords(consul);
+  private final ServiceRecords records = new ServiceRecords(consul, consul);
 
   private final Registrations registrations =
       new Registrations(workstation, consul, records, Duration.ofSeconds(10));

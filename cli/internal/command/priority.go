@@ -19,7 +19,7 @@ func NewPriority(options *Options) *cobra.Command {
 		Short: "Shows or sets the order of a Service's Instance Sources.",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			c := client.New(options.DashboardAddress())
+			c := options.connect()
 			request := client.InstancePriorityRequest{}
 			if len(args) > 1 {
 				order := args[1:]

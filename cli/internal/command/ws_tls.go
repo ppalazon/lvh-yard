@@ -2,19 +2,14 @@ package command
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/pem"
 	"fmt"
-	"math/big"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
+	"github.com/ppalazon/lvh-yard/cli/internal/tlsca"
 	"github.com/spf13/cobra"
 )
 
@@ -56,13 +51,10 @@ func newWSTLSCA(options *Options, folder func() string) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		cert, key, err := newTLSCertificate("LVH Yard CA", days)
+		cert, key, err := tlsca.NewCA(days)
 		if err != nil {
 			return err
 		}
-		cert.IsCA = true
-		cert.BasicConstraintsValid = true
-		cert.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageCRLSign
 		if err := writeTLSCertificate(dir, "ca", cert, cert, key, key); err != nil {
 			return err
 		}
@@ -92,29 +84,8 @@ func askDays(cmd *cobra.Command, p *prompter, flag, fallback int, question strin
 	return strconv.Atoi(answer)
 }
 
-func newTLSCertificate(name string, days int) (*x509.Certificate, *ecdsa.PrivateKey, error) {
-	// time.Duration holds at most about 290 years.
-	if days < 1 || days > 100000 {
-		return nil, nil, fmt.Errorf("--days must be from 1 to 100000")
-	}
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, nil, err
-	}
-	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
-	if err != nil {
-		return nil, nil, err
-	}
-	now := time.Now().UTC().Truncate(time.Second)
-	return &x509.Certificate{SerialNumber: serial, Subject: pkix.Name{CommonName: name}, NotBefore: now, NotAfter: now.Add(time.Duration(days) * 24 * time.Hour)}, key, nil
-}
-
 func writeTLSCertificate(dir, name string, cert, parent *x509.Certificate, key, signer *ecdsa.PrivateKey) error {
-	der, err := x509.CreateCertificate(rand.Reader, cert, parent, &key.PublicKey, signer)
-	if err != nil {
-		return err
-	}
-	private, err := x509.MarshalECPrivateKey(key)
+	certPEM, keyPEM, err := tlsca.Sign(cert, parent, key, signer)
 	if err != nil {
 		return err
 	}
@@ -124,8 +95,8 @@ func writeTLSCertificate(dir, name string, cert, parent *x509.Certificate, key, 
 	if err := os.Chmod(dir, 0700); err != nil {
 		return err
 	}
-	for filename, block := range map[string]*pem.Block{name + ".crt": {Type: "CERTIFICATE", Bytes: der}, name + ".key": {Type: "EC PRIVATE KEY", Bytes: private}} {
-		if err := os.WriteFile(filepath.Join(dir, filename), pem.EncodeToMemory(block), 0600); err != nil {
+	for filename, data := range map[string][]byte{name + ".crt": certPEM, name + ".key": keyPEM} {
+		if err := os.WriteFile(filepath.Join(dir, filename), data, 0600); err != nil {
 			return err
 		}
 		if err := os.Chmod(filepath.Join(dir, filename), 0600); err != nil {
@@ -144,25 +115,9 @@ func readYardCA(folder string) (*x509.Certificate, *ecdsa.PrivateKey, []byte, er
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("this Workstation has no readable Yard CA key: sign certificates on the Workstation that made the CA: %w", err)
 	}
-	block, _ := pem.Decode(caPEM)
-	if block == nil {
-		return nil, nil, nil, fmt.Errorf("invalid Yard CA certificate")
-	}
-	ca, err := x509.ParseCertificate(block.Bytes)
+	ca, signer, err := tlsca.ParseCA(caPEM, keyPEM)
 	if err != nil {
 		return nil, nil, nil, err
-	}
-	block, _ = pem.Decode(keyPEM)
-	if block == nil {
-		return nil, nil, nil, fmt.Errorf("invalid Yard CA key")
-	}
-	signer, err := x509.ParseECPrivateKey(block.Bytes)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	public, ok := ca.PublicKey.(*ecdsa.PublicKey)
-	if !ok || !public.Equal(&signer.PublicKey) || !ca.IsCA || ca.KeyUsage&x509.KeyUsageCertSign == 0 {
-		return nil, nil, nil, fmt.Errorf("Yard CA key and signing certificate do not match")
 	}
 	return ca, signer, caPEM, nil
 }

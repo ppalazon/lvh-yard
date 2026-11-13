@@ -10,113 +10,165 @@ import (
 )
 
 func NewRemove(options *Options) *cobra.Command {
-	var id, host, container, project, composeService string
-	var port int
+	var selection removeSelection
 	cmd := &cobra.Command{
 		Use:   "remove <service>",
 		Short: "Removes an Instance or a Container Binding.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			flags := cmd.Flags()
 			service := args[0]
-			binding := flags.Changed("container") || flags.Changed("compose-project") || flags.Changed("compose-service")
-			if flags.Changed("id") {
-				if binding || flags.Changed("port") || flags.Changed("host") {
-					return fmt.Errorf("Give --id alone, or select an Instance or Container Binding with the other options.")
-				}
-				if err := client.New(options.DashboardAddress()).Remove(service, id); err != nil {
+			flags := cmd.Flags()
+			selection.idGiven = flags.Changed("id")
+			selection.hostGiven = flags.Changed("host")
+			selection.portGiven = flags.Changed("port")
+			selection.containerGiven = flags.Changed("container")
+			selection.projectGiven = flags.Changed("compose-project")
+			selection.composeServiceGiven = flags.Changed("compose-service")
+			if err := selection.check(service); err != nil {
+				return err
+			}
+			dashboard := options.connect()
+			if selection.idGiven {
+				if err := dashboard.Remove(service, selection.id); err != nil {
 					return err
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "Removed Instance %s of %s.\n", id, service)
+				fmt.Fprintf(cmd.OutOrStdout(), "Removed Instance %s of %s.\n", selection.id, service)
 				return nil
 			}
-			if binding {
-				if flags.Changed("host") {
-					return fmt.Errorf("A Container Binding has no --host. Give --container, or --compose-project and --compose-service.")
-				}
-				if flags.Changed("container") && (flags.Changed("compose-project") || flags.Changed("compose-service")) {
-					return fmt.Errorf("Give --container, or --compose-project and --compose-service, not both.")
-				}
-				if !flags.Changed("container") && (!flags.Changed("compose-project") || !flags.Changed("compose-service")) {
-					return fmt.Errorf("A Compose service needs both --compose-project and --compose-service.")
-				}
-			} else if !flags.Changed("port") {
-				return fmt.Errorf("Say what to remove from %s: give --id, --port, --container, or --compose-project and --compose-service.", service)
-			}
-			dashboard := client.New(options.DashboardAddress())
 			found, err := dashboard.OwnService(service)
 			if err != nil {
 				return err
 			}
-			if binding {
-				follows := "container " + container
-				if !flags.Changed("container") {
-					follows = "Compose service " + composeService + " of project " + project
-				}
-				var matches []client.ContainerBinding
-				for _, candidate := range found.ContainerBindings {
-					target := candidate.Container == container
-					if !flags.Changed("container") {
-						target = candidate.ComposeProject == project && candidate.ComposeService == composeService
-					}
-					if target && (!flags.Changed("port") || candidate.Port == port) {
-						matches = append(matches, candidate)
-					}
-				}
-				if len(matches) == 0 {
-					suffix := ""
-					if flags.Changed("port") {
-						suffix = ", port " + strconv.Itoa(port)
-					}
-					return fmt.Errorf("%s has no Container Binding to %s%s.", service, follows, suffix)
-				}
-				if len(matches) > 1 {
-					ports := make([]string, len(matches))
-					for i, match := range matches {
-						ports[i] = strconv.Itoa(match.Port)
-					}
-					return fmt.Errorf("%s is bound to %s on more than one port (%s): give --port.", service, follows, strings.Join(ports, ", "))
-				}
-				selected := matches[0]
-				if err := dashboard.UnbindContainer(service, selected.ID); err != nil {
+			if selection.binding() {
+				binding, err := selection.bindingOf(service, found.ContainerBindings)
+				if err != nil {
 					return err
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "Removed the Container Binding of %s to %s, port %d.\n", service, follows, selected.Port)
+				if err := dashboard.UnbindContainer(service, binding.ID); err != nil {
+					return err
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "Removed the Container Binding of %s to %s, port %d.\n", service, selection.follows(), binding.Port)
 				return nil
 			}
-			var matches []client.Instance
-			for _, instance := range found.Instances {
-				if instance.Port == port && (!flags.Changed("host") || instance.Host == host) {
-					matches = append(matches, instance)
-				}
-			}
-			if len(matches) == 0 {
-				address := "port " + strconv.Itoa(port)
-				if flags.Changed("host") {
-					address = instanceAddress(client.Instance{Host: host, Port: port})
-				}
-				return fmt.Errorf("%s has no Instance at %s.", service, address)
-			}
-			if len(matches) > 1 {
-				hosts := make([]string, len(matches))
-				for i, match := range matches {
-					hosts[i] = match.Host
-				}
-				return fmt.Errorf("%s has Instances at port %d on more than one host (%s): give --host.", service, port, strings.Join(hosts, ", "))
-			}
-			selected := matches[0]
-			if err := dashboard.Remove(service, selected.ID); err != nil {
+			instance, err := selection.instanceOf(service, found.Instances)
+			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Removed %s at %s.\n", service, instanceAddress(selected))
+			if err := dashboard.Remove(service, instance.ID); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Removed %s at %s.\n", service, instanceAddress(instance))
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&id, "id", "", "The Instance's ID.")
-	cmd.Flags().IntVar(&port, "port", 0, "The Instance's port or the Binding's Container Port.")
-	cmd.Flags().StringVar(&host, "host", "", "The Instance's address when several share the port.")
-	cmd.Flags().StringVar(&container, "container", "", "Removes this container's Container Binding.")
-	cmd.Flags().StringVar(&project, "compose-project", "", "The project of the Compose service to unbind.")
-	cmd.Flags().StringVar(&composeService, "compose-service", "", "The Compose service to unbind from --compose-project.")
+	cmd.Flags().StringVar(&selection.id, "id", "", "The Instance's ID.")
+	cmd.Flags().IntVar(&selection.port, "port", 0, "The Instance's port or the Binding's Container Port.")
+	cmd.Flags().StringVar(&selection.host, "host", "", "The Instance's address when several share the port.")
+	cmd.Flags().StringVar(&selection.container, "container", "", "Removes this container's Container Binding.")
+	cmd.Flags().StringVar(&selection.project, "compose-project", "", "The project of the Compose service to unbind.")
+	cmd.Flags().StringVar(&selection.composeService, "compose-service", "", "The Compose service to unbind from --compose-project.")
 	return cmd
+}
+
+// removeSelection is what the flags of remove say to remove: an Instance by its ID, an Instance by
+// port and host, or a Container Binding by container or Compose service and port.
+type removeSelection struct {
+	id, host, container, project, composeService string
+	port                                         int
+
+	idGiven, hostGiven, portGiven                     bool
+	containerGiven, projectGiven, composeServiceGiven bool
+}
+
+func (s removeSelection) binding() bool {
+	return s.containerGiven || s.projectGiven || s.composeServiceGiven
+}
+
+// check refuses flags that do not name one thing to remove.
+func (s removeSelection) check(service string) error {
+	if s.idGiven {
+		if s.binding() || s.portGiven || s.hostGiven {
+			return fmt.Errorf("Give --id alone, or select an Instance or Container Binding with the other options.")
+		}
+		return nil
+	}
+	if !s.binding() {
+		if !s.portGiven {
+			return fmt.Errorf("Say what to remove from %s: give --id, --port, --container, or --compose-project and --compose-service.", service)
+		}
+		return nil
+	}
+	if s.hostGiven {
+		return fmt.Errorf("A Container Binding has no --host. Give --container, or --compose-project and --compose-service.")
+	}
+	if s.containerGiven && (s.projectGiven || s.composeServiceGiven) {
+		return fmt.Errorf("Give --container, or --compose-project and --compose-service, not both.")
+	}
+	if !s.containerGiven && (!s.projectGiven || !s.composeServiceGiven) {
+		return fmt.Errorf("A Compose service needs both --compose-project and --compose-service.")
+	}
+	return nil
+}
+
+// follows says what a Container Binding follows, as the messages name it.
+func (s removeSelection) follows() string {
+	if s.containerGiven {
+		return "container " + s.container
+	}
+	return "Compose service " + s.composeService + " of project " + s.project
+}
+
+// bindingOf is the one Container Binding that the flags name, or an error that says why not.
+func (s removeSelection) bindingOf(service string, candidates []client.ContainerBinding) (client.ContainerBinding, error) {
+	var matches []client.ContainerBinding
+	for _, candidate := range candidates {
+		target := candidate.Container == s.container
+		if !s.containerGiven {
+			target = candidate.ComposeProject == s.project && candidate.ComposeService == s.composeService
+		}
+		if target && (!s.portGiven || candidate.Port == s.port) {
+			matches = append(matches, candidate)
+		}
+	}
+	switch len(matches) {
+	case 0:
+		suffix := ""
+		if s.portGiven {
+			suffix = ", port " + strconv.Itoa(s.port)
+		}
+		return client.ContainerBinding{}, fmt.Errorf("%s has no Container Binding to %s%s.", service, s.follows(), suffix)
+	case 1:
+		return matches[0], nil
+	}
+	ports := make([]string, len(matches))
+	for i, match := range matches {
+		ports[i] = strconv.Itoa(match.Port)
+	}
+	return client.ContainerBinding{}, fmt.Errorf("%s is bound to %s on more than one port (%s): give --port.", service, s.follows(), strings.Join(ports, ", "))
+}
+
+// instanceOf is the one Instance at the port, and at the host when it was given, or an error that
+// says why not.
+func (s removeSelection) instanceOf(service string, instances []client.Instance) (client.Instance, error) {
+	var matches []client.Instance
+	for _, instance := range instances {
+		if instance.Port == s.port && (!s.hostGiven || instance.Host == s.host) {
+			matches = append(matches, instance)
+		}
+	}
+	switch len(matches) {
+	case 0:
+		address := "port " + strconv.Itoa(s.port)
+		if s.hostGiven {
+			address = instanceAddress(client.Instance{Host: s.host, Port: s.port})
+		}
+		return client.Instance{}, fmt.Errorf("%s has no Instance at %s.", service, address)
+	case 1:
+		return matches[0], nil
+	}
+	hosts := make([]string, len(matches))
+	for i, match := range matches {
+		hosts[i] = match.Host
+	}
+	return client.Instance{}, fmt.Errorf("%s has Instances at port %d on more than one host (%s): give --host.", service, s.port, strings.Join(hosts, ", "))
 }

@@ -1,6 +1,8 @@
 package cc.lvhy.yard.dashboard.services;
 
 import cc.lvhy.yard.dashboard.consul.Consul;
+import cc.lvhy.yard.dashboard.consul.ConsulCatalog;
+import cc.lvhy.yard.dashboard.consul.ConsulKv;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -27,10 +29,13 @@ public class ServiceRecords {
 
   private static final ObjectMapper JSON = JsonMapper.builder().build();
 
-  private final Consul consul;
+  private final ConsulKv kv;
 
-  ServiceRecords(Consul consul) {
-    this.consul = consul;
+  private final ConsulCatalog catalog;
+
+  ServiceRecords(ConsulKv kv, ConsulCatalog catalog) {
+    this.kv = kv;
+    this.catalog = catalog;
   }
 
   /** Writes a new record, or keeps the one there. */
@@ -50,7 +55,7 @@ public class ServiceRecords {
    */
   boolean serviceExists(String service) {
     return exists(service)
-        || consul.health(service).stream()
+        || catalog.health(service).stream()
             .anyMatch(entry -> !Consul.isServerItself(entry.service()));
   }
 
@@ -70,12 +75,12 @@ public class ServiceRecords {
   }
 
   Optional<ServiceRecord> get(String service) {
-    return Optional.ofNullable(consul.values(null, PREFIX + service).get(PREFIX + service))
+    return Optional.ofNullable(kv.values(null, PREFIX + service).get(PREFIX + service))
         .map(value -> read(PREFIX + service, value));
   }
 
   void delete(String service) {
-    consul.deleteValue(PREFIX + service);
+    kv.deleteValue(PREFIX + service);
   }
 
   /**
@@ -205,12 +210,12 @@ public class ServiceRecords {
    */
   private Set<String> sourceIds(String service) {
     Set<String> ids = new HashSet<>();
-    consul.health(service).stream()
+    catalog.health(service).stream()
         .map(Consul.HealthEntry::service)
         .filter(registration -> !Consul.isServerItself(registration))
         .filter(registration -> !registration.meta().containsKey(Registrations.CONTAINER_BINDING))
         .forEach(registration -> ids.add(registration.id()));
-    consul.values(null, ContainerBindings.PREFIX + service + "/").keySet().stream()
+    kv.values(null, ContainerBindings.PREFIX + service + "/").keySet().stream()
         .map(key -> key.substring((ContainerBindings.PREFIX + service + "/").length()))
         .filter(id -> !id.isEmpty() && !id.contains("/"))
         .forEach(ids::add);
@@ -221,8 +226,7 @@ public class ServiceRecords {
   /** {@code null} reads this Workstation's own. */
   Map<String, ServiceRecord> all(String datacenter) {
     Map<String, ServiceRecord> records = new TreeMap<>();
-    consul
-        .values(datacenter, PREFIX)
+    kv.values(datacenter, PREFIX)
         .forEach((key, value) -> {
           String service = key.substring(PREFIX.length());
           if (!service.isEmpty() && !service.contains("/")) {
@@ -233,7 +237,7 @@ public class ServiceRecords {
   }
 
   private void write(String service, ServiceRecord record) {
-    consul.putValue(PREFIX + service, JSON.writeValueAsString(record));
+    kv.putValue(PREFIX + service, JSON.writeValueAsString(record));
   }
 
   private static ServiceRecord read(String key, String value) {

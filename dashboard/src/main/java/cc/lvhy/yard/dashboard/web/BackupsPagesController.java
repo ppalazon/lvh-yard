@@ -84,7 +84,8 @@ class BackupsPagesController {
       consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
       produces = MediaType.TEXT_HTML_VALUE)
   ResponseEntity<String> upload(@RequestParam MultipartFile file) throws IOException {
-    String name = file.getOriginalFilename() == null ? "" : file.getOriginalFilename();
+    String uploaded = file.getOriginalFilename();
+    String name = uploaded == null ? "" : uploaded;
     String text = new String(file.getBytes(), StandardCharsets.UTF_8);
     String nameProblem = BackupsFolder.nameProblem(name);
     if (nameProblem != null) {

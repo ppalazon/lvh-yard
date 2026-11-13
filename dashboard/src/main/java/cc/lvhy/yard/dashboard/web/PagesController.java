@@ -1,9 +1,9 @@
 package cc.lvhy.yard.dashboard.web;
 
+import cc.lvhy.yard.dashboard.TraefikSettings;
 import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.profiles.RouteProfiles;
 import cc.lvhy.yard.dashboard.reachability.ReachabilityTester;
-import cc.lvhy.yard.dashboard.reachability.TraefikSettings;
 import cc.lvhy.yard.dashboard.services.Alias;
 import cc.lvhy.yard.dashboard.services.AliasTarget;
 import cc.lvhy.yard.dashboard.services.Aliases;
@@ -122,12 +122,6 @@ class PagesController {
 
   private static boolean blank(String value) {
     return value == null || value.isBlank();
-  }
-
-  /** A form that names a Service shows this at its name field. */
-  private static InvalidRegistrationException notCreated(UnknownServiceException e) {
-    return new InvalidRegistrationException(
-        "name", e.getMessage() + " Create it first, with New Service in the catalog.");
   }
 
   @GetMapping(path = NewServicePage.PATH, produces = MediaType.TEXT_HTML_VALUE)

@@ -8,12 +8,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
 	"github.com/spf13/cobra"
 )
 
 // installRole checks a certificate, copies it to tls/<role>/ and turns the role on. The caller
 // saves .env and prints the apply command with finishRoles.
-func installRole(cmd *cobra.Command, folder string, env *envFile, role string, caPEM, certPEM, keyPEM []byte) error {
+func installRole(cmd *cobra.Command, folder string, env *envfile.File, role string, caPEM, certPEM, keyPEM []byte) error {
 	if err := checkRoleCertificate(role, env, caPEM, certPEM, keyPEM); err != nil {
 		return err
 	}
@@ -94,7 +95,7 @@ func newWSTLSInstall(options *Options, folder func() string) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		self := strings.Trim(env.get("YARD_WORKSTATION"), "\"'")
+		self := strings.Trim(env.Get("YARD_WORKSTATION"), "\"'")
 		name := self
 		p := newPrompter(cmd, options)
 		if len(args) == 1 {

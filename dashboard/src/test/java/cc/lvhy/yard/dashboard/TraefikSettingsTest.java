@@ -2,7 +2,6 @@ package cc.lvhy.yard.dashboard;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import cc.lvhy.yard.dashboard.reachability.TraefikSettings;
 import java.net.URI;
 import org.junit.jupiter.api.Test;
 

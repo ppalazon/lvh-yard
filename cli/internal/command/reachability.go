@@ -17,7 +17,7 @@ func NewReachability(options *Options) *cobra.Command {
 		Short: "Tests whether this Workstation reaches a Service.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			c := client.New(options.DashboardAddress())
+			c := options.connect()
 			var tested client.Reachability
 			var err error
 			if cmd.Flags().Changed("workstation") {

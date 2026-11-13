@@ -38,7 +38,7 @@ public class Services {
    */
   public boolean create(String workstation, String service) {
     checkHome(workstation);
-    Registrations.checkName(service);
+    InstanceRules.checkName(service);
     if (records.serviceExists(service)) {
       return false;
     }
@@ -52,7 +52,7 @@ public class Services {
    */
   public void restore(String workstation, String service) {
     checkHome(workstation);
-    Registrations.checkName(service);
+    InstanceRules.checkName(service);
     records.put(service);
   }
 
@@ -64,7 +64,7 @@ public class Services {
   public void delete(String workstation, String service) {
     checkHome(workstation);
     // A name Consul cannot look up fails here, as a 400, not in the Consul lookup.
-    Registrations.checkName(service);
+    InstanceRules.checkName(service);
     if (!records.serviceExists(service)) {
       throw new UnknownServiceException(service);
     }
@@ -85,7 +85,7 @@ public class Services {
   public void setInstancePriority(
       String workstation, String service, InstancePriorityRequest request) {
     checkHome(workstation);
-    Registrations.checkName(service);
+    InstanceRules.checkName(service);
     records.ensure(service);
     records.setPriority(service, request.order(), request.on());
   }

@@ -143,9 +143,11 @@ class ConsulWatcherComponentTest extends DashboardComponentTest {
           public void close() {}
         };
 
+    ConsulAgent agent = new ConsulAgent(deadConsul);
     ConsulWatcher watcher =
         new ConsulWatcher(
-            new ConsulAgent(deadConsul),
+            agent,
+            agent,
             mockDebouncer,
             Duration.ofMillis(200),
             Duration.ofMillis(200),

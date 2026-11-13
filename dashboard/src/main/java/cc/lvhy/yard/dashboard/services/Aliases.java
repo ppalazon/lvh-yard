@@ -49,7 +49,7 @@ public class Aliases {
    *     create} is false
    */
   public AddedAlias add(String service, String home, String remoteService, boolean create) {
-    Registrations.checkName(service);
+    InstanceRules.checkName(service);
     checkTarget("workstation", "Workstation", home);
     checkTarget("service", "Service", remoteService);
     checkRemote(home);
@@ -92,7 +92,7 @@ public class Aliases {
    * @throws AliasExistsException when {@code service} already has an Alias to this Remote Service
    */
   public void restore(String service, String home, String remoteService) {
-    Registrations.checkName(service);
+    InstanceRules.checkName(service);
     checkTarget("workstation", "Workstation", home);
     checkTarget("service", "Service", remoteService);
     checkRemote(home);
@@ -109,7 +109,7 @@ public class Aliases {
 
   /** A target name goes into a Consul KV value and a page link, so it must be one DNS label. */
   public static void checkTarget(String field, String kind, String name) {
-    if (name == null || !Registrations.isDnsLabel(name)) {
+    if (name == null || !InstanceRules.isDnsLabel(name)) {
       throw new InvalidRegistrationException(
           field,
           "The "
@@ -126,7 +126,7 @@ public class Aliases {
    * @throws UnknownAliasException when {@code service} has no Alias to this Remote Service
    */
   public void remove(String service, String home, String remoteService) {
-    Registrations.checkName(service);
+    InstanceRules.checkName(service);
     String id = new AliasTarget(home, remoteService).id();
     if (!records.exists(service) && records.serviceExists(service)) {
       throw new UnknownAliasException(service, id);
@@ -140,7 +140,7 @@ public class Aliases {
    * @throws UnknownServiceException when this Workstation has no Service {@code service}
    */
   public List<Alias> of(String service) {
-    Registrations.checkName(service);
+    InstanceRules.checkName(service);
     Optional<ServiceRecords.ServiceRecord> stored = records.get(service);
     if (stored.isEmpty()) {
       if (!records.serviceExists(service)) {

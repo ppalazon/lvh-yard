@@ -11,6 +11,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/ppalazon/lvh-yard/cli/internal/settings"
 	"github.com/spf13/cobra"
 )
 
@@ -36,8 +37,8 @@ func newWSYardPeers(folder func() string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			self := strings.Trim(env.get("YARD_WORKSTATION"), "\"'")
-			members, err := readWANMembers(env.valueOrDefault("YARD_CONSUL_HTTP_PORT"))
+			self := strings.Trim(env.Get("YARD_WORKSTATION"), "\"'")
+			members, err := readWANMembers(env.ValueOrDefault("YARD_CONSUL_HTTP_PORT"))
 			if err != nil {
 				return err
 			}
@@ -78,15 +79,15 @@ func newWSYardPeers(folder func() string) *cobra.Command {
 			if len(addresses) == 0 {
 				return fmt.Errorf("no other Workstation answers, so YARD_PEERS stays as it is")
 			}
-			value, err := checkWSSetting("peers", strings.Join(addresses, " "))
+			value, err := settings.Check("peers", strings.Join(addresses, " "))
 			if err != nil {
 				return err
 			}
-			if strings.Join(strings.FieldsFunc(env.get("YARD_PEERS"), func(r rune) bool { return r == ',' || r == ' ' }), " ") == value {
+			if strings.Join(strings.FieldsFunc(env.Get("YARD_PEERS"), func(r rune) bool { return r == ',' || r == ' ' }), " ") == value {
 				fmt.Fprintln(out, "YARD_PEERS is already up to date.")
 				return nil
 			}
-			if err := env.set("YARD_PEERS", value); err != nil {
+			if err := env.Set("YARD_PEERS", value); err != nil {
 				return err
 			}
 			return saveWSEnv(cmd, folder(), env)

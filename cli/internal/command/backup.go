@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/ppalazon/lvh-yard/cli/internal/client"
 	"github.com/spf13/cobra"
 )
 
@@ -16,7 +15,7 @@ func NewExport(options *Options) *cobra.Command {
 		Short: "Prints a Backup of this Workstation's setup as YAML.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			backup, err := client.New(options.DashboardAddress()).Backup()
+			backup, err := options.connect().Backup()
 			if err != nil {
 				return err
 			}
@@ -40,7 +39,7 @@ func writeBackup(path, backup string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }() // The last line reports the error of Close. This one only covers early returns.
 	// A Backup holds basic-auth hashes. Restrict an existing file before writing them.
 	if err := file.Chmod(0600); err != nil {
 		return err
@@ -78,7 +77,7 @@ func NewImport(options *Options) *cobra.Command {
 			if update {
 				mode = "update"
 			}
-			result, err := client.New(options.DashboardAddress()).ImportBackup(string(data), mode, dryRun)
+			result, err := options.connect().ImportBackup(string(data), mode, dryRun)
 			if err != nil {
 				return err
 			}

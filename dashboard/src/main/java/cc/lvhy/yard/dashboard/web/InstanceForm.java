@@ -2,8 +2,8 @@ package cc.lvhy.yard.dashboard.web;
 
 import cc.lvhy.yard.dashboard.services.HealthCheck;
 import cc.lvhy.yard.dashboard.services.Instance;
+import cc.lvhy.yard.dashboard.services.InstanceRules;
 import cc.lvhy.yard.dashboard.services.InvalidRegistrationException;
-import cc.lvhy.yard.dashboard.services.Registrations;
 import cc.lvhy.yard.dashboard.services.StaticInstanceRequest;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -65,11 +65,11 @@ final class InstanceForm {
       boolean http = "http".equals(check);
       return new StaticInstanceRequest(
           host.strip(),
-          Registrations.parsePort(port),
+          InstanceRules.parsePort(port),
           new HealthCheck(
               check.strip(), http ? path.strip() : null, interval.strip(), timeout.strip()),
-          Registrations.parseTags(tags),
-          Registrations.parseMeta(meta));
+          InstanceRules.parseTags(tags),
+          InstanceRules.parseMeta(meta));
     }
   }
 

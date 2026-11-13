@@ -125,7 +125,7 @@ func TestProfilesEdit(t *testing.T) {
 				if info, err := os.Stat(tempPath); err == nil && info.Mode().Perm() != 0600 {
 					t.Errorf("kept text has permissions %o", info.Mode().Perm())
 				}
-				os.Remove(tempPath)
+				_ = os.Remove(tempPath)
 			} else if _, err := os.Stat(tempPath); !errors.Is(err, os.ErrNotExist) {
 				t.Errorf("temporary profile was not removed: %s: %v", tempPath, err)
 			}

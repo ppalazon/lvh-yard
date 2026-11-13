@@ -1,6 +1,6 @@
 package cc.lvhy.yard.dashboard.profiles;
 
-import cc.lvhy.yard.dashboard.consul.Consul;
+import cc.lvhy.yard.dashboard.consul.ConsulKv;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,9 +25,9 @@ public class RouteProfiles {
 
   private static final TypeReference<Map<String, Object>> STORED = new TypeReference<>() {};
 
-  private final Consul consul;
+  private final ConsulKv consul;
 
-  RouteProfiles(Consul consul) {
+  RouteProfiles(ConsulKv consul) {
     this.consul = consul;
   }
 

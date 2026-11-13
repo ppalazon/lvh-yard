@@ -1,7 +1,8 @@
 package cc.lvhy.yard.dashboard.services;
 
+import cc.lvhy.yard.dashboard.OutOfRange;
 import cc.lvhy.yard.dashboard.Workstation;
-import cc.lvhy.yard.dashboard.consul.Consul;
+import cc.lvhy.yard.dashboard.consul.ConsulKv;
 import cc.lvhy.yard.dashboard.docker.Docker;
 import cc.lvhy.yard.dashboard.docker.Docker.Container;
 import cc.lvhy.yard.dashboard.docker.Docker.Port;
@@ -56,7 +57,7 @@ public class ContainerBindings {
 
   private final Workstation workstation;
 
-  private final Consul consul;
+  private final ConsulKv consul;
 
   private final Docker docker;
 
@@ -70,7 +71,7 @@ public class ContainerBindings {
 
   ContainerBindings(
       Workstation workstation,
-      Consul consul,
+      ConsulKv consul,
       Docker docker,
       Registrations registrations,
       ServiceRecords records,
@@ -95,7 +96,7 @@ public class ContainerBindings {
    */
   public String add(String workstation, String service, ContainerBindingRequest request) {
     checkHome(workstation);
-    Registrations.checkName(service);
+    InstanceRules.checkName(service);
     ContainerBindingRequest binding = checked(request);
     records.ensure(service);
     String id = ContainerBinding.id(binding);
@@ -152,7 +153,7 @@ public class ContainerBindings {
    * @throws InvalidRegistrationException at the first rule that {@code request} breaks
    */
   public static ContainerBindingRequest check(String service, ContainerBindingRequest request) {
-    Registrations.checkName(service);
+    InstanceRules.checkName(service);
     return checked(request);
   }
 
@@ -176,7 +177,7 @@ public class ContainerBindings {
                 + " digit, then use at least one more letter, digit, _, ."
                 + " or -.");
       }
-      Registrations.checkPort("containerPort", "A Container Binding", request.port());
+      InstanceRules.checkPort("containerPort", "A Container Binding", request.port());
       return ContainerBindingRequest.container(container, request.port());
     }
     if (container != null) {
@@ -207,7 +208,7 @@ public class ContainerBindings {
               + composeService
               + "\" is not one Compose allows: use letters, digits, _, . or -.");
     }
-    Registrations.checkPort("containerPort", "A Container Binding", request.port());
+    InstanceRules.checkPort("containerPort", "A Container Binding", request.port());
     return ContainerBindingRequest.compose(project, composeService, request.port());
   }
 

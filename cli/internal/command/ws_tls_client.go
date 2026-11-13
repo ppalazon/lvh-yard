@@ -1,16 +1,13 @@
 package command
 
 import (
-	"crypto/rand"
-	"crypto/x509"
-	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/ppalazon/lvh-yard/cli/internal/tlsca"
 	"github.com/spf13/cobra"
-	pkcs12 "software.sslmate.com/src/go-pkcs12"
 )
 
 func newWSTLSIssueUser(options *Options, folder func() string) *cobra.Command {
@@ -63,33 +60,14 @@ func newWSTLSIssueUser(options *Options, folder func() string) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		leaf, key, err := newTLSCertificate(name, days)
-		if err != nil {
-			return err
-		}
-		leaf.KeyUsage = x509.KeyUsageDigitalSignature
-		leaf.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}
-		if leaf.NotAfter.After(ca.NotAfter) || leaf.NotBefore.Before(ca.NotBefore) {
-			return fmt.Errorf("certificate validity is outside the Yard CA validity: use a shorter --days value or make a new CA")
-		}
-		der, err := x509.CreateCertificate(rand.Reader, leaf, ca, &key.PublicKey, signer)
-		if err != nil {
-			return err
-		}
-		cert, err := x509.ParseCertificate(der)
-		if err != nil {
-			return err
-		}
 		secret := password
 		generated := !given
 		if generated {
-			var random [24]byte
-			if _, err := rand.Read(random[:]); err != nil {
+			if secret, err = tlsca.RandomPassword(); err != nil {
 				return err
 			}
-			secret = base64.RawURLEncoding.EncodeToString(random[:])
 		}
-		data, err := pkcs12.Modern.Encode(key, cert, []*x509.Certificate{ca}, secret)
+		data, err := tlsca.ClientBundle(name, days, ca, signer, secret)
 		if err != nil {
 			return err
 		}

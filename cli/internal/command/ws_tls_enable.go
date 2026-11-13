@@ -2,11 +2,13 @@ package command
 
 import (
 	"fmt"
-	"github.com/ppalazon/lvh-yard/cli/internal/templates"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
+	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
+	"github.com/ppalazon/lvh-yard/cli/internal/templates"
 	"github.com/spf13/cobra"
 )
 
@@ -24,7 +26,7 @@ func addTLSServiceFlags(cmd *cobra.Command, services *tlsServices) {
 // choose uses a flag that was given, and asks for the others. Without a terminal, the answer is
 // yes. A role that has no certificate is not asked, and it is an error when a flag names it.
 // Traefik is not asked while this Workstation has it off, when env is this Workstation's.
-func (s *tlsServices) choose(cmd *cobra.Command, p *prompter, env *envFile, available []string, forAnother bool) ([]string, error) {
+func (s *tlsServices) choose(cmd *cobra.Command, p *prompter, env *envfile.File, available []string, forAnother bool) ([]string, error) {
 	var chosen []string
 	for _, role := range tlsRoles {
 		given := cmd.Flags().Changed(role)
@@ -69,8 +71,8 @@ func (s *tlsServices) choose(cmd *cobra.Command, p *prompter, env *envFile, avai
 	return chosen, nil
 }
 
-func traefikOff(env *envFile) bool {
-	return strings.Trim(env.get("YARD_TRAEFIK_ENABLED"), "\"'") == "false"
+func traefikOff(env *envfile.File) bool {
+	return strings.Trim(env.Get("YARD_TRAEFIK_ENABLED"), "\"'") == "false"
 }
 
 func writeConsulTLS(folder string) error {
@@ -89,15 +91,15 @@ func writeTraefikTLS(folder string) error {
 
 // turnOnRole writes the generated option file of a role. Traefik keeps an HTTPS port that was set
 // before.
-func turnOnRole(folder, role string, env *envFile) error {
+func turnOnRole(folder, role string, env *envfile.File) error {
 	if role == roleConsul {
 		return writeConsulTLS(folder)
 	}
 	if err := writeTraefikTLS(folder); err != nil {
 		return err
 	}
-	if env.get("YARD_HTTPS_PORT") == "" {
-		return env.set("YARD_HTTPS_PORT", "443")
+	if env.Get("YARD_HTTPS_PORT") == "" {
+		return env.Set("YARD_HTTPS_PORT", "443")
 	}
 	return nil
 }
@@ -122,11 +124,9 @@ func announceRole(cmd *cobra.Command, role string) {
 
 // finishRoles saves .env when Traefik was turned on, which prints the apply command, and prints
 // that command otherwise.
-func finishRoles(cmd *cobra.Command, folder string, env *envFile, roles []string) error {
-	for _, role := range roles {
-		if role == roleTraefik {
-			return saveWSEnv(cmd, folder, env)
-		}
+func finishRoles(cmd *cobra.Command, folder string, env *envfile.File, roles []string) error {
+	if slices.Contains(roles, roleTraefik) {
+		return saveWSEnv(cmd, folder, env)
 	}
 	if len(roles) > 0 {
 		printApplyHint(cmd, folder)
@@ -185,7 +185,7 @@ func newWSTLSDisable(folder func() string) *cobra.Command {
 			if err := os.Remove(filepath.Join(folder(), "traefik", "dynamic", "10-tls.yaml")); err != nil && !os.IsNotExist(err) {
 				return err
 			}
-			if err := env.set("YARD_HTTPS_PORT", ""); err != nil {
+			if err := env.Set("YARD_HTTPS_PORT", ""); err != nil {
 				return err
 			}
 			return saveWSEnv(cmd, folder(), env)

@@ -30,7 +30,7 @@ func (p *prompter) text(question, fallback string, check func(string) error) (st
 		}
 		fmt.Fprint(p.out, question+offered+": ")
 		line, err := p.in.ReadString('\n')
-		if err != nil && !(err == io.EOF && len(line) > 0) {
+		if err != nil && (err != io.EOF || len(line) == 0) {
 			fmt.Fprintln(p.out)
 			return "", fmt.Errorf("the input ended before %q was answered", question)
 		}

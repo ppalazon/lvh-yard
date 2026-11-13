@@ -49,7 +49,7 @@ func TestInitWritesNewWorkstationFolder(t *testing.T) {
 		t.Fatalf(".env permissions: %v, %v", info, err)
 	}
 	settings := readInitFile(t, folder, "lvh-yard.yaml")
-	for _, line := range strings.Split(strings.TrimSuffix(settings, "\n"), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSuffix(settings, "\n"), "\n") {
 		if !strings.HasPrefix(line, "#") {
 			t.Fatalf("dashboard setting is not commented: %q", line)
 		}
@@ -267,13 +267,14 @@ func TestInitUsesWorkstationFolderLookup(t *testing.T) {
 			yard.Process.Env["HOME"] = base
 			want := filepath.Join(base, ".config", "lvh-yard")
 			args := []string{"ws", "init", "--workstation", "ws-a"}
-			if setting == "XDG_CONFIG_HOME" {
+			switch setting {
+			case "XDG_CONFIG_HOME":
 				yard.Process.Env[setting] = base
 				want = filepath.Join(base, "lvh-yard")
-			} else if setting == "YARD_CONFIG_DIR" {
+			case "YARD_CONFIG_DIR":
 				yard.Process.Env[setting] = base
 				want = base
-			} else if setting == "dir" {
+			case "dir":
 				yard.Process.Env["YARD_CONFIG_DIR"] = filepath.Join(base, "ignored")
 				args = append(args, "--dir", base)
 				want = base

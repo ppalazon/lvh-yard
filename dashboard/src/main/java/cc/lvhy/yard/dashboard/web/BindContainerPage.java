@@ -3,8 +3,8 @@ package cc.lvhy.yard.dashboard.web;
 import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.services.ContainerBinding;
 import cc.lvhy.yard.dashboard.services.ContainerBindingRequest;
+import cc.lvhy.yard.dashboard.services.InstanceRules;
 import cc.lvhy.yard.dashboard.services.InvalidRegistrationException;
-import cc.lvhy.yard.dashboard.services.Registrations;
 import cc.lvhy.yard.dashboard.services.Service;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -91,7 +91,7 @@ final class BindContainerPage {
     }
 
     ContainerBindingRequest request() {
-      Integer port = Registrations.parsePort(PORT, containerPort);
+      Integer port = InstanceRules.parsePort(PORT, containerPort);
       String typed = target.strip();
       int slash = typed.indexOf('/');
       return slash < 0

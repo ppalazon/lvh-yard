@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+    <!-- A record or class that holds a list or map hands out that list or map. Nothing changes them after the
+         dashboard builds them, so a copy on every call costs more than it protects. -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+
+    <!-- Files.list gives paths of children, and a child always has a file name. The lambda is the compiled form of list(). -->
+    <Match>
+        <Class name="cc.lvhy.yard.dashboard.backups.BackupsFolder"/>
+        <Method name="~(list|lambda\$list\$\d+)"/>
+        <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+    </Match>
+</FindBugsFilter>

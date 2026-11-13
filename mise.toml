@@ -3,6 +3,7 @@ node = "24"
 prek = "0.3.10"
 go = "1.27.3"
 gitleaks = "8.30.1"
+golangci-lint = "2.15.0"
 
 [tasks."css:install"]
 description = "Install Tailwind CSS and Basecoat into node_modules/, as package-lock.json pins them"
@@ -55,8 +56,8 @@ description = "Build app.css, build the dashboard from scratch, check the Go CLI
 # clean: compiled classes of moved or deleted sources otherwise linger in target/ and fail as phantom tests.
 # sources and auto outputs: mise skips the task if no source changed after the last run that passed.
 sources = [
-  "pom.xml", "dashboard/pom.xml", ".mvn/**/*", "package-lock.json",
-  "cli/**/*.go", "cli/go.mod", "cli/go.sum",
+  "pom.xml", "dashboard/pom.xml", "dashboard/pmd-gate.xml", "dashboard/spotbugs-exclude.xml", ".mvn/**/*", "package-lock.json",
+  "cli/**/*.go", "cli/go.mod", "cli/go.sum", "cli/.golangci.yml",
   "dashboard/src/**/*", "dashboard/openapi.yaml", "config/**/*", "config/.env.example",
 ]
 outputs = { auto = true }
@@ -90,9 +91,14 @@ dir = "{{config_root}}/cli"
 run = 'CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${VERSION:-dev}" -o target/lvh-yard ./cmd/lvh-yard'
 
 [tasks."cli:check"]
-description = "Run go vet and the Go CLI unit tests"
+description = "Run go vet, golangci-lint and the Go CLI unit tests"
 dir = "{{config_root}}/cli"
-run = ["go vet ./...", "go test ./..."]
+# The gate runs only the linters that report nothing today. quality:go runs the full set of cli/.golangci.yml.
+run = [
+  "go vet ./...",
+  "golangci-lint run --enable-only=errcheck,errorlint,modernize,staticcheck,bodyclose,misspell,unconvert,govet,ineffassign,unused ./...",
+  "go test ./...",
+]
 
 [tasks."cli:smoke"]
 description = "Run the Go CLI smoke test: the built executable against a fake dashboard"
@@ -184,3 +190,21 @@ run = [
   'case "$usage_workstation" in ws-a|ws-b) ;; *) echo "Use ws-a or ws-b." >&2; exit 1 ;; esac',
   { task = "dashboard:run", args = ["--dir", "{{config_root}}/dev/{{usage.workstation}}"] },
 ]
+
+[tasks."quality:go"]
+description = "Run golangci-lint on the Go CLI and print each finding. It does not fail the task"
+dir = "{{config_root}}/cli"
+run = "golangci-lint run --issues-exit-code=0 ./..."
+
+[tasks."quality:java"]
+description = "Run SpotBugs and PMD on the dashboard. The reports are dashboard/target/spotbugsXml.xml and dashboard/target/pmd.xml"
+run = "./mvnw -q -pl dashboard -DskipTests compile spotbugs:spotbugs pmd:pmd@report"
+
+[tasks."quality:mutation"]
+description = "Run PIT mutation tests with the dashboard unit tests. The report is dashboard/target/pit-reports/index.html"
+run = "./mvnw -B -pl dashboard test-compile org.pitest:pitest-maven:mutationCoverage"
+
+[tasks.quality]
+description = "Run the slow code checks: golangci-lint, SpotBugs, PMD and PIT. Not part of mise run check. It fails when the PIT score is under the threshold"
+# One after the other: the Java tasks share dashboard/target, and two Maven builds there at once fail.
+run = [{ task = "quality:go" }, { task = "quality:java" }, { task = "quality:mutation" }]

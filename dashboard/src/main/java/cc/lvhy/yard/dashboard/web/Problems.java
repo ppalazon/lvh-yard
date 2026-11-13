@@ -1,7 +1,7 @@
-package cc.lvhy.yard.dashboard;
+package cc.lvhy.yard.dashboard.web;
 
 import cc.lvhy.yard.dashboard.consul.ConsulSettings;
-import cc.lvhy.yard.dashboard.web.ErrorPage;
+import cc.lvhy.yard.dashboard.consul.ConsulUnreachableException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -17,7 +17,6 @@ import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.util.DisconnectedClientHelper;
 
 /**
@@ -44,13 +43,14 @@ class Problems {
   }
 
   /**
-   * Only {@code Consul} uses a RestClient. So this exception always means that Consul of this
-   * Workstation did not answer in time. This is normal while Consul starts or is busy.
+   * Consul of this Workstation did not answer in time. This is normal while Consul starts or is
+   * busy. A read of another Workstation's datacenter that does not answer is handled where it is
+   * read.
    */
   @ExceptionHandler
   @ResponseBody
   ProblemDetail unanswered(
-      ResourceAccessException e, HttpServletRequest request, HttpServletResponse response)
+      ConsulUnreachableException e, HttpServletRequest request, HttpServletResponse response)
       throws IOException {
     LOG.atWarn()
         .setCause(stackTraces ? e : null)

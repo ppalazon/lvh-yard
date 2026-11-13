@@ -1,10 +1,10 @@
 package cc.lvhy.yard.dashboard.services;
 
 import cc.lvhy.yard.dashboard.BindAddress;
+import cc.lvhy.yard.dashboard.TraefikSettings;
 import cc.lvhy.yard.dashboard.Workstation;
-import cc.lvhy.yard.dashboard.consul.Consul;
+import cc.lvhy.yard.dashboard.consul.ConsulKv;
 import cc.lvhy.yard.dashboard.consul.ConsulSettings;
-import cc.lvhy.yard.dashboard.reachability.TraefikSettings;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -48,7 +48,7 @@ public class FirstSetup implements SmartLifecycle {
 
   private final Workstation workstation;
 
-  private final Consul consul;
+  private final ConsulKv consul;
 
   private final Registrations registrations;
 
@@ -68,7 +68,7 @@ public class FirstSetup implements SmartLifecycle {
 
   FirstSetup(
       Workstation workstation,
-      Consul consul,
+      ConsulKv consul,
       Registrations registrations,
       Publications publications,
       ServiceRecords records,

@@ -91,11 +91,11 @@ func TestRemoveOneInstanceOrBinding(t *testing.T) {
 
 func TestInstanceOperationsMatchOpenAPI(t *testing.T) {
 	clienttest.AssertOperations(t,
-		func(c *client.Client) { c.Register("web/blue", client.StaticInstanceRequest{Port: 80}) },
+		func(c *client.Client) { _, _ = c.Register("web/blue", client.StaticInstanceRequest{Port: 80}) },
 		func(c *client.Client) {
-			c.EditInstance("web/blue", "one/two:80", client.StaticInstanceRequest{Port: 80})
+			_, _ = c.EditInstance("web/blue", "one/two:80", client.StaticInstanceRequest{Port: 80})
 		},
-		func(c *client.Client) { c.Remove("web/blue", "one/two:80") },
-		func(c *client.Client) { c.UnbindContainer("web/blue", "one/two:80") },
+		func(c *client.Client) { _ = c.Remove("web/blue", "one/two:80") },
+		func(c *client.Client) { _ = c.UnbindContainer("web/blue", "one/two:80") },
 	)
 }

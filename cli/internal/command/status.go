@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ppalazon/lvh-yard/cli/internal/client"
 	"github.com/spf13/cobra"
 )
 
@@ -17,7 +16,7 @@ func NewStatus(options *Options) *cobra.Command {
 		Short: "Shows whether LVH Yard works on this Workstation.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			status, err := client.New(options.DashboardAddress()).Status()
+			status, err := options.connect().Status()
 			if err != nil {
 				return err
 			}
@@ -25,9 +24,10 @@ func NewStatus(options *Options) *cobra.Command {
 			fmt.Fprintln(out, "LVH Yard on this Workstation: "+status.Overall)
 			for _, part := range status.Parts {
 				mark := "FAIL  "
-				if part.State == "ok" {
+				switch part.State {
+				case "ok":
 					mark = "ok    "
-				} else if part.State == "warning" {
+				case "warning":
 					mark = "WARN  "
 				}
 				fmt.Fprintf(out, "  %s%s: %s\n", mark, part.Name, part.Reason)

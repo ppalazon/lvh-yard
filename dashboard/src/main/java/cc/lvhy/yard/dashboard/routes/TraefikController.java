@@ -1,7 +1,7 @@
 package cc.lvhy.yard.dashboard.routes;
 
+import cc.lvhy.yard.dashboard.TraefikSettings;
 import cc.lvhy.yard.dashboard.Workstation;
-import cc.lvhy.yard.dashboard.reachability.TraefikSettings;
 import cc.lvhy.yard.dashboard.services.YardReader;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
