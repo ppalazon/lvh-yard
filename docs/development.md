@@ -317,8 +317,9 @@ allow it.
 The landing page is one static page in `docs/site/`: `index.html`, `site.css`
 and `assets/`. `site.css` uses Tailwind CSS and Basecoat with the colors of
 `dashboard/src/main/css/theme.css`, so the page and the dashboard look alike.
-The page also loads the dashboard's `theme.js` for its dark theme. The site
-also serves `install.sh`, at `https://lvhy.cc/install.sh`.
+The page also loads the dashboard's `theme.js` for its dark theme.
+The site build copies both `install.sh` and `install.ps1` into
+`docs/site/dist`, for `/install.sh` and `/install.ps1` on the deployed site.
 
 The hero cycles through service types and locations with CSS. Service types
 change every 2 seconds, and locations change every 2.6 seconds. Each reel
@@ -381,22 +382,62 @@ The Release workflow (`.github/workflows/release.yml`) then does these steps:
 When the image and every archive are ready, the release appears. After the
 first release, make the package public once in its settings on GitHub.
 
-The `cli` job runs on one `ubuntu-latest` runner, without C code. It
-cross-compiles stripped executables for `linux-amd64`, `linux-arm64` and
-`macos-arm64`, then checks `--version` on the Linux amd64 executable. The
-version drops the tag's leading `v`, so tag `v0.1.0` prints `lvh-yard 0.1.0`.
+The `cli` job calls `dev/package-cli.sh` on one `ubuntu-latest` runner,
+without C code. It cross-compiles stripped executables for `linux-amd64`,
+`linux-arm64`, `macos-arm64` and `windows-amd64`, then checks `--version` on
+the Linux amd64 executable. The version drops the tag's leading `v`, so
+tag `v0.1.0` prints `lvh-yard 0.1.0`.
 
 The `lvh-yard-archives` workflow artifact holds
-`lvh-yard-<version>-<platform>.tar.gz` for each platform. Each archive holds
-`lvh-yard` and `LICENSE`. The `release` job downloads the artifacts that match
-`lvh-yard-*`, and writes `SHA256SUMS` for the three archives.
+`lvh-yard-<version>-<platform>.tar.gz` for Unix platforms and
+`lvh-yard-<version>-windows-amd64.zip` for Windows. Each archive holds the
+executable and `LICENSE`; Windows names its executable `lvh-yard.exe`.
+The `release` job downloads the artifacts that match `lvh-yard-*`, writes
+`SHA256SUMS` for all four archives, and uploads the archives and manifest.
 
-`docs/site/install.sh` reads `SHA256SUMS` to find the archive name and the
-version, so it needs no GitHub API. If you rename the archives or the platforms
-in the `cli` job, change `platform()` in it too.
+Both installers read `SHA256SUMS` to find the archive name, so they need no
+GitHub API. If you rename an archive or platform, update its installer too.
+The PowerShell installer stages the verified executable beside its
+destination and uses Windows atomic file replacement. It never deletes the
+installed executable to make room for an upgrade.
 
-Before the first public release, prove this workflow on a private repository.
-Push a test tag such as `v0.0.0-rc.1`, and check the image, the three
+To build the release archives locally:
+
+```sh
+mise exec -- sh dev/package-cli.sh 9.8.7
+```
+
+For native installer acceptance, build versions `9.8.7` and `9.8.8` with that
+script. Preserve each version's four archives in a separate folder named for
+the version. In each folder, generate the manifest with the release job's
+command:
+
+```sh
+sha256sum lvh-yard-*.tar.gz lvh-yard-*.zip > SHA256SUMS
+```
+
+Copy those two folders, `docs/site/dist/install.ps1` from `mise run site:build`,
+and `dev/test-install-windows.ps1` to an ordinary Windows user's test folder.
+In each supported PowerShell version, run:
+
+```powershell
+.\test-install-windows.ps1 -Installer .\install.ps1 -Artifacts .\artifacts -Root "$PWD\acceptance"
+```
+
+Use a new absolute `Root` path on each run. The test controls only downloads,
+using the actual packaged archives and manifests. File extraction,
+replacement, locking and user PATH changes are native. The test restores
+the original user PATH and removes its acceptance root. Its fresh shell
+rebuilds PATH from the registry because an SSH service can retain an older
+environment.
+
+The Windows public installation entry point still needs maintainer publication.
+A local site build and native installer test do not prove a live Pages
+deployment or a GitHub release upload. Do not announce Windows support until
+the maintainer approves publication and the remaining Windows acceptance.
+
+Before the first public release, prove the publish workflow on a private
+repository. Push a test tag such as `v0.0.0-rc.1`, and check the image, all four
 archives and `SHA256SUMS` of the release. Then run `--version` on the Linux
 arm64 and macOS arm64 executables on their own platforms. Delete the test
 release, the tag and the test image before you tag `v0.1.0`.

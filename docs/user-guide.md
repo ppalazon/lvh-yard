@@ -543,6 +543,8 @@ on host networking in the settings.
 Each release has `lvh-yard` as one executable for Linux (amd64, arm64) and
 macOS (arm64). It needs no Java.
 
+### Linux and macOS
+
 The install script downloads the archive of your platform from the
 [releases](https://github.com/ppalazon/lvh-yard/releases), checks it against
 `SHA256SUMS`, and copies `lvh-yard` to `~/.local/bin`. As root, it uses
@@ -575,6 +577,72 @@ sudo mv lvh-yard /usr/local/bin/
 
 On macOS, the system blocks a downloaded executable. To unblock it, run
 `xattr -d com.apple.quarantine lvh-yard`.
+
+### Windows 11 x64
+
+The Windows ZIP and PowerShell installer need maintainer publication before
+these public commands can be used. They apply to a release that includes
+`lvh-yard-<version>-windows-amd64.zip` and a deployed `install.ps1`.
+Installing the CLI alone does not prove full Windows Workstation support.
+
+In Windows PowerShell 5.1 or PowerShell 7, read the installer before running it:
+
+```powershell
+$installer = (Invoke-WebRequest -UseBasicParsing https://lvhy.cc/install.ps1).Content
+$installer
+Invoke-Expression $installer
+```
+
+The installer needs no administrator rights. It checks the Windows ZIP
+against the release's `SHA256SUMS`, then installs `lvh-yard.exe` in
+`$env:LOCALAPPDATA\lvh-yard\bin`. This bin folder is separate from the
+Workstation Folder. It adds the bin folder to your user `PATH` without
+duplicates and leaves machine `PATH` unchanged. Open a new terminal, then
+run `lvh-yard --version`.
+
+To choose a version or destination, set these variables before running the
+installer:
+
+```powershell
+$env:LVH_YARD_VERSION = '0.1.0' # v0.1.0 also works
+$env:LVH_YARD_INSTALL_DIR = "$env:LOCALAPPDATA\My tools\lvh-yard\bin"
+Invoke-Expression $installer
+```
+
+Without these variables, the installer uses the latest release and its
+default bin folder. To upgrade or reinstall, run it again. A download,
+checksum or replacement failure preserves the installed executable. If
+Windows locks that file, close the process using it, then rerun the installer.
+To return to an earlier version, set `LVH_YARD_VERSION` to that release and
+rerun it.
+
+For a manual installation, download the Windows x64 ZIP and `SHA256SUMS`
+from the same [release](https://github.com/ppalazon/lvh-yard/releases).
+In their download folder, substitute the downloaded ZIP's name below:
+
+```powershell
+$archive = 'lvh-yard-0.1.0-windows-amd64.zip'
+$line = Get-Content -LiteralPath .\SHA256SUMS |
+    Where-Object { $_.EndsWith("  $archive") }
+if (@($line).Count -ne 1) { throw 'Expected one checksum for this ZIP.' }
+if ((Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash -ine
+    ($line -split '  ', 2)[0]) { throw 'ZIP checksum mismatch.' }
+$bin = "$env:LOCALAPPDATA\lvh-yard\bin"
+Expand-Archive -LiteralPath $archive -DestinationPath $bin
+& "$bin\lvh-yard.exe" --version
+```
+
+The ZIP contains `lvh-yard.exe` and `LICENSE`. Choose an empty destination
+for manual extraction. To run `lvh-yard` without its full path, add that folder
+to your **user** Path in Windows Environment Variables, then open a new terminal.
+Keep the old executable until the new one reports the expected version.
+
+The Windows executable is unsigned. Windows may warn about an unknown
+publisher or block a downloaded file. A matching SHA256 checksum checks
+download integrity against the release manifest; it does not authenticate an
+Authenticode publisher. Follow your organization's security policy before
+running it. The installer does not relax execution policy, install Docker,
+or change Docker settings or firewall rules.
 
 ### Shell completion
 
