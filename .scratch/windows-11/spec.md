@@ -173,6 +173,7 @@ Windows support is complete only after native CLI checks and real Windows runtim
 - A full port of the repository's developer toolchain or a maintained automated Windows 11 Docker acceptance runner.
 - Automatic migration of existing Compose files between operating systems, portable raw Consul data and expanding the contents of a Backup.
 - Changes to the domain model or Linux/macOS defaults unrelated to Windows support.
+- IPv6 Instance targets on Windows. See the dated scope approval below.
 
 ## Further Notes
 
@@ -191,3 +192,12 @@ Source inspection found Unix-specific initialization, process operations and fil
 The implementer owns the remaining runtime evidence: LAN federation, local-only listeners, unpublished-container access, non-root socket permissions, volume initialization and NTFS file watching. These are implementation acceptance obligations, not unanswered product questions.
 
 If a runtime requirement cannot be met, the implementer must bring the failed scenario to the maintainer before changing the approved contract. The maintainer owns any scope change and the final support claim.
+
+### Scope approval, 2026-11-14
+
+The maintainer approved an IPv4-only Windows Workstation runtime after the
+Java socket-family measurements. The Windows setup may use
+`-Djava.net.preferIPv4Stack=true`. Unsupported IPv6 targets must receive clear
+errors rather than misleading Health or Reachability results. Linux and macOS
+keep their existing endpoint-family behavior. The proposed Windows runtime ADR
+records the measured failure, trade-off and rejected transport alternative.

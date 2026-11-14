@@ -42,3 +42,32 @@ Host networking imposes the Docker prerequisites owned by the specification. It 
 The runtime must preserve separate certificate mounts from [ADR-0013](0013-one-yard-ca-and-two-certificates-per-workstation.md). A networking or storage change must not expose Consul's identity key to Traefik.
 
 If the runtime fails the specification's release gates, the maintainer must reconsider this proposal. There is no approved fallback that silently removes routing behavior or Yard participation.
+
+## IPv4-only Windows runtime, 2026-11-14
+
+The maintainer approved IPv4-only Windows Workstation runtime support after
+the native Java socket measurements. The generated Windows setup uses
+`-Djava.net.preferIPv4Stack=true`. Linux and macOS keep their existing
+endpoint-family behavior.
+
+In the actual Docker Desktop 4.99.0 host-network container, curl reached the
+IPv4 Consul and Traefik listeners. Java's default TCP and HTTP clients failed
+against the same listeners. With the property, Java connected and received
+HTTP 200 from Consul.
+
+The cost is explicit: Java IPv6 sockets are unavailable. A separate IPv6
+loopback probe returned byte 42 with the unchanged JVM and failed with
+`IPv6 protocol family unavailable` under the property. Windows must report
+IPv6 Instance targets as unsupported, not offer misleading Reachability or
+Health results. This approval does not establish the remaining runtime gates.
+
+Keeping dual-stack support would require replacing or adapting the affected
+HTTP and TCP transports. That alternative preserves IPv6 targets but adds
+transport code and runtime verification. The approved scope keeps the stock
+Java clients and limits Windows to IPv4.
+
+The measured outputs are `03-java-ipv4-probe.out`,
+`03-java-ipv4-corrected.out` and `03-java-ipv6-impact.out` under
+`~/.local/state/lvh-yard-windows-11/evidence/`. The Windows Workstation
+acceptance record must include these results before release. This ADR remains
+proposed until the remaining release gates pass.
