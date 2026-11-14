@@ -332,14 +332,56 @@ supplies the pure `OutOfRange` rule.
 ## Continuous integration
 
 The CI workflow (`.github/workflows/ci.yml`) runs on each pull request and on
-each push to `main`. It has three jobs, on `ubuntu-latest`:
+each push to `main`. It has five jobs. Three run on `ubuntu-latest`:
 
 - `check` runs `mise run check`.
 - `format` runs `mise run fmt`.
 - `secrets` runs `mise run secrets` on the whole history.
 
-macOS and Windows have no job. The only macOS file is the CLI, and the release
-workflow cross-compiles it.
+Two jobs run the Windows CLI on a real Windows system:
+
+- `windows-package` runs on `ubuntu-latest`. It packages the versions 9.8.7
+  and 9.8.8 with `dev/package-cli.sh`, writes a `SHA256SUMS` file for each as
+  the release does, builds the integration tests for Windows with
+  `go test -c -tags integration`, and uploads the folder. The Windows job
+  needs no Go and no Unix shell.
+- `windows` runs on `windows-latest`, once in Windows PowerShell 5.1 and once
+  in PowerShell 7. It runs `dev/test-windows-native.ps1` in that shell.
+
+`dev/test-windows-native.ps1` does these steps:
+
+1. It removes each PATH folder with a Unix tool (`sh`, `id`, `vi`, Git Bash
+   and others) from its own process. It fails when one of these tools still
+   resolves.
+2. It extracts `lvh-yard.exe` from the packaged ZIP and runs the integration
+   tests of `cli/cmd/lvh-yard` with that executable. The tests must pass in
+   both `powershell.exe` and `pwsh.exe`, and none may be skipped.
+3. It runs `dev/test-install-windows.ps1` with `docs/site/install.ps1` and the
+   packaged archives.
+4. It removes its temporary files. The acceptance script restores the user
+   PATH.
+
+The `windows` job starts from a clean checkout. It installs nothing. It uses
+the Windows PowerShell 5.1 and the PowerShell 7 of the runner image, and Git
+for the checkout. It does not change firewall rules, Docker settings, the
+machine PATH or the execution policy. The policy is `Bypass` only on the
+command line of each process.
+
+The native job is not Windows 11 acceptance. It runs on Windows Server. It
+checks the executable, the shell quoting, the completion and the installer. It
+checks nothing about Docker Desktop, Workstation containers, routing, firewall
+access or a second computer. Those checks need a real Windows 11 computer and
+an ordinary user.
+
+The runner account is an administrator. The job passes `-AllowAdministrator`,
+and the output says that the run does not show ordinary-user behavior. Without
+that switch, both scripts stop for an administrator. To check ordinary-user
+behavior, copy the folder that `windows-package` uploads, `dev/` and
+`docs/site/install.ps1` to Windows. Then run `dev/test-windows-native.ps1` as
+an ordinary user in each shell.
+
+macOS has no job. The only macOS file is the CLI, and the release workflow
+cross-compiles it.
 
 ## Secrets
 

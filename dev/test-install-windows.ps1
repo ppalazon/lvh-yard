@@ -1,7 +1,9 @@
 param(
     [Parameter(Mandatory = $true)][string]$Installer,
     [Parameter(Mandatory = $true)][string]$Artifacts,
-    [Parameter(Mandatory = $true)][string]$Root
+    [Parameter(Mandatory = $true)][string]$Root,
+    # CI only: a hosted runner signs in as an administrator. The default is to require an ordinary user.
+    [switch]$AllowAdministrator
 )
 $ErrorActionPreference = 'Stop'
 $originalPath = [Environment]::GetEnvironmentVariable('Path', 'User')
@@ -48,8 +50,10 @@ try {
     Assert (-not (Test-Path -LiteralPath $Root)) 'Use a new acceptance root'
     [IO.Directory]::CreateDirectory($Root) | Out-Null
     $identity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
-    Assert (-not $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) 'Acceptance requires an ordinary user'
-    Write-Output "Shell $($PSVersionTable.PSVersion); account $env:USERNAME; ordinary user"
+    $administrator = $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    Assert ($AllowAdministrator -or -not $administrator) 'Acceptance requires an ordinary user'
+    $rights = if ($administrator) { 'ADMINISTRATOR: this run does not show ordinary-user behavior' } else { 'ordinary user' }
+    Write-Output "Shell $($PSVersionTable.PSVersion); account $env:USERNAME; $rights"
     $env:LOCALAPPDATA = Join-Path $Root 'Local AppData'
     $env:LVH_YARD_INSTALL_DIR = $null
     $env:LVH_YARD_VERSION = $null
