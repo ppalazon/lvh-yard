@@ -1,10 +1,9 @@
 # Native Windows CLI workflow evidence
 
 Windows PowerShell 5.1 and PowerShell 7 CLI checks pass for API commands,
-prompts, editors, quoting, completion and real Compose log interruption as
-administrator `test`. Both shells also passed the scoped ordinary-user checks
-below. Ordinary-user desktop editor and real Docker checks remain open.
-This evidence does not establish Windows Workstation support.
+prompts, editors, quoting, completion and real Compose log interruption.
+The ordinary-user checks below complete the native CLI acceptance.
+This evidence does not establish full Windows Workstation support.
 
 ## Environment and scope
 
@@ -274,7 +273,7 @@ Screenshots under `/tmp/lvh01/` record the selected original document
 (`ps7-notepad-selected.png`), saved text (`ps7-default-saved.png`) and final
 shell result (`ps7-cli-result.png`). No production editor workaround was used.
 
-## Scoped ordinary-user checks
+## Ordinary-user acceptance
 
 On 2026-11-14, the orchestrator created `yarddev` and `yardother`.
 SSH reported `t-x\yarddev` and `t-x\yardother`; both accounts returned false
@@ -298,11 +297,97 @@ subtests and both PowerShell 7 printed-command subtests, exiting 0:
 .\smoke.test.exe '-test.count=1' '-test.v' '-test.run=TestPowerShellCompletesCommandsAndValues/pwsh.exe|TestPrintedCommandsKeepTheirValuesInTheShell/pwsh.exe'
 ```
 
-These ordinary-user runs used recording editor and Docker executables.
-They do not prove ordinary-user desktop Notepad, real Docker Desktop,
-interactive prompts or followed-log interruption. Docker Desktop remains
-installed only for `test`; the orchestrator must arrange the ordinary
-account's desktop and Docker access before those checks.
+Those automated runs used recording editor and Docker executables.
+After the maintainer installed and started Docker Desktop as `yarddev`,
+the following real-console and desktop checks passed on 2026-11-14.
+The ordinary SSH token again returned false for administrator membership.
+Docker reported engine `29.9.3`; the orchestrator supplied the locally
+loaded `traefik/whoami:latest` image. The probe did not pull images.
+
+### Real prompts, Compose and interruption
+
+ConPTY sessions ran `powershell.exe -NoLogo -NoProfile` and the full
+`C:\Users\yarddev\lvh-dev\01\pwsh7\pwsh.exe` path with the same flags.
+Each shell ran the existing CLI against a fresh init folder. Both rejected
+`WS Bad`, accepted their valid `ws-ordinary-ps5` or `ws-ordinary-ps7`
+name, asked for the Base Domain and accepted its default. Both exited 0.
+The probe removed both generated folders. The socket-group warning remained;
+these checks prove prompts, not generated Windows Workstation setup.
+
+The real Compose fixture used the existing example from the Docker section,
+with project name `lvh01ordinary`, in this new owned folder:
+
+```text
+C:\Users\yarddev\lvh-dev\01\Yard d'été ’24 日本
+```
+
+In each shell, the CLI ran from `C:\Users\yarddev\lvh-dev\01`, outside that
+selected folder, and `compose start` exited 0. Docker inspection returned
+the exact special-character folder in
+`com.docker.compose.project.working_dir` and its `compose.yaml` path in
+`com.docker.compose.project.config_files`.
+
+Each shell then ran CLI `compose logs -f` in a real ConPTY session.
+After `Starting up on port 80` appeared, Ctrl+C returned the shell prompt.
+The shell printed `ORDINARY_SHELL_RETURNED_PS5` or
+`ORDINARY_SHELL_RETURNED_PS7` from a subsequent `Write-Output` command.
+Another prompt followed in both sessions. No interrupt exit code is claimed.
+After each run, CLI `compose stop` and direct Compose `down` exited 0
+and removed only `lvh01ordinary` containers and its network.
+
+### Real default editor in both shells
+
+With the console reserved by the orchestrator, the probe opened new normal
+desktop windows under `yarddev`, one shell at a time. Each window printed
+`t-x\yarddev` and false for administrator membership. The versions were
+Windows PowerShell `5.1.26100.9818` and PowerShell `7.7.0`.
+
+A held-open SSH service kept the controlled API alive at
+`http://127.0.0.1:19083`; a request returned 200 before testing.
+Both desktop shells ran the following scenario, with transcripts named
+`desktop-ps5.txt` and `desktop-ps7.txt` in the owned test folder:
+
+```powershell
+Set-Location C:\Users\yarddev\lvh-dev\01
+Remove-Item Env:EDITOR -ErrorAction SilentlyContinue
+$env:TEMP = $PWD.Path
+$env:TMP = $PWD.Path
+.\lvh-yard.exe --dashboard http://127.0.0.1:19083 profiles edit team
+"CLI_EXIT=$LASTEXITCODE"
+Get-Content .\saved.ordinary.json
+```
+
+Real Notepad opened `route-profile-3317999051.yaml` under Windows
+PowerShell and `route-profile-2826644912.yaml` under PowerShell 7.
+Both showed `X-Team: a`. The CLI waited while the document was open.
+Keyboard input changed only the owned document to `X-Team: b` and saved it.
+Closing the owned Notepad window returned this result in each shell:
+
+```text
+Saved the Route Profile team.
+CLI_EXIT=0
+{"headers":{"customRequestHeaders":{"X-Team":"b"}}}
+```
+
+`Test-Path` returned false for each exact temporary file.
+After closing both new shell windows, the ordinary-user process query found
+no CLI, Notepad or PowerShell process in desktop session 2.
+The probe stopped its API service, deleted its driver scripts and released
+the console. It did not change account, desktop, firewall or machine settings.
+Unrelated apps remained running.
+
+The retained evidence under `/tmp/lvh01/` includes
+`ordinary-desktop-ps5.txt`, `ordinary-desktop-ps7.txt`,
+`ordinary-ps5-content.png`, `ordinary-ps5-saved.png`,
+`ordinary-ps5-result.png`, `ordinary-ps7-running.png`,
+`ordinary-ps7-saved.png` and `ordinary-ps7-final.png`.
+
+The input driver initially dropped characters in the launcher and in
+`.\lvh-yard.exe`, producing command-not-found errors before the CLI ran.
+Those attempts are not acceptance results. The successful attempts invoked
+a copied scenario script from the owned shell, with slower keyboard input.
+An ordinary-user WMI process query returned `Access denied`; the probe used
+`Get-Process` and the actual desktop outputs without elevating.
 
 ## Host verification
 
@@ -327,11 +412,12 @@ a missing copied `config/.env.example` fixture, and Unix SCP path expectations
 failed. That suite has not been made green or represented as green. ACL and
 certificate-transfer acceptance belong to their own Windows work.
 
-## Remaining acceptance
+## Separate acceptance gates
 
-- With the ordinary account's desktop and Docker access ready, repeat real
-  default-editor editing, interactive prompts, real Docker invocation and
-  followed-log Ctrl+C. The scoped ordinary-user checks above already passed.
+No native CLI acceptance criterion remains open. This evidence does not
+claim a green complete native command-unit suite; its known failures remain
+listed above.
+
 - Secret access by a second ordinary account remains a separate privacy gate;
   no privacy result is claimed here.
 - Full generated Workstation, persistence, LAN, TLS and release acceptance

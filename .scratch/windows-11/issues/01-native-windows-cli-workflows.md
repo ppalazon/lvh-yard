@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] The Windows executable builds and runs natively. Version reporting, successful API commands, failed API commands and unknown commands produce the expected consumer-visible results and exit codes.
 - [x] Platform-specific socket ownership and syscall handling no longer prevent Windows compilation. Existing Unix behavior remains intact; no compatibility shim or second CLI remains.
@@ -19,22 +19,22 @@
 ## Comments
 
 2026-11-14: [Observed evidence](../evidence/01-native-windows-cli-workflows.md)
-records Windows PowerShell 5.1 and PowerShell 7.7.0 results. The ticket is
-not done. All listed behaviors passed as administrator `test`; scoped
-ordinary-user executable and shell checks also passed.
+records Windows PowerShell 5.1 and PowerShell 7.7.0 results.
+All native CLI criteria passed, including ordinary-user acceptance as
+`yarddev`. Broader Workstation and privacy gates remain separate.
 
 - Both shells passed API exit codes, explicit editors, failure retention,
   printed special-character commands and completion.
 - New normal desktop windows in both shells opened real default Notepad,
   waited for edit/save/close, saved the changed Route Profile and exited 0.
-- PowerShell 7 ConPTY prompts and real Docker Compose with Unicode,
-  apostrophes and spaces passed. Ctrl+C returned from followed logs.
+- Both shells passed ordinary-user ConPTY prompts and real Docker Compose
+  with Unicode, apostrophes and spaces. Ctrl+C returned from followed logs.
 - Ordinary user `yarddev` passed all eight native smoke tests under Windows
   PowerShell 5.1, plus PowerShell 7 printed-command and completion subtests.
   Those editor and Docker checks used native recording executables.
-- The orchestrator must arrange `yarddev` desktop and Docker Desktop access.
-  Ordinary-user real default editor, interactive prompts, real Docker and
-  followed-log interruption remain open. Privacy is a separate gate.
+- After Docker Desktop was ready under `yarddev`, both shells passed real
+  desktop default editing, interactive prompts, real Docker invocation and
+  followed-log interruption with an ordinary token.
 - The complete native command-unit binary still has POSIX mode, copied-fixture
   and Unix SCP expectation failures. The evidence records these; no native
   full-suite pass is claimed.
