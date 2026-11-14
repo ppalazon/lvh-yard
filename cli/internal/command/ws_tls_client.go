@@ -98,6 +98,9 @@ func askTLSClientName(p *prompter, args []string) (string, error) {
 	if strings.TrimSpace(name) == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\\x00") {
 		return "", fmt.Errorf("invalid username or email: use a name without path separators")
 	}
+	if err := validateOutputName(name); err != nil {
+		return "", err
+	}
 	return name, nil
 }
 

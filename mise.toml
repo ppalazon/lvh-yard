@@ -78,6 +78,8 @@ run = "./mvnw -q -pl dashboard test -Dtest='*ComponentTest' -Dsurefire.failIfNoS
 description = "Refresh the Go CLI's embedded configuration templates"
 run = [
   "cp config/compose.yaml cli/internal/templates/compose.yaml",
+  "cp config/compose.windows.yaml cli/internal/templates/compose.windows.yaml",
+  "cp config/traefik-windows.sh cli/internal/templates/traefik-windows.sh",
   "cp config/.env.example cli/internal/templates/.env.example",
   "cp config/00-lvh-yard.hcl cli/internal/templates/00-lvh-yard.hcl",
   "cp config/10-tls.hcl cli/internal/templates/10-tls.hcl",

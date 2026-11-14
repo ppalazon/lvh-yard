@@ -1,5 +1,6 @@
 package cc.lvhy.yard.dashboard.services;
 
+import cc.lvhy.yard.dashboard.RuntimeNetwork;
 import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.consul.Consul.AgentService;
 import cc.lvhy.yard.dashboard.consul.Consul.Check;
@@ -51,6 +52,10 @@ public class Registrations {
 
   private final ServiceRecords records;
 
+  private final String instanceHost;
+
+  private final RuntimeNetwork network;
+
   /** The check interval of every Bound Instance. Only the tests change it, so they wait less. */
   private final Duration boundCheckInterval;
 
@@ -58,11 +63,15 @@ public class Registrations {
       Workstation workstation,
       ConsulRegistrations consul,
       ServiceRecords records,
-      @Value("${lvh-yard.bound-instances.check-interval:10s}") Duration boundCheckInterval) {
+      @Value("${lvh-yard.bound-instances.check-interval:10s}") Duration boundCheckInterval,
+      @Value("${lvh-yard.instance-host:}") String instanceHost,
+      RuntimeNetwork network) {
     this.workstation = workstation;
     this.consul = consul;
     this.records = records;
     this.boundCheckInterval = boundCheckInterval;
+    this.instanceHost = instanceHost.strip();
+    this.network = network;
   }
 
   /**
@@ -123,7 +132,11 @@ public class Registrations {
   }
 
   private StaticInstanceRequest checked(StaticInstanceRequest request) {
-    return InstanceRules.checked(request, this::defaultHost);
+    StaticInstanceRequest checked = InstanceRules.checked(request, this::defaultHost);
+    if (!network.supports(checked.host())) {
+      throw new InvalidRegistrationException("host", RuntimeNetwork.IPV4_TARGETS_ONLY);
+    }
+    return checked;
   }
 
   private Instance put(String id, String service, StaticInstanceRequest instance) {
@@ -166,6 +179,10 @@ public class Registrations {
         .filter(Registrations::isBoundInstance)
         .forEach(registration -> existing.put(registration.id(), registration));
     for (BoundInstance instance : wanted) {
+      // Leave an old unsupported registration in existing, so the final sweep removes it.
+      if (!network.supports(instance.host())) {
+        continue;
+      }
       AgentService found = existing.remove(instance.id());
       if (found == null
           || !found.address().equals(instance.host())
@@ -236,7 +253,7 @@ public class Registrations {
   }
 
   public String defaultHost() {
-    return consul.agentAddress();
+    return instanceHost.isEmpty() ? consul.agentAddress() : instanceHost;
   }
 
   /** Removes every Static Instance of {@code service} on this Workstation. */

@@ -3,6 +3,7 @@ package cc.lvhy.yard.dashboard.services;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import cc.lvhy.yard.dashboard.RuntimeNetwork;
 import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.consul.Consul.AgentService;
 import cc.lvhy.yard.dashboard.consul.Consul.CheckStatus;
@@ -28,7 +29,12 @@ class RegistrationsTest {
 
   private final Registrations registrations =
       new Registrations(
-          new Workstation("home", "home.lvh.me"), consul, records, Duration.ofSeconds(3));
+          new Workstation("home", "home.lvh.me"),
+          consul,
+          records,
+          Duration.ofSeconds(3),
+          "",
+          new RuntimeNetwork(false));
 
   // ---- the request check, with the agent's address
 
@@ -45,6 +51,48 @@ class RegistrationsTest {
   void aRequestNeedsAValidServiceName() {
     assertRefused(() -> registrations.check("Web", request("h", 80)), "name", "DNS label");
     assertRefused(() -> registrations.check("consul", request("h", 80)), "name", "consul");
+  }
+
+  @Test
+  void anIpv4RuntimeRefusesIpv6WhenCheckingARequestOrItsDefaultHost() {
+    var windows =
+        new Registrations(
+            new Workstation("home", "home.lvh.me"),
+            consul,
+            records,
+            Duration.ofSeconds(3),
+            "::1",
+            new RuntimeNetwork(true));
+
+    assertRefused(
+        () -> windows.check("web", request("2001:db8::5", 80)),
+        "host",
+        RuntimeNetwork.IPV4_TARGETS_ONLY);
+    assertRefused(
+        () -> windows.check("web", request(null, 80)), "host", RuntimeNetwork.IPV4_TARGETS_ONLY);
+    assertThat(windows.check("web", request("web.example.test", 80)).host())
+        .isEqualTo("web.example.test");
+    assertThat(consul.agentServices()).isEmpty();
+  }
+
+  @Test
+  void anIpv4RuntimeRemovesUnsupportedBoundInstancesEvenWhenTheyPassedBefore() {
+    BoundInstance ipv6 = bound("web", "app:80", "app", 80, "::1", 80, true);
+    registrations.keepBoundInstances(List.of(ipv6));
+    consul.setStatus(ipv6.id(), "passing", "IPv6 worked on another runtime.");
+    var windows =
+        new Registrations(
+            new Workstation("home", "home.lvh.me"),
+            consul,
+            records,
+            Duration.ofSeconds(3),
+            "",
+            new RuntimeNetwork(true));
+
+    windows.keepBoundInstances(
+        List.of(ipv6, bound("web", "other:80", "other", 80, "127.0.0.1", 81, true)));
+
+    assertThat(consul.agentServices()).containsOnlyKeys("web:other:80");
   }
 
   // ---- Static Instances
