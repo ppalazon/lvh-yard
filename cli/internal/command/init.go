@@ -326,8 +326,12 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 	if err := os.MkdirAll(folder, 0700); err != nil {
 		return fmt.Errorf("could not create %s: %w", folder, err)
 	}
-	if err := protectWorkstationFolder(folder); err != nil {
-		return err
+	// Windows protects the new folder before any secret is written. On Unix, MkdirAll already made it 0700, and a
+	// refused init must leave the modes of an existing folder alone.
+	if runtime.GOOS == "windows" {
+		if err := protectWorkstationFolder(folder); err != nil {
+			return err
+		}
 	}
 	root, err := os.OpenRoot(folder)
 	if err != nil {
