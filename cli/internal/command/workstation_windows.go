@@ -60,41 +60,61 @@ func validateWorkstationStorage(folder string) error {
 	if len(volume) != 2 || volume[1] != ':' {
 		return fmt.Errorf("unsupported Workstation Folder: choose local NTFS storage, not a network share or synced folder")
 	}
-	root, err := windows.UTF16PtrFromString(volume + `\`)
+	if err := validateLocalNTFS(volume + `\`); err != nil {
+		return err
+	}
+	current := volume + `\`
+	for name := range strings.SplitSeq(strings.TrimPrefix(absolute, current), `\`) {
+		if isSyncedFolderName(name) {
+			return fmt.Errorf("unsupported synced Workstation Folder: choose local NTFS storage outside cloud-sync folders")
+		}
+		current = filepath.Join(current, name)
+		if err := validateNotLinked(current); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateLocalNTFS accepts only a fixed drive with an NTFS volume, as the private ACLs need it.
+func validateLocalNTFS(volumeRoot string) error {
+	root, err := windows.UTF16PtrFromString(volumeRoot)
 	if err != nil {
 		return err
 	}
-	var filesystem [64]uint16
 	if windows.GetDriveType(root) != windows.DRIVE_FIXED {
 		return fmt.Errorf("unsupported Workstation Folder: choose a local fixed NTFS drive, not shared or synced storage")
 	}
+	var filesystem [64]uint16
 	if err := windows.GetVolumeInformation(root, nil, 0, nil, nil, nil, &filesystem[0], uint32(len(filesystem))); err != nil {
 		return fmt.Errorf("could not check Workstation storage: %w", err)
 	}
 	if !strings.EqualFold(windows.UTF16ToString(filesystem[:]), "NTFS") {
 		return fmt.Errorf("unsupported Workstation Folder: choose local NTFS storage")
 	}
-	current := volume + `\`
-	for _, name := range strings.Split(strings.TrimPrefix(absolute, current), `\`) {
-		lower := strings.ToLower(name)
-		if strings.HasPrefix(lower, "onedrive") || lower == "dropbox" || lower == "google drive" || lower == "iclouddrive" {
-			return fmt.Errorf("unsupported synced Workstation Folder: choose local NTFS storage outside cloud-sync folders")
-		}
-		current = filepath.Join(current, name)
-		path, err := windows.UTF16PtrFromString(current)
-		if err != nil {
-			return err
-		}
-		attributes, err := windows.GetFileAttributes(path)
-		if os.IsNotExist(err) {
-			continue
-		}
-		if err != nil {
-			return fmt.Errorf("could not check Workstation Folder %s: %w", current, err)
-		}
-		if attributes&windows.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
-			return fmt.Errorf("unsupported Workstation Folder %s: use a local NTFS folder without reparse points or cloud sync", current)
-		}
+	return nil
+}
+
+func isSyncedFolderName(name string) bool {
+	lower := strings.ToLower(name)
+	return strings.HasPrefix(lower, "onedrive") || lower == "dropbox" || lower == "google drive" || lower == "iclouddrive"
+}
+
+// validateNotLinked refuses a link or junction. A path that does not exist yet is fine.
+func validateNotLinked(path string) error {
+	name, err := windows.UTF16PtrFromString(path)
+	if err != nil {
+		return err
+	}
+	attributes, err := windows.GetFileAttributes(name)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("could not check Workstation Folder %s: %w", path, err)
+	}
+	if attributes&windows.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+		return fmt.Errorf("unsupported Workstation Folder %s: use a local NTFS folder without links, junctions or cloud sync", path)
 	}
 	return nil
 }
@@ -102,7 +122,7 @@ func validateWorkstationStorage(folder string) error {
 func validateNativeListener(name, value string) error {
 	if name == "bind-address" {
 		ip := net.ParseIP(value)
-		if ip == nil || ip.To4() == nil || !ip.IsGlobalUnicast() || ip.IsLinkLocalUnicast() {
+		if !isGlobalUnicastIPv4(ip) {
 			return fmt.Errorf("invalid Windows bind-address: use the LAN IPv4 address that other Workstations can reach")
 		}
 	}

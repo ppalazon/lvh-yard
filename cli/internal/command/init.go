@@ -280,10 +280,7 @@ func (f *initOptions) lanIdentity(prompt *initPrompt, options *Options, env *env
 		return nil
 	}
 	address := f.address
-	valid := func(value string) bool {
-		ip := net.ParseIP(value)
-		return ip != nil && ip.To4() != nil && ip.IsGlobalUnicast() && !ip.IsLinkLocalUnicast()
-	}
+	valid := func(value string) bool { return isGlobalUnicastIPv4(net.ParseIP(value)) }
 	if address == "" {
 		offered, selectionErr := options.Process.LANAddress()
 		if selectionErr != nil {
@@ -307,19 +304,22 @@ func (f *initOptions) lanIdentity(prompt *initPrompt, options *Options, env *env
 	return env.Set("YARD_BIND_ADDRESS", address)
 }
 
-func writeWorkstationFiles(folder, compose, env string, force bool) error {
-	files := []struct {
-		name string
-		text string
-		mode os.FileMode
-	}{{"compose.yaml", compose, 0600}, {".env", env, 0600}, {"lvh-yard.yaml", templates.Dashboard(), 0600}, {"consul.d/00-lvh-yard.hcl", templates.Consul(), 0600}}
+type workstationFile struct {
+	name string
+	text string
+}
+
+// workstationFiles lists the files that ws init writes. Each one is private to the user.
+func workstationFiles(compose, env string) []workstationFile {
+	files := []workstationFile{{"compose.yaml", compose}, {".env", env}, {"lvh-yard.yaml", templates.Dashboard()}, {"consul.d/00-lvh-yard.hcl", templates.Consul()}}
 	if runtime.GOOS == "windows" {
-		files = append(files, struct {
-			name string
-			text string
-			mode os.FileMode
-		}{"traefik/00-lvh-yard-windows.sh", templates.WindowsTraefik(), 0600})
+		files = append(files, workstationFile{"traefik/00-lvh-yard-windows.sh", templates.WindowsTraefik()})
 	}
+	return files
+}
+
+func writeWorkstationFiles(folder, compose, env string, force bool) error {
+	files := workstationFiles(compose, env)
 	if err := validateWorkstationStorage(folder); err != nil {
 		return err
 	}
@@ -329,7 +329,7 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 	// Windows protects the new folder before any secret is written. On Unix, MkdirAll already made it 0700, and a
 	// refused init must leave the modes of an existing folder alone.
 	if runtime.GOOS == "windows" {
-		if err := protectWorkstationFolder(folder); err != nil {
+		if err := protectWorkstationTree(folder); err != nil {
 			return err
 		}
 	}
@@ -339,13 +339,8 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 	}
 	defer func() { _ = root.Close() }()
 	if !force {
-		for _, file := range files {
-			path := filepath.Join(folder, file.name)
-			if _, err := root.Lstat(file.name); err == nil {
-				return fmt.Errorf("%s already exists: nothing was written. Give --force to overwrite", path)
-			} else if !os.IsNotExist(err) {
-				return fmt.Errorf("could not read %s: %w", path, err)
-			}
+		if err := refuseExistingFiles(root, folder, files); err != nil {
+			return err
 		}
 	}
 	// Create these before Compose starts, or Docker creates them owned by root.
@@ -354,33 +349,52 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 			return fmt.Errorf("could not create %s: %w", folder, err)
 		}
 	}
-	if err := protectWorkstationFolder(folder); err != nil {
+	if err := protectWorkstationTree(folder); err != nil {
 		return err
 	}
 	for _, file := range files {
-		path := filepath.Join(folder, file.name)
-		flags := os.O_WRONLY | os.O_CREATE | os.O_EXCL
-		if force {
-			flags = os.O_WRONLY | os.O_CREATE | os.O_TRUNC
-		}
-		output, err := root.OpenFile(file.name, flags, file.mode)
-		if err != nil {
-			return fmt.Errorf("could not write %s: %w", path, err)
-		}
-		if err := protectFile(output, 0600); err != nil {
-			_ = output.Close()
-			return fmt.Errorf("could not protect %s: %w", path, err)
-		}
-		_, writeErr := io.WriteString(output, file.text)
-		closeErr := output.Close()
-		if writeErr != nil {
-			return fmt.Errorf("could not write %s: %w", path, writeErr)
-		}
-		if closeErr != nil {
-			return fmt.Errorf("could not write %s: %w", path, closeErr)
+		if err := writeWorkstationFile(root, folder, file, force); err != nil {
+			return err
 		}
 	}
-	return protectWorkstationFolder(folder)
+	return protectWorkstationTree(folder)
+}
+
+func refuseExistingFiles(root *os.Root, folder string, files []workstationFile) error {
+	for _, file := range files {
+		path := filepath.Join(folder, file.name)
+		if _, err := root.Lstat(file.name); err == nil {
+			return fmt.Errorf("%s already exists: nothing was written. Give --force to overwrite", path)
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("could not read %s: %w", path, err)
+		}
+	}
+	return nil
+}
+
+func writeWorkstationFile(root *os.Root, folder string, file workstationFile, force bool) error {
+	path := filepath.Join(folder, file.name)
+	flags := os.O_WRONLY | os.O_CREATE | os.O_EXCL
+	if force {
+		flags = os.O_WRONLY | os.O_CREATE | os.O_TRUNC
+	}
+	output, err := root.OpenFile(file.name, flags, 0600)
+	if err != nil {
+		return fmt.Errorf("could not write %s: %w", path, err)
+	}
+	if err := protectFile(output, 0600); err != nil {
+		_ = output.Close()
+		return fmt.Errorf("could not protect %s: %w", path, err)
+	}
+	_, writeErr := io.WriteString(output, file.text)
+	closeErr := output.Close()
+	if writeErr != nil {
+		return fmt.Errorf("could not write %s: %w", path, writeErr)
+	}
+	if closeErr != nil {
+		return fmt.Errorf("could not write %s: %w", path, closeErr)
+	}
+	return nil
 }
 
 func printInitNextSteps(out io.Writer, folder string, env *envfile.File, defaultFolder string) {

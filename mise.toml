@@ -93,12 +93,15 @@ dir = "{{config_root}}/cli"
 run = 'CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${VERSION:-dev}" -o target/lvh-yard ./cmd/lvh-yard'
 
 [tasks."cli:check"]
-description = "Run go vet, golangci-lint and the Go CLI unit tests"
+description = "Run go vet, golangci-lint for this computer and for Windows, and the Go CLI unit tests"
 dir = "{{config_root}}/cli"
 # The gate runs only the linters that report nothing today. quality:go runs the full set of cli/.golangci.yml.
+# The second lint run type-checks the _windows.go files and the Windows tests, which the first run skips.
+env = { GATE_LINTERS = "errcheck,errorlint,modernize,staticcheck,bodyclose,misspell,unconvert,govet,ineffassign,unused,gosec" }
 run = [
   "go vet ./...",
-  "golangci-lint run --enable-only=errcheck,errorlint,modernize,staticcheck,bodyclose,misspell,unconvert,govet,ineffassign,unused,gosec ./...",
+  "golangci-lint run --enable-only=$GATE_LINTERS ./...",
+  "GOOS=windows GOARCH=amd64 CGO_ENABLED=0 golangci-lint run --enable-only=$GATE_LINTERS ./...",
   "go test ./...",
 ]
 

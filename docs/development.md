@@ -222,7 +222,9 @@ run in seconds, without Docker. Before you commit, run `mise run check`. It
 builds the stylesheet, builds the dashboard from scratch and runs every test.
 Both `test:unit` and `check` also run `go vet`, golangci-lint and `go test ./...`
 in `cli/`. The golangci-lint run in these two tasks uses only the linters that
-report nothing today. `mise run quality:go` runs all of them.
+report nothing today. It runs twice, once for this computer and once with
+`GOOS=windows`, so the gate also covers the `_windows.go` files and the Windows
+tests. `mise run quality:go` runs all of them for this computer only.
 `check` also runs `mise run cli:smoke`. These tests check output, version,
 exit codes, editor file handling, subprocess arguments and shell quoting.
 Their build tag is `integration`, so `go test ./...` skips them.
