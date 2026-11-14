@@ -252,7 +252,7 @@ func handOverBundle(cmd *cobra.Command, options *Options, name, root string, rol
 			name string
 			args []string
 		}{
-			{"ssh", []string{host, "umask 077 && mkdir -p " + quoteShell(folder+"/tls")}},
+			{"ssh", []string{host, "umask 077 && mkdir -p " + quotePOSIX(folder+"/tls")}},
 			{"scp", append(append([]string{"-r"}, dirs...), host+":"+folder+"/tls/")},
 		} {
 			code, err := options.Process.Run(step.name, step.args, "", out, cmd.ErrOrStderr())
@@ -270,7 +270,7 @@ func handOverBundle(cmd *cobra.Command, options *Options, name, root string, rol
 	}
 	ws := "lvh-yard ws"
 	if folder != remoteFolderDefault {
-		ws += " --dir " + quoteShell(folder)
+		ws += " --dir " + quotePOSIX(folder)
 	}
 	quotedDirs := make([]string, len(dirs))
 	for i, dir := range dirs {

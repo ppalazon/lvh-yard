@@ -578,7 +578,7 @@ On macOS, the system blocks a downloaded executable. To unblock it, run
 
 ### Shell completion
 
-`lvh-yard completions <shell>` prints a completion script for Bash or Zsh.
+`lvh-yard completions <shell>` prints a completion script for Bash, Zsh or PowerShell.
 It completes commands, subcommands, flags and known values, such as Service
 states. It does not fetch Service names from the dashboard.
 The `completions` command stays out of the main help menu.
@@ -600,6 +600,16 @@ source <(lvh-yard completions zsh)
 To load it in each new Zsh session, add that line to `~/.zshrc`.
 The Zsh script is a native Zsh script. It calls `compdef`, so run `compinit`
 before you load it. Most Zsh setups do this already.
+
+For PowerShell, load the script in your current session:
+
+```powershell
+lvh-yard completions powershell | Out-String | Invoke-Expression
+```
+
+To load it in each new session, add that line to your PowerShell profile.
+Windows PowerShell 5.1 has native CLI checks. PowerShell 7 and full Windows
+Workstation acceptance remain open.
 
 ## Using the CLI
 
@@ -707,15 +717,29 @@ If the dashboard refuses the file, the command prints each reason. If a
 Publication or a chain names a profile, `lvh-yard profiles remove` refuses and
 names each Service and chain.
 
-`lvh-yard profiles edit <name>` opens the profile in `$EDITOR`, in the format of
-`show`. If `$EDITOR` is not set, it opens `vi`. After you close the editor, the
-command saves the profile. If you did not change the text, it saves nothing.
+`lvh-yard profiles edit <name>` opens the profile in the editor named by `EDITOR`,
+in the format of `show`. When `EDITOR` is empty, it opens `vi` on Unix or
+`notepad` on Windows. After you close the editor, the command saves the profile.
+If you did not change the text, it saves nothing.
 The file must hold only that one profile, with the same name. If LVH Yard
 refuses your change, the command prints the reason and asks
 `Edit again? [Y/n]`. Press Enter to open your text again. Answer `n` to stop. The
 command also stops if the input ends or the editor fails. Then it saves nothing,
 exits with 1 and prints the path of the file that holds your text. After a
 save, or when nothing changed, it deletes the file.
+
+In PowerShell, set the editor with `$env:EDITOR`. A whole executable path can
+contain spaces without extra quotes inside the value. If you add arguments,
+put double quotes around the executable path inside the value:
+
+```powershell
+$env:EDITOR = '"C:\Program Files\My Editor\editor.exe" --wait'
+```
+
+Choose an editor mode that waits until you finish the file. Windows invokes
+the executable directly, without a Unix shell. Printed Windows commands use
+PowerShell quoting: a single quote inside a single-quoted value appears twice.
+Keep that quoting when you paste a printed command.
 
 The `/status` page of the dashboard and `GET /api/status` show the same status
 as `lvh-yard status`.

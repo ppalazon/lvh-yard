@@ -5,9 +5,10 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"strings"
 )
 
+// Process holds what a command asks of the computer. The parts that differ between systems are in
+// process_unix.go and process_windows.go.
 type Process interface {
 	Getenv(key string) string
 	Input() io.Reader
@@ -31,36 +32,6 @@ func (systemProcess) Getenv(key string) string {
 
 func (systemProcess) Input() io.Reader {
 	return os.Stdin
-}
-
-func (systemProcess) IsTerminal() bool {
-	check := exec.Command("sh", "-c", "test -t 0")
-	check.Stdin = os.Stdin
-	return check.Run() == nil
-}
-
-func (systemProcess) Edit(editor, path string) error {
-	// #nosec G204 -- EDITOR is the user's command; the file path stays a separate argument.
-	edit := exec.Command("sh", "-c", editor+" \"$1\"", "sh", path)
-	edit.Stdin = os.Stdin
-	edit.Stdout = os.Stdout
-	edit.Stderr = os.Stderr
-	return edit.Run()
-}
-
-func (systemProcess) ID(flag string) string {
-	// #nosec G204 -- Initialization passes only the fixed id flags -u and -g.
-	printed, err := exec.Command("id", flag).Output()
-	if err != nil {
-		return ""
-	}
-	value := strings.TrimSpace(string(printed))
-	for _, digit := range value {
-		if digit < '0' || digit > '9' {
-			return ""
-		}
-	}
-	return value
 }
 
 func (systemProcess) Run(name string, args []string, dir string, stdout, stderr io.Writer) (int, error) {

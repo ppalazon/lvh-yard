@@ -101,7 +101,9 @@ func runWSCompose(options *Options, cmd *cobra.Command, folder string, args []st
 	return nil
 }
 
-func quoteShell(value string) string {
+// quotePOSIX writes a value for the Unix shell that ssh runs on another computer. For a command
+// that the user pastes into the shell of this computer, use quoteShell.
+func quotePOSIX(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
 }
 

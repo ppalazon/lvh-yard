@@ -90,7 +90,7 @@ func NewProfiles(options *Options) *cobra.Command {
 		},
 	}, &cobra.Command{
 		Use:   "edit <name>",
-		Short: "Opens a Route Profile in $EDITOR, else vi, and saves it.",
+		Short: "Opens a Route Profile in " + editorVariable + ", else " + defaultEditor + ", and saves it.",
 		Args:  cobra.ExactArgs(1),
 		RunE:  func(cmd *cobra.Command, args []string) error { return editProfile(cmd, options, args[0]) },
 	}, &cobra.Command{
@@ -132,7 +132,7 @@ func editProfile(cmd *cobra.Command, options *Options, name string) error {
 	}
 	editor := options.Process.Getenv("EDITOR")
 	if strings.TrimSpace(editor) == "" {
-		editor = "vi"
+		editor = defaultEditor
 	}
 	saved, err := editUntilSaved(cmd, options, dashboard, name, path, editor, original)
 	if saved {

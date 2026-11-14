@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -15,6 +16,11 @@ import (
 )
 
 func TestProfilesEdit(t *testing.T) {
+	// The editor that opens when EDITOR is empty.
+	defaultEditor := "vi"
+	if runtime.GOOS == "windows" {
+		defaultEditor = "notepad"
+	}
 	for _, tc := range []struct {
 		name, editor, input, wantOut, wantErr string
 		transform                             func(string, int) string
@@ -23,7 +29,7 @@ func TestProfilesEdit(t *testing.T) {
 		wantEdits, wantSaves, wantCode        int
 	}{
 		{name: "changed with editor arguments", editor: "code --wait", transform: func(s string, _ int) string { return strings.ReplaceAll(s, "X-Team: a", "X-Team: b") }, wantOut: "Saved the Route Profile team.\n", wantEdits: 1, wantSaves: 1},
-		{name: "unchanged defaults to vi", editor: "  ", transform: func(s string, _ int) string { return s }, wantOut: "No change to the Route Profile team.\n", wantEdits: 1},
+		{name: "unchanged uses the default editor", editor: "  ", transform: func(s string, _ int) string { return s }, wantOut: "No change to the Route Profile team.\n", wantEdits: 1},
 		{name: "different name", input: "n\n", transform: func(s string, _ int) string { return strings.ReplaceAll(s, "team:", "crew:") }, wantErr: "The file must hold only the Route Profile team. It holds crew.\nEdit again? [Y/n] ", wantEdits: 1, wantCode: 1},
 		{name: "second profile", input: "n\n", transform: func(s string, _ int) string { return s + "    gzip:\n      compress: {}\n" }, wantErr: "The file must hold only the Route Profile team. It holds team, gzip.\n", wantEdits: 1, wantCode: 1},
 		{name: "retry keeps text", input: "\n", transform: func(s string, call int) string {
@@ -37,8 +43,8 @@ func TestProfilesEdit(t *testing.T) {
 		}, wantOut: "Saved the Route Profile team.\n", wantErr: "The file must hold only the Route Profile team. It holds crew.\nEdit again? [Y/n] ", wantEdits: 2, wantSaves: 1},
 		{name: "refused save", input: "n\n", transform: func(s string, _ int) string { return strings.ReplaceAll(s, "headers:", "headerz:") }, refused: true, wantErr: "team has the type headerz.\nteam has invalid options.\nEdit again? [Y/n] ", wantEdits: 1, wantSaves: 1, wantCode: 1},
 		{name: "end of input stops retry", transform: func(s string, _ int) string { return "broken: [\n" }, wantErr: "The file is not valid YAML", wantEdits: 1, wantCode: 1},
-		{name: "editor fails unchanged", transform: func(s string, _ int) string { return s }, editorError: true, wantErr: "Cannot edit the Route Profile with vi: editor failed", wantEdits: 1, wantCode: 1},
-		{name: "editor fails changed", transform: func(s string, _ int) string { return s + "# changed\n" }, editorError: true, wantErr: "Cannot edit the Route Profile with vi: editor failed", wantEdits: 1, wantCode: 1},
+		{name: "editor fails unchanged", transform: func(s string, _ int) string { return s }, editorError: true, wantErr: "Cannot edit the Route Profile with " + defaultEditor + ": editor failed", wantEdits: 1, wantCode: 1},
+		{name: "editor fails changed", transform: func(s string, _ int) string { return s + "# changed\n" }, editorError: true, wantErr: "Cannot edit the Route Profile with " + defaultEditor + ": editor failed", wantEdits: 1, wantCode: 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			edits, saves := 0, 0
@@ -78,7 +84,7 @@ func TestProfilesEdit(t *testing.T) {
 				edits++
 				wantEditor := tc.editor
 				if strings.TrimSpace(wantEditor) == "" {
-					wantEditor = "vi"
+					wantEditor = defaultEditor
 				}
 				if editor != wantEditor {
 					t.Errorf("editor arguments changed: %q", editor)

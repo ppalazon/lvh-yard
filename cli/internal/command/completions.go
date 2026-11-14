@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var completionShells = []string{"bash", "zsh"}
+var completionShells = []string{"bash", "zsh", "powershell"}
 
 // NewCompletions is hidden, because the user guide names it and --help does not.
 func NewCompletions(options *Options) *cobra.Command {
@@ -20,10 +20,13 @@ func NewCompletions(options *Options) *cobra.Command {
 		ValidArgs: completionShells,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			root := cmd.Root()
-			if args[0] == "bash" {
+			switch args[0] {
+			case "bash":
 				return root.GenBashCompletionV2(cmd.OutOrStdout(), true)
+			case "zsh":
+				return root.GenZshCompletion(cmd.OutOrStdout())
 			}
-			return root.GenZshCompletion(cmd.OutOrStdout())
+			return root.GenPowerShellCompletionWithDesc(cmd.OutOrStdout())
 		},
 		ValidArgsFunction: func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
 			return completionShells, cobra.ShellCompDirectiveNoFileComp

@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"unicode"
 
 	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
@@ -266,10 +265,7 @@ func dockerGroup(socket string) string {
 	if err != nil {
 		return ""
 	}
-	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
-		return fmt.Sprint(stat.Gid)
-	}
-	return ""
+	return socketGroup(info)
 }
 
 func writeWorkstationFiles(folder, compose, env string, force bool) error {

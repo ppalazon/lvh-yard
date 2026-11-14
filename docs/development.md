@@ -87,6 +87,31 @@ executable reports `dev` unless `VERSION` is set at build time. `cli:install`
 writes a new file and then moves it, because the system does not let you
 overwrite a running executable.
 
+The same Go CLI cross-compiles for Windows 11 x64. From `cli/` on Linux:
+
+```sh
+GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build ./...
+GOOS=windows GOARCH=amd64 go vet ./...
+GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-X main.version=9.8.7" -o target/lvh-yard.exe ./cmd/lvh-yard
+GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go test -c -tags integration -o target/smoke.test.exe ./cmd/lvh-yard
+```
+
+Copy both executables to the Windows test folder. No Go installation is
+needed there. In Windows PowerShell 5.1, from that folder:
+
+```powershell
+$env:YARD_TEST_EXECUTABLE = (Resolve-Path .\lvh-yard.exe).Path
+.\smoke.test.exe "-test.count=1" "-test.v"
+$LASTEXITCODE
+```
+
+The version must match `9.8.7`, which the executable checks expect.
+Platform-specific process operations live in `process_unix.go` and
+`process_windows.go`, behind the existing `Process` interface.
+The Windows process code uses the console API for terminal detection.
+It launches editors directly and renders copied commands for PowerShell.
+Unix editor commands keep their shell behavior.
+
 On Linux amd64, the stripped executable compares like this with the former
 Java CLI, built as a native executable:
 
@@ -132,9 +157,10 @@ The Go CLI in `cli/` has no component tests. Its kinds are:
 
 - `go test ./...` runs the unit tests. They go through the command seam or the
   client seam, with no real process and no Docker.
-- The integration test builds the executable and runs it against a fake
-  dashboard. It has the build tag `integration` and runs with
-  `mise run cli:smoke`.
+- The integration tests build the executable and run it against a fake
+  dashboard, native recording editors and a recording Docker executable.
+  They also run printed commands through the platform shell. The tests have
+  the build tag `integration` and run with `mise run cli:smoke`.
 
 Surefire runs unit and component tests. Failsafe runs integration tests.
 `DockerContract` and `ConsulContract` run the same cases against each fake
@@ -151,10 +177,22 @@ builds the stylesheet, builds the dashboard from scratch and runs every test.
 Both `test:unit` and `check` also run `go vet`, golangci-lint and `go test ./...`
 in `cli/`. The golangci-lint run in these two tasks uses only the linters that
 report nothing today. `mise run quality:go` runs all of them.
-`check` also runs `mise run cli:smoke`. This one integration test builds the Go
-CLI, runs the executable against a fake dashboard, and checks the output, the
-version and the exit codes. Its file has the build tag `integration`, so
-`go test ./...` skips it.
+`check` also runs `mise run cli:smoke`. These tests check output, version,
+exit codes, editor file handling, subprocess arguments and shell quoting.
+Their build tag is `integration`, so `go test ./...` skips them.
+
+On Windows, the integration tests use each PowerShell executable found on
+`PATH`. They report an absent `pwsh.exe`; a passing run with only Windows
+PowerShell 5.1 does not prove PowerShell 7 behavior. Completion checks load
+the generated script and use `TabExpansion2`.
+
+Recording executables cannot prove Docker Desktop behavior or a GUI editor.
+Check prompts through a real Windows console, and check noninteractive input
+separately. Start a real Compose project, follow its logs, press Ctrl+C and
+run another shell command. Check the default editor on the Windows desktop.
+Native CLI evidence lives under `.scratch/windows-11/evidence/`.
+Full Windows Workstation support still needs its remaining acceptance checks,
+including PowerShell 7 and ordinary-user runtime and privacy checks.
 
 The real-Docker TLS Yard test builds the CLI and creates two Workstation
 Folders with `ws init` and `ws tls`. Build the dashboard image from this
