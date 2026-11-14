@@ -282,6 +282,13 @@ and `assets/`. `site.css` uses Tailwind CSS and Basecoat with the colors of
 The page also loads the dashboard's `theme.js` for its dark theme. The site
 also serves `install.sh`, at `https://lvhy.cc/install.sh`.
 
+The hero cycles through service types and locations with CSS. Service types
+change every 2 seconds, and locations change every 2.6 seconds. Each reel
+reserves space for its longest word and centers the text. Hover over the
+heading to pause both reels. With reduced motion,
+the heading stays on its first words. Screen readers get one fixed heading
+with all the words.
+
 ```sh
 mise run site:build    # writes docs/site/dist
 mise run site:serve    # builds it and serves http://localhost:8800
