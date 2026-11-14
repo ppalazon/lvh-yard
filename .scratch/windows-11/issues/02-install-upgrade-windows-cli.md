@@ -4,7 +4,7 @@
 
 **Blocked by:** 01: Run native Windows CLI workflows.
 
-**Status:** implementation and native acceptance complete; public publication awaits maintainer gate
+**Status:** ready-for-human
 
 - [x] Release packaging produces a Windows x64 ZIP containing the executable and license. Archive upload, release publication and SHA256SUMS include that ZIP.
 - [ ] The PowerShell installer reaches the published installation assets through the existing site build. Verify the installer against actual packaged artifacts before the final support announcement.
