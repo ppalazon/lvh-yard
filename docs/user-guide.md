@@ -243,6 +243,50 @@ remove them too.
 See [Compose's volume removal rules](https://docs.docker.com/reference/cli/docker/compose/down/),
 read on 2026-11-14.
 
+### Joining a Yard from Windows
+
+A Windows Workstation uses these addresses for different jobs:
+
+| Setting                         | Job                                                                                                                      |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `YARD_BIND_ADDRESS`             | The LAN address that Consul tells other Workstations. It is also the default Instance host. `ws init --address` sets it. |
+| Consul listen address           | Always `0.0.0.0` inside Docker Desktop. You cannot change it.                                                            |
+| Dashboard and Traefik listeners | `127.0.0.1` by default.                                                                                                  |
+
+Docker Desktop makes only wildcard and loopback listeners of a container
+visible on the Windows computer. A Consul bind to the address of the Docker
+virtual machine was not reachable from the LAN. So Consul listens on every
+address and advertises only `YARD_BIND_ADDRESS`.
+
+The Consul server port (TCP, default 8300) and the WAN gossip port (TCP and
+UDP, default 8302) must be reachable from the other Workstations.
+Allow them in Windows Firewall yourself, in both directions, for the
+Yard's addresses only. The CLI never changes firewall rules.
+Docker Desktop also listens on the LAN gossip port (default 8301) on every
+address. The Yard does not need it, so do not allow it.
+Consul HTTP, DNS and gRPC, the dashboard, Traefik and the Traefik admin
+listener stay on `127.0.0.1`. Joining a Yard does not change that, and you
+must not open them for federation.
+
+Address selection has these limits:
+
+- Setup suggests an address only when one adapter qualifies. It skips
+  adapters that are down, loopback and link-local addresses, and adapters
+  whose name contains `vEthernet`, `WSL` or `docker`. It does not skip a VPN
+  adapter. With a VPN adapter, setup asks you to choose, or needs `--address`
+  when no terminal is available.
+- `--address` takes any specific IPv4 address that is not loopback,
+  link-local or `0.0.0.0`. It does not check which adapter has the address or
+  whether other Workstations reach it. Use the address of your LAN adapter.
+  A WSL, VPN or other VM-only address is not reachable. Other Workstations
+  also treat an address from 172.17.0.0 to 172.31.255.255 as Out-of-range and
+  give its Instances no Route.
+- Names such as `host.docker.internal` are refused. An address must be an IPv4
+  address.
+- A Static Instance without `--host` uses `YARD_BIND_ADDRESS`. It must listen
+  on that address or on every IPv4 address. A process that listens only on
+  `127.0.0.1` works for Local Scope only.
+
 ### Dashboard settings
 
 `lvh-yard.yaml` holds structured dashboard settings in the Workstation Folder.
@@ -295,6 +339,8 @@ On Windows, the saved advertised LAN address is the invitation's default.
 `ws yard share --address` changes only the invitation; it does not reconfigure
 the Workstation. Check that other Workstations can reach the selected address.
 If setup cannot choose between adapters, give `ws init --address <lan-ip>`.
+For Windows firewall access and address limits, see
+[Joining a Yard from Windows](#joining-a-yard-from-windows).
 
 Before joining, manually allow traffic between the Workstations in each
 computer's firewall. With the default ports, allow server RPC on TCP 8300 and
