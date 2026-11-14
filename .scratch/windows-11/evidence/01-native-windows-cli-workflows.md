@@ -1,9 +1,9 @@
 # Native Windows CLI workflow evidence
 
 Windows PowerShell 5.1 CLI checks pass for API commands, prompts, explicit
-editors, quoting, completion and real Compose log interruption. The native
-default editor and every PowerShell 7 check remain open. This evidence does
-not establish Windows Workstation support.
+editors, quoting, completion and real Compose log interruption. A desktop
+Notepad edit/save also passed. PowerShell 7 and ordinary-user checks remain
+open. This evidence does not establish Windows Workstation support.
 
 ## Environment and scope
 
@@ -137,30 +137,58 @@ the probe's container and network. Other agents' resources were untouched.
 
 ## Default editor investigation
 
-The default is configured as `notepad`. It is not yet accepted as a working
-native default. The maintainer reported that the editor did not open during
-the desktop check. The exact desktop CLI output is still needed to distinguish
-an API prerequisite failure from editor launch behavior.
+The real native default passed in a new normal Windows PowerShell 5.1 window
+on the VM desktop. The maintainer reserved the console for this check.
+Keyboard input and screenshots used libvirt's console APIs. No existing
+console or unrelated app received typed commands.
 
-In the initial recovery setup, `fakedash.exe` was started with `Start-Process`
-inside SSH. It did not survive that SSH session. A later explicit-editor
-probe therefore failed with `The dashboard does not answer` before reaching
-an editor. A held-open SSH service was then used to keep the test API on
-`http://127.0.0.1:19081` available; a separate SSH session received HTTP 200.
+With the test API kept alive at `http://127.0.0.1:19081`, the desktop ran:
 
-Separate native diagnostics found that System32 Notepad redirects to
-Microsoft.WindowsNotepad 11.2609.11.0. Windows Application events recorded
-crashes in `Microsoft.UI.Xaml.dll`, exception `0xc000027b`, with WER
-`80070005`. These SSH-session events do not establish the cause of the
-desktop observation. No registry, app registration or Windows setting was
-changed. Windows PowerShell ISE was also probed as an explicit editor; its
-process remained alive in SSH session 0, without a window handle. That is
-not evidence for a working native default.
+```powershell
+cd C:\Users\test\lvh-dev\01
+Remove-Item Env:EDITOR -ErrorAction SilentlyContinue
+$env:TEMP = $PWD.Path
+$env:TMP = $PWD.Path
+.\lvh-yard.exe --dashboard http://127.0.0.1:19081 profiles edit team
+"CLI_EXIT=$LASTEXITCODE"
+Get-Content .\saved.json
+```
 
-The desktop check must use a reachable test API, clear `EDITOR`, change
-`X-Team: a` to `X-Team: b`, save, and close the editor. Acceptance requires
-that the CLI waits for editing, sends that value to the API, exits 0, and
-removes the temporary file. Stand-ins do not satisfy this requirement.
+Real Notepad opened `route-profile-528513835.yaml`, showing `X-Team: a`.
+The CLI stayed alive while the document was open. Native process inspection
+showed the CLI and its Notepad descendants in desktop session 1.
+Keyboard input changed only the owned document to `X-Team: b` and saved it.
+Closing that Notepad window returned to the CLI, which printed:
+
+```text
+Saved the Route Profile team.
+CLI_EXIT=0
+{"headers":{"customRequestHeaders":{"X-Team":"b"}}}
+```
+
+A subsequent `Test-Path` returned false for that exact temporary file.
+No desktop CLI or Notepad process remained. The test closed only its new
+PowerShell window and its own input-driver dialogs. Temporary driver scripts
+and diagnostic files were removed; the test API service was stopped.
+
+Screenshots captured the open document, saved text and final shell output
+under `/tmp/lvh01/default-open.png`, `default-saved.png` and
+`default-result.png`. Native default acceptance uses this actual GUI result,
+not the recording editor.
+
+The earlier maintainer report said no editor opened. Its CLI output and timing
+were no longer available, so its cause could not be established. Recovery
+found that the initial test API, launched with `Start-Process` inside SSH,
+did not survive that session. An explicit-editor probe then failed before
+editor launch with `The dashboard does not answer`. The successful desktop
+check used a held-open SSH service and a separately observed HTTP 200.
+
+SSH-only diagnostics also recorded packaged Notepad crashes in
+`Microsoft.UI.Xaml.dll`, exception `0xc000027b`, with WER `80070005`.
+They do not establish the cause of the earlier desktop report. An explicit
+Windows PowerShell ISE probe stayed alive without a session-0 window handle;
+it was not adopted as the default. No production editor change, registry
+change, app registration change or Windows setting change was needed.
 
 ## Host verification
 
@@ -187,8 +215,6 @@ certificate-transfer acceptance belong to their own Windows work.
 
 ## Remaining acceptance
 
-- The maintainer must complete the real desktop native-default editor check
-  and report any failing behavior. Preserve the text on editor failure.
 - The orchestrator must provide PowerShell 7. Repeat version/API/unknown-command
   exits, interactive and noninteractive input, default/spaced/invalid editors,
   printed special-character commands, completion, Docker and log interruption.

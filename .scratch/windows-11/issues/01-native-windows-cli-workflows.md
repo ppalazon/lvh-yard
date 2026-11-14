@@ -9,7 +9,7 @@
 - [x] The Windows executable builds and runs natively. Version reporting, successful API commands, failed API commands and unknown commands produce the expected consumer-visible results and exit codes.
 - [x] Platform-specific socket ownership and syscall handling no longer prevent Windows compilation. Existing Unix behavior remains intact; no compatibility shim or second CLI remains.
 - [x] Native terminal detection distinguishes interactive and noninteractive use without sh, id, vi or Git Bash. Existing prompt-driven command behavior works through that detection.
-- [ ] Editor workflows support native executables and paths with spaces. A native default works when no editor is configured; an invalid editor preserves the edited file and reports failure.
+- [x] Editor workflows support native executables and paths with spaces. A native default works when no editor is configured; an invalid editor preserves the edited file and reports failure.
 - [ ] Printed commands can be pasted into both supported PowerShell versions. Paths containing spaces, apostrophes and Unicode retain their intended values.
 - [ ] PowerShell completion works without removing existing Unix completions.
 - [x] Docker subprocess invocation preserves arguments and the selected working directory. Ctrl+C stops followed Compose logs and returns control to the shell.
@@ -23,10 +23,9 @@ records Windows PowerShell 5.1 results and the remaining gates. The ticket is
 not done. Checked criteria name behavior proved in that environment; they do
 not claim PowerShell 7 or ordinary-user acceptance.
 
-- The maintainer must complete the native-default editor check on the desktop.
-  Explicit native editor paths and retained text after failure passed, but
-  the default editor has not passed. The desktop report says no editor opened;
-  the exact CLI output and a reachable test API are needed for diagnosis.
+- A normal desktop Windows PowerShell 5.1 session opened real Notepad, waited
+  for the edit, saved the changed Route Profile and exited 0. Explicit editor
+  paths and retained text after editor failure also passed.
 - The orchestrator must provide PowerShell 7. Repeat version and API exit
   codes, unknown commands, interactive and noninteractive input, default,
   spaced and invalid editors, printed commands with special characters,
