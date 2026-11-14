@@ -52,7 +52,14 @@ function Install-LvhYard {
             [IO.File]::Move($source, $destination)
         }
 
-        $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+        # Use the raw registry value. [Environment]::GetEnvironmentVariable expands %VAR% entries into literals, and
+        # SetEnvironmentVariable writes the result as REG_SZ. The value keeps its text and kind.
+        $environment = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('Environment')
+        try {
+            $userPath = $environment.GetValue('Path', $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+            $kind = [Microsoft.Win32.RegistryValueKind]::ExpandString
+            if ($null -ne $userPath) { $kind = $environment.GetValueKind('Path') }
+        } finally { $environment.Dispose() }
         $parts = @()
         $found = $false
         foreach ($part in ($userPath -split ';')) {
@@ -68,7 +75,8 @@ function Install-LvhYard {
         }
         $newPath = $parts -join ';'
         if ($newPath -cne $userPath) {
-            [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
+            $environment = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('Environment')
+            try { $environment.SetValue('Path', $newPath, $kind) } finally { $environment.Dispose() }
             if (-not ('LvhYard.EnvironmentNotification' -as [type])) {
                 Add-Type @'
 using System;
