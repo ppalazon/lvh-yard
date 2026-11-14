@@ -10,8 +10,8 @@
 - [x] Platform-specific socket ownership and syscall handling no longer prevent Windows compilation. Existing Unix behavior remains intact; no compatibility shim or second CLI remains.
 - [x] Native terminal detection distinguishes interactive and noninteractive use without sh, id, vi or Git Bash. Existing prompt-driven command behavior works through that detection.
 - [x] Editor workflows support native executables and paths with spaces. A native default works when no editor is configured; an invalid editor preserves the edited file and reports failure.
-- [ ] Printed commands can be pasted into both supported PowerShell versions. Paths containing spaces, apostrophes and Unicode retain their intended values.
-- [ ] PowerShell completion works without removing existing Unix completions.
+- [x] Printed commands can be pasted into both supported PowerShell versions. Paths containing spaces, apostrophes and Unicode retain their intended values.
+- [x] PowerShell completion works without removing existing Unix completions.
 - [x] Docker subprocess invocation preserves arguments and the selected working directory. Ctrl+C stops followed Compose logs and returns control to the shell.
 - [x] Native executable checks and existing command-harness tests cover observable successes and failures. Demonstrate shell behavior without Unix tools on PATH; mocks do not substitute for native execution.
 - [x] Update the relevant shell and developer documentation without claiming that full Windows Workstation support has passed its remaining gates.
@@ -19,21 +19,22 @@
 ## Comments
 
 2026-11-14: [Observed evidence](../evidence/01-native-windows-cli-workflows.md)
-records Windows PowerShell 5.1 results and the remaining gates. The ticket is
-not done. Checked criteria name behavior proved in that environment; they do
-not claim PowerShell 7 or ordinary-user acceptance.
+records Windows PowerShell 5.1 and PowerShell 7.7.0 results. The ticket is
+not done. All listed behaviors passed as administrator `test`; scoped
+ordinary-user executable and shell checks also passed.
 
-- A normal desktop Windows PowerShell 5.1 session opened real Notepad, waited
-  for the edit, saved the changed Route Profile and exited 0. Explicit editor
-  paths and retained text after editor failure also passed.
-- The orchestrator must provide PowerShell 7. Repeat version and API exit
-  codes, unknown commands, interactive and noninteractive input, default,
-  spaced and invalid editors, printed commands with special characters,
-  completion, Docker invocation and Ctrl+C on followed logs.
-- Printed commands and completion passed in Windows PowerShell 5.1.
-  Their checkboxes remain open for PowerShell 7.
-- The orchestrator must arrange the ordinary-user accounts and Desktop access.
-  Ordinary-user native workflow and privacy acceptance remain open.
+- Both shells passed API exit codes, explicit editors, failure retention,
+  printed special-character commands and completion.
+- New normal desktop windows in both shells opened real default Notepad,
+  waited for edit/save/close, saved the changed Route Profile and exited 0.
+- PowerShell 7 ConPTY prompts and real Docker Compose with Unicode,
+  apostrophes and spaces passed. Ctrl+C returned from followed logs.
+- Ordinary user `yarddev` passed all eight native smoke tests under Windows
+  PowerShell 5.1, plus PowerShell 7 printed-command and completion subtests.
+  Those editor and Docker checks used native recording executables.
+- The orchestrator must arrange `yarddev` desktop and Docker Desktop access.
+  Ordinary-user real default editor, interactive prompts, real Docker and
+  followed-log interruption remain open. Privacy is a separate gate.
 - The complete native command-unit binary still has POSIX mode, copied-fixture
   and Unix SCP expectation failures. The evidence records these; no native
   full-suite pass is claimed.

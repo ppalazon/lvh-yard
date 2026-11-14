@@ -1,20 +1,21 @@
 # Native Windows CLI workflow evidence
 
-Windows PowerShell 5.1 CLI checks pass for API commands, prompts, explicit
-editors, quoting, completion and real Compose log interruption. A desktop
-Notepad edit/save also passed. PowerShell 7 and ordinary-user checks remain
-open. This evidence does not establish Windows Workstation support.
+Windows PowerShell 5.1 and PowerShell 7 CLI checks pass for API commands,
+prompts, editors, quoting, completion and real Compose log interruption as
+administrator `test`. Both shells also passed the scoped ordinary-user checks
+below. Ordinary-user desktop editor and real Docker checks remain open.
+This evidence does not establish Windows Workstation support.
 
 ## Environment and scope
 
 Observed on 2026-11-14:
 
 - Windows 11 x64, build 26300, Windows PowerShell 5.1.26100.9818.
-- Account `test`, an administrator. Ordinary-user checks have not run.
+- Account `test`, an administrator. Ordinary-user results have their own scope below.
 - Docker Desktop 4.99.0, Linux engine 29.9.3, Compose v5.7.0,
   context `desktop-linux`.
 - No Go, `sh`, `id`, `vi` or Git Bash. `bash.exe` is the WSL launcher.
-- `pwsh.exe` is absent. No PowerShell 7 result is claimed.
+- PowerShell 7 was absent during the initial Windows PowerShell 5.1 checks.
 - Windows files: `C:\Users\test\lvh-dev\01\`.
 
 The approved seams are the command harness and the built executable.
@@ -47,7 +48,7 @@ $env:YARD_TEST_EXECUTABLE = 'C:\Users\test\lvh-dev\01\lvh-yard.exe'
 $LASTEXITCODE
 ```
 
-The final run passed the following checks:
+The Windows PowerShell 5.1 run passed the following checks:
 
 | Test                                                  | Observed result                                                                                                                                                                                                                                                                  |
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -190,6 +191,119 @@ Windows PowerShell ISE probe stayed alive without a session-0 window handle;
 it was not adopted as the default. No production editor change, registry
 change, app registration change or Windows setting change was needed.
 
+## PowerShell 7 acceptance
+
+On 2026-11-14, the portable PowerShell executable at
+`C:\Users\test\lvh-dev\orchestrator\pwsh7\pwsh.exe` reported version `7.7.0`,
+edition `Core`, on Windows build `26300`. The checks used account `test`.
+Only the child session PATH gained the portable folder. No machine or user
+PATH, execution policy or editor setting changed.
+
+The helper selected that full path through `WIN_PS`. The existing Windows
+test binary and version `9.8.7` CLI ran with these commands:
+
+```powershell
+$env:PATH = 'C:\Users\test\lvh-dev\orchestrator\pwsh7;' + $env:PATH
+Set-Location 'C:\Users\test\lvh-dev\01'
+$env:YARD_TEST_EXECUTABLE = "$PWD\lvh-yard.exe"
+.\smoke.test.exe '-test.count=1' '-test.v' '-test.run=^TestBuiltExecutable'
+.\smoke.test.exe '-test.count=1' '-test.v' '-test.run=^(TestPrintedCommandsKeepTheirValuesInTheShell|TestPowerShellCompletesCommandsAndValues)$/^pwsh[.]exe_'
+```
+
+Both runs printed `PASS` and exited 0. The first ran all six
+`TestBuiltExecutable` tests, including all editor cases. Version and healthy
+API calls exited 0; failed API calls, unknown commands and an unreachable API
+exited 1. Spaced editor paths and editor arguments saved the changed text.
+Missing and failed editors retained their files and sent no API save.
+Docker argument, working-directory, missing-Docker and noninteractive prompt
+checks also passed.
+
+The shell filter selected only PowerShell 7 subtests. All four completion
+cases and both printed start commands passed. The exact printed lines ran
+through PowerShell 7, preserving the `Yard d'été ’24 日本` folder.
+An initial filter ended with `^pwsh.exe$`, selected no subtests and printed
+`no tests to run`. It is not counted as shell acceptance.
+
+### Real console and Docker
+
+A new ConPTY session ran the full portable PowerShell path with
+`-NoLogo -NoProfile`. Init in the fresh `ps7-tty-init` folder rejected
+`WS Bad`, accepted `ws-ps7`, asked for the Base Domain and accepted its default.
+The CLI exited 0. The socket-group warning remained, so this proves prompts,
+not generated Windows Workstation setup. The probe removed its init folder.
+
+PowerShell 7 ran the real Compose commands from the earlier Docker section,
+using the existing special-character folder from another working directory.
+Start exited 0. Docker inspection returned the exact folder and
+`compose.yaml` path in the two Compose labels. A separate PowerShell 7
+ConPTY session ran `compose logs -f` and observed `Starting up on port 80`.
+Ctrl+C returned the shell prompt. The command
+`Write-Output ('SHELL_' + 'RETURNED_PS7')` printed `SHELL_RETURNED_PS7`,
+and another prompt appeared. No followed-log process remained in the
+subsequent process query. No interrupt exit code is claimed.
+
+Cleanup ran CLI `compose stop` and direct Compose `down`. Both exited 0
+and removed only the probe container and network.
+
+### Real desktop default editor
+
+The orchestrator reserved the console. The probe opened a new normal
+PowerShell 7 window and confirmed version `7.7.0`. A held-open SSH service
+kept the controlled API alive on `http://127.0.0.1:19082`; an HTTP request
+returned 200 before editor launch. The shell ran the earlier desktop commands
+with this port and saved to `saved.ps7.json`.
+
+With `EDITOR` unset, real Notepad opened
+`route-profile-1695848107.yaml` and showed `X-Team: a`.
+Native process inspection showed the waiting CLI and Notepad descendants
+in desktop session 1. Keyboard input changed only that document to
+`X-Team: b` and saved it. Closing the owned Notepad window returned to the CLI:
+
+```text
+Saved the Route Profile team.
+CLI_EXIT=0
+{"headers":{"customRequestHeaders":{"X-Team":"b"}}}
+```
+
+`Test-Path` returned false for that exact temporary file, and the process
+query found no remaining CLI or Notepad process. The probe closed its new
+shell and stopped its API service. It left unrelated apps untouched and
+released the console reservation.
+
+Screenshots under `/tmp/lvh01/` record the selected original document
+(`ps7-notepad-selected.png`), saved text (`ps7-default-saved.png`) and final
+shell result (`ps7-cli-result.png`). No production editor workaround was used.
+
+## Scoped ordinary-user checks
+
+On 2026-11-14, the orchestrator created `yarddev` and `yardother`.
+SSH reported `t-x\yarddev` and `t-x\yardother`; both accounts returned false
+for `WindowsPrincipal.IsInRole(Administrator)`. The orchestrator supplied
+the following native results from its completed `bg_49` and `bg_52` runs.
+
+Under `yarddev`, the existing CLI and smoke binary ran from
+`C:\Users\yarddev\lvh-dev\01`, with `YARD_TEST_EXECUTABLE` naming that CLI.
+The complete smoke invocation from the build section passed all eight tests
+in Windows PowerShell 5.1. This covers version/API/unknown-command results,
+recording editors and failure retention, recording Docker arguments and
+working directory, missing Docker, noninteractive init, printed commands
+and completion. PowerShell 7 was not on that session's PATH and was skipped.
+
+The orchestrator then extracted the official portable PowerShell archive in
+that account's own test folder. It reported `7.7.0`. With only the child
+session PATH changed, this invocation passed all four PowerShell 7 completion
+subtests and both PowerShell 7 printed-command subtests, exiting 0:
+
+```powershell
+.\smoke.test.exe '-test.count=1' '-test.v' '-test.run=TestPowerShellCompletesCommandsAndValues/pwsh.exe|TestPrintedCommandsKeepTheirValuesInTheShell/pwsh.exe'
+```
+
+These ordinary-user runs used recording editor and Docker executables.
+They do not prove ordinary-user desktop Notepad, real Docker Desktop,
+interactive prompts or followed-log interruption. Docker Desktop remains
+installed only for `test`; the orchestrator must arrange the ordinary
+account's desktop and Docker access before those checks.
+
 ## Host verification
 
 On Linux, the recovery ran these focused checks successfully:
@@ -215,11 +329,10 @@ certificate-transfer acceptance belong to their own Windows work.
 
 ## Remaining acceptance
 
-- The orchestrator must provide PowerShell 7. Repeat version/API/unknown-command
-  exits, interactive and noninteractive input, default/spaced/invalid editors,
-  printed special-character commands, completion, Docker and log interruption.
-- The orchestrator must provide the ordinary-user accounts and Desktop access.
-  Repeat native workflows as an ordinary user. A second ordinary user must
-  test secret access under the separate privacy acceptance gate.
+- With the ordinary account's desktop and Docker access ready, repeat real
+  default-editor editing, interactive prompts, real Docker invocation and
+  followed-log Ctrl+C. The scoped ordinary-user checks above already passed.
+- Secret access by a second ordinary account remains a separate privacy gate;
+  no privacy result is claimed here.
 - Full generated Workstation, persistence, LAN, TLS and release acceptance
   remain outside this CLI evidence.
