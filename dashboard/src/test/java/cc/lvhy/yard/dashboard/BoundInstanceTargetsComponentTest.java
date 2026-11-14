@@ -48,6 +48,16 @@ class BoundInstanceTargetsComponentTest extends DashboardComponentTest {
         get("/traefik/configuration").getBody().get("http"), service + ".lvh.test");
   }
 
+  /** Waits until the only Instance of {@code service} and its Route are at {@code target}. */
+  private void awaitTarget(String service, String target) {
+    await()
+        .atMost(FOLLOW_TIMEOUT)
+        .untilAsserted(() -> {
+          assertThat(targetsNow(service)).containsExactly(target);
+          assertThat(routeTargets(service)).containsExactly("http://" + target);
+        });
+  }
+
   private JsonNode onlyInstance(String service) {
     return get(servicePath(service)).getBody().get("instances").get(0);
   }
@@ -229,6 +239,25 @@ class BoundInstanceTargetsComponentTest extends DashboardComponentTest {
         .atMost(FOLLOW_TIMEOUT)
         .untilAsserted(() ->
             assertThat(targetsNow(web)).containsExactly(LOOPBACK + ":" + hostPort(container, 80)));
+  }
+
+  @Test
+  void replacingAContainerMovesTheBoundInstanceToItsNewHostPortAndAddress() {
+    String web = newServiceName("web");
+    String name = newContainerName();
+    bind(web, name, 80);
+    publish(web);
+    scope(web, "yard");
+    Container wildcard = startContainer(name, 80, true);
+    awaitTarget(web, lanAddress() + ":" + hostPort(wildcard, 80));
+
+    docker.remove(name);
+    Container loopback = start(FakeDocker.container(name).publishedOn(LOOPBACK, 80));
+    awaitTarget(web, LOOPBACK + ":" + hostPort(loopback, 80));
+
+    docker.remove(name);
+    Container lan = start(FakeDocker.container(name).publishedOn(lanAddress(), 80));
+    awaitTarget(web, lanAddress() + ":" + hostPort(lan, 80));
   }
 
   @Test

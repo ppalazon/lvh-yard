@@ -1840,6 +1840,38 @@ The dashboard follows the Docker events at `DOCKER_HOST`. If that is not set,
 it uses `unix:///var/run/docker.sock`. When it starts, or when Docker answers
 again, it updates each Binding to the containers that run then.
 
+#### Published ports on Windows
+
+The table above holds on Windows. Docker Desktop publishes each port on the
+Windows computer, and these limits apply:
+
+- Docker Desktop lists a port that it publishes on every address twice, on
+  `0.0.0.0` and on `::`. A Windows Workstation uses only the IPv4 mapping. A
+  port published only on an IPv6 address gives no Bound Instance.
+- `-p 8080:80` is open on `127.0.0.1` and on the LAN address of the Windows
+  computer. Local Scope uses `127.0.0.1`. Yard Scope uses the saved LAN
+  address, which is the default Instance host.
+- `-p 127.0.0.1:8080:80` is open on the Windows computer only. A Service with
+  Yard Scope keeps the Bound Instance at `127.0.0.1` and shows a warning.
+  Other Workstations get no Route. To share the port, publish it on every
+  address or on the LAN address.
+- `-p <LAN address>:8080:80` is open at that address only. It is not open at
+  `127.0.0.1`. The Bound Instance stays at the LAN address under every Scope,
+  so the Route works on this Workstation and on other Workstations.
+- A port with no Host Port has an address inside the Docker virtual machine,
+  such as `172.17.0.7`. This Workstation reaches it, but other Workstations
+  do not. Yard Scope warns and gives no Route to them. Publish the port to
+  share it.
+- The Bound Instance never uses `host.docker.internal`, or an address of WSL
+  or of the Docker virtual machine, as the address that other Workstations
+  use.
+- When Docker restarts or replaces a container, the Host Port or address can
+  change. The Bound Instance follows the new mapping.
+
+A port that Docker publishes on every address, or on the LAN address, is open
+on the LAN. Other Workstations reach it only when Windows Firewall lets Docker
+Desktop accept their connections. LVH Yard never changes the firewall.
+
 #### Bind a container on the Service page
 
 On the page of a Service that you created, click "Bind container" in the

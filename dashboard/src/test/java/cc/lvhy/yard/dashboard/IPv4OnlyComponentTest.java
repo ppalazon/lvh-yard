@@ -204,4 +204,28 @@ class IPv4OnlyComponentTest extends DashboardComponentTest {
     assertThat(instance.get("host").asString()).isEqualTo("127.0.0.1");
     assertThat(instance.get("port").asInt()).isEqualTo(hostPortOn(container, 80, "127.0.0.1"));
   }
+
+  /** Docker Desktop lists a wildcard-published port on 0.0.0.0 and on ::. */
+  @Test
+  void aDualStackWildcardPortFollowsTheScopeOnItsIpv4Address() {
+    String web = newServiceName("web");
+    String name = newContainerName();
+    Container container = startContainer(name, 80, true);
+    int hostPort = hostPort(container, 80);
+    bind(web, name, 80);
+
+    assertThat(instanceOf(web)).isEqualTo(lanAddress() + ":" + hostPort);
+
+    publish(web);
+    assertThat(instanceOf(web)).isEqualTo("127.0.0.1:" + hostPort);
+
+    put(publicationPath(web), Map.of("scope", "yard"));
+    assertThat(instanceOf(web)).isEqualTo(lanAddress() + ":" + hostPort);
+    assertThat(get(servicePath(web)).getBody().get("warnings")).isEmpty();
+  }
+
+  private String instanceOf(String service) {
+    JsonNode instance = get(servicePath(service)).getBody().get("instances").get(0);
+    return instance.get("host").asString() + ":" + instance.get("port").asInt();
+  }
 }
