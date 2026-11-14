@@ -120,9 +120,10 @@ Java CLI, built as a native executable:
 | Go (this CLI) | 9.19 MB | 1.44 ms                               |
 | Java, native  | 49 MB   | 7.3 ms                                |
 
-The source templates are `config/compose.yaml`, `config/.env.example`,
-`config/00-lvh-yard.hcl`, `config/10-tls.hcl`, `config/10-tls.yaml` and
-`config/lvh-yard.yaml`. The CLI embeds copies from `cli/internal/templates/`.
+The source templates are `config/compose.yaml`, `config/compose.windows.yaml`,
+`config/traefik-windows.sh`, `config/.env.example`, `config/00-lvh-yard.hcl`,
+`config/10-tls.hcl`, `config/10-tls.yaml` and `config/lvh-yard.yaml`.
+The CLI embeds copies from `cli/internal/templates/`.
 After you edit a source, run `mise run cli:templates` to refresh the copies.
 Commit the copies with the source files. A unit test compares the raw bytes.
 When `ws init` writes the Workstation Folder, it pins the dashboard image to
@@ -135,11 +136,56 @@ docker compose --project-directory dev/ws-a --env-file dev/ws-a/.env \
   -f dev/ws-a/compose.yaml -f dev/compose.yaml build dashboard
 ```
 
-The CLI creates Workstation Folders with mode 700 and files with mode 600.
-It creates `backups/` and `consul-data/` before Compose starts, so Docker
-does not create them as root. Consul uses the user and group in `.env`
-(`YARD_UID` and `YARD_GID`) and stores its data in `consul-data/`.
+On Linux and macOS, the CLI creates Workstation Folders with mode 700 and files
+with mode 600. It creates `backups/` and `consul-data/` before Compose starts,
+so Docker does not create them as root. Consul uses the user and group in
+`.env` (`YARD_UID` and `YARD_GID`) and stores its data in `consul-data/`.
 The CLI mode tests cover new folders and repair of existing folders.
+
+### Windows runtime development
+
+Windows runtime acceptance is not complete. The
+[Windows setup draft](user-guide.md#windows-workstation-setup) owns the
+Docker Desktop prerequisites, native storage rules and reset procedure.
+The repository's developer tasks do not imply a native Windows build toolchain.
+Build on Linux and copy the CLI and dashboard image for native runtime checks.
+
+The Windows Workstation Folder holds configuration, certificates and Backups.
+Consul state lives in a named volume scoped to the Compose project.
+A one-shot container initializes its Linux ownership before Consul starts.
+Long-lived Consul and dashboard containers stay non-root.
+Direct Compose startup must use the generated files without a launch-time
+overlay or environment preparation by the CLI.
+`templates.Compose` selects `compose.windows.yaml` on Windows.
+The generated `traefik/00-lvh-yard-windows.sh` takes two identical source
+snapshots before it publishes Linux-local files. It switches the complete
+TLS directory before it publishes configuration or touches unchanged files.
+It preserves source YAML and TOML and propagates deletions.
+The Windows dashboard starts Java with `-Djava.net.preferIPv4Stack=true`.
+Without it, the measured Desktop runtime refused Java loopback connections
+that curl reached from the same container. Unix launch settings stay unchanged.
+The generated Windows setup also sets internal `YARD_IPV4_ONLY=true`.
+It rejects IPv6 target addresses and reports unsupported IPv6 Reachability.
+
+The dashboard's internal `YARD_INSTANCE_HOST` setting maps to
+`lvh-yard.instance-host` in `dashboard/src/main/resources/application.yaml`.
+It sets the default host of Static Instances, the host omitted from Backups
+and restored on import, and the Yard address of wildcard-published Bound
+Instances. Local wildcard mappings still use loopback, and explicit Instance
+hosts and published bind addresses stay unchanged.
+An unset or blank value uses Consul's agent address, preserving Unix defaults.
+This setting adds no HTTP API field or domain property.
+The Windows generated setup supplies the native LAN identity separately from
+Consul's container bind address.
+
+`InstanceHostComponentTest` checks the configured host through the existing
+dashboard API, pages, Backup export/import and Traefik configuration.
+These deterministic tests do not establish Docker Desktop behavior.
+Runtime acceptance needs an ordinary Windows user and a second LAN computer.
+Check effective ACL privacy from another ordinary account, direct Compose
+startup, persistent state and local listener isolation.
+Check native-loopback routing through real Traefik requests separately from
+Health and Reachability results. Record only observed outcomes.
 
 ## Tests
 
@@ -191,8 +237,8 @@ Check prompts through a real Windows console, and check noninteractive input
 separately. Start a real Compose project, follow its logs, press Ctrl+C and
 run another shell command. Check the default editor on the Windows desktop.
 Native CLI evidence lives under `.scratch/windows-11/evidence/`.
-Full Windows Workstation support still needs its remaining acceptance checks,
-including PowerShell 7 and ordinary-user runtime and privacy checks.
+Full Windows Workstation support still needs its remaining runtime gates.
+Native CLI evidence covers both supported PowerShell versions.
 
 The real-Docker TLS Yard test builds the CLI and creates two Workstation
 Folders with `ws init` and `ws tls`. Build the dashboard image from this

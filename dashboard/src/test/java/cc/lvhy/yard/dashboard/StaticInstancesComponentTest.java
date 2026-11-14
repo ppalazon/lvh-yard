@@ -274,6 +274,22 @@ class StaticInstancesComponentTest extends DashboardComponentTest {
   }
 
   @Test
+  void theDefaultRuntimeStillRegistersEditsAndRoutesIpv6Targets() {
+    String web = newServiceName("web");
+    String id = register(web, Map.of("host", "::1", "port", 8080)).get("id").asString();
+    publish(web);
+
+    var response = put(instancesPath(web) + "/" + id, Map.of("host", "2001:db8::5", "port", 8081));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody().get("host").asString()).isEqualTo("2001:db8::5");
+    assertThat(
+            TraefikConfigurationComponentTest.serverUrlsAt(
+                get("/traefik/configuration").getBody().get("http"), web + ".lvh.test"))
+        .containsExactly("http://[2001:db8::5]:8081");
+  }
+
+  @Test
   void hostDefaultsToTheWorkstationsLanAddress() {
     String api = newServiceName("api");
 

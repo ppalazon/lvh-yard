@@ -1,0 +1,157 @@
+# Windows Workstation runtime for Docker Desktop with host networking enabled.
+# YARD_BIND_ADDRESS is the native LAN address, not a container bind address.
+services:
+  # NTFS cannot supply Linux ownership for Consul state.
+  consul-data-init:
+    image: hashicorp/consul:2.1.0
+    user: "0:0"
+    restart: "no"
+    entrypoint: ["/bin/sh", "-ec"]
+    command: ["chown -R 1000:1000 /consul/data"]
+    volumes:
+      - consul-data:/consul/data
+
+  consul:
+    image: hashicorp/consul:2.1.0
+    network_mode: host
+    restart: unless-stopped
+    user: "1000:1000"
+    depends_on:
+      consul-data-init:
+        condition: service_completed_successfully
+    environment:
+      YARD_WORKSTATION: ${YARD_WORKSTATION:?set YARD_WORKSTATION in .env}
+      YARD_GOSSIP_KEY: ${YARD_GOSSIP_KEY:?set YARD_GOSSIP_KEY in .env}
+      YARD_BIND_ADDRESS: ${YARD_BIND_ADDRESS:?set the native LAN IPv4 address in .env}
+      YARD_PEERS: ${YARD_PEERS:-}
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        set -f --
+        for peer in $$(printf '%s' "$${YARD_PEERS}" | tr ',' ' '); do set -- "$$@" "-retry-join-wan=$$peer"; done
+        exec consul agent -config-dir=/consul/config \
+          -datacenter="$${YARD_WORKSTATION}" -node="$${YARD_WORKSTATION}" \
+          -encrypt="$${YARD_GOSSIP_KEY}" \
+          -bind='{{ GetDefaultInterfaces | include "type" "IPv4" | attr "address" }}' \
+          -advertise="$${YARD_BIND_ADDRESS}" -advertise-wan="$${YARD_BIND_ADDRESS}" \
+          -http-port=${YARD_CONSUL_HTTP_PORT:-8500} -dns-port=${YARD_CONSUL_DNS_PORT:-8600} \
+          -grpc-tls-port=${YARD_CONSUL_GRPC_TLS_PORT:-8503} -server-port=${YARD_CONSUL_SERVER_PORT:-8300} \
+          -serf-lan-port=${YARD_CONSUL_SERF_LAN_PORT:-8301} -serf-wan-port=${YARD_CONSUL_SERF_WAN_PORT:-8302} \
+          "$$@"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget -qO- http://127.0.0.1:${YARD_CONSUL_HTTP_PORT:-8500}/v1/status/leader | grep -q '[0-9]'
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      start_interval: 1s
+    volumes:
+      - consul-data:/consul/data
+      - ./consul.d:/consul/config:ro
+      - ./tls/consul:/consul/tls:ro
+
+  traefik:
+    profiles: [traefik]
+    image: traefik:v3.7.16
+    network_mode: host
+    restart: unless-stopped
+    depends_on:
+      consul:
+        condition: service_healthy
+      dashboard:
+        condition: service_healthy
+        required: false
+    # Root can bind port 80. The script keeps NTFS sources separate from watched files.
+    environment:
+      YARD_TRAEFIK_BIND_ADDRESS: ${YARD_TRAEFIK_BIND_ADDRESS:-127.0.0.1}
+      YARD_DASHBOARD_BIND_ADDRESS: ${YARD_DASHBOARD_BIND_ADDRESS:-127.0.0.1}
+      YARD_DASHBOARD_PORT: ${YARD_DASHBOARD_PORT:-7780}
+      YARD_HTTP_PORT: ${YARD_HTTP_PORT:-80}
+      YARD_HTTPS_PORT: ${YARD_HTTPS_PORT:-}
+      YARD_TRAEFIK_ADMIN_PORT: ${YARD_TRAEFIK_ADMIN_PORT:-8080}
+    entrypoint: ["/bin/sh", "/usr/local/bin/00-lvh-yard-windows.sh"]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-qO-",
+          "http://127.0.0.1:${YARD_TRAEFIK_ADMIN_PORT:-8080}/ping",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      start_interval: 1s
+    command:
+      - --entryPoints.web.address=${YARD_TRAEFIK_BIND_ADDRESS:-127.0.0.1}:${YARD_HTTP_PORT:-80}
+      - --entryPoints.traefik.address=127.0.0.1:${YARD_TRAEFIK_ADMIN_PORT:-8080}
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --ping=true
+      - --ping.entryPoint=traefik
+      - --providers.http.pollInterval=5s
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --log.level=INFO
+      - --accesslog=true
+    volumes:
+      - ./traefik/00-lvh-yard-windows.sh:/usr/local/bin/00-lvh-yard-windows.sh:ro
+      - ./traefik/dynamic:/source/dynamic:ro
+      - ./tls/traefik:/source/tls:ro
+
+  dashboard:
+    profiles: [dashboard]
+    image: ${YARD_DASHBOARD_IMAGE:-ghcr.io/ppalazon/lvh-yard-dashboard:latest}
+    network_mode: host
+    restart: unless-stopped
+    user: "1000:1000"
+    group_add: ["0"]
+    depends_on:
+      consul:
+        condition: service_healthy
+    # Desktop cannot bind a native Windows interface. Reject it even with direct Compose.
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        for bind in "$${YARD_DASHBOARD_BIND_ADDRESS}" "$${YARD_TRAEFIK_BIND_ADDRESS}"; do
+          case "$$bind" in
+            127.0.0.1|0.0.0.0) ;;
+            *) printf '%s\n' 'Windows listeners require 127.0.0.1 or 0.0.0.0.' >&2; exit 1 ;;
+          esac
+        done
+        # Desktop host networking needs IPv4-only Java sockets to reach IPv4 loopback.
+        exec java -Djava.net.preferIPv4Stack=true -jar /app/dashboard.jar
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -fsS -o /dev/null "http://127.0.0.1:$${YARD_DASHBOARD_PORT}/actuator/health"
+      interval: 30s
+      timeout: 5s
+      start_period: 120s
+      start_interval: 1s
+    environment:
+      YARD_WORKSTATION: ${YARD_WORKSTATION:?set YARD_WORKSTATION in .env}
+      YARD_IPV4_ONLY: "true"
+      YARD_INSTANCE_HOST: ${YARD_BIND_ADDRESS:?set the native LAN IPv4 address in .env}
+      YARD_BASE_DOMAIN: ${YARD_BASE_DOMAIN:-lvh.me}
+      YARD_OUT_OF_RANGE: ${YARD_OUT_OF_RANGE-127.0.0.0/8,::1/128,172.17.0.0/16,172.18.0.0/15,172.20.0.0/14,172.24.0.0/13}
+      YARD_HTTP_PORT: ${YARD_HTTP_PORT:-80}
+      YARD_HTTPS_PORT: ${YARD_HTTPS_PORT:-}
+      YARD_TRAEFIK_BIND_ADDRESS: ${YARD_TRAEFIK_BIND_ADDRESS:-127.0.0.1}
+      YARD_TRAEFIK_ADMIN_PORT: ${YARD_TRAEFIK_ADMIN_PORT:-8080}
+      YARD_TRAEFIK_ENABLED: ${YARD_TRAEFIK_ENABLED:-true}
+      YARD_DASHBOARD_PORT: ${YARD_DASHBOARD_PORT:-7780}
+      YARD_DASHBOARD_BIND_ADDRESS: ${YARD_DASHBOARD_BIND_ADDRESS:-127.0.0.1}
+      YARD_CONSUL_HTTP_PORT: ${YARD_CONSUL_HTTP_PORT:-8500}
+      YARD_PEERS: ${YARD_PEERS:-}
+      YARD_STACK_TRACES: ${YARD_STACK_TRACES:-false}
+      YARD_BACKUPS: /var/lib/lvh-yard/backups
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./backups:/var/lib/lvh-yard/backups
+      - ./lvh-yard.yaml:/app/config/application.yaml:ro
+
+# Compose prefixes this name with the selected project. Normal down preserves it.
+volumes:
+  consul-data:

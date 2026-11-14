@@ -15,7 +15,7 @@ import (
 var commands = map[string][]string{
 	"":                   {"dashboard"},
 	"ws":                 {"dir"},
-	"ws init":            {"workstation", "peers", "gossip-key", "base-domain", "force", "docker-socket", "hostname", "terminal"},
+	"ws init":            {"workstation", "peers", "gossip-key", "base-domain", "address", "force", "docker-socket", "hostname", "terminal"},
 	"ws compose":         nil,
 	"ws compose upgrade": nil,
 	"ws show":            nil,

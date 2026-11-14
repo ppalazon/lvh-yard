@@ -1,6 +1,7 @@
 package cc.lvhy.yard.dashboard.services;
 
 import cc.lvhy.yard.dashboard.OutOfRange;
+import cc.lvhy.yard.dashboard.RuntimeNetwork;
 import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.consul.ConsulKv;
 import cc.lvhy.yard.dashboard.docker.Docker;
@@ -69,6 +70,8 @@ public class ContainerBindings {
 
   private final OutOfRange outOfRange;
 
+  private final RuntimeNetwork network;
+
   ContainerBindings(
       Workstation workstation,
       ConsulKv consul,
@@ -76,7 +79,8 @@ public class ContainerBindings {
       Registrations registrations,
       ServiceRecords records,
       Publications publications,
-      OutOfRange outOfRange) {
+      OutOfRange outOfRange,
+      RuntimeNetwork network) {
     this.outOfRange = outOfRange;
     this.publications = publications;
     this.records = records;
@@ -84,6 +88,7 @@ public class ContainerBindings {
     this.consul = consul;
     this.docker = docker;
     this.registrations = registrations;
+    this.network = network;
   }
 
   /**
@@ -346,14 +351,23 @@ public class ContainerBindings {
     String hostAddress = scope == Scope.LOCAL ? LOOPBACK : lanAddress;
     int containerPort = binding.port();
     List<Port> mappings = container.published(containerPort);
-    List<Port> suited = mappings.stream().filter(port -> suits(port, scope)).toList();
+    List<Port> supported =
+        network.ipv4Only()
+            ? mappings.stream().filter(port -> network.supports(port.ip())).toList()
+            : mappings;
+    List<Port> candidates = supported.isEmpty() ? mappings : supported;
+    List<Port> suited = candidates.stream().filter(port -> suits(port, scope)).toList();
     Optional<Port> published =
-        (suited.isEmpty() ? mappings : suited)
+        (suited.isEmpty() ? candidates : suited)
             .stream().min(Comparator.comparing(port -> everyAddress(port) ? 0 : 1));
     String host;
     int port;
     if (published.isPresent()) {
-      host = everyAddress(published.get()) ? hostAddress : published.get().ip();
+      // An IPv6-only wildcard must not turn into an IPv4 target that Docker never published.
+      host =
+          everyAddress(published.get()) && network.supports(published.get().ip())
+              ? hostAddress
+              : published.get().ip();
       port = published.get().publicPort();
     } else {
       host = container.address().orElse(hostAddress);

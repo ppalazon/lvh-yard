@@ -6,8 +6,10 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"unicode"
 
@@ -21,6 +23,7 @@ type initOptions struct {
 	workstation  string
 	baseDomain   string
 	peers        []string
+	address      string
 	gossipKey    string
 	force        bool
 	dockerSocket string
@@ -42,6 +45,7 @@ func newWSInit(options *Options, folder func() string) *cobra.Command {
 	f.StringVar(&flags.workstation, "workstation", "", "Sets this Workstation's unique name in the Yard.")
 	f.StringVar(&flags.baseDomain, "base-domain", "", "Sets the Base Domain at the end of this Workstation's hostnames.")
 	f.StringArrayVar(&flags.peers, "peers", nil, "Sets the LAN addresses of other Workstations, separated by spaces or commas.")
+	f.StringVar(&flags.address, "address", "", "Sets this Workstation's LAN IPv4 address.")
 	f.StringVar(&flags.gossipKey, "gossip-key", "", "Uses the Yard's shared Gossip Key.")
 	f.BoolVar(&flags.force, "force", false, "Overwrites the files when they exist.")
 	f.StringVar(&flags.dockerSocket, "docker-socket", "/var/run/docker.sock", "Reads the Docker group from this socket.")
@@ -75,6 +79,9 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	}
 	peers, err := f.checkedPeers()
 	if err != nil {
+		return err
+	}
+	if err := f.lanIdentity(prompt, options, env); err != nil {
 		return err
 	}
 	if err := f.fillEnv(env, options, name, domain, key, peers); err != nil {
@@ -268,14 +275,59 @@ func dockerGroup(socket string) string {
 	return socketGroup(info)
 }
 
+func (f *initOptions) lanIdentity(prompt *initPrompt, options *Options, env *envfile.File) error {
+	if runtime.GOOS != "windows" && f.address == "" {
+		return nil
+	}
+	address := f.address
+	valid := func(value string) bool {
+		ip := net.ParseIP(value)
+		return ip != nil && ip.To4() != nil && ip.IsGlobalUnicast() && !ip.IsLinkLocalUnicast()
+	}
+	if address == "" {
+		offered, selectionErr := options.Process.LANAddress()
+		if selectionErr != nil {
+			fmt.Fprintln(prompt.out, selectionErr)
+		}
+		if prompt.terminal || !valid(offered) {
+			var err error
+			address, err = prompt.askValid("LAN IPv4 address ["+offered+"]: ", "--address", offered, valid, func(string) string {
+				return "Use a LAN IPv4 address that other Workstations can reach."
+			})
+			if err != nil {
+				return err
+			}
+		} else {
+			address = offered
+		}
+	}
+	if !valid(address) {
+		return fmt.Errorf("invalid --address: use a LAN IPv4 address that other Workstations can reach")
+	}
+	return env.Set("YARD_BIND_ADDRESS", address)
+}
+
 func writeWorkstationFiles(folder, compose, env string, force bool) error {
 	files := []struct {
 		name string
 		text string
 		mode os.FileMode
 	}{{"compose.yaml", compose, 0600}, {".env", env, 0600}, {"lvh-yard.yaml", templates.Dashboard(), 0600}, {"consul.d/00-lvh-yard.hcl", templates.Consul(), 0600}}
+	if runtime.GOOS == "windows" {
+		files = append(files, struct {
+			name string
+			text string
+			mode os.FileMode
+		}{"traefik/00-lvh-yard-windows.sh", templates.WindowsTraefik(), 0600})
+	}
+	if err := validateWorkstationStorage(folder); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(folder, 0700); err != nil {
 		return fmt.Errorf("could not create %s: %w", folder, err)
+	}
+	if err := protectWorkstationFolder(folder); err != nil {
+		return err
 	}
 	root, err := os.OpenRoot(folder)
 	if err != nil {
@@ -311,7 +363,7 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 		if err != nil {
 			return fmt.Errorf("could not write %s: %w", path, err)
 		}
-		if err := output.Chmod(0600); err != nil {
+		if err := protectFile(output, 0600); err != nil {
 			_ = output.Close()
 			return fmt.Errorf("could not protect %s: %w", path, err)
 		}

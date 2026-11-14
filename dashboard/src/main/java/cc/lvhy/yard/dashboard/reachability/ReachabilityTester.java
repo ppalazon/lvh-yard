@@ -1,5 +1,6 @@
 package cc.lvhy.yard.dashboard.reachability;
 
+import cc.lvhy.yard.dashboard.RuntimeNetwork;
 import cc.lvhy.yard.dashboard.TraefikSettings;
 import cc.lvhy.yard.dashboard.services.Alias;
 import cc.lvhy.yard.dashboard.services.Aliases;
@@ -14,6 +15,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
@@ -45,10 +47,13 @@ public class ReachabilityTester {
 
   private final Aliases aliases;
 
-  ReachabilityTester(TraefikSettings settings, Aliases aliases) {
+  private final RuntimeNetwork network;
+
+  ReachabilityTester(TraefikSettings settings, Aliases aliases, RuntimeNetwork network) {
     this.traefik = settings.url();
     this.traefikEnabled = settings.enabled();
     this.aliases = aliases;
+    this.network = network;
   }
 
   public Reachability test(Service service) {
@@ -63,14 +68,19 @@ public class ReachabilityTester {
               .toList();
       List<Future<RouteReachability>> routes =
           hostnames.stream().map(hostname -> checks.submit(() -> request(hostname))).toList();
+      List<InstanceReachability> testedInstances = results(instances);
+      List<RouteReachability> testedRoutes = results(routes);
       return new Reachability(
           service.workstation(),
           service.name(),
-          results(instances),
-          results(routes),
+          testedInstances,
+          testedRoutes,
           hostnames.isEmpty() ? noRoute(service) : null,
           routing,
-          routing != null && routing.kind() == SourceKind.ALIAS ? fallback(service) : null);
+          routing != null && routing.kind() == SourceKind.ALIAS ? fallback(service) : null,
+          testedInstances.stream().noneMatch(InstanceReachability::failed)
+              && testedRoutes.stream().allMatch(RouteReachability::reached)
+              && !unsupportedOnly(service));
     }
   }
 
@@ -97,14 +107,29 @@ public class ReachabilityTester {
     if (service.hostname() == null) {
       return "Local Scope on " + service.workstation() + ", so only its Instances are tested.";
     }
+    if (unsupportedOnly(service)) {
+      return RuntimeNetwork.IPV4_TARGETS_ONLY;
+    }
     return "No Instance in range, so only its Instances are tested.";
+  }
+
+  private boolean unsupportedOnly(Service service) {
+    return network.ipv4Only()
+        && service.routing() == null
+        && service.sources().stream()
+            .flatMap(source -> source.givenInstances().stream())
+            .anyMatch(instance -> !network.supports(instance.host()));
   }
 
   /**
    * Closed at once. An Out-of-range Instance is skipped, because a connection here would reach
    * something else.
    */
-  private static InstanceReachability connect(Instance instance, boolean routed) {
+  private InstanceReachability connect(Instance instance, boolean routed) {
+    if (!network.supports(instance.host())) {
+      return new InstanceReachability(
+          instance.id(), instance.address(), false, false, false, RuntimeNetwork.IPV4_TARGETS_ONLY);
+    }
     if (instance.outOfRange()) {
       return new InstanceReachability(instance.id(), instance.address(), false, true, false, null);
     }
@@ -125,7 +150,17 @@ public class ReachabilityTester {
               + " s: a firewall may drop the connection.");
     } catch (IOException e) {
       return new InstanceReachability(
-          instance.id(), instance.address(), false, false, routed, describe(e));
+          instance.id(),
+          instance.address(),
+          false,
+          false,
+          routed,
+          network.ipv4Only() && e instanceof UnknownHostException
+              ? "No IPv4 address was found for "
+                  + instance.host()
+                  + ". "
+                  + RuntimeNetwork.IPV4_TARGETS_ONLY
+              : describe(e));
     }
   }
 

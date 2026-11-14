@@ -50,6 +50,9 @@ func newWSSet(folder func() string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if err := validateNativeListener(name, checked); err != nil {
+				return err
+			}
 			env, err := readWSEnv(folder())
 			if err != nil {
 				return err
