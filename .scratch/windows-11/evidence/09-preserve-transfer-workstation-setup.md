@@ -181,7 +181,7 @@ the VM. A freshly configured Windows Workstation (`ws init` in a new folder, por
 `09-reset.ps1`, `evidence/09-reset.out` (the first run `...-run1-script-bug.out` stopped on a script error before the reset).
 `lvhy-win-09b` had services `ih-empty`, `ih-set`, a user volume `lvhy-win-09b_user-scratch` and a Backup `before-reset.yaml` that
 `lvh-yard export -o` wrote into its folder. `docker compose ls` listed `lvhy-win-09a` and `lvhy-win-09b`. From the folder of 09b:
-`docker compose down --volumes` exited 0.
+`docker compose down --volumes` exited 0. _Correction (2026-11-15): this command is not the documented reset any more. It also removed `lvhy-win-09b_user-scratch`, a volume that the user added. See "Reset scope, rechecked" below._
 
 - Volumes before: the five older fixtures, `lvhy-win-09a_consul-data`, `lvhy-win-09a_user-scratch`, `lvhy-win-09b_consul-data`,
   `lvhy-win-09b_user-scratch`. After: the same list without the two `lvhy-win-09b` volumes. Every remaining volume kept its
@@ -240,8 +240,31 @@ All criteria are observed.
 - [x] The setup of the Backup contract survives; no Bound Instances, Health, Foreign or Remote Services, private certificates
       or raw Consul data arrived. (The Backup format did not change.)
 - [x] Docs: fresh setup plus Backup import for cross-platform moves; no promise of portable Compose files or raw Consul migration.
-- [x] Documented destructive reset with a data-loss warning; it removed only the selected project's Consul state.
+- [x] Documented destructive reset with a data-loss warning; the documented procedure removes only the selected project's Consul volume (see "Reset scope, rechecked"). The first run used `down --volumes`, which also removed a user volume.
 - [x] Docs: folder deletion leaves Docker state; reset, Backup transfer and complete removal are separate; a Backup does not
       archive private keys.
 - [x] Persistence and transfer verified through CLI and API on running Workstations, with Windows lifecycle, Backup write and
       isolation evidence.
+
+## Reset scope, rechecked (2026-11-15)
+
+The first reset above used `docker compose down --volumes`. It removed the user volume `lvhy-win-09b_user-scratch` as well as
+the Consul volume. The specification says a reset removes only the selected project's Consul state, so the user guide now says
+`docker compose down` and then `docker volume rm <project>_consul-data`.
+
+Environment: Docker Desktop 4.99.0 as `yarddev`, Windows PowerShell 5.1, CLI built from branch `win11/fix-review-c`.
+Script `fixc-reset.ps1`, raw output `evidence/fixc-reset.out` (outside the repository). Two fresh projects: `lvhy-win-fixca`
+(full stack, ports 49800 to 49810) and `lvhy-win-fixcb` (Consul volumes only), each with a user volume `user-scratch`. A KV marker
+was in the Consul of `fixca`, and a file was in its user volume. The ten volumes of the older fixtures were on the engine.
+
+Observed, in the folder of `fixca`: `docker compose down` exited 0 and removed its containers and network. `docker volume rm
+lvhy-win-fixca_consul-data` exited 0.
+
+- The volume list lost exactly `lvhy-win-fixca_consul-data`. `lvhy-win-fixca_user-scratch` (file `keep.txt` still readable), both
+  volumes of `fixcb` and the ten older volumes remained, all with the same `CreatedAt`.
+- The `.env`, `compose.yaml` and `lvh-yard.yaml` of `fixca` had the same SHA-256 before and after.
+- `ws compose start` brought `fixca` back: Consul healthy, the KV marker gave HTTP 404, the Consul node ID changed and the
+  `consul-data` volume had a new `CreatedAt`. The user volume stayed.
+- Cleanup: `docker compose -p <project> down --volumes` for both projects (this also removed their user volumes, as
+  expected), the two folders and the script's copies. The volume list returned to the ten older volumes. The running `09a`
+  fixture of another ticket was not touched.

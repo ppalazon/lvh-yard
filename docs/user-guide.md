@@ -248,22 +248,25 @@ docker compose ls
 docker compose config
 ```
 
-**Data loss:** the following command removes the containers, networks and
-named volumes of the selected project. That includes all Consul state, and any
-volume that you added to its `compose.yaml`. It deletes Services, Publications,
-Route Profiles and other setup held in Consul. There is no undo for state
-outside a Backup. Run this only for the project you intend to erase:
+**Data loss:** the second command below removes the Consul volume of the
+selected project. It deletes Services, Publications, Route Profiles and other
+setup held in Consul. There is no undo for state outside a Backup. Run it only
+for the project you intend to erase. First stop the project. Do not add
+`--volumes`: that would also remove the volumes that you added to your
+`compose.yaml`.
 
 ```powershell
-docker compose down --volumes
+docker compose down
+docker volume rm <project>_consul-data
 ```
 
 Use the same project name and Compose files that started the Workstation.
-Never use a global volume prune as a Workstation reset. The command does not
-touch another project's volumes.
-It leaves configuration, certificates, private keys and exported Backups in the
-Workstation Folder. The next `lvh-yard ws compose start` begins with an empty
-Consul. To get your setup back, import the Backup:
+`docker compose config` shows the project name, and `docker volume ls` shows
+the volume. Never use a global volume prune as a Workstation reset.
+The commands do not touch another project's volumes, and your own volumes in
+this project stay too. They leave configuration, certificates, private keys and
+exported Backups in the Workstation Folder. The next `lvh-yard ws compose start`
+begins with an empty Consul. To get your setup back, import the Backup:
 
 ```powershell
 lvh-yard ws compose start
@@ -307,6 +310,7 @@ Set-Location $env:USERPROFILE
 Remove-Item -Recurse -Force -LiteralPath "$env:LOCALAPPDATA\lvh-yard\workstation"
 ```
 
+This also removes any volume that you added to the project's `compose.yaml`.
 Images stay in Docker. Remove the ones you no longer need with `docker image rm`.
 If you deleted the folder first, find the project name with `docker compose ls -a`
 and remove it by name:
