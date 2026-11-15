@@ -1819,6 +1819,16 @@ it does not change the Docker binding or where the process listens. A port that
 Docker publishes on every address stays open on the LAN. A process that listens
 only on loopback does not accept connections at the LAN address.
 
+A container with no Host Port needs no published port and no shared Docker
+network. The Consul check, the Reachability test and Traefik reach its own
+address from the Workstation, also on Windows with Docker Desktop. Containers on
+unrelated Docker networks work the same way. That address is private to this
+computer. The Docker ranges are in Out-of-range, so other Workstations do not
+route to it. Under Yard Scope this Workstation still routes to it, and the
+Service page warns that other Workstations cannot reach it.
+When the container stops, its Bound Instance goes. When it starts again, the
+Bound Instance returns at the container's new address.
+
 Each source on the Instance Sources card has a box with its Instances, such as
 "1 Instance, 1 passing". Open it to read each Instance's address and Health.
 A thick bar at the left of each Instance sets it apart from the next one. Under

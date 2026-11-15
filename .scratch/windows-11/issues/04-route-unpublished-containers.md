@@ -4,12 +4,12 @@
 
 **Blocked by:** 03: Set up a private local Windows Workstation.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Bind containers by the existing supported container-name and Compose project/service selectors without requiring published ports or a shared Docker network.
-- [ ] On real Docker Desktop, run representative containers on unrelated Docker networks. Each selected container contributes the expected Bound Instance at a working endpoint.
-- [ ] Consul checks, dashboard Reachability and real requests through Traefik all succeed for those Local Publications. Merely observing registrations is insufficient.
-- [ ] Stopping and restarting a selected container updates its Bound Instances and restores working routing without requiring manual address edits.
-- [ ] Keep existing Scope and Out-of-range Instance rules. Do not imply that a private container address becomes LAN-reachable merely because local routing works.
-- [ ] Reuse the running-Workstation and Reachability test patterns. Record real Windows results rather than treating simulated LAN forwarding or mocks as runtime proof.
-- [ ] Update Container Binding guidance where Windows behavior needs explanation. A failed unpublished-container path blocks this ticket; requiring published ports is not an approved fallback.
+- [x] Bind containers by the existing supported container-name and Compose project/service selectors without requiring published ports or a shared Docker network.
+- [x] On real Docker Desktop, run representative containers on unrelated Docker networks. Each selected container contributes the expected Bound Instance at a working endpoint.
+- [x] Consul checks, dashboard Reachability and real requests through Traefik all succeed for those Local Publications. Merely observing registrations is insufficient.
+- [x] Stopping and restarting a selected container updates its Bound Instances and restores working routing without requiring manual address edits.
+- [x] Keep existing Scope and Out-of-range Instance rules. Do not imply that a private container address becomes LAN-reachable merely because local routing works.
+- [x] Reuse the running-Workstation and Reachability test patterns. Record real Windows results rather than treating simulated LAN forwarding or mocks as runtime proof.
+- [x] Update Container Binding guidance where Windows behavior needs explanation. A failed unpublished-container path blocks this ticket; requiring published ports is not an approved fallback.
