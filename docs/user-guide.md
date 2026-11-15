@@ -273,6 +273,15 @@ Consul HTTP, DNS and gRPC, the dashboard, Traefik and the Traefik admin
 listener stay on `127.0.0.1`. Joining a Yard does not change that, and you
 must not open them for federation.
 
+If the Yard uses Consul TLS, a Windows Workstation joins with the same rules
+as any other: it needs a Consul certificate that the Yard CA signed for its
+name, and it keeps the Consul TLS mode of the Yard. The Windows CLI does not
+copy certificates over ssh. Hand the files over by hand, as the sender or as the
+recipient: see [Handing certificates over by hand](#handing-certificates-over-by-hand).
+A Windows Workstation can hold the Yard CA key and send, or receive from a Linux or macOS sender.
+Docker Desktop publishes the Consul server and WAN gossip ports for TLS
+exactly as it does without it.
+
 Address selection has these limits:
 
 - Setup suggests an address only when one adapter qualifies. It skips
@@ -375,6 +384,8 @@ With a company CA, ask its issuer for that certificate instead.
 `consul.crt` and `consul.key` in `certificates/<new-workstation>/consul/`.
 Copy only those files to it through a private channel, then run the printed
 `ws tls import consul` command before applying the Yard settings.
+This works the same when either Workstation runs on Windows: see
+[Handing certificates over by hand](#handing-certificates-over-by-hand).
 Never share `ca.key` or reuse another Workstation's certificate keys.
 Client Certificate `.p12` files are for people using protected Routes, not
 for Workstation membership.
@@ -533,13 +544,17 @@ belong, and turns each one on:
     line. Then log in and run `lvh-yard ws tls enable consul` and
     `lvh-yard ws tls enable traefik`, as you need. Each one checks the
     certificate first. Send the `.key` files only through a private channel.
-    Never send `ca.key`.
+    Never send `ca.key`. For a Windows computer, import the folders instead:
+    see [Handing certificates over by hand](#handing-certificates-over-by-hand).
   - **Another computer, over ssh.** Give `--scp user@host`, or
     `--scp user@host:<its-folder>` for another folder, or answer the
-    question at a terminal. The command makes `tls/` there with mode 700 and
-    copies the folders into it. It needs `ssh` and `scp` on this computer. It
-    does not run anything on the other Workstation. Log in and run
-    `ws tls enable`, as above, to turn on what it needs.
+    question at a terminal. Before it changes anything, the command runs
+    `ssh user@host uname -s`, which only reads. Then it makes `tls/` there with
+    mode 700 and copies the folders into it. It needs `ssh` and `scp` on this
+    computer, and a Unix shell on the other one. It does not run anything else
+    on the other Workstation. Log in and run `ws tls enable`, as above, to turn
+    on what it needs. The probe and the copy are separate ssh logins, so ssh can
+    ask for a password more than once. Windows cannot use this way: see below.
 
 `install` asks which certificates to install, or takes `--consul[=false]` and
 `--traefik[=false]`. Without a terminal, it takes every certificate that the
@@ -574,6 +589,65 @@ rewrites the generated TLS options and keeps the installed certificates. If your
 `compose.yaml` still mounts `./tls` in Consul and Traefik, the command says so:
 mount `./tls/consul` in Consul and `./tls/traefik` in Traefik, and install the
 certificates again.
+
+#### Handing certificates over by hand
+
+The automated copy with `--scp` runs Unix commands (`umask`, `mkdir -p`) on the
+other computer. It works from a Unix computer to a Unix computer, and nowhere
+else. A Windows Workstation takes part by hand, as sender or as recipient. The
+sender and the recipient each have their own duties. The steps are the same for
+Consul and for Traefik, and for every pair of operating systems.
+
+**Sender: the Workstation that holds the Yard CA key**
+
+1. Sign for the recipient's Workstation name, for example
+   `lvh-yard ws tls ca issue workstation <name> --address <its-lan-ip>`, or
+   `ws tls ca issue consul <name>` for Consul alone.
+2. Run `lvh-yard ws tls ca install <name>` without `--scp`. Add `--consul` or
+   `--traefik=false` to choose the certificates. It saves
+   `certificates/<name>/consul/` and `certificates/<name>/traefik/`. Each holds
+   three files: `ca.crt`, the certificate and its `.key`.
+3. Send only those folders, through a private channel that you start yourself:
+   `scp` or SFTP over a login that you trust, or an encrypted drive. Never send
+   `ca/`, `ca.key`, `.env`, `consul-data/`, `certificates/` of other
+   Workstations or the whole Workstation Folder. The Yard CA key never leaves
+   the sender.
+4. The keys are secrets. Delete `certificates/<name>/` when the recipient has
+   imported the files. The CA keeps its own copy under `ca/certs/<name>/`.
+
+**Recipient: the Workstation that joins**
+
+1. Put the received folders in a folder that only you can read, such as a new
+   folder in your own home directory. On Windows, a folder in your user profile
+   is readable by you and by administrators. A shared folder or a USB drive is
+   not private. Keep it out of the Workstation Folder.
+2. Run `lvh-yard ws tls import consul --ca <folder>/consul/ca.crt --cert
+<folder>/consul/consul.crt --key <folder>/consul/consul.key`, and the same
+   for `traefik` if you received it. The command checks the key, the chain
+   and the name before it writes. It installs the files in `tls/`, turns the
+   service on and makes the files private: mode 600 on Linux and macOS, and an
+   access control list for your account on Windows. In PowerShell, write each
+   path in single quotes.
+3. Delete the received folders.
+4. Run the `compose recreate` command that `import` prints, then
+   `lvh-yard status`. Every Workstation of the Yard must run Consul TLS with
+   the same Yard CA.
+
+The recipient runs the same two commands on any system. Only `import` writes
+the recipient's files. No command copies a whole private Workstation Folder.
+
+**What the CLI refuses**
+
+- Native Windows has no automated copy. `ws tls ca install <name> --scp ...`
+  fails with an error that names the manual steps, and the question about scp
+  is not asked at a terminal.
+- A Unix sender asks the destination first. It refuses a target whose folder
+  looks like Windows (`C:\...`, `C:/...` or a backslash), and a destination that
+  does not answer `uname -s` with a Unix name. Windows `cmd.exe` has no `uname`.
+  A failed ssh login is reported as it is, not as a Windows computer.
+- Each of these checks runs before the command writes a file here or runs a
+  command there. A refused copy leaves both computers as they were.
+- Other `--scp` checks stay: no leading `-`, no space or quote, no `~` folder.
 
 #### Browser trust
 

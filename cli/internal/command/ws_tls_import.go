@@ -121,11 +121,19 @@ func newWSTLSInstall(options *Options, folder func() string) *cobra.Command {
 		checkEnv := env
 		if name != self {
 			checkEnv = nil
-			// First, because it is about where the files go, not which ones.
-			if !cmd.Flags().Changed("scp") && p.terminal {
+			if err := checkNativeWindowsSender(options, name, remote); err != nil {
+				return err
+			}
+			// First, because it is about where the files go, not which ones. Native Windows
+			// has no automated copy, so it does not ask.
+			if !cmd.Flags().Changed("scp") && p.terminal && options.Process.OS() != "windows" {
 				if remote, err = p.text("Copy the files into its Workstation Folder with scp? Give user@host or user@host:folder, or leave empty to copy them yourself", "", checkSCPHost); err != nil {
 					return err
 				}
+			}
+			// Before anything is written here or run there.
+			if err := checkHandoffDestination(cmd, options, name, remote); err != nil {
+				return err
 			}
 		}
 		roles, err := services.choose(cmd, p, checkEnv, available, name != self)
@@ -234,9 +242,6 @@ func checkSCPHost(target string) error {
 // checks each certificate first.
 func handOverBundle(cmd *cobra.Command, options *Options, name, root string, roles []string, target string) error {
 	out := cmd.OutOrStdout()
-	if err := checkSCPHost(target); err != nil {
-		return fmt.Errorf("--scp: %w", err)
-	}
 	fmt.Fprintf(out, "Files for %s saved in %s:\n", name, root)
 	var dirs []string
 	for _, role := range roles {
@@ -277,13 +282,23 @@ func handOverBundle(cmd *cobra.Command, options *Options, name, root string, rol
 		quotedDirs[i] = quoteShell(dir)
 	}
 	if target == "" {
-		fmt.Fprintf(out, "\nIf %[1]s runs on another computer, copy the folders into the tls folder of its Workstation Folder (%[2]s on it unless you chose another):\n  ssh %[3]s 'umask 077 && mkdir -p %[2]s/tls'\n  scp -r %[4]s %[3]s:%[2]s/tls/\nTo do this from here, run this command again with --scp %[3]s, or --scp %[3]s:<its-folder>.\n", name, folder, host, strings.Join(quotedDirs, " "))
+		fmt.Fprintf(out, "\nIf %[1]s runs on another computer, copy the folders into the tls folder of its Workstation Folder (%[2]s on it unless you chose another):\n  ssh %[3]s 'umask 077 && mkdir -p %[2]s/tls'\n  scp -r %[4]s %[3]s:%[2]s/tls/\n", name, folder, host, strings.Join(quotedDirs, " "))
+		if options.Process.OS() == "windows" {
+			fmt.Fprintln(out, "Native Windows cannot copy the files for you with --scp: copy them yourself.")
+		} else {
+			fmt.Fprintf(out, "To do this from here, run this command again with --scp %[1]s, or --scp %[1]s:<its-folder>.\nUse --scp only for a Unix computer.\n", host)
+		}
 	}
 	fmt.Fprintf(out, "\nThen, on %s, turn on what it needs. Each command checks the certificate first:\n  ssh %s\n", name, host)
 	for _, role := range roles {
 		fmt.Fprintf(out, "  %s tls enable %s\n", ws, role)
 	}
 	if target == "" {
+		fmt.Fprintf(out, "\nIf %s runs on Windows, send the folders to it through a private channel. Then, on it, import each one into its Workstation Folder (this installs the certificate and turns it on):\n", name)
+		for _, role := range roles {
+			files := roleFiles(role)
+			fmt.Fprintf(out, "  lvh-yard ws tls import %s --ca '<received-folder>\\%s\\%s' --cert '<received-folder>\\%s\\%s' --key '<received-folder>\\%s\\%s'\n", role, role, files[0], role, files[1], role, files[2])
+		}
 		fmt.Fprintf(out, "\nIf %s runs on this computer, import from the folders, with its own Workstation Folder:\n", name)
 		for _, role := range roles {
 			dir := filepath.Join(root, role)

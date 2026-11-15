@@ -29,7 +29,7 @@ func New(t testing.TB) *Harness {
 	t.Helper()
 	env := map[string]string{}
 	UseHome(env, t.TempDir())
-	return &Harness{Process: &Process{Env: env, LANIP: defaultLANIP}}
+	return &Harness{Process: &Process{Env: env, LANIP: defaultLANIP, System: "linux"}}
 }
 
 func (h *Harness) Run(args ...string) Result {
@@ -50,14 +50,17 @@ func (h *Harness) Run(args ...string) Result {
 }
 
 type Process struct {
-	Env        map[string]string
-	Stdin      string
-	Terminal   bool
-	LANIP      string
-	LANError   error
-	Editor     func(editor, path string) error
-	Identity   func(flag string) string
-	Commands   []Command
+	Env      map[string]string
+	Stdin    string
+	Terminal bool
+	LANIP    string
+	LANError error
+	Editor   func(editor, path string) error
+	Identity func(flag string) string
+	Commands []Command
+	// System is the operating system that the CLI reports. New sets linux, so a test does not
+	// depend on the computer that runs it. Set windows to test the native Windows CLI.
+	System     string
 	RunCommand func(name string, args []string, dir string, stdout, stderr io.Writer) (int, error)
 
 	input io.Reader
@@ -65,6 +68,10 @@ type Process struct {
 
 func (p *Process) Getenv(key string) string {
 	return p.Env[key]
+}
+
+func (p *Process) OS() string {
+	return p.System
 }
 
 func (p *Process) Input() io.Reader {
