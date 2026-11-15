@@ -1,8 +1,7 @@
 # Ticket 09 (phase A) and batch B runtime checks: evidence
 
 Real Windows lifecycle, Backup, project-isolation and cross-platform transfer checks on the Windows 11 VM.
-The Docker Desktop restart check is **pending**: the maintainer restarts Docker Desktop, then runs the prepared script
-(see [Docker Desktop restart](#docker-desktop-restart-pending-maintainer-restart)). Nothing below claims it.
+The Docker Desktop restart check ran on 2026-11-15 and passed (see [Docker Desktop restart](#docker-desktop-restart)).
 
 ## Environment
 
@@ -213,26 +212,28 @@ the VM. A freshly configured Windows Workstation (`ws init` in a new folder, por
   `docker volume ls` listed the five older fixtures, `lvhy-win-09a_consul-data`, `lvhy-win-09a_user-scratch` and the fresh
   `lvhy-win-09b_consul-data`.
 
-### Docker Desktop restart (pending maintainer restart)
+### Docker Desktop restart
 
-Not run. State left for it:
+The maintainer quit Docker Desktop at the console as `yarddev`, started it again and waited until the engine answered. The prepared
+script then ran once (raw output: `evidence/09-post-restart.out`, 0 failed checks, 74 lines).
 
-- Project `lvhy-win-09a` runs (healthy). Helper containers `lvhy-win09-box` (whoami) and `lvhy-win09-static` (an HTTP server
-  on `127.0.0.1:49690`) run. `lvhy-win-09b` is stopped, not removed.
-- `C:\Users\yarddev\lvh-dev\09\a\pre-restart.json` records the export hash, node ID, volume `CreatedAt`, a KV marker written
-  into Consul, all image IDs, volume names, networks and containers.
-- After the restart, run `~/.local/state/lvh-yard-windows-11/bin/09-post-restart.sh`. It prints what survived, runs
-  `lvh-yard ws compose start`, starts the helper containers if they are gone, and prints PASS or FAIL for each check.
-  Output also goes to `evidence/09-post-restart.out`. It deletes nothing.
-- I ran the script once without a restart as a rehearsal, so the script itself is proven on a stack that never stopped
-  (`evidence/09-post-restart-rehearsal-without-restart.out`: all checks passed, 0 failures). That run is not the restart proof.
+- Before the script started anything, `docker ps -a` showed the four `lvhy-win-09a` containers (traefik, dashboard and consul "Up 34 seconds
+  (healthy)", the one-shot `consul-data-init` exited 0). Docker started them again by itself. The two helper containers that I ran without a
+  restart policy were stopped (`lvhy-win09-box` exit 2, `lvhy-win09-static` exit 137); the script started them again.
+- All volumes, images (same image IDs) and the `lvhy-win-09a_usernet` network were still there, including the five older fixture volumes.
+- `lvh-yard ws compose start` exited 0 and all three services were healthy.
+- The Backup export hash matched the pre-restart hash. The Consul node ID was unchanged, the Raft log continued (152 to 335), Consul ran as
+  uid 1000 with a volume owned by 1000:1000, and the KV marker written before the restart was still present.
+- Services `web09`, `box09` and `chat09` (with its Alias) and the Route Profile were intact. After the restart `web09.lvh.me` and
+  `box09.lvh.me` answered 200 with the Route Profile header. `.env` and `compose.yaml` in the Workstation Folder were unchanged.
+- Not explained: after an earlier restart of the whole Windows guest, `docker ps -a` showed no containers while images and volumes were
+  still there. That guest restart was done by the maintainer and not studied. The Docker Desktop restart did not reproduce it.
 
 ## Criteria
 
-Docker Desktop is not restarted yet, so the first and last criteria stay open.
+All criteria are observed.
 
-- [ ] Create persistent setup, then stop/start, recreate, upgrade images and restart Docker Desktop.
-      Stop/start, recreate and upgrade observed. The restart is pending the maintainer.
+- [x] Create persistent setup, then stop/start, recreate, upgrade images and restart Docker Desktop.
 - [x] Normal lifecycle operations preserve the project-scoped Consul volume; Consul stays non-root and uses the retained state.
 - [x] Image upgrades keep user Compose network and storage edits, `.env` edits and user files; generated-file ownership held.
 - [x] Backup export into the protected Workstation Folder; import on another platform and the reverse.
@@ -242,5 +243,5 @@ Docker Desktop is not restarted yet, so the first and last criteria stay open.
 - [x] Documented destructive reset with a data-loss warning; it removed only the selected project's Consul state.
 - [x] Docs: folder deletion leaves Docker state; reset, Backup transfer and complete removal are separate; a Backup does not
       archive private keys.
-- [ ] Persistence and transfer verified through CLI and API on running Workstations, with Windows lifecycle, Backup write and
-      isolation evidence. All of it recorded above except the Docker Desktop restart.
+- [x] Persistence and transfer verified through CLI and API on running Workstations, with Windows lifecycle, Backup write and
+      isolation evidence.
