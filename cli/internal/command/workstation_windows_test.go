@@ -27,6 +27,7 @@ func TestWindowsWorkstationUsesLocalAppData(t *testing.T) {
 
 func TestWindowsWorkstationRequiresUnambiguousLANIdentity(t *testing.T) {
 	yard := commandtest.New(t)
+	yard.Process.LANIP = ""
 	folder := filepath.Join(t.TempDir(), "O'Brien café 日本")
 	run := yard.Run("ws", "init", "--dir", folder, "--workstation", "native")
 	if run.ExitCode == 0 || !strings.Contains(run.Stderr, "--address") {

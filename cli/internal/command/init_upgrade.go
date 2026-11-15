@@ -120,7 +120,7 @@ func writeFixedFiles(folder string) error {
 	} else if !os.IsNotExist(err) {
 		return err
 	}
-	return protectWorkstationFolder(folder)
+	return protectWorkstationTree(folder)
 }
 
 // upgradeImages says for each service whether its image changes, and writes compose.yaml with the

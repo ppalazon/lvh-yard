@@ -6,7 +6,25 @@ param(
     [switch]$AllowAdministrator
 )
 $ErrorActionPreference = 'Stop'
-$originalPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+# The installer must keep the user PATH as the registry holds it: the %VAR% text and the value kind.
+# [Environment]::GetEnvironmentVariable expands %VAR%, so this script reads and writes the raw registry value.
+function Get-UserPathValue {
+    $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment')
+    try {
+        $value = $key.GetValue('Path', $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+        $kind = if ($null -ne $value) { $key.GetValueKind('Path') } else { $null }
+        [pscustomobject]@{ Value = $value; Kind = $kind }
+    } finally { $key.Dispose() }
+}
+function Set-UserPathValue($value, $kind) {
+    $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('Environment')
+    try {
+        if ($null -eq $value) { $key.DeleteValue('Path', $false) } else { $key.SetValue('Path', $value, $kind) }
+    } finally { $key.Dispose() }
+}
+$original = Get-UserPathValue
+$expandString = [Microsoft.Win32.RegistryValueKind]::ExpandString
+$plainString = [Microsoft.Win32.RegistryValueKind]::String
 $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
 $policy = Get-ExecutionPolicy -List | Out-String
 $originalVersion = $env:LVH_YARD_VERSION
@@ -57,10 +75,19 @@ try {
     $env:LOCALAPPDATA = Join-Path $Root 'Local AppData'
     $env:LVH_YARD_INSTALL_DIR = $null
     $env:LVH_YARD_VERSION = $null
+    # A real expandable entry: %USERPROFILE% must stay text, and the value must stay REG_EXPAND_SZ.
+    $expandable = '%USERPROFILE%\bin'
+    $seed = if ($original.Value) { $original.Value.TrimEnd(';') + ';' + $expandable } else { $expandable }
+    Set-UserPathValue $seed $expandString
+    Assert (([Environment]::GetEnvironmentVariable('Path', 'User')) -cnotlike '*%USERPROFILE%*') 'Control failed: an expanding read must hide %USERPROFILE%'
     Install
     $default = Join-Path $env:LOCALAPPDATA 'lvh-yard\bin\lvh-yard.exe'
     Version $default '9.8.7'
     Assert ($script:urls[0] -eq 'https://github.com/ppalazon/lvh-yard/releases/latest/download/SHA256SUMS') 'Wrong latest URL'
+    $installed = Get-UserPathValue
+    Assert ($installed.Value -ceq "$seed;$([IO.Path]::GetDirectoryName($default))") "The installer changed the PATH text: $($installed.Value)"
+    Assert ($installed.Kind -eq $expandString) "The installer changed the PATH kind to $($installed.Kind)"
+    Write-Output 'PASS expandable user PATH entry and REG_EXPAND_SZ kind survive install'
     Write-Output 'PASS default LocalAppData/bin and latest release'
 
     $archive = Join-Path (Join-Path $Artifacts '9.8.7') 'lvh-yard-9.8.7-windows-amd64.zip'
@@ -81,12 +108,15 @@ try {
     $exe = Join-Path $env:LVH_YARD_INSTALL_DIR 'lvh-yard.exe'
     Version $exe '9.8.7'
     Assert ($script:urls[-2] -eq 'https://github.com/ppalazon/lvh-yard/releases/download/v9.8.7/SHA256SUMS') 'Wrong unprefixed version URL'
-    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $afterInstall = Get-UserPathValue
     Install
-    Assert ([Environment]::GetEnvironmentVariable('Path', 'User') -ceq $userPath) 'Reinstall duplicated PATH'
-    [Environment]::SetEnvironmentVariable('Path', "$userPath;$($env:LVH_YARD_INSTALL_DIR.ToUpperInvariant())\", 'User')
+    $again = Get-UserPathValue
+    Assert (($again.Value -ceq $afterInstall.Value) -and ($again.Kind -eq $afterInstall.Kind)) 'Reinstall changed the PATH text or kind'
+    Set-UserPathValue "$($afterInstall.Value);$($env:LVH_YARD_INSTALL_DIR.ToUpperInvariant())\" $afterInstall.Kind
     Install
-    Assert ([Environment]::GetEnvironmentVariable('Path', 'User') -ceq $userPath) 'Case-insensitive PATH deduplication failed'
+    $again = Get-UserPathValue
+    Assert (($again.Value -ceq $afterInstall.Value) -and ($again.Kind -eq $afterInstall.Kind)) 'Case-insensitive PATH deduplication failed'
+    Assert ($again.Value.Contains($expandable) -and $again.Kind -eq $expandString) 'Reinstall lost the expandable entry or its kind'
     Write-Output 'PASS spaces, apostrophe, Unicode, reinstall and case-insensitive user PATH'
 
     $script:version = '9.8.8'
@@ -95,12 +125,34 @@ try {
     Version $exe '9.8.8'
     Assert ($script:urls[-2] -eq 'https://github.com/ppalazon/lvh-yard/releases/download/v9.8.8/SHA256SUMS') 'Wrong prefixed version URL'
     Write-Output 'PASS upgrade and v-prefixed version'
+    # REG_SZ stays REG_SZ, and a %VAR% entry that names the install folder is not added a second time.
+    $env:LVH_ACCEPTANCE_BIN = $env:LVH_YARD_INSTALL_DIR
+    $plain = 'C:\Windows\System32;%USERPROFILE%\bin;%LVH_ACCEPTANCE_BIN%'
+    Set-UserPathValue $plain $plainString
+    Install
+    $again = Get-UserPathValue
+    Assert (($again.Value -ceq $plain) -and ($again.Kind -eq $plainString)) "A PATH that names the folder by %VAR% changed: $($again.Value) ($($again.Kind))"
+    $env:LVH_ACCEPTANCE_BIN = $null
+    $plain = 'C:\Windows\System32;%USERPROFILE%\bin'
+    Set-UserPathValue $plain $plainString
+    Install
+    $again = Get-UserPathValue
+    Assert (($again.Value -ceq "$plain;$env:LVH_YARD_INSTALL_DIR") -and ($again.Kind -eq $plainString)) "REG_SZ PATH after install: $($again.Value) ($($again.Kind))"
+    Install
+    $twice = Get-UserPathValue
+    Assert (($twice.Value -ceq $again.Value) -and ($twice.Kind -eq $plainString)) 'Reinstall changed the REG_SZ PATH'
+    # With no user PATH value, the installer creates one that is expandable.
+    Set-UserPathValue $null $null
+    Install
+    $created = Get-UserPathValue
+    Assert (($created.Value -ceq $env:LVH_YARD_INSTALL_DIR) -and ($created.Kind -eq $expandString)) "A new PATH value: $($created.Value) ($($created.Kind))"
+    Write-Output 'PASS REG_SZ kind, %VAR% deduplication and a missing PATH value'
     $before = (Get-FileHash -LiteralPath $exe).Hash
     foreach ($failure in @('manifest-download', 'archive-download', 'checksum', 'locked', 'replacement')) {
         $script:mode = $failure
         $lockProcess = $null
         $ready = Join-Path $Root 'lock-ready'
-        $pathBeforeFailure = [Environment]::GetEnvironmentVariable('Path', 'User')
+        $pathBeforeFailure = (Get-UserPathValue).Value
         $directoryDestination = $false
         try {
             if ($failure -eq 'locked') {
@@ -135,7 +187,7 @@ try {
             } else {
                 Assert ((Get-FileHash -LiteralPath $exe).Hash -eq $before) "$failure changed installed executable"
             }
-            Assert ([Environment]::GetEnvironmentVariable('Path', 'User') -ceq $pathBeforeFailure) "$failure changed user PATH"
+            Assert ((Get-UserPathValue).Value -ceq $pathBeforeFailure) "$failure changed user PATH"
             Assert (@(Get-ChildItem -LiteralPath $env:LVH_YARD_INSTALL_DIR -Directory -Filter '.lvh-yard-*').Count -eq 0) "$failure left staging files"
         } finally {
             if ($null -ne $lockProcess) {
@@ -170,11 +222,12 @@ Write-Output "PASS fresh shell resolves $actual : $(lvh-yard.exe --version)"
     Assert ((Get-ExecutionPolicy -List | Out-String) -ceq $policy) 'Execution policy changed'
     Write-Output 'PASS machine PATH and execution policy unchanged'
 } finally {
-    [Environment]::SetEnvironmentVariable('Path', $originalPath, 'User')
+    Set-UserPathValue $original.Value $original.Kind
     $env:LVH_YARD_VERSION = $originalVersion
     $env:LVH_YARD_INSTALL_DIR = $originalDir
     $env:LOCALAPPDATA = $originalLocal
     if (Test-Path -LiteralPath $Root) { Remove-Item -LiteralPath $Root -Recurse -Force }
-    Assert ([Environment]::GetEnvironmentVariable('Path', 'User') -ceq $originalPath) 'User PATH restoration failed'
+    $restored = Get-UserPathValue
+    Assert (($restored.Value -ceq $original.Value) -and ($restored.Kind -eq $original.Kind)) 'User PATH restoration failed'
     Write-Output 'Restored original user PATH and removed owned acceptance files'
 }

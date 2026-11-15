@@ -1,17 +1,25 @@
 package command
 
 import (
-	"fmt"
 	"net"
 	"strings"
 )
 
 func (systemProcess) LANAddress() (string, error) {
-	interfaces, err := net.Interfaces()
+	candidates, err := lanCandidates()
 	if err != nil {
 		return "", err
 	}
-	var candidates []string
+	return chooseLANAddress(candidates, defaultRouteSource())
+}
+
+// lanCandidates lists the IPv4 addresses of the active adapters. It skips the virtual adapters of WSL and Docker.
+func lanCandidates() ([]net.IP, error) {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+	var candidates []net.IP
 	for _, iface := range interfaces {
 		name := strings.ToLower(iface.Name)
 		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 || strings.Contains(name, "vethernet") || strings.Contains(name, "wsl") || strings.Contains(name, "docker") {
@@ -19,17 +27,13 @@ func (systemProcess) LANAddress() (string, error) {
 		}
 		addresses, err := iface.Addrs()
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		for _, address := range addresses {
-			network, ok := address.(*net.IPNet)
-			if ok && network.IP.To4() != nil && network.IP.IsGlobalUnicast() && !network.IP.IsLinkLocalUnicast() {
-				candidates = append(candidates, network.IP.String())
+			if network, ok := address.(*net.IPNet); ok && isGlobalUnicastIPv4(network.IP) {
+				candidates = append(candidates, network.IP)
 			}
 		}
 	}
-	if len(candidates) != 1 {
-		return "", fmt.Errorf("choose a LAN IPv4 address with --address; suitable adapter addresses: %s", strings.Join(candidates, ", "))
-	}
-	return candidates[0], nil
+	return candidates, nil
 }

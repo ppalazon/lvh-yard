@@ -70,7 +70,7 @@ Java or a copy of this repository.
 
    On Linux and macOS, settings, generated options and certificates may use
    relative symbolic links whose targets stay inside the Workstation Folder.
-   Windows requires real files and folders without reparse points.
+   Windows requires real files and folders, with no symbolic links or junctions.
    Backup input and output paths, and the TLS import flags `--ca`, `--cert`
    and `--key`, may name files elsewhere.
 

@@ -1,7 +1,7 @@
 # Runs the packaged Windows executable and the PowerShell installer in the shell that runs this script.
-# The Linux job of CI builds the Package folder. It holds the integration test binary and the packaged
-# archives of versions 9.8.7 and 9.8.8, each folder with its SHA256SUMS. See "Continuous integration" in
-# docs/development.md.
+# The Linux job of CI builds the Package folder. It holds the integration test binary, the unit test binaries
+# with the files that they read, and the packaged archives of versions 9.8.7 and 9.8.8, each folder with its
+# SHA256SUMS. See "Continuous integration" in docs/development.md.
 #   powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File dev\test-windows-native.ps1 -Package <dir> -Installer docs\site\install.ps1 -PowerShellMajor 5
 param(
     [Parameter(Mandatory = $true)][string]$Package,
@@ -82,8 +82,42 @@ try {
             Assert (@($output | Where-Object { $_ -match "--- PASS: $name/$([regex]::Escape($shell))_" }).Count -gt 0) "$name did not pass in $shell"
         }
     }
-    Assert (@($output | Where-Object { $_ -match '--- SKIP' }).Count -eq 0) 'An integration test was skipped'
+    # The second-account test needs an account that a hosted runner does not have, so it may skip there. The unit test
+    # TestWindowsProtectionDeniesAnotherUserByEffectiveAccess checks the same rule everywhere. With YARD_TEST_OTHER_USER
+    # and YARD_TEST_OTHER_PASSWORD set, as on a test computer, the account test must pass.
+    $accountTest = 'TestBuiltExecutableProtectsTheWorkstationFolderFromAnotherUser'
+    if ($env:YARD_TEST_OTHER_USER) {
+        Assert (@($output | Where-Object { $_ -match "--- PASS: $accountTest " }).Count -eq 1) "$accountTest did not pass"
+    }
+    Assert (@($output | Where-Object { $_ -match '--- SKIP' -and $_ -notmatch $accountTest }).Count -eq 0) 'An integration test was skipped'
     Write-Output 'PASS packaged executable: integration tests, including both PowerShells'
+
+    # The unit tests run natively too. Windows-only tests never run on Linux, and the shared tests take their Windows
+    # branches here. Each binary runs in the folder of its package, as `go test` does, so the files that a test
+    # reads by a relative path (templates, config/) are the ones that CI packaged beside the binaries. A package
+    # without such files has no folder in the artifact, so the script creates it.
+    $unit = Join-Path $Package 'unit'
+    $unitOutput = @()
+    $binaries = @(Get-ChildItem -LiteralPath (Join-Path $unit 'bin') -Filter '*.test.exe' | Sort-Object Name)
+    Assert ($binaries.Count -gt 0) 'The package holds no unit test binary'
+    foreach ($binary in $binaries) {
+        $name = $binary.Name -replace '\.test\.exe$', ''
+        $where = Join-Path $unit "cli\internal\$name"
+        [IO.Directory]::CreateDirectory($where) | Out-Null
+        Push-Location -LiteralPath $where
+        try {
+            $lines = & $binary.FullName '-test.v' '-test.count=1' 2>&1 | ForEach-Object { "$_" }
+            $code = $LASTEXITCODE
+        } finally { Pop-Location }
+        $lines | ForEach-Object { Write-Output $_ }
+        Assert ($code -eq 0) "The unit tests of $name failed with exit code $code"
+        $unitOutput += $lines
+    }
+    # A build constraint that drops a Windows-only test would hide it, so check that each ran and passed.
+    foreach ($name in 'TestWindowsWorkstationUsesLocalAppData', 'TestWindowsWorkstationRejectsJunctionEscape', 'TestWindowsLANAddressIsOnAnAdapterWithAGateway', 'TestWindowsProtectionDeniesAnotherUserByEffectiveAccess') {
+        Assert (@($unitOutput | Where-Object { $_ -match "^--- PASS: $name " }).Count -eq 1) "$name did not pass"
+    }
+    Write-Output "PASS unit tests: $(@($unitOutput | Where-Object { $_ -match '^--- PASS: ' }).Count) passed, $(@($unitOutput | Where-Object { $_ -match '^--- SKIP: ' }).Count) skipped"
 
     & $acceptance -Installer $Installer -Artifacts $Package -Root (Join-Path $base 'acceptance') -AllowAdministrator:$AllowAdministrator
     Write-Output 'PASS installer acceptance'
