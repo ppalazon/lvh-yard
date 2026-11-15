@@ -180,7 +180,8 @@ The CLI mode tests cover new folders and repair of existing folders.
 
 Windows runtime acceptance is not complete. The
 [Windows setup draft](user-guide.md#windows-workstation-setup) owns the
-Docker Desktop prerequisites, native storage rules and reset procedure.
+Docker Desktop prerequisites, native storage rules, and the reset, Backup
+transfer and complete removal procedures.
 The repository's developer tasks do not imply a native Windows build toolchain.
 Build on Linux and copy the CLI and dashboard image for native runtime checks.
 
@@ -228,6 +229,16 @@ Check effective ACL privacy from another ordinary account, direct Compose
 startup, persistent state and local listener isolation.
 Check native-loopback routing through real Traefik requests separately from
 Health and Reachability results. Record only observed outcomes.
+
+To check persistence, start two fresh Workstations with different
+`COMPOSE_PROJECT_NAME` values and ports. Save a Backup export of each with
+`lvh-yard export`, ignoring its `at:` line. Run stop and start, recreate, an
+image upgrade and a Docker Desktop restart on one. After each, its export, its
+Consul node ID and the creation time of its `consul-data` volume must not
+change. Then run `docker compose down --volumes` in the other folder. Only that
+project's volumes may disappear from `docker volume ls`, and the first
+Workstation's export must stay the same. Linux Workstations in other
+folders and ports serve as the other platform for Backup transfer.
 
 ## Tests
 

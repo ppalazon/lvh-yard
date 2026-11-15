@@ -211,41 +211,109 @@ Runtime containers never receive the Yard CA private key.
 3. Check `lvh-yard status`, then open `http://127.0.0.1:7780`.
    For LAN membership, follow [Joining a Yard](#joining-a-yard).
 
+#### Keeping, resetting, moving and removing Windows state
+
 Consul stores Windows state in a named Docker volume scoped to the Compose
-project. Normal stop, start, recreate, image upgrade and Docker Desktop restart
-keep that volume. Deleting the Workstation Folder leaves this state in Docker.
+project. Compose names it `<project>_consul-data`.
 `lvh-yard ws init` writes the project name as `COMPOSE_PROJECT_NAME` in `.env`.
 It is the folder name in lowercase letters, digits and `-`, then a short code
 of the whole folder path. Two folders with the same name under different
 parents get different projects, so they never share Consul state.
 Keep the project name when reusing it; a different project selects different state.
 
-To reset this Workstation, first export a Backup to a protected location.
-Before deleting its folder, select that folder and check the Compose project:
+Four actions treat this state in different ways:
+
+| Action                                                         | Consul state | Workstation Folder                 |
+| -------------------------------------------------------------- | ------------ | ---------------------------------- |
+| Stop, start, recreate, image upgrade, Docker Desktop restart   | Kept         | Kept                               |
+| [Reset](#reset-a-windows-workstation)                          | Deleted      | Kept                               |
+| [Backup transfer](#move-a-workstation-to-another-platform)     | Not copied   | A Backup file goes into `backups/` |
+| [Complete removal](#remove-all-state-of-a-windows-workstation) | Deleted      | Deleted                            |
+
+After Docker Desktop or the computer restarts, run `lvh-yard ws compose start`.
+It starts the same project and uses the same volume.
+`lvh-yard ws compose upgrade` changes only image lines, so it keeps the volume
+too. See [Upgrading](#upgrading).
+
+##### Reset a Windows Workstation
+
+A reset deletes the Consul state of one Workstation and keeps its files.
+Export a Backup first. A Backup restores only [its defined contents](#backups).
+Then select the Workstation Folder and check the Compose project:
 
 ```powershell
 Set-Location -LiteralPath "$env:LOCALAPPDATA\lvh-yard\workstation"
+lvh-yard export -o backups\before-reset.yaml
 docker compose ls
 docker compose config
 ```
 
-**Data loss:** the following command removes the selected project's containers
-and volumes, including all Consul state. This deletes Services, Publications,
-Route Profiles and other setup held in Consul. A Backup restores only
-[its defined contents](#backups). There is no undo for state outside it.
-Run this only for the project you intend to erase:
+**Data loss:** the following command removes the containers, networks and
+named volumes of the selected project. That includes all Consul state, and any
+volume that you added to its `compose.yaml`. It deletes Services, Publications,
+Route Profiles and other setup held in Consul. There is no undo for state
+outside a Backup. Run this only for the project you intend to erase:
 
 ```powershell
 docker compose down --volumes
 ```
 
 Use the same project name and Compose files that started the Workstation.
-Never use a global volume prune as a Workstation reset.
-The command leaves configuration, certificates and exported Backups in the
-Workstation Folder. Delete those files separately only when you intend to
-remove them too.
+Never use a global volume prune as a Workstation reset. The command does not
+touch another project's volumes.
+It leaves configuration, certificates, private keys and exported Backups in the
+Workstation Folder. The next `lvh-yard ws compose start` begins with an empty
+Consul. To get your setup back, import the Backup:
+
+```powershell
+lvh-yard ws compose start
+lvh-yard import backups\before-reset.yaml
+```
+
 See [Compose's volume removal rules](https://docs.docker.com/reference/cli/docker/compose/down/),
 read on 2026-11-14.
+
+##### Move a Workstation to another platform
+
+A move between Windows, Linux and macOS uses a fresh Workstation and a Backup.
+Compose files are not portable between platforms. Do not copy `compose.yaml`,
+`.env`, a Docker volume or a Consul data folder to another platform.
+LVH Yard has no migration of raw Consul state.
+
+1. On the old Workstation, run `lvh-yard export -o <file>`.
+   On Windows, the file is protected from other ordinary users.
+2. Copy the file to the new computer. Treat it as private: it holds the
+   basic-auth hashes of your Route Profiles.
+3. On the new computer, run `lvh-yard ws init` and start the Workstation.
+4. Run `lvh-yard import <file>`. See [Importing a Backup](#importing-a-backup).
+
+Only what a Backup holds arrives. A Backup holds no Bound Instances, Foreign
+Instances, Health, Remote Services, certificates or private keys, and no Gossip
+Key. A Backup does not archive private keys. Install certificates on the new
+Workstation by [hand](#handing-certificates-over-by-hand), and set its `.env`
+again.
+
+##### Remove all state of a Windows Workstation
+
+Deleting the Workstation Folder alone leaves Docker-managed state: the project's
+containers, its network and its `consul-data` volume stay in Docker.
+To remove all state, first remove the project, then delete the folder.
+This deletes the private keys and exported Backups in the folder too:
+
+```powershell
+Set-Location -LiteralPath "$env:LOCALAPPDATA\lvh-yard\workstation"
+docker compose down --volumes
+Set-Location $env:USERPROFILE
+Remove-Item -Recurse -Force -LiteralPath "$env:LOCALAPPDATA\lvh-yard\workstation"
+```
+
+Images stay in Docker. Remove the ones you no longer need with `docker image rm`.
+If you deleted the folder first, find the project name with `docker compose ls -a`
+and remove it by name:
+
+```powershell
+docker compose -p <project> down --volumes
+```
 
 ### Joining a Yard from Windows
 
@@ -774,8 +842,9 @@ Certificate signed by the Yard CA. The default option does not require one.
 
 `lvh-yard ws init` does not overwrite a file unless you give `--force`.
 After you install a new `lvh-yard`, run `lvh-yard ws compose upgrade`.
-It changes only the consul, traefik and dashboard image lines in `compose.yaml`
-and rewrites `consul.d/00-lvh-yard.hcl`.
+It changes only the image lines in `compose.yaml`: consul, traefik and
+dashboard, and on Windows the one-shot `consul-data-init` too.
+It also rewrites `consul.d/00-lvh-yard.hcl`.
 Then run `lvh-yard ws compose recreate`,
 even if every image is current. This makes Consul load the generated options.
 
@@ -1193,10 +1262,15 @@ read the file can read them. Keep a Backup as private as a password file.
 
 To move between operating systems, export a Backup, create a fresh Workstation
 on the destination, then import the Backup there.
+On Windows, follow [Move a Workstation to another platform](#move-a-workstation-to-another-platform).
 Recreate its environment settings and install its own certificates separately.
 A Backup contains no private certificates, raw Consul data or Compose files.
 Do not copy a Consul data folder or Docker volume across operating systems.
 Keep the destination's generated Compose setup.
+The Backup holds the own Services of the source, such as `yard`, with their
+Static Instances. If the two Workstations use different ports, the import adds
+the source's Instances to the own Services of the destination. They stay
+critical, because nothing listens there. Remove them with `lvh-yard remove`.
 
 ### Importing a Backup
 
