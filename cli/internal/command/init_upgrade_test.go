@@ -3,6 +3,7 @@ package command_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -23,11 +24,13 @@ func TestInitUpgradeChangesOnlyImageValues(t *testing.T) {
 				"  consul: # the registry\n    image:  'hashicorp/consul:1.0.0'  # pinned by me\n    environment:\n      image: leave-this-alone\n" +
 				"  traefik:\n    image:\t\"traefik:v3.0.0\" # my proxy\n    command: [custom]\n" +
 				"  dashboard:\n    image: ${YARD_DASHBOARD_IMAGE:-ghcr.io/ppalazon/lvh-yard-dashboard:0.1.0}  # my dashboard\n" +
+				dataInitService("hashicorp/consul:1.0.0") +
 				"  other:\n    image: my-own-image:1\nvolumes:\n  consul:\n    image: not-a-service"
 			want := "# my own note\nservices: # keep this\n" +
 				"  consul: # the registry\n    image:  'hashicorp/consul:2.1.0'  # pinned by me\n    environment:\n      image: leave-this-alone\n" +
 				"  traefik:\n    image:\t\"traefik:v3.7.16\" # my proxy\n    command: [custom]\n" +
 				"  dashboard:\n    image: ${YARD_DASHBOARD_IMAGE:-ghcr.io/ppalazon/lvh-yard-dashboard:" + tc.tag + "}  # my dashboard\n" +
+				dataInitService("hashicorp/consul:2.1.0") +
 				"  other:\n    image: my-own-image:1\nvolumes:\n  consul:\n    image: not-a-service"
 			if tc.indent != "  " {
 				before = strings.ReplaceAll(before, "\n  ", "\n"+tc.indent)
@@ -58,6 +61,15 @@ func TestInitUpgradeChangesOnlyImageValues(t *testing.T) {
 	}
 }
 
+// dataInitService is the consul-data-init service. Only the Windows compose file has it, and the
+// upgrade refuses a Windows file without its image.
+func dataInitService(image string) string {
+	if runtime.GOOS != "windows" {
+		return ""
+	}
+	return "  consul-data-init:\n    image: " + image + "\n"
+}
+
 func writeUpgradeFile(t *testing.T, folder, name, text string) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(folder, name), []byte(text), 0600); err != nil {
@@ -67,7 +79,7 @@ func writeUpgradeFile(t *testing.T, folder, name, text string) {
 
 func TestInitUpgradeAlreadyCurrentDoesNotWriteCompose(t *testing.T) {
 	folder := t.TempDir()
-	const text = "services:\n  dashboard:\n    image: '${YARD_DASHBOARD_IMAGE:-ghcr.io/ppalazon/lvh-yard-dashboard:0.8.1}' # keep\n  consul:\n    image: hashicorp/consul:2.1.0\n  traefik:\n    image: \"traefik:v3.7.16\"\n"
+	text := "services:\n  dashboard:\n    image: '${YARD_DASHBOARD_IMAGE:-ghcr.io/ppalazon/lvh-yard-dashboard:0.8.1}' # keep\n  consul:\n    image: hashicorp/consul:2.1.0\n  traefik:\n    image: \"traefik:v3.7.16\"\n" + dataInitService("hashicorp/consul:2.1.0")
 	writeUpgradeFile(t, folder, "compose.yaml", text)
 	file := filepath.Join(folder, "compose.yaml")
 	oldTime := time.Unix(1000000000, 0)
@@ -139,7 +151,7 @@ func TestInitUpgradeRejectsOtherWriteModes(t *testing.T) {
 
 func TestInitUpgradeUsesStandardWorkstationFolder(t *testing.T) {
 	folder := t.TempDir()
-	writeUpgradeFile(t, folder, "compose.yaml", "services:\n  dashboard:\n    image: old-dashboard\n  consul:\n    image: old-consul\n  traefik:\n    image: old-traefik\n")
+	writeUpgradeFile(t, folder, "compose.yaml", "services:\n  dashboard:\n    image: old-dashboard\n  consul:\n    image: old-consul\n  traefik:\n    image: old-traefik\n"+dataInitService("old-consul"))
 	yard := commandtest.New(t)
 	yard.Process.Env["YARD_CONFIG_DIR"] = folder
 	run := yard.Run("ws", "compose", "upgrade")
@@ -150,5 +162,23 @@ func TestInitUpgradeUsesStandardWorkstationFolder(t *testing.T) {
 		if !strings.Contains(readInitFile(t, folder, "compose.yaml"), "image: "+image+"\n") {
 			t.Errorf("default Workstation Folder is missing image %s", image)
 		}
+	}
+}
+
+// A compose.yaml that init wrote must be one that upgrade accepts, on every operating system.
+func TestInitUpgradeAcceptsTheComposeThatInitWrote(t *testing.T) {
+	folder := t.TempDir()
+	yard := commandtest.New(t)
+	yard.Version = "0.8.1"
+	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); run.ExitCode != 0 {
+		t.Fatalf("init: %+v", run)
+	}
+	yard.Version = "0.8.2"
+	run := yard.Run("ws", "compose", "upgrade", "--dir", folder)
+	if run.ExitCode != 0 || run.Stderr != "" {
+		t.Fatalf("upgrade of a generated compose.yaml: %+v", run)
+	}
+	if !strings.Contains(readInitFile(t, folder, "compose.yaml"), "lvh-yard-dashboard:0.8.2}") {
+		t.Fatal("upgrade did not change the dashboard image")
 	}
 }

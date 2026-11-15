@@ -63,7 +63,7 @@ func TestExportWritesOwnerOnlyBackup(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if info.Mode().Perm() != 0600 {
+			if commandtest.UnixModes && info.Mode().Perm() != 0600 {
 				t.Fatalf("got permissions %o; want 600", info.Mode().Perm())
 			}
 		})

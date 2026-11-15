@@ -280,7 +280,7 @@ func TestWSTLSInstallForAnotherWorkstationExplainsEachWay(t *testing.T) {
 		if got := commands[0].Args; len(got) != 2 || got[0] != "me@ws-b.lan" || got[1] != "umask 077 && mkdir -p '"+tc.folder+"/tls'" {
 			t.Fatalf("the remote tls folder is not made private first: %v", got)
 		}
-		want := []string{"-r", bundle + "/consul", bundle + "/traefik", "me@ws-b.lan:" + tc.folder + "/tls/"}
+		want := []string{"-r", filepath.Join(bundle, "consul"), filepath.Join(bundle, "traefik"), "me@ws-b.lan:" + tc.folder + "/tls/"}
 		if strings.Join(commands[1].Args, " ") != strings.Join(want, " ") {
 			t.Fatalf("scp arguments %v, want %v", commands[1].Args, want)
 		}
@@ -341,7 +341,7 @@ func TestWSTLSInstallAsksWhereTheFilesGoBeforeWhichOnes(t *testing.T) {
 	}
 	commands := yard.Process.Commands
 	bundle := filepath.Join(folder, "certificates", "ws-b")
-	if len(commands) != 2 || strings.Join(commands[1].Args, " ") != "-r "+bundle+"/consul me@ws-b.lan:.config/lvh-yard/tls/" {
+	if len(commands) != 2 || strings.Join(commands[1].Args, " ") != "-r "+filepath.Join(bundle, "consul")+" me@ws-b.lan:.config/lvh-yard/tls/" {
 		t.Fatalf("only the Consul folder should be copied: %+v", commands)
 	}
 }

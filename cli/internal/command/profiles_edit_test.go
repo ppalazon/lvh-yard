@@ -97,7 +97,7 @@ func TestProfilesEdit(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				if info.Mode().Perm() != 0600 {
+				if commandtest.UnixModes && info.Mode().Perm() != 0600 {
 					t.Errorf("private profile has permissions %o", info.Mode().Perm())
 				}
 				text, err := os.ReadFile(path)
@@ -128,7 +128,7 @@ func TestProfilesEdit(t *testing.T) {
 				if err != nil || string(kept) != written {
 					t.Errorf("kept text is %q, %v; want %q", kept, err, written)
 				}
-				if info, err := os.Stat(tempPath); err == nil && info.Mode().Perm() != 0600 {
+				if info, err := os.Stat(tempPath); err == nil && commandtest.UnixModes && info.Mode().Perm() != 0600 {
 					t.Errorf("kept text has permissions %o", info.Mode().Perm())
 				}
 				_ = os.Remove(tempPath)

@@ -10,6 +10,7 @@ import (
 )
 
 func TestWSInitRefusesEscapingGeneratedDirectory(t *testing.T) {
+	commandtest.SkipOnWindows(t, "a symbolic link needs a privilege that an ordinary Windows user lacks; TestWindowsWorkstationRejectsJunctionEscape covers escapes on Windows")
 	folder := t.TempDir()
 	outside := t.TempDir()
 	if err := os.Symlink(outside, filepath.Join(folder, "consul.d")); err != nil {
@@ -26,6 +27,7 @@ func TestWSInitRefusesEscapingGeneratedDirectory(t *testing.T) {
 }
 
 func TestWSTLSRefusesEscapingCA(t *testing.T) {
+	commandtest.SkipOnWindows(t, "a symbolic link needs a privilege that an ordinary Windows user lacks; TestWindowsWorkstationRejectsJunctionEscape covers escapes on Windows")
 	yard := commandtest.New(t)
 	folder := t.TempDir()
 	for _, args := range [][]string{
@@ -54,6 +56,7 @@ func TestWSTLSRefusesEscapingCA(t *testing.T) {
 }
 
 func TestWSCommandsRefuseEscapingSettingsAndCompose(t *testing.T) {
+	commandtest.SkipOnWindows(t, "a symbolic link needs a privilege that an ordinary Windows user lacks; TestWindowsWorkstationRejectsJunctionEscape covers escapes on Windows")
 	for _, tc := range []struct {
 		name string
 		file string
@@ -101,6 +104,7 @@ func TestWSCommandsRefuseEscapingSettingsAndCompose(t *testing.T) {
 }
 
 func TestWSInitRefusesEscapingOutputFile(t *testing.T) {
+	commandtest.SkipOnWindows(t, "a symbolic link needs a privilege that an ordinary Windows user lacks; TestWindowsWorkstationRejectsJunctionEscape covers escapes on Windows")
 	folder := t.TempDir()
 	outside := filepath.Join(t.TempDir(), "settings")
 	if err := os.WriteFile(outside, []byte("keep me"), 0644); err != nil {
@@ -127,6 +131,7 @@ func TestWSInitRefusesEscapingOutputFile(t *testing.T) {
 }
 
 func TestWSSettingsAcceptAnInRootRelativeLink(t *testing.T) {
+	commandtest.SkipOnWindows(t, "a symbolic link needs a privilege that an ordinary Windows user lacks; TestWindowsWorkstationRejectsJunctionEscape covers escapes on Windows")
 	yard, folder := newSecurityWorkstation(t)
 	if err := os.Mkdir(filepath.Join(folder, "settings"), 0700); err != nil {
 		t.Fatal(err)
@@ -147,6 +152,7 @@ func TestWSSettingsAcceptAnInRootRelativeLink(t *testing.T) {
 }
 
 func TestWSTLSRefusesEscapingPrivateOutputs(t *testing.T) {
+	commandtest.SkipOnWindows(t, "a symbolic link needs a privilege that an ordinary Windows user lacks; TestWindowsWorkstationRejectsJunctionEscape covers escapes on Windows")
 	for _, tc := range []struct {
 		name string
 		file string
@@ -187,6 +193,7 @@ func TestWSTLSRefusesEscapingPrivateOutputs(t *testing.T) {
 }
 
 func TestWSTLSInstallRefusesEscapingRoleDirectory(t *testing.T) {
+	commandtest.SkipOnWindows(t, "a symbolic link needs a privilege that an ordinary Windows user lacks; TestWindowsWorkstationRejectsJunctionEscape covers escapes on Windows")
 	yard, folder := newSecurityWorkstation(t)
 	for _, args := range [][]string{
 		{"ws", "tls", "ca", "create", "--dir", folder},

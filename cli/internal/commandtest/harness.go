@@ -27,9 +27,9 @@ type Harness struct {
 
 func New(t testing.TB) *Harness {
 	t.Helper()
-	return &Harness{
-		Process: &Process{Env: map[string]string{"HOME": t.TempDir()}, LANIP: defaultLANIP},
-	}
+	env := map[string]string{}
+	UseHome(env, t.TempDir())
+	return &Harness{Process: &Process{Env: env, LANIP: defaultLANIP}}
 }
 
 func (h *Harness) Run(args ...string) Result {

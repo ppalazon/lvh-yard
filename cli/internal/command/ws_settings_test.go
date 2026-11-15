@@ -3,6 +3,7 @@ package command_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -46,7 +47,7 @@ func checkWSSetting(t *testing.T, name, key, good, bad, want string) {
 		t.Fatalf("changed other lines: %q", got)
 	}
 	info, err := os.Stat(filepath.Join(folder, ".env"))
-	if err != nil || info.Mode().Perm() != 0600 {
+	if err != nil || (commandtest.UnixModes && info.Mode().Perm() != 0600) {
 		t.Fatalf("mode: %v %v", info, err)
 	}
 }
@@ -110,6 +111,13 @@ func TestWSSetEmptyAndBoundaryValues(t *testing.T) {
 			writeEnv(t, folder, test.key+"=old\n")
 			yard := commandtest.New(t)
 			run := yard.Run("ws", "set", "--dir", folder, test.name, test.value)
+			if runtime.GOOS == "windows" && test.name == "bind-address" && test.value == "" {
+				// Windows needs the LAN address, so it refuses to clear it.
+				if run.ExitCode != 1 || !strings.Contains(run.Stderr, "bind-address") || readInitFile(t, folder, ".env") != test.key+"=old\n" {
+					t.Fatalf("clear bind-address: %+v", run)
+				}
+				return
+			}
 			if run.ExitCode != 0 || readInitFile(t, folder, ".env") != test.key+"="+test.value+"\n" {
 				t.Fatalf("set: %+v", run)
 			}
