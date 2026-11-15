@@ -106,6 +106,34 @@ $LASTEXITCODE
 ```
 
 The version must match `9.8.7`, which the executable checks expect.
+
+The unit tests also run natively on Windows. `go test -c` with a folder after
+`-o` writes one `<package>.test.exe` for each package that has tests:
+
+```sh
+GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go test -c -o target/unit/ ./internal/...
+```
+
+Run each binary in the folder of its package, as `go test` does, because some
+tests read files by a relative path. CI does this: see
+[Continuous integration](#continuous-integration).
+
+Two tests check what another ordinary user can do with the private files of a
+Workstation Folder. They ask Windows, not the ACL text. The unit test
+`TestWindowsProtectionDeniesAnotherUserByEffectiveAccess` uses a token of the
+current user with that user and Administrators switched to deny only, and runs
+everywhere. The integration test
+`TestBuiltExecutableProtectsTheWorkstationFolderFromAnotherUser` logs on as a
+real second account. It skips unless you name that account. Run it as the
+owner, with a second ordinary account of the computer:
+
+```powershell
+$env:YARD_TEST_EXECUTABLE = (Resolve-Path .\lvh-yard.exe).Path
+$env:YARD_TEST_OTHER_USER = 'second-account'
+$env:YARD_TEST_OTHER_PASSWORD = 'its password'
+.\smoke.test.exe "-test.count=1" "-test.v" "-test.run" ProtectsTheWorkstationFolder
+```
+
 Platform-specific process operations live in `process_unix.go` and
 `process_windows.go`, behind the existing `Process` interface.
 The Windows process code uses the console API for terminal detection.
@@ -345,8 +373,11 @@ Two jobs run the Windows CLI on a real Windows system:
 - `windows-package` runs on `ubuntu-latest`. It packages the versions 9.8.7
   and 9.8.8 with `dev/package-cli.sh`, writes a `SHA256SUMS` file for each as
   the release does, builds the integration tests for Windows with
-  `go test -c -tags integration`, and uploads the folder. The Windows job
-  needs no Go and no Unix shell.
+  `go test -c -tags integration`, builds the unit tests of `cli/internal/` with
+  `go test -c`, and uploads the folder. Beside the unit test binaries, it
+  copies the files that the tests read: the package folders without Go
+  sources, `config/` and `dashboard/openapi.yaml`. The Windows job needs no Go
+  and no Unix shell.
 - `windows` runs on `windows-latest`, once in Windows PowerShell 5.1 and once
   in PowerShell 7. It runs `dev/test-windows-native.ps1` in that shell.
 
@@ -357,11 +388,19 @@ Two jobs run the Windows CLI on a real Windows system:
    resolves.
 2. It extracts `lvh-yard.exe` from the packaged ZIP and runs the integration
    tests of `cli/cmd/lvh-yard` with that executable. The tests must pass in
-   both `powershell.exe` and `pwsh.exe`, and none may be skipped.
-3. It runs `dev/test-install-windows.ps1` with `docs/site/install.ps1` and the
-   packaged archives.
-4. It removes its temporary files. The acceptance script restores the user
-   PATH.
+   both `powershell.exe` and `pwsh.exe`. None may be skipped, except the test
+   that logs on as a second account: a hosted runner has one account. Set
+   `YARD_TEST_OTHER_USER` and `YARD_TEST_OTHER_PASSWORD` to make that test
+   run, and it must then pass.
+3. It runs each unit test binary in the folder of its package. All must pass,
+   and four Windows-only tests must have run, so a build constraint cannot
+   hide them.
+4. It runs `dev/test-install-windows.ps1` with `docs/site/install.ps1` and the
+   packaged archives. The script seeds the user PATH with a real `%USERPROFILE%`
+   entry, once as `REG_EXPAND_SZ` and once as `REG_SZ`, and checks that the
+   installer keeps its text and kind.
+5. It removes its temporary files. The acceptance script restores the user
+   PATH, text and kind.
 
 The `windows` job starts from a clean checkout. It installs nothing. It uses
 the Windows PowerShell 5.1 and the PowerShell 7 of the runner image, and Git

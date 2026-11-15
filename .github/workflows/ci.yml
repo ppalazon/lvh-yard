@@ -74,6 +74,22 @@ jobs:
           GOOS: windows
           GOARCH: amd64
         run: go test -c -tags integration -o ../windows-package/lvh-yard-integration.test.exe ./cmd/lvh-yard
+      # `go test -c` with a folder as -o writes one <package>.test.exe for each package that has tests. Some tests read
+      # files by a path relative to their package, so the Windows job gets those files beside the binaries.
+      - name: Build the unit tests for Windows
+        working-directory: cli
+        env:
+          CGO_ENABLED: "0"
+          GOOS: windows
+          GOARCH: amd64
+        run: |
+          go test -c -o ../windows-package/unit/bin/ ./internal/...
+          mkdir -p ../windows-package/unit/cli
+          cp -r internal ../windows-package/unit/cli/internal
+          find ../windows-package/unit/cli -name '*.go' -delete
+          cp -r ../config ../windows-package/unit/config
+          mkdir -p ../windows-package/unit/dashboard
+          cp ../dashboard/openapi.yaml ../windows-package/unit/dashboard/
       - uses: actions/upload-artifact@v4
         with:
           name: windows-package
