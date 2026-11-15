@@ -275,25 +275,53 @@ func TestInvalidScpTargetsLeaveTheFolderAsItWas(t *testing.T) {
 	}
 }
 
-func TestYardInvitationNamesTheManualWayAndLimitsScpToUnix(t *testing.T) {
+func TestYardInvitationUnixTextAndWindowsManualWay(t *testing.T) {
 	yard := commandtest.New(t)
 	folder := signedYard(t, yard)
 	if r := yard.Run("ws", "tls", "ca", "install", "--dir", folder); r.ExitCode != 0 {
 		t.Fatal(r)
 	}
-	for _, system := range []string{"linux", "windows"} {
-		yard.Process.System = system
-		r := yard.Run("ws", "yard", "share", "--dir", folder)
-		if r.ExitCode != 0 {
-			t.Fatal(r)
+	yard.Process.System = "linux"
+	unix := yard.Run("ws", "yard", "share", "--dir", folder)
+	if unix.ExitCode != 0 {
+		t.Fatal(unix)
+	}
+	if !strings.Contains(unix.Stdout, "      lvh-yard ws tls ca install '<new-workstation>' --scp '<user@host>'\n   With a company CA, ask its issuer for the certificate instead.\n") {
+		t.Fatalf("the Unix invitation changed:\n%s", unix.Stdout)
+	}
+	if strings.Contains(unix.Stdout, "A Windows computer") {
+		t.Fatalf("the Unix invitation names Windows:\n%s", unix.Stdout)
+	}
+
+	yard.Process.System = "windows"
+	windows := yard.Run("ws", "yard", "share", "--dir", folder)
+	if windows.ExitCode != 0 {
+		t.Fatal(windows)
+	}
+	for _, want := range []string{
+		"ca install '<new-workstation>'\n", "never send ca.key", "ws tls import consul",
+		"From a Unix computer to a Unix computer, add --scp", "Windows cannot copy with --scp",
+	} {
+		if !strings.Contains(windows.Stdout, want) {
+			t.Fatalf("the Windows invitation lacks %q:\n%s", want, windows.Stdout)
 		}
-		for _, want := range []string{
-			"ca install '<new-workstation>'\n", "never send ca.key", "ws tls import consul",
-			"From a Unix computer to a Unix computer, add --scp", "Windows cannot copy with --scp",
-		} {
-			if !strings.Contains(r.Stdout, want) {
-				t.Fatalf("%s: the invitation lacks %q:\n%s", system, want, r.Stdout)
-			}
+	}
+}
+
+func TestUnixCAInstallOutputKeepsItsWording(t *testing.T) {
+	yard := commandtest.New(t)
+	folder := signedYard(t, yard)
+	yard.Process.System = "linux"
+	r := yard.Run("ws", "tls", "ca", "install", "ws-b", "--dir", folder)
+	if r.ExitCode != 0 {
+		t.Fatal(r)
+	}
+	if !strings.Contains(r.Stdout, "To do this from here, run this command again with --scp <user@host>, or --scp <user@host>:<its-folder>.\n\nThen, on ws-b, turn on") {
+		t.Fatalf("the Unix wording changed:\n%s", r.Stdout)
+	}
+	for _, unwanted := range []string{"Windows", "Use --scp only"} {
+		if strings.Contains(r.Stdout, unwanted) {
+			t.Fatalf("the Unix output holds %q:\n%s", unwanted, r.Stdout)
 		}
 	}
 }

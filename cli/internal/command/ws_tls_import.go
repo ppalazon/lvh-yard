@@ -286,7 +286,7 @@ func handOverBundle(cmd *cobra.Command, options *Options, name, root string, rol
 		if options.Process.OS() == "windows" {
 			fmt.Fprintln(out, "Native Windows cannot copy the files for you with --scp: copy them yourself.")
 		} else {
-			fmt.Fprintf(out, "To do this from here, run this command again with --scp %[1]s, or --scp %[1]s:<its-folder>.\nUse --scp only for a Unix computer.\n", host)
+			fmt.Fprintf(out, "To do this from here, run this command again with --scp %[1]s, or --scp %[1]s:<its-folder>.\n", host)
 		}
 	}
 	fmt.Fprintf(out, "\nThen, on %s, turn on what it needs. Each command checks the certificate first:\n  ssh %s\n", name, host)
@@ -294,10 +294,13 @@ func handOverBundle(cmd *cobra.Command, options *Options, name, root string, rol
 		fmt.Fprintf(out, "  %s tls enable %s\n", ws, role)
 	}
 	if target == "" {
-		fmt.Fprintf(out, "\nIf %s runs on Windows, send the folders to it through a private channel. Then, on it, import each one into its Workstation Folder (this installs the certificate and turns it on):\n", name)
-		for _, role := range roles {
-			files := roleFiles(role)
-			fmt.Fprintf(out, "  lvh-yard ws tls import %s --ca '<received-folder>\\%s\\%s' --cert '<received-folder>\\%s\\%s' --key '<received-folder>\\%s\\%s'\n", role, role, files[0], role, files[1], role, files[2])
+		// A Unix sender prints no Windows text: its --scp probe refuses a Windows destination.
+		if options.Process.OS() == "windows" {
+			fmt.Fprintf(out, "\nIf %s runs on Windows, send the folders to it through a private channel. Then, on it, import each one into its Workstation Folder (this installs the certificate and turns it on):\n", name)
+			for _, role := range roles {
+				files := roleFiles(role)
+				fmt.Fprintf(out, "  lvh-yard ws tls import %s --ca '<received-folder>\\%s\\%s' --cert '<received-folder>\\%s\\%s' --key '<received-folder>\\%s\\%s'\n", role, role, files[0], role, files[1], role, files[2])
+			}
 		}
 		fmt.Fprintf(out, "\nIf %s runs on this computer, import from the folders, with its own Workstation Folder:\n", name)
 		for _, role := range roles {

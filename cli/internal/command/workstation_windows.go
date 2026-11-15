@@ -116,7 +116,7 @@ func validateNotLinked(path string) error {
 		return fmt.Errorf("could not check Workstation Folder %s: %w", path, err)
 	}
 	if attributes&windows.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
-		return fmt.Errorf("unsupported Workstation Folder %s: use a local NTFS folder without links, junctions or cloud sync", path)
+		return fmt.Errorf("unsupported Workstation Folder %s: use a local NTFS folder that is not a link and not cloud-synced", path)
 	}
 	return nil
 }
@@ -148,11 +148,11 @@ func protectFile(file *os.File, _ os.FileMode) error {
 	// into children, which includes a hard link to a file outside the folder.
 	handle, err := reopenSecurityHandle(file)
 	if err != nil {
-		return fmt.Errorf("could not reopen the rooted file for ACL access: %w", err)
+		return fmt.Errorf("could not make the file private to your account: %w", err)
 	}
 	defer func() { _ = windows.CloseHandle(handle) }()
 	if err := windows.SetKernelObjectSecurity(handle, windows.DACL_SECURITY_INFORMATION|windows.PROTECTED_DACL_SECURITY_INFORMATION, descriptor); err != nil {
-		return fmt.Errorf("could not set the private DACL: %w", err)
+		return fmt.Errorf("could not make the file private to your account: %w", err)
 	}
 	return nil
 }
@@ -184,7 +184,7 @@ func protectRootEntry(root *os.Root, name string, mode os.FileMode) error {
 		return err
 	}
 	if info.NumberOfLinks > 1 && info.FileAttributes&windows.FILE_ATTRIBUTE_DIRECTORY == 0 {
-		return fmt.Errorf("cannot protect a file with multiple hard links: remove the link from the Workstation Folder")
+		return fmt.Errorf("cannot make the file private: another path links to it, so remove that link from the Workstation Folder")
 	}
 	return protectFile(file, mode)
 }
@@ -205,7 +205,7 @@ func protectNewFolder(folder string) error { return protectWorkstationTree(folde
 
 // linkInFolderError refuses a link or junction: a change of permissions through it could reach outside the folder.
 func linkInFolderError(path string) error {
-	return fmt.Errorf("cannot protect %s: remove the link or junction from the Workstation Folder", path)
+	return fmt.Errorf("cannot make %s private: remove the link from the Workstation Folder", path)
 }
 
 // fillPlatformEnv names the Compose project. Compose names the consul-data volume after it, so each Workstation

@@ -10,17 +10,27 @@ import (
 // the real adapter list.
 func TestChooseLANAddress(t *testing.T) {
 	ip := func(text string) net.IP { return net.ParseIP(text) }
+	plain := func(texts ...string) []lanCandidate {
+		var candidates []lanCandidate
+		for _, text := range texts {
+			candidates = append(candidates, lanCandidate{IP: ip(text), Adapter: "Ethernet"})
+		}
+		return candidates
+	}
 	tests := []struct {
 		name       string
-		candidates []net.IP
+		candidates []lanCandidate
 		route      net.IP
 		want       string
 		refusal    string
 	}{
-		{name: "the default route adapter wins over another adapter", candidates: []net.IP{ip("10.0.2.15"), ip("192.168.1.20")}, route: ip("192.168.1.20"), want: "192.168.1.20"},
-		{name: "the only candidate holds the default route", candidates: []net.IP{ip("192.168.1.20")}, route: ip("192.168.1.20"), want: "192.168.1.20"},
-		{name: "the only candidate is not on the default route", candidates: []net.IP{ip("192.168.56.1")}, route: ip("172.19.144.1"), refusal: "the default route is not on a suitable adapter"},
-		{name: "a lone candidate without a default route is not guessed", candidates: []net.IP{ip("192.168.56.1")}, refusal: "no default route was found"},
+		{name: "the default route adapter wins over another adapter", candidates: plain("10.0.2.15", "192.168.1.20"), route: ip("192.168.1.20"), want: "192.168.1.20"},
+		{name: "the only candidate holds the default route", candidates: plain("192.168.1.20"), route: ip("192.168.1.20"), want: "192.168.1.20"},
+		{name: "the only candidate is not on the default route", candidates: plain("192.168.56.1"), route: ip("172.19.144.1"), refusal: "the default route is not on a suitable adapter"},
+		{name: "a lone candidate without a default route is not guessed", candidates: plain("192.168.56.1"), refusal: "no default route was found"},
+		{name: "the default route adapter is a tunnel", candidates: append(plain("192.168.1.20"), lanCandidate{IP: ip("10.8.0.2"), Adapter: "OpenVPN", Tunnel: true}), route: ip("10.8.0.2"), refusal: `the default route is on "OpenVPN", which looks like a VPN or virtual adapter; other adapter addresses: 192.168.1.20`},
+		{name: "a tunnel that does not hold the default route is ignored", candidates: append(plain("192.168.1.20"), lanCandidate{IP: ip("10.8.0.2"), Adapter: "OpenVPN", Tunnel: true}), route: ip("192.168.1.20"), want: "192.168.1.20"},
+		{name: "a lone tunnel with the default route lists no other address", candidates: []lanCandidate{{IP: ip("10.8.0.2"), Adapter: "WireGuard", Tunnel: true}}, route: ip("10.8.0.2"), refusal: "other adapter addresses: none"},
 		{name: "no candidate", route: ip("192.168.1.20"), refusal: "other adapter addresses: none"},
 	}
 	for _, tc := range tests {
@@ -36,6 +46,35 @@ func TestChooseLANAddress(t *testing.T) {
 				t.Fatalf("got %q, %v; want a refusal with --address and %q", got, err, tc.refusal)
 			}
 		})
+	}
+}
+
+func TestIsTunnelAdapter(t *testing.T) {
+	tests := []struct {
+		name        string
+		description string
+		flags       net.Flags
+		want        bool
+	}{
+		{name: "Ethernet", description: "Intel(R) Ethernet Connection I219-V", flags: net.FlagUp | net.FlagBroadcast},
+		{name: "Wi-Fi", description: "Intel(R) Wi-Fi 6 AX201 160MHz", flags: net.FlagUp | net.FlagBroadcast},
+		{name: "Ethernet", description: "Intel(R) Ethernet Connection I219-V", flags: net.FlagUp | net.FlagPointToPoint, want: true},
+		{name: "Ethernet 2", description: "OpenVPN TAP-Windows6", flags: net.FlagUp | net.FlagBroadcast, want: true},
+		{name: "Work VPN", flags: net.FlagUp | net.FlagBroadcast, want: true},
+		{name: "Ethernet 3", description: "Wintun Userspace Tunnel", flags: net.FlagUp, want: true},
+		{name: "wg0", description: "WireGuard Tunnel", flags: net.FlagUp, want: true},
+		{name: "Tailscale", flags: net.FlagUp, want: true},
+		{name: "Ethernet 4", description: "ZeroTier Virtual Port", flags: net.FlagUp, want: true},
+		{name: "vEthernet (Default Switch)", description: "Hyper-V Virtual Ethernet Adapter", flags: net.FlagUp, want: true},
+		{name: "Ethernet 5", description: "VMware Virtual Ethernet Adapter for VMnet8", flags: net.FlagUp, want: true},
+		{name: "Ethernet 6", description: "VirtualBox Host-Only Ethernet Adapter", flags: net.FlagUp, want: true},
+		{name: "Ethernet 7", description: "WAN Miniport (PPP)", flags: net.FlagUp, want: true},
+		{name: "ETHERNET 8", description: "TUN adapter", flags: net.FlagUp, want: true},
+	}
+	for _, tc := range tests {
+		if got := isTunnelAdapter(tc.name, tc.description, tc.flags); got != tc.want {
+			t.Errorf("%q / %q / %v: got %v, want %v", tc.name, tc.description, tc.flags, got, tc.want)
+		}
 	}
 }
 

@@ -68,9 +68,9 @@ tagged nothing.
 - [ ] The ADR now cites [03-java-ipv4-measurements.md](03-java-ipv4-measurements.md), a file under `.scratch/`.
       `CLAUDE.md` says to delete a feature's folder when its tickets are done. Move that file, or its facts, to a
       durable place before the folder goes.
-- [ ] I changed one line of ADR-0010, an accepted ADR: its dependency bullet now names `go-pkcs12` and
-      `golang.org/x/sys`. The skill for decision records allows only a status change to an accepted ADR. Keep the
-      edit, or revert it and record the change as a new entry.
+- [ ] ADR-0010 is unchanged, as the specification requires. Its dependency bullet is now stale: it omits `go-pkcs12`
+      (Client Certificate files) and `golang.org/x/sys` (Windows file privacy, imported only by Windows files). Decide
+      whether to record that through a new dated entry.
 
 ## 6. Documentation after your approval
 

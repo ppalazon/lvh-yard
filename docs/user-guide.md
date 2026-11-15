@@ -70,7 +70,7 @@ Java or a copy of this repository.
 
    On Linux and macOS, settings, generated options and certificates may use
    relative symbolic links whose targets stay inside the Workstation Folder.
-   Windows requires real files and folders, with no symbolic links or junctions.
+   Windows requires real files and folders, with no links of any kind.
    Backup input and output paths, and the TLS import flags `--ca`, `--cert`
    and `--key`, may name files elsewhere.
 
@@ -166,8 +166,8 @@ The executable folder, `$env:LOCALAPPDATA\lvh-yard\bin`, stays separate.
 Use local NTFS storage. Network shares, mapped network drives and cloud-synced
 folders, such as OneDrive, are unsupported even when a write succeeds.
 
-The CLI protects configuration, certificates and `backups/` with Windows
-ACLs. The privacy boundary covers other ordinary local users.
+The CLI makes configuration, certificates and `backups/` private to your
+Windows account. The privacy boundary covers other ordinary local users.
 It does not protect against administrators or anyone who controls Docker.
 Keep exported Backups private too: they can contain basic-auth hashes.
 The [certificate roles](#yard-ca-and-workstation-certificates) stay separate.
@@ -694,7 +694,7 @@ Consul and for Traefik, and for every pair of operating systems.
    for `traefik` if you received it. The command checks the key, the chain
    and the name before it writes. It installs the files in `tls/`, turns the
    service on and makes the files private: mode 600 on Linux and macOS, and an
-   access control list for your account on Windows. In PowerShell, write each
+   access for your account only on Windows. In PowerShell, write each
    path in single quotes.
 3. Delete the received folders.
 4. Run the `compose recreate` command that `import` prints, then

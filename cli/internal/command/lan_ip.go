@@ -23,19 +23,53 @@ func defaultRouteSource() net.IP {
 	return conn.LocalAddr().(*net.UDPAddr).IP
 }
 
-// chooseLANAddress returns the candidate that holds the default route. It never guesses: when no
-// candidate holds that route, the user gives the address.
-func chooseLANAddress(candidates []net.IP, route net.IP) (string, error) {
-	var listed []string
-	for _, candidate := range candidates {
-		if route != nil && candidate.Equal(route) {
-			return candidate.String(), nil
+// lanCandidate is one IPv4 address of an active adapter. Tunnel is true when the adapter looks like a VPN or
+// a virtual adapter.
+type lanCandidate struct {
+	IP      net.IP
+	Adapter string
+	Tunnel  bool
+}
+
+// tunnelWords are the parts of an adapter name or description that mark a VPN or virtual adapter.
+var tunnelWords = []string{"vpn", "tap", "tun", "wireguard", "wintun", "ppp", "tailscale", "zerotier", "hyper-v", "vmware", "virtualbox"}
+
+// isTunnelAdapter is true for a point-to-point adapter, or one that names itself as a VPN or virtual adapter.
+func isTunnelAdapter(name, description string, flags net.Flags) bool {
+	if flags&net.FlagPointToPoint != 0 {
+		return true
+	}
+	text := strings.ToLower(name + " " + description)
+	for _, word := range tunnelWords {
+		if strings.Contains(text, word) {
+			return true
 		}
-		listed = append(listed, candidate.String())
+	}
+	return false
+}
+
+// chooseLANAddress returns the candidate that holds the default route. It never guesses: when no
+// candidate holds that route, or the one that does looks like a VPN or virtual adapter, the user gives
+// the address. A full-tunnel VPN takes the default route, and its address is not a LAN address.
+func chooseLANAddress(candidates []lanCandidate, route net.IP) (string, error) {
+	var listed []string
+	var tunnel *lanCandidate
+	for i, candidate := range candidates {
+		if route != nil && candidate.IP.Equal(route) {
+			if !candidate.Tunnel {
+				return candidate.IP.String(), nil
+			}
+			tunnel = &candidates[i]
+			continue
+		}
+		listed = append(listed, candidate.IP.String())
 	}
 	reason := "no default route was found"
 	if route != nil {
 		reason = "the default route is not on a suitable adapter"
+	}
+	if tunnel != nil {
+		reason = fmt.Sprintf("the default route is on %q, which looks like a VPN or virtual adapter", tunnel.Adapter)
 	}
 	if len(listed) == 0 {
 		listed = []string{"none"}
