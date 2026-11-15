@@ -51,7 +51,7 @@ func adapterDescriptions() map[int]string {
 	var buffer []byte
 	for {
 		buffer = make([]byte, size)
-		first := (*windows.IpAdapterAddresses)(unsafe.Pointer(&buffer[0]))
+		first := (*windows.IpAdapterAddresses)(unsafe.Pointer(&buffer[0])) // #nosec G103 -- The buffer is the Windows adapter list that GetAdaptersAddresses fills.
 		err := windows.GetAdaptersAddresses(windows.AF_INET, 0, 0, first, &size)
 		if errors.Is(err, windows.ERROR_BUFFER_OVERFLOW) {
 			continue
@@ -62,6 +62,7 @@ func adapterDescriptions() map[int]string {
 		break
 	}
 	descriptions := map[int]string{}
+	// #nosec G103 -- The buffer holds the linked adapter list that GetAdaptersAddresses filled.
 	for adapter := (*windows.IpAdapterAddresses)(unsafe.Pointer(&buffer[0])); adapter != nil; adapter = adapter.Next {
 		descriptions[int(adapter.IfIndex)] = windows.UTF16PtrToString(adapter.Description)
 	}
