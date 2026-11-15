@@ -1,5 +1,6 @@
 # Windows Workstation runtime for Docker Desktop with host networking enabled.
-# YARD_BIND_ADDRESS is the native LAN address, not a container bind address.
+# YARD_BIND_ADDRESS is the native LAN address that Consul advertises, not a container bind address.
+# YARD_INSTANCE_HOST is the host of Instances for the other Workstations. It is the LAN address unless .env sets it.
 services:
   # NTFS cannot supply Linux ownership for Consul state.
   consul-data-init:
@@ -135,7 +136,7 @@ services:
     environment:
       YARD_WORKSTATION: ${YARD_WORKSTATION:?set YARD_WORKSTATION in .env}
       YARD_IPV4_ONLY: "true"
-      YARD_INSTANCE_HOST: ${YARD_BIND_ADDRESS:?set the native LAN IPv4 address in .env}
+      YARD_INSTANCE_HOST: ${YARD_INSTANCE_HOST:-${YARD_BIND_ADDRESS:?set the native LAN IPv4 address in .env}}
       YARD_BASE_DOMAIN: ${YARD_BASE_DOMAIN:-lvh.me}
       YARD_OUT_OF_RANGE: ${YARD_OUT_OF_RANGE-127.0.0.0/8,::1/128,172.17.0.0/16,172.18.0.0/15,172.20.0.0/14,172.24.0.0/13}
       YARD_HTTP_PORT: ${YARD_HTTP_PORT:-80}

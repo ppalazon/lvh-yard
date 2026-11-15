@@ -9,7 +9,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"unicode"
 
@@ -84,7 +83,7 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	if err := f.lanIdentity(prompt, options, env); err != nil {
 		return err
 	}
-	if err := f.fillEnv(env, options, name, domain, key, peers); err != nil {
+	if err := f.fillEnv(env, options, folder, name, domain, key, peers); err != nil {
 		return err
 	}
 	compose, err := templates.Compose(options.Version)
@@ -94,8 +93,8 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	if err := writeWorkstationFiles(folder, compose, env.Text(), f.force); err != nil {
 		return err
 	}
-	if strings.TrimSpace(env.Get("YARD_DOCKER_GID")) == "" {
-		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: no Docker socket at %s, so YARD_DOCKER_GID in .env is empty. Set it to the group of /var/run/docker.sock, or the dashboard will not start.\n", f.dockerSocket)
+	if warning := dockerGroupWarning(env, f.dockerSocket); warning != "" {
+		fmt.Fprintln(cmd.ErrOrStderr(), warning)
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "Wrote compose.yaml, .env, lvh-yard.yaml to %s.\n\n", folder)
 	printInitNextSteps(cmd.OutOrStdout(), folder, env, options.WorkstationFolder())
@@ -219,16 +218,12 @@ func (f *initOptions) checkedPeers() (string, error) {
 }
 
 // fillEnv gives the template's empty settings a value of this computer, and sets the answers.
-func (f *initOptions) fillEnv(env *envfile.File, options *Options, name, domain, key, peers string) error {
-	for _, found := range [][2]string{
-		{"COMPOSE_PROFILES", "dashboard,traefik"},
-		{"YARD_UID", options.Process.ID("-u")},
-		{"YARD_GID", options.Process.ID("-g")},
-		{"YARD_DOCKER_GID", dockerGroup(f.dockerSocket)},
-	} {
-		if err := env.FillIfEmpty(found[0], found[1]); err != nil {
-			return err
-		}
+func (f *initOptions) fillEnv(env *envfile.File, options *Options, folder, name, domain, key, peers string) error {
+	if err := env.FillIfEmpty("COMPOSE_PROFILES", "dashboard,traefik"); err != nil {
+		return err
+	}
+	if err := fillPlatformEnv(env, options, folder, f.dockerSocket); err != nil {
+		return err
 	}
 	for _, setting := range [][2]string{{"YARD_WORKSTATION", name}, {"YARD_BASE_DOMAIN", domain}, {"YARD_GOSSIP_KEY", key}, {"YARD_PEERS", peers}} {
 		if err := env.Set(setting[0], setting[1]); err != nil {
@@ -267,16 +262,8 @@ func nameFromHostname(hostname string) string {
 	return strings.TrimRight(name, "-")
 }
 
-func dockerGroup(socket string) string {
-	info, err := os.Stat(socket)
-	if err != nil {
-		return ""
-	}
-	return socketGroup(info)
-}
-
 func (f *initOptions) lanIdentity(prompt *initPrompt, options *Options, env *envfile.File) error {
-	if runtime.GOOS != "windows" && f.address == "" {
+	if !lanAddressRequired && f.address == "" {
 		return nil
 	}
 	address := f.address
@@ -312,10 +299,7 @@ type workstationFile struct {
 // workstationFiles lists the files that ws init writes. Each one is private to the user.
 func workstationFiles(compose, env string) []workstationFile {
 	files := []workstationFile{{"compose.yaml", compose}, {".env", env}, {"lvh-yard.yaml", templates.Dashboard()}, {"consul.d/00-lvh-yard.hcl", templates.Consul()}}
-	if runtime.GOOS == "windows" {
-		files = append(files, workstationFile{"traefik/00-lvh-yard-windows.sh", templates.WindowsTraefik()})
-	}
-	return files
+	return append(files, platformWorkstationFiles()...)
 }
 
 func writeWorkstationFiles(folder, compose, env string, force bool) error {
@@ -328,10 +312,8 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 	}
 	// Windows protects the new folder before any secret is written. On Unix, MkdirAll already made it 0700, and a
 	// refused init must leave the modes of an existing folder alone.
-	if runtime.GOOS == "windows" {
-		if err := protectWorkstationTree(folder); err != nil {
-			return err
-		}
+	if err := protectNewFolder(folder); err != nil {
+		return err
 	}
 	root, err := os.OpenRoot(folder)
 	if err != nil {

@@ -149,11 +149,17 @@ Java CLI, built as a native executable:
 | Java, native  | 49 MB   | 7.3 ms                                |
 
 The source templates are `config/compose.yaml`, `config/compose.windows.yaml`,
-`config/traefik-windows.sh`, `config/.env.example`, `config/00-lvh-yard.hcl`,
-`config/10-tls.hcl`, `config/10-tls.yaml` and `config/lvh-yard.yaml`.
+`config/traefik-windows.sh`, `config/.env.example`, `config/.env.windows.example`,
+`config/00-lvh-yard.hcl`, `config/10-tls.hcl`, `config/10-tls.yaml` and
+`config/lvh-yard.yaml`.
 The CLI embeds copies from `cli/internal/templates/`.
 After you edit a source, run `mise run cli:templates` to refresh the copies.
 Commit the copies with the source files. A unit test compares the raw bytes.
+`compose.windows.yaml` is a copy of `compose.yaml` with the changes that Docker
+Desktop needs. Template tests keep the keys and variable defaults that the two
+share equal. A real difference needs a named reason in
+`windows_templates_test.go`. Each platform embeds only its own Compose file and
+`.env` template.
 When `ws init` writes the Workstation Folder, it pins the dashboard image to
 the CLI version, or `latest` for `dev`. The user template has no build setting.
 
@@ -197,14 +203,22 @@ It rejects IPv6 target addresses and reports unsupported IPv6 Reachability.
 
 The dashboard's internal `YARD_INSTANCE_HOST` setting maps to
 `lvh-yard.instance-host` in `dashboard/src/main/resources/application.yaml`.
-It sets the default host of Static Instances, the host omitted from Backups
-and restored on import, and the Yard address of wildcard-published Bound
-Instances. Local wildcard mappings still use loopback, and explicit Instance
-hosts and published bind addresses stay unchanged.
+It sets three things:
+
+- The default host of Static Instances.
+- The host that Backups omit and that an import restores.
+- The Yard address of wildcard-published Bound Instances.
+
+Local wildcard mappings still use loopback. Explicit Instance hosts and
+published bind addresses stay unchanged.
 An unset or blank value uses Consul's agent address, preserving Unix defaults.
 This setting adds no HTTP API field or domain property.
-The Windows generated setup supplies the native LAN identity separately from
-Consul's container bind address.
+The Windows Compose file reads `YARD_INSTANCE_HOST` from `.env`. If it is empty,
+the file uses `YARD_BIND_ADDRESS`, the LAN address that Consul advertises.
+Consul always listens on `0.0.0.0` inside Docker Desktop.
+`ws init` also writes `COMPOSE_PROJECT_NAME` to the Windows `.env`.
+`composeProjectName` makes it from the folder name and a short code of the full
+path, so two folders never share the `consul-data` volume.
 
 `InstanceHostComponentTest` checks the configured host through the existing
 dashboard API, pages, Backup export/import and Traefik configuration.

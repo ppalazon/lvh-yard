@@ -166,9 +166,7 @@ public class YardReader {
   private Service withRuntimeRouting(Service service) {
     if (!network.ipv4Only()
         || !service.routed()
-        || service.sources().stream()
-            .flatMap(source -> source.givenInstances().stream())
-            .allMatch(instance -> network.supports(instance.host()))) {
+        || service.givenInstances().allMatch(instance -> network.supports(instance.host()))) {
       return service;
     }
     List<InstanceSource> supported =
@@ -184,22 +182,7 @@ public class YardReader {
     Routing routing =
         Routing.of(supported, service.instancePriority(), workstation.is(service.workstation()))
             .orElse(null);
-    return new Service(
-        service.workstation(),
-        service.name(),
-        service.state(),
-        service.created(),
-        service.empty(),
-        service.publication(),
-        service.hostname(),
-        service.instances(),
-        service.containerBindings(),
-        service.warnings(),
-        service.sources(),
-        service.instancePriority(),
-        service.profiles(),
-        service.profileDefinitions(),
-        routing);
+    return service.withRouting(routing);
   }
 
   private YardWorkstation remote(String workstation) {

@@ -214,6 +214,10 @@ Runtime containers never receive the Yard CA private key.
 Consul stores Windows state in a named Docker volume scoped to the Compose
 project. Normal stop, start, recreate, image upgrade and Docker Desktop restart
 keep that volume. Deleting the Workstation Folder leaves this state in Docker.
+`lvh-yard ws init` writes the project name as `COMPOSE_PROJECT_NAME` in `.env`.
+It is the folder name in lowercase letters, digits and `-`, then a short code
+of the whole folder path. Two folders with the same name under different
+parents get different projects, so they never share Consul state.
 Keep the project name when reusing it; a different project selects different state.
 
 To reset this Workstation, first export a Backup to a protected location.
@@ -247,11 +251,12 @@ read on 2026-11-14.
 
 A Windows Workstation uses these addresses for different jobs:
 
-| Setting                         | Job                                                                                                                      |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `YARD_BIND_ADDRESS`             | The LAN address that Consul tells other Workstations. It is also the default Instance host. `ws init --address` sets it. |
-| Consul listen address           | Always `0.0.0.0` inside Docker Desktop. You cannot change it.                                                            |
-| Dashboard and Traefik listeners | `127.0.0.1` by default.                                                                                                  |
+| Setting                         | Job                                                                                      |
+| ------------------------------- | ---------------------------------------------------------------------------------------- |
+| `YARD_BIND_ADDRESS`             | The LAN address that Consul tells other Workstations. `ws init --address` sets it.       |
+| `YARD_INSTANCE_HOST`            | The host of Instances for other Workstations. If it is empty, it is `YARD_BIND_ADDRESS`. |
+| Consul listen address           | Always `0.0.0.0` inside Docker Desktop. You cannot change it.                            |
+| Dashboard and Traefik listeners | `127.0.0.1` by default.                                                                  |
 
 Docker Desktop makes only wildcard and loopback listeners of a container
 visible on the Windows computer. A Consul bind to the address of the Docker
@@ -283,9 +288,10 @@ Address selection has these limits:
   give its Instances no Route.
 - Names such as `host.docker.internal` are refused. An address must be an IPv4
   address.
-- A Static Instance without `--host` uses `YARD_BIND_ADDRESS`. It must listen
-  on that address or on every IPv4 address. A process that listens only on
-  `127.0.0.1` works for Local Scope only.
+- A Static Instance without `--host` uses `YARD_INSTANCE_HOST`, which is
+  `YARD_BIND_ADDRESS` unless you set it. It must listen on that address or on
+  every IPv4 address. A process that listens only on `127.0.0.1` works for
+  Local Scope only.
 
 ### Dashboard settings
 
@@ -417,7 +423,7 @@ lvh-yard ws set peers "192.168.1.10,192.168.1.11:8302"
 lvh-yard ws set dashboard-bind-address 0.0.0.0
 ```
 
-The setting names are `base-domain`, `peers`, `bind-address`,
+The setting names are `base-domain`, `peers`, `bind-address`, `instance-host`,
 `traefik-bind-address`, `dashboard-bind-address`, `http-port`,
 `traefik-admin-port`, `dashboard-port`, `consul-http-port`, `consul-dns-port`,
 `consul-grpc-tls-port`, `consul-server-port`, `consul-serf-lan-port`,
@@ -425,6 +431,8 @@ The setting names are `base-domain`, `peers`, `bind-address`,
 Addresses use IPv4. Ports run from 1 to 65535. `out-of-range` takes
 comma-separated CIDR ranges or an empty value. `stack-traces` takes `true` or `false`.
 `traefik` takes `on` or `off`.
+`instance-host` is for Windows only. It takes an IPv4 address, or an empty value
+to use `bind-address`.
 On Linux and macOS, an empty `bind-address` lets Consul choose its address.
 For Windows LAN identity and listener limits, see
 [Windows Workstation setup](#windows-workstation-setup).
@@ -1894,8 +1902,8 @@ Windows computer, and these limits apply:
   `0.0.0.0` and on `::`. A Windows Workstation uses only the IPv4 mapping. A
   port published only on an IPv6 address gives no Bound Instance.
 - `-p 8080:80` is open on `127.0.0.1` and on the LAN address of the Windows
-  computer. Local Scope uses `127.0.0.1`. Yard Scope uses the saved LAN
-  address, which is the default Instance host.
+  computer. Local Scope uses `127.0.0.1`. Yard Scope uses the Instance host,
+  which is the saved LAN address unless `YARD_INSTANCE_HOST` says otherwise.
 - `-p 127.0.0.1:8080:80` is open on the Windows computer only. A Service with
   Yard Scope keeps the Bound Instance at `127.0.0.1` and shows a warning.
   Other Workstations get no Route. To share the port, publish it on every

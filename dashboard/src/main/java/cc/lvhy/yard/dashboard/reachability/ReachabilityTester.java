@@ -116,9 +116,7 @@ public class ReachabilityTester {
   private boolean unsupportedOnly(Service service) {
     return network.ipv4Only()
         && service.routing() == null
-        && service.sources().stream()
-            .flatMap(source -> source.givenInstances().stream())
-            .anyMatch(instance -> !network.supports(instance.host()));
+        && service.givenInstances().anyMatch(instance -> !network.supports(instance.host()));
   }
 
   /**

@@ -28,8 +28,8 @@ func TestInitWritesNewWorkstationFolder(t *testing.T) {
 	env := readInitFile(t, folder, ".env")
 	uid, gid := "YARD_UID=1234", "YARD_GID=2345"
 	if runtime.GOOS == "windows" {
-		// The Windows template fixes the user at 1000:1000 and ignores the identity of the computer.
-		uid, gid = "YARD_UID=1000", "YARD_GID=1000"
+		// The Windows Compose file fixes the user at 1000:1000, so .env keeps these settings commented out.
+		uid, gid = "#YARD_UID=1000", "#YARD_GID=1000"
 	}
 	for _, setting := range []string{"YARD_WORKSTATION=ws-a", "YARD_BASE_DOMAIN=lvh.me", "YARD_PEERS=", "COMPOSE_PROFILES=dashboard,traefik", "YARD_TRAEFIK_ENABLED=true", uid, gid} {
 		if !strings.Contains(env, "\n"+setting+"\n") {
@@ -77,8 +77,8 @@ func TestInitWritesNewWorkstationFolder(t *testing.T) {
 		t.Fatalf("unexpected Route Profiles file: %v", err)
 	}
 	if runtime.GOOS == "windows" {
-		// The Windows template fixes the Docker group at 0, so there is nothing to warn about.
-		if strings.Contains(run.Stderr, "YARD_DOCKER_GID") || !strings.Contains(env, "\nYARD_DOCKER_GID=0\n") {
+		// The Windows Compose file fixes the Docker group at 0, so .env leaves the setting out and there is nothing to warn about.
+		if strings.Contains(run.Stderr, "YARD_DOCKER_GID") || !strings.Contains(env, "\n#YARD_DOCKER_GID=\n") {
 			t.Fatalf("unexpected Docker group handling: %+v", run)
 		}
 	} else if !strings.Contains(run.Stderr, "YARD_DOCKER_GID") {

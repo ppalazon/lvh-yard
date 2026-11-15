@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/ppalazon/lvh-yard/cli/internal/composefile"
@@ -13,13 +12,7 @@ import (
 )
 
 // upgradeServices are the services whose image the upgrade changes.
-var upgradeServices = func() []string {
-	services := []string{"consul", "traefik", "dashboard"}
-	if runtime.GOOS == "windows" {
-		services = append(services, "consul-data-init")
-	}
-	return services
-}()
+var upgradeServices = append([]string{"consul", "traefik", "dashboard"}, platformUpgradeServices...)
 
 func upgradeInit(options *Options, folder, ws string, out io.Writer) error {
 	text, images, err := readComposeImages(folder)
@@ -95,9 +88,9 @@ func writeFixedFiles(folder string) error {
 	if err := root.WriteFile("consul.d/00-lvh-yard.hcl", []byte(templates.Consul()), 0600); err != nil {
 		return fmt.Errorf("could not write fixed Consul options: %w", err)
 	}
-	if runtime.GOOS == "windows" {
-		if err := root.WriteFile("traefik/00-lvh-yard-windows.sh", []byte(templates.WindowsTraefik()), 0600); err != nil {
-			return fmt.Errorf("could not write Windows Traefik staging script: %w", err)
+	for _, file := range platformWorkstationFiles() {
+		if err := root.WriteFile(file.name, []byte(file.text), 0600); err != nil {
+			return fmt.Errorf("could not write %s: %w", file.name, err)
 		}
 	}
 	if _, err := root.Stat("consul.d/10-tls.hcl"); err == nil {

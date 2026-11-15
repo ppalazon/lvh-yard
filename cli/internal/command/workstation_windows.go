@@ -8,6 +8,8 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
+	"github.com/ppalazon/lvh-yard/cli/internal/templates"
 	"golang.org/x/sys/windows"
 )
 
@@ -186,3 +188,31 @@ func protectRootEntry(root *os.Root, name string, mode os.FileMode) error {
 	}
 	return protectFile(file, mode)
 }
+
+// lanAddressRequired is true: Consul advertises the LAN address that Compose reads from .env, so ws init needs one.
+const lanAddressRequired = true
+
+// platformWorkstationFiles are the files that only this platform's ws init writes.
+func platformWorkstationFiles() []workstationFile {
+	return []workstationFile{{"traefik/00-lvh-yard-windows.sh", templates.WindowsTraefik()}}
+}
+
+// platformUpgradeServices are the services whose image a ws init upgrade changes only on this platform.
+var platformUpgradeServices = []string{"consul-data-init"}
+
+// protectNewFolder makes the folder private before ws init writes a secret to it.
+func protectNewFolder(folder string) error { return protectWorkstationTree(folder) }
+
+// linkInFolderError refuses a link or junction: a change of permissions through it could reach outside the folder.
+func linkInFolderError(path string) error {
+	return fmt.Errorf("cannot protect %s: remove the link or junction from the Workstation Folder", path)
+}
+
+// fillPlatformEnv names the Compose project. Compose names the consul-data volume after it, so each Workstation
+// Folder needs its own name. The Compose file fixes the user and group, so .env needs no identity of this computer.
+func fillPlatformEnv(env *envfile.File, _ *Options, folder, _ string) error {
+	return env.Set("COMPOSE_PROJECT_NAME", composeProjectName(folder))
+}
+
+// dockerGroupWarning is empty: the Compose file gives the dashboard group 0 to read the Docker Desktop socket.
+func dockerGroupWarning(*envfile.File, string) string { return "" }

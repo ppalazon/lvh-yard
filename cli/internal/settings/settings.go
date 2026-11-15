@@ -20,6 +20,7 @@ var envKeys = map[string]string{
 	"base-domain":            "YARD_BASE_DOMAIN",
 	"peers":                  "YARD_PEERS",
 	"bind-address":           "YARD_BIND_ADDRESS",
+	"instance-host":          "YARD_INSTANCE_HOST",
 	"traefik-bind-address":   "YARD_TRAEFIK_BIND_ADDRESS",
 	"dashboard-bind-address": "YARD_DASHBOARD_BIND_ADDRESS",
 	"http-port":              "YARD_HTTP_PORT",
@@ -86,6 +87,8 @@ func buildRules() map[string]rule {
 	}
 	for name := range envKeys {
 		switch {
+		case name == "instance-host":
+			rules[name] = rule{"an IPv4 address such as 192.168.1.20, or an empty value to use bind-address", bindAddressChecker(true)}
 		case strings.HasSuffix(name, "bind-address"):
 			rules[name] = rule{"an IPv4 address such as 127.0.0.1", bindAddressChecker(name == "bind-address")}
 		case strings.HasSuffix(name, "-port"):

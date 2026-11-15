@@ -84,8 +84,3 @@ func editorCommand(editor string) (string, []string) {
 func (systemProcess) ID(flag string) string {
 	return ""
 }
-
-// socketGroup returns an empty string: a Windows file has no group ID.
-func socketGroup(info os.FileInfo) string {
-	return ""
-}

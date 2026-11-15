@@ -15,6 +15,7 @@ func TestWSSetValues(t *testing.T) {
 		{"base-domain", "YARD_BASE_DOMAIN", "example.test", "bad_domain", "example.test"},
 		{"peers", "YARD_PEERS", "10.0.0.1, 10.0.0.2:8302", "bad-peer", "10.0.0.1 10.0.0.2:8302"},
 		{"bind-address", "YARD_BIND_ADDRESS", "10.0.0.3", "bad", "10.0.0.3"},
+		{"instance-host", "YARD_INSTANCE_HOST", "10.0.0.7", "host.docker.internal", "10.0.0.7"},
 		{"traefik-bind-address", "YARD_TRAEFIK_BIND_ADDRESS", "0.0.0.0", "::1", "0.0.0.0"},
 		{"dashboard-bind-address", "YARD_DASHBOARD_BIND_ADDRESS", "127.0.0.1", "bad", "127.0.0.1"},
 		{"out-of-range", "YARD_OUT_OF_RANGE", "127.0.0.0/8,172.17.0.0/16", "10.0.0.0/99", "127.0.0.0/8,172.17.0.0/16"},
@@ -101,6 +102,7 @@ func TestWSSetEmptyAndBoundaryValues(t *testing.T) {
 	for _, test := range []struct{ name, key, value string }{
 		{"peers", "YARD_PEERS", ""},
 		{"bind-address", "YARD_BIND_ADDRESS", ""},
+		{"instance-host", "YARD_INSTANCE_HOST", ""},
 		{"out-of-range", "YARD_OUT_OF_RANGE", ""},
 		{"http-port", "YARD_HTTP_PORT", "1"},
 		{"http-port", "YARD_HTTP_PORT", "65535"},

@@ -12,7 +12,7 @@ import (
 )
 
 func TestCommittedTemplatesMatchRepositoryBytes(t *testing.T) {
-	for _, name := range []string{"compose.yaml", "compose.windows.yaml", "traefik-windows.sh", ".env.example", "lvh-yard.yaml", "00-lvh-yard.hcl", "10-tls.hcl", "10-tls.yaml"} {
+	for _, name := range []string{"compose.yaml", "compose.windows.yaml", "traefik-windows.sh", ".env.example", ".env.windows.example", "lvh-yard.yaml", "00-lvh-yard.hcl", "10-tls.hcl", "10-tls.yaml"} {
 		t.Run(name, func(t *testing.T) {
 			root, err := os.ReadFile(filepath.Join("..", "..", "..", "config", name))
 			if err != nil {
@@ -55,29 +55,17 @@ func TestComposeSelectsPlatformAndVersion(t *testing.T) {
 	}
 }
 
-func TestEnvSelectsPlatformDefaults(t *testing.T) {
-	source, err := os.ReadFile(".env.example")
+func TestEnvSelectsPlatformTemplate(t *testing.T) {
+	name := ".env.example"
+	if runtime.GOOS == "windows" {
+		name = ".env.windows.example"
+	}
+	source, err := os.ReadFile(name)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := templates.Env()
-	if runtime.GOOS != "windows" {
-		if got != string(source) {
-			t.Fatal("Unix environment defaults changed")
-		}
-		return
-	}
-	for _, setting := range []string{"YARD_UID=1000", "YARD_GID=1000", "YARD_DOCKER_GID=0", "YARD_BIND_ADDRESS="} {
-		found := false
-		for line := range strings.SplitSeq(got, "\n") {
-			if line == setting {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Windows environment lacks %s", setting)
-		}
+	if templates.Env() != string(source) {
+		t.Fatalf("Env is not the bytes of %s", name)
 	}
 }
 

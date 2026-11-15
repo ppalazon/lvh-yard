@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"runtime"
 )
 
 // protectWorkstationFolder checks the folder's storage, then makes the whole folder private. A caller
@@ -30,10 +29,7 @@ func protectWorkstationTree(folder string) error {
 		}
 		// Do not change permissions outside the Workstation Folder through a link.
 		if entry.Type()&os.ModeSymlink != 0 {
-			if runtime.GOOS == "windows" {
-				return fmt.Errorf("cannot protect %s: remove the link or junction from the Workstation Folder", path)
-			}
-			return nil
+			return linkInFolderError(path)
 		}
 		mode := os.FileMode(0600)
 		if entry.IsDir() {
