@@ -359,11 +359,14 @@ not use a macOS Workstation.
 
 Address selection has these limits:
 
-- Setup suggests an address only when one adapter qualifies. It skips
-  adapters that are down, loopback and link-local addresses, and adapters
-  whose name contains `vEthernet`, `WSL` or `docker`. It does not skip a VPN
-  adapter. With a VPN adapter, setup asks you to choose, or needs `--address`
-  when no terminal is available.
+- Setup suggests the address of the adapter that holds the default route. It
+  skips adapters that are down, loopback and link-local addresses, and adapters
+  whose name contains `vEthernet`, `WSL` or `docker`. It suggests nothing when
+  that adapter looks like a VPN or virtual adapter: its name or description
+  has `vpn`, `tap`, `tun`, `wireguard`, `wintun`, `ppp`, `tailscale`,
+  `zerotier`, `hyper-v`, `vmware` or `virtualbox`, or it is a point-to-point
+  adapter. Then setup asks you to choose, or needs `--address` when no
+  terminal is available.
 - `--address` takes any specific IPv4 address that is not loopback,
   link-local or `0.0.0.0`. It does not check which adapter has the address or
   whether other Workstations reach it. Use the address of your LAN adapter.

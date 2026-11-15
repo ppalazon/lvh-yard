@@ -1,5 +1,6 @@
-# The checks of a pull request and of main. They are the same as `mise run check`, `mise run fmt` and
-# `mise run secrets` on your computer.
+# The checks of a pull request and of main. The `check`, `format` and `secrets` jobs are the same as `mise run check`,
+# `mise run fmt` and `mise run secrets` on your computer. The Windows jobs have no `mise` task: they run the
+# native tests of `dev/test-windows-native.ps1` on a Windows runner.
 name: CI
 
 on:
