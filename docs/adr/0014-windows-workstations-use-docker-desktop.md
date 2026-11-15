@@ -66,8 +66,7 @@ HTTP and TCP transports. That alternative preserves IPv6 targets but adds
 transport code and runtime verification. The approved scope keeps the stock
 Java clients and limits Windows to IPv4.
 
-The measured outputs are `03-java-ipv4-probe.out`,
-`03-java-ipv4-corrected.out` and `03-java-ipv6-impact.out` under
-`~/.local/state/lvh-yard-windows-11/evidence/`. The Windows Workstation
-acceptance record must include these results before release. This ADR remains
-proposed until the remaining release gates pass.
+The measured outputs are recorded in
+[the Java socket measurements](../../.scratch/windows-11/evidence/03-java-ipv4-measurements.md).
+The Windows Workstation acceptance record must include these results before
+release. This ADR remains proposed until the remaining release gates pass.

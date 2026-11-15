@@ -418,7 +418,7 @@ Two jobs run the Windows CLI on a real Windows system:
    `YARD_TEST_OTHER_USER` and `YARD_TEST_OTHER_PASSWORD` to make that test
    run, and it must then pass.
 3. It runs each unit test binary in the folder of its package. All must pass,
-   and four Windows-only tests must have run, so a build constraint cannot
+   and six Windows-only tests must have run, so a build constraint cannot
    hide them.
 4. It runs `dev/test-install-windows.ps1` with `docs/site/install.ps1` and the
    packaged archives. The script seeds the user PATH with a real `%USERPROFILE%`

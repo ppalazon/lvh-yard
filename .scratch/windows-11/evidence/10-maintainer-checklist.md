@@ -1,0 +1,101 @@
+# Windows 11 Workstation: maintainer checklist
+
+Nothing below is done. Each item is a decision or an action that belongs to the maintainer. The evidence is in
+[10-windows-acceptance.md](10-windows-acceptance.md). Ticket 10 and ticket 02 stay `ready-for-human`.
+
+## 1. Review the evidence
+
+- [ ] Read [10-windows-acceptance.md](10-windows-acceptance.md) and the evidence files `01` to `09` and `10-native-ci.md`.
+      Decide whether the observed results meet every release gate of the specification.
+- [ ] Decide about the two results that did not pass cleanly in the integrated pass:
+  - A native PowerShell listener on `0.0.0.0` was not reachable from the Linux host, while a container listener on the
+    same address was. The cause was not confirmed. A Yard Scope Publication of a native Windows process may need a
+    Windows Firewall rule that the user adds.
+  - `status --strict` fails when Consul TLS is on and a Yard peer has none. The CLI says so. The user guide should say
+    that every Workstation in the Yard needs Consul TLS.
+- [ ] Decide whether the gaps are acceptable or need another run:
+  - The second LAN computer is a Linux host. No Windows or macOS peer was used.
+  - No real second eligible adapter (VPN, VirtualBox, VMware) was produced. The ambiguity rule is a unit test only.
+  - Only Docker Desktop 4.99.0 was tested. The guide asks for 4.34 or later.
+  - The Windows build is `10.0.26300.9974`. I did not check whether it is a release or a preview build.
+  - PowerShell 7 ran the native checks and a smoke test, not the whole journey.
+  - Wildcard-published and explicit-bind container ports, the Docker Desktop restart, image upgrade, destructive
+    reset, NTFS live reload and Backup import were observed in the earlier tickets and not repeated.
+  - `certmgr.msc`, the import wizard and Firefox's store, and SmartScreen, need a desktop session and were not run.
+
+## 2. Publish the release
+
+The release and site workflows are `.github/workflows/release.yml` and `.github/workflows/pages.yml`. I pushed and
+tagged nothing.
+
+- [ ] Push a test tag such as `v0.0.0-rc.1` first, as `docs/development.md` describes. Check that the release holds
+      the Windows ZIP with `lvh-yard.exe` and `LICENSE`, and that `SHA256SUMS` lists it.
+- [ ] Deploy the site so that `install.ps1` is served. `mise run site:build` copies it to `docs/site/dist` (observed
+      locally); no deployment was observed.
+- [ ] Run the documented install command on the real Windows 11 computer against the published files. The tested ZIPs
+      were built locally by `dev/package-cli.sh`. The release job builds its own. Compare them, or run
+      `dev/test-windows-native.ps1` against the published archives.
+- [ ] Run the `windows` CI job on GitHub once. It never ran there. Check the artifact transfer, the `cmd` step, the
+      runner's shells and line endings after checkout.
+
+## 3. Decide about CI
+
+- [ ] The `windows` job runs as an administrator, because a hosted runner does. It cannot show ordinary-user
+      behavior. I could not make an ordinary-user process on an elevated session: a restricted token and
+      `Start-Process -Credential` both failed (`10-native-ci.md`). Decide whether to add a non-administrator step,
+      for example on a self-hosted runner, or to keep the manual Windows 11 acceptance as the only ordinary-user proof.
+- [ ] Decide whether the native job also runs the unit test binaries on every pull request (it does now) or only on
+      release tags. It takes about 35 to 50 s on the VM.
+
+## 4. Decide about the firewall policy
+
+- [ ] Docker's backend has inbound Allow rules on the Private and Public profiles on the test VM. They are user-owned,
+      and I preserved them. They let wildcard container listeners (Consul's federation ports, and any container
+      that binds `0.0.0.0`) reach the LAN and any network that the profile covers. Decide what the user guide tells
+      users: keep the broad rules, narrow them to the Yard's addresses, or prefer a rule for each port.
+- [ ] Decide whether the guide states that a native Windows process in a Yard Scope Publication needs its own
+      firewall rule (see item 1).
+
+## 5. Reconcile the decision records
+
+- [ ] Accept, change or reject ADR-0014 through the repository's decision-recording process. It is `proposed`. I did
+      not change its status. Facts observed since it was written, for you to fold in or leave out:
+  - Docker Desktop forwards only wildcard and loopback listeners, so Consul binds `0.0.0.0` and advertises the LAN
+    address (ticket 05).
+  - The Instance host is a separate setting, `instance-host` (`YARD_INSTANCE_HOST`), that defaults to the LAN address.
+  - The generated `.env` carries `COMPOSE_PROJECT_NAME`, so the Consul volume belongs to one folder.
+  - The Windows setup is IPv4-only, as approved on 2026-11-14.
+- [ ] The ADR now cites [03-java-ipv4-measurements.md](03-java-ipv4-measurements.md), a file under `.scratch/`.
+      `CLAUDE.md` says to delete a feature's folder when its tickets are done. Move that file, or its facts, to a
+      durable place before the folder goes.
+- [ ] I changed one line of ADR-0010, an accepted ADR: its dependency bullet now names `go-pkcs12` and
+      `golang.org/x/sys`. The skill for decision records allows only a status change to an accepted ADR. Keep the
+      edit, or revert it and record the change as a new entry.
+
+## 6. Documentation after your approval
+
+- [ ] README: add the Windows install line and the platform list. Today `README.md` shows only `install.sh` and no
+      Windows text (review item 26). Keep it short, link to the user guide, and state the exclusions and the
+      unsigned-binary warning.
+- [ ] Landing page: `docs/site/index.html` has the hero terminal (about line 168), "1. Install" (about line 210) and
+      "What you need" (about line 544). They show only the Unix installer and no Windows platform line.
+- [ ] User guide (review item 22): `docs/user-guide.md` line 146 says "This setup is a draft ... Windows runtime
+      acceptance is not complete", and `docs/development.md` line 181 says it too. Remove or move the status text only
+      after you approve. I did not touch either, as instructed.
+- [ ] User guide wording to review when you approve: the native-process firewall note, the Consul TLS note for mixed
+      Yards, and the statement of Docker Desktop versions tested.
+- [ ] Review item 24 ("reparse points" in user text) no longer appears in `docs/` or the README (`grep`).
+- [ ] `docs/development.md` has the release matrix and the new count of six required Windows-only tests. Check the
+      "Releasing" proof steps against the first real release.
+
+## 7. Clean up the test fixtures
+
+I removed nothing. These are stopped:
+
+- Containers `lvhy-win-10-*`, `lvhy-win-10p7-*`, `lvhy-win10-box`, `lvhy-win10-yard`, `lvhy-win10-control`; network
+  `lvhy-win10-net-a`; volumes `lvhy-win-10_consul-data` and `lvhy-win-10p7_consul-data`.
+- Folders `C:\Users\yarddev\lvh-dev\10\journey51`, `journey7` and `run`, and the image tag
+  `lvhy-win10-dashboard:acceptance`.
+- On the host: `~/.local/state/lvh-yard-windows-11/bin/10-*` and `evidence/10-*`.
+
+The Linux peer `lvhy-win-peer` was left running with its earlier `YARD_PEERS`.

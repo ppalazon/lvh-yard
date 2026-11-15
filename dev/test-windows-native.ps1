@@ -114,7 +114,7 @@ try {
         $unitOutput += $lines
     }
     # A build constraint that drops a Windows-only test would hide it, so check that each ran and passed.
-    foreach ($name in 'TestWindowsWorkstationUsesLocalAppData', 'TestWindowsWorkstationRejectsJunctionEscape', 'TestWindowsLANAddressIsOnAnAdapterWithAGateway', 'TestWindowsProtectionDeniesAnotherUserByEffectiveAccess') {
+    foreach ($name in 'TestWindowsWorkstationUsesLocalAppData', 'TestWindowsWorkstationRejectsJunctionEscape', 'TestWindowsLANAddressIsOnAnAdapterWithAGateway', 'TestWindowsProtectionDeniesAnotherUserByEffectiveAccess', 'TestWindowsInitNamesTheComposeProjectOfEachFolder', 'TestWindowsSetsTheInstanceHostApartFromTheAdvertisedAddress') {
         Assert (@($unitOutput | Where-Object { $_ -match "^--- PASS: $name " }).Count -eq 1) "$name did not pass"
     }
     Write-Output "PASS unit tests: $(@($unitOutput | Where-Object { $_ -match '^--- PASS: ' }).Count) passed, $(@($unitOutput | Where-Object { $_ -match '^--- SKIP: ' }).Count) skipped"

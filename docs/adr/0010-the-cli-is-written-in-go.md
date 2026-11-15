@@ -19,6 +19,6 @@ The `lvh-yard` executable that GraalVM builds is 49 MB, and the release needs Gr
 - The repo has two languages and two build tools. Maven builds the dashboard, and `go` builds the CLI.
 - Only the names of commands and options are a contract. Help text, completion scripts and exit codes (0 or 1) follow the Go libraries.
 - The Go client has no code generated from `openapi.yaml`. One test fails when the client calls a method and path that the document lacks. It cannot see a renamed JSON field.
-- The dependencies are `net/http`, `encoding/json`, Cobra, and one YAML module for `profiles` only.
+- The dependencies are `net/http`, `encoding/json`, Cobra, one YAML module for `profiles` only, `go-pkcs12` for Client Certificate files, and `golang.org/x/sys` for Windows file ACLs (only Windows files import it).
 - `init` embeds `compose.yaml` and `.env.example` with `go:embed`. It cannot read files outside its module, so the CLI keeps committed copies, and a test fails when a copy differs from the file at the repo root.
 - The release drops `cli-native`, GraalVM, `NativeRecords` and the second test run against the executable.
