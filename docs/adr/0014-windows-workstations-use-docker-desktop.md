@@ -24,9 +24,11 @@ Use platform-appropriate Compose setup while preserving direct Docker Compose us
 
 Keep configuration, certificates and exported Backups in the Windows Workstation Folder. Use a named Docker volume for Consul state so its Linux ownership does not depend on NTFS bind-mount identity mapping. Initialize volume ownership separately and keep the long-lived runtime processes non-root.
 
+On Windows, Consul starts with `-bind=0.0.0.0` and advertises the LAN address in `YARD_BIND_ADDRESS`, because Docker Desktop forwards only wildcard and loopback listeners of a container to the computer. A bind to the address of the Docker virtual machine was not reachable from the LAN. So Consul listens on every adapter, `bind-address` sets only the advertised address, and the Windows Firewall is what limits who can reach Consul.
+
 Protect Windows files with ACLs, preserving Docker's required access. Do not represent Unix permission modes as an effective Windows privacy boundary.
 
-## Considered options
+## Considered Options
 
 - Keep the Linux Compose setup unchanged. Its strength is one configuration model, but it conflates container binding with the Windows LAN identity and relies on Unix ownership assumptions.
 - Use a bridge network and require published container ports. Explicit port mapping would simplify the runtime boundary, but requiring publication would reduce the routing contract approved in the specification.

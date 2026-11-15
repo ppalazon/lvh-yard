@@ -145,7 +145,7 @@ to the dashboard.
 This setup is a draft for Windows 11 x64 development checks.
 Windows runtime acceptance is not complete.
 
-Use Docker Desktop 4.34 or later with Linux containers and the WSL2 backend.
+Use Docker Desktop with Linux containers and the WSL2 backend. The tests used Docker Desktop 4.99.0.
 In Docker Desktop, enable host networking and disable Enhanced Container
 Isolation. The CLI does not change Docker settings, Windows Firewall or
 PowerShell execution policy. See
@@ -332,8 +332,11 @@ A Windows Workstation uses these addresses for different jobs:
 
 Docker Desktop makes only wildcard and loopback listeners of a container
 visible on the Windows computer. A Consul bind to the address of the Docker
-virtual machine was not reachable from the LAN. So Consul listens on every
-address and advertises only `YARD_BIND_ADDRESS`.
+virtual machine was not reachable from the LAN. So on Windows, Consul starts
+with `-bind=0.0.0.0` and listens on every adapter. `bind-address` sets only the
+address that Consul advertises to other Workstations. It does not limit where
+Consul listens. Windows Firewall is what limits who can reach Consul, so allow
+only the Yard's addresses, as described next.
 
 The Consul server port (TCP, default 8300) and the WAN gossip port (TCP and
 UDP, default 8302) must be reachable from the other Workstations.
@@ -350,9 +353,9 @@ as any other: it needs a Consul certificate that the Yard CA signed for its
 name, and it keeps the Consul TLS mode of the Yard. The Windows CLI does not
 copy certificates over ssh. Hand the files over by hand, as the sender or as the
 recipient: see [Handing certificates over by hand](#handing-certificates-over-by-hand).
-A Windows Workstation can hold the Yard CA key and send, or receive from a Linux or macOS sender.
-Docker Desktop publishes the Consul server and WAN gossip ports for TLS
-exactly as it does without it.
+A Windows Workstation can hold the Yard CA key and send or receive certificates.
+The tests joined a Windows and a Linux Workstation with Consul TLS. They did
+not use a macOS Workstation.
 
 Address selection has these limits:
 
@@ -733,8 +736,8 @@ Import only `ca.crt`, never `ca.key` or a Workstation's private key.
 Trusting the CA lets the browser trust any website certificate it signs.
 To remove that trust, remove the CA from the same certificate store.
 
-On Windows, Edge and Chrome use the Windows certificate store. Import the CA
-for your user, without administrator rights:
+On Windows, import the CA into your user's certificate store, without
+administrator rights. The tests ran no browser for this step:
 
 ```powershell
 $ws = "$env:LOCALAPPDATA\lvh-yard\workstation"   # or the folder you chose
@@ -743,8 +746,6 @@ Import-Certificate -FilePath "$ws\ca\ca.crt" -CertStoreLocation Cert:\CurrentUse
 
 The command needs a desktop session. Over SSH it fails with
 `UI is not allowed in this operation`.
-You can also open `certmgr.msc`, right-click **Trusted Root Certification
-Authorities**, choose **All Tasks**, **Import**, and select `ca.crt`.
 Firefox has its own store: use its Authorities tab. To remove the trust, delete
 the certificate from the same store. To check a certificate without changing
 trust, name the file for one request:
@@ -785,10 +786,8 @@ $password = Read-Host -AsSecureString 'Password of alice.p12'
 Import-PfxCertificate -FilePath "$ws\ca\clients\alice.p12" -CertStoreLocation Cert:\CurrentUser\My -Password $password
 ```
 
-Or double-click the file, choose **Current User**, and enter its password in
-the Certificate Import Wizard. Edge and Chrome then offer the certificate for
-a Route that asks for one. Firefox needs its own import, as above. To check the
-import without a browser, give `curl.exe` the thumbprint that
+Firefox needs its own import, as above. The tests did not use a browser for
+this step. To check the import without a browser, give `curl.exe` the thumbprint that
 `Import-PfxCertificate` printed:
 `curl.exe --ssl-no-revoke --cacert "$ws\ca\ca.crt" --cert "CurrentUser\MY\<thumbprint>" https://admin.lvh.me/`.
 Remove it with `Remove-Item Cert:\CurrentUser\My\<thumbprint>`.

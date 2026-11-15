@@ -16,12 +16,15 @@ Nothing below is done. Each item is a decision or an action that belongs to the 
 - [ ] Decide whether the gaps are acceptable or need another run:
   - The second LAN computer is a Linux host. No Windows or macOS peer was used.
   - No real second eligible adapter (VPN, VirtualBox, VMware) was produced. The ambiguity rule is a unit test only.
-  - Only Docker Desktop 4.99.0 was tested. The guide asks for 4.34 or later.
+  - Only Docker Desktop 4.99.0 was tested. The guide says so. It no longer asks for 4.34 or later, because no
+    evidence shows that version.
   - The Windows build is `10.0.26300.9974`. I did not check whether it is a release or a preview build.
   - PowerShell 7 ran the native checks and a smoke test, not the whole journey.
   - Wildcard-published and explicit-bind container ports, the Docker Desktop restart, image upgrade, destructive
     reset, NTFS live reload and Backup import were observed in the earlier tickets and not repeated.
-  - `certmgr.msc`, the import wizard and Firefox's store, and SmartScreen, need a desktop session and were not run.
+  - `certmgr.msc`, the import wizard, Edge and Chrome offering a Client Certificate, Firefox's store and SmartScreen
+    need a desktop session and were not run. The guide no longer describes them.
+  - No macOS Workstation took part in the TLS handoff. The guide names only the Linux test.
 
 ## 2. Publish the release
 
@@ -59,9 +62,8 @@ tagged nothing.
 ## 5. Reconcile the decision records
 
 - [ ] Accept, change or reject ADR-0014 through the repository's decision-recording process. It is `proposed`. I did
-      not change its status. Facts observed since it was written, for you to fold in or leave out:
-  - Docker Desktop forwards only wildcard and loopback listeners, so Consul binds `0.0.0.0` and advertises the LAN
-    address (ticket 05).
+      not change its status. It now records that Consul binds `0.0.0.0` on Windows and advertises the LAN address.
+      Facts observed since it was written, for you to fold in or leave out:
   - The Instance host is a separate setting, `instance-host` (`YARD_INSTANCE_HOST`), that defaults to the LAN address.
   - The generated `.env` carries `COMPOSE_PROJECT_NAME`, so the Consul volume belongs to one folder.
   - The Windows setup is IPv4-only, as approved on 2026-11-14.
