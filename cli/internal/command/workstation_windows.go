@@ -142,16 +142,14 @@ func protectFile(file *os.File, _ os.FileMode) error {
 	if err != nil {
 		return err
 	}
-	dacl, _, err := descriptor.DACL()
-	if err != nil {
-		return err
-	}
+	// Every entry of the folder is protected by itself. SetSecurityInfo would also push this DACL
+	// into children, which includes a hard link to a file outside the folder.
 	handle, err := reopenSecurityHandle(file)
 	if err != nil {
 		return fmt.Errorf("could not reopen the rooted file for ACL access: %w", err)
 	}
 	defer func() { _ = windows.CloseHandle(handle) }()
-	if err := windows.SetSecurityInfo(handle, windows.SE_FILE_OBJECT, windows.DACL_SECURITY_INFORMATION|windows.PROTECTED_DACL_SECURITY_INFORMATION, nil, nil, dacl, nil); err != nil {
+	if err := windows.SetKernelObjectSecurity(handle, windows.DACL_SECURITY_INFORMATION|windows.PROTECTED_DACL_SECURITY_INFORMATION, descriptor); err != nil {
 		return fmt.Errorf("could not set the private DACL: %w", err)
 	}
 	return nil

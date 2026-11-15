@@ -579,6 +579,23 @@ Import only `ca.crt`, never `ca.key` or a Workstation's private key.
 Trusting the CA lets the browser trust any website certificate it signs.
 To remove that trust, remove the CA from the same certificate store.
 
+On Windows, Edge and Chrome use the Windows certificate store. Import the CA
+for your user, without administrator rights:
+
+```powershell
+$ws = "$env:LOCALAPPDATA\lvh-yard\workstation"   # or the folder you chose
+Import-Certificate -FilePath "$ws\ca\ca.crt" -CertStoreLocation Cert:\CurrentUser\Root
+```
+
+The command needs a desktop session. Over SSH it fails with
+`UI is not allowed in this operation`.
+You can also open `certmgr.msc`, right-click **Trusted Root Certification
+Authorities**, choose **All Tasks**, **Import**, and select `ca.crt`.
+Firefox has its own store: use its Authorities tab. To remove the trust, delete
+the certificate from the same store. To check a certificate without changing
+trust, name the file for one request:
+`curl.exe --ssl-no-revoke --cacert "$ws\ca\ca.crt" https://app.lvh.me/`.
+
 #### Client Certificates
 
 On the Workstation with the Yard CA key, run
@@ -603,6 +620,24 @@ system may manage this store. Follow its import instructions if so.
 When a Route asks for a Client Certificate, select Alice's certificate.
 Import the Yard CA for website trust as described above, too.
 Share the `.p12` file and its password only with the person it identifies.
+
+On Windows, `ca/clients/alice.p12` stays private like the other secrets: other
+Windows users cannot read it. A copy in another folder gets that folder's
+access rights, so import the file and delete the copy. To import it for your
+user, run:
+
+```powershell
+$password = Read-Host -AsSecureString 'Password of alice.p12'
+Import-PfxCertificate -FilePath "$ws\ca\clients\alice.p12" -CertStoreLocation Cert:\CurrentUser\My -Password $password
+```
+
+Or double-click the file, choose **Current User**, and enter its password in
+the Certificate Import Wizard. Edge and Chrome then offer the certificate for
+a Route that asks for one. Firefox needs its own import, as above. To check the
+import without a browser, give `curl.exe` the thumbprint that
+`Import-PfxCertificate` printed:
+`curl.exe --ssl-no-revoke --cacert "$ws\ca\ca.crt" --cert "CurrentUser\MY\<thumbprint>" https://admin.lvh.me/`.
+Remove it with `Remove-Item Cert:\CurrentUser\My\<thumbprint>`.
 
 ### A host without Traefik
 

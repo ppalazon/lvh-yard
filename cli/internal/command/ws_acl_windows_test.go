@@ -155,3 +155,64 @@ func TestWindowsProtectionDeniesAnotherUserByEffectiveAccess(t *testing.T) {
 		_ = file.Close()
 	}
 }
+
+func fileDACL(t *testing.T, path string) string {
+	t.Helper()
+	descriptor, err := windows.GetNamedSecurityInfo(path, windows.SE_FILE_OBJECT, windows.DACL_SECURITY_INFORMATION)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return descriptor.String()
+}
+
+// Windows pushes a changed folder DACL into the children that inherit it, and a hard link in the folder
+// is such a child. The command may refuse the link, but it must not change the file outside the folder.
+func TestWindowsProtectionLeavesAHardLinkedOutsideFileAlone(t *testing.T) {
+	yard := commandtest.New(t)
+	folder := filepath.Join(t.TempDir(), "private")
+	for _, args := range [][]string{
+		{"ws", "init", "--dir", folder, "--workstation", "native"},
+		{"ws", "tls", "ca", "create", "--dir", folder},
+	} {
+		if run := yard.Run(args...); run.ExitCode != 0 {
+			t.Fatalf("%v: %+v", args, run)
+		}
+	}
+	// The outside folder grants Users read to what it holds, and the outside file inherits that.
+	outside := t.TempDir()
+	user, err := windows.GetCurrentProcessToken().GetTokenUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	descriptor, err := windows.SecurityDescriptorFromString("D:(A;OICI;FA;;;" + user.User.Sid.String() + ")(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FR;;;BU)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dacl, _, err := descriptor.DACL()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := windows.SetNamedSecurityInfo(outside, windows.SE_FILE_OBJECT, windows.DACL_SECURITY_INFORMATION|windows.PROTECTED_DACL_SECURITY_INFORMATION, nil, nil, dacl, nil); err != nil {
+		t.Fatal(err)
+	}
+	victim := filepath.Join(outside, "victim.txt")
+	if err := os.WriteFile(victim, []byte("victim"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	clients := filepath.Join(folder, "ca", "clients")
+	if err := os.MkdirAll(clients, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link(victim, filepath.Join(clients, "hard.txt")); err != nil {
+		t.Fatal(err)
+	}
+	before := fileDACL(t, victim)
+
+	run := yard.Run("ws", "tls", "ca", "issue", "user", "erin", "--password", "x", "--dir", folder)
+	if run.ExitCode == 0 {
+		t.Fatalf("a hard link in the folder was accepted: %+v", run)
+	}
+	if after := fileDACL(t, victim); after != before {
+		t.Errorf("the file outside the folder changed its access:\nbefore %s\nafter  %s", before, after)
+	}
+}
