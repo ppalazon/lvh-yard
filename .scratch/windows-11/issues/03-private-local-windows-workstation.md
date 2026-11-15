@@ -4,14 +4,16 @@
 
 **Blocked by:** 01: Run native Windows CLI workflows.
 
-**Status:** done
+**Status:** ready-for-human
 
-- [x] On Windows 11 x64, setup supports Docker Desktop 4.34 or later with Linux containers, the WSL2 backend, host networking enabled and Enhanced Container Isolation disabled. Explain these prerequisites without changing Docker settings automatically.
+- [ ] On Windows 11 x64, setup supports Docker Desktop 4.34 or later with Linux containers, the WSL2 backend, host networking enabled and Enhanced Container Isolation disabled. Explain these prerequisites without changing Docker settings automatically.
+      Open: only Docker Desktop 4.99.0 was tested, and no evidence records the Enhanced Container Isolation setting. The user guide says 4.99.0 was tested.
 - [x] Interactive setup creates the Workstation Folder in the application's LocalAppData folder by default. Explicit supported folder overrides work, including spaces, apostrophes and Unicode.
 - [x] Require local NTFS storage and give clear guidance for unsupported shared or synced Workstation Folders. A successful write alone is not presented as evidence of supported storage.
 - [x] Apply effective Windows ACL protection to private configuration and secrets while preserving required Docker access. A second ordinary local user cannot read protected secrets; testing ACL declarations alone is insufficient.
 - [x] Preserve rooted-filesystem containment. Windows-invalid output filenames and escaping reparse points fail with actionable errors rather than writing outside the intended location.
-- [x] Suggest a suitable LAN IPv4 address and allow override. Multiple suitable adapters require a choice; ambiguous noninteractive setup requires an explicit value rather than silently choosing a VPN or VM address.
+- [ ] Suggest a suitable LAN IPv4 address and allow override. Multiple suitable adapters require a choice; ambiguous noninteractive setup requires an explicit value rather than silently choosing a VPN or VM address.
+      Open: the test VM has one eligible adapter, so no real Windows run had two. The default-route rule and the VPN or virtual adapter refusal are unit tests only.
 - [x] Separate container binding, Consul advertisement and the default Instance host. Unsupported native interface binding is rejected instead of silently becoming a wildcard listener.
 - [x] The generated Windows Compose setup validates and starts directly from the Workstation Folder without hidden launch-time overlays or CLI-only environment preparation.
 - [x] Consul and the dashboard run non-root. Consul can write its project-scoped named volume, and the dashboard can read the Docker socket and write a Backup into the protected folder.

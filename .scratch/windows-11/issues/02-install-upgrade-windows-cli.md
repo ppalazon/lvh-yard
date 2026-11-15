@@ -6,7 +6,8 @@
 
 **Status:** ready-for-human
 
-- [x] Release packaging produces a Windows x64 ZIP containing the executable and license. Archive upload, release publication and SHA256SUMS include that ZIP.
+- [ ] Release packaging produces a Windows x64 ZIP containing the executable and license. Archive upload, release publication and SHA256SUMS include that ZIP.
+      Open: `dev/package-cli.sh` built the ZIP locally. `release.yml` never ran, so no upload, release or `SHA256SUMS` that lists the ZIP was observed.
 - [ ] The PowerShell installer reaches the published installation assets through the existing site build. Verify the installer against actual packaged artifacts before the final support announcement.
 - [x] Installation works as an ordinary user under Windows PowerShell 5.1 and PowerShell 7. The installed executable reports its version from a newly opened terminal.
 - [x] The installer verifies the selected archive against SHA256SUMS before installing it. A mismatch rejects the archive without replacing the installed executable.
