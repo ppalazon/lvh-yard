@@ -95,3 +95,24 @@ func TestIsGlobalUnicastIPv4(t *testing.T) {
 		t.Error("nil address was accepted")
 	}
 }
+
+func TestCheckInstanceHost(t *testing.T) {
+	for value, refused := range map[string]bool{
+		"":                false, // follows bind-address
+		"192.168.122.200": false,
+		"10.0.0.7":        false,
+		"127.0.0.1":       false, // Local Scope: a process on loopback is a normal Instance
+		"169.254.1.1":     false,
+		"0.0.0.0":         true,
+		"224.0.0.1":       true,
+		"255.255.255.255": true,
+	} {
+		err := checkInstanceHost(value)
+		if refused && (err == nil || !strings.Contains(err.Error(), value)) {
+			t.Errorf("%q: got %v, want a refusal that names the value", value, err)
+		}
+		if !refused && err != nil {
+			t.Errorf("%q: got %v, want it accepted", value, err)
+		}
+	}
+}
