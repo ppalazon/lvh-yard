@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.server.ResponseStatusException;
 
 /** Browses this Workstation's containers and creates a Service from one target. */
 @Controller
@@ -39,7 +40,27 @@ class ContainersPagesController {
 
   @GetMapping(path = ContainersPage.PATH, produces = MediaType.TEXT_HTML_VALUE)
   @ResponseBody
-  String containers() {
+  String containers(
+      @RequestParam(required = false) String state,
+      @RequestParam(required = false) String followed) {
+    var filters =
+        new ContainersPage.Filters(
+            blank(state)
+                ? ContainersPage.Filters.DEFAULT.state()
+                : ContainersPage.StateFilter.named(state)
+                    .orElseThrow(() ->
+                        new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST,
+                            "The state " + state + " is unknown. Use running, stopped or all.")),
+            blank(followed)
+                ? ContainersPage.Filters.DEFAULT.followed()
+                : ContainersPage.FollowedFilter.named(followed)
+                    .orElseThrow(() ->
+                        new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST,
+                            "The value "
+                                + followed
+                                + " is unknown. Use no, yes or all for followed.")));
     List<ListedContainer> listed = List.of();
     String problem = null;
     try {
@@ -47,7 +68,11 @@ class ContainersPagesController {
     } catch (UnreadableDockerException e) {
       problem = e.getMessage();
     }
-    return ContainersPage.render(workstation, listed, problem);
+    return ContainersPage.render(workstation, listed, filters, problem);
+  }
+
+  private static boolean blank(String value) {
+    return value == null || value.isBlank();
   }
 
   @GetMapping(path = CreateContainerServicePage.PATH, produces = MediaType.TEXT_HTML_VALUE)

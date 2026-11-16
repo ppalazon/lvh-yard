@@ -38,6 +38,8 @@ func NewCompletions(options *Options) *cobra.Command {
 func finishCommands(root *cobra.Command) {
 	addVersionFlags(root)
 	completeValues(root, []string{"catalog"}, "state", []string{"unpublished", "unavailable", "unhealthy", "degraded", "healthy"})
+	completeValues(root, []string{"containers"}, "state", containerStates)
+	completeValues(root, []string{"containers"}, "followed", containerFollowed)
 	completeValues(root, []string{"publish"}, "scope", []string{"local", "yard"})
 	completeValues(root, []string{"publish"}, "access-log", []string{"on", "off"})
 	completeValues(root, []string{"register", "static"}, "check", []string{"tcp", "http"})

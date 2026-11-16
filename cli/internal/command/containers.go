@@ -3,6 +3,7 @@ package command
 import (
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,18 +14,30 @@ import (
 
 func NewContainers(options *Options) *cobra.Command {
 	var details bool
+	state, followed := "running", "no"
 	cmd := &cobra.Command{
 		Use:   "containers",
-		Short: "Lists this Workstation's containers and marks each Unfollowed Container.",
+		Short: "Lists the running containers that no Service follows, with Compose services grouped.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			containers, err := options.connect().Containers()
+			if !slices.Contains(containerStates, state) {
+				return fmt.Errorf("unknown state %q: use running, stopped or all", state)
+			}
+			if !slices.Contains(containerFollowed, followed) {
+				return fmt.Errorf("unknown value %q for --followed: use no, yes or all", followed)
+			}
+			all, err := options.connect().Containers()
 			if err != nil {
 				return err
 			}
 			out := cmd.OutOrStdout()
-			if len(containers) == 0 {
+			if len(all) == 0 {
 				fmt.Fprintln(out, "No containers on this Workstation.")
+				return nil
+			}
+			containers := filterContainers(all, state, followed)
+			if len(containers) == 0 {
+				fmt.Fprintln(out, "No containers match. Use --state all and --followed all to list every container.")
 				return nil
 			}
 			projects := make(map[string]map[string][]client.ListedContainer)
@@ -72,8 +85,40 @@ func NewContainers(options *Options) *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&state, "state", state, "Lists only running or stopped containers, or all.")
+	cmd.Flags().StringVar(&followed, "followed", followed, "Lists only containers that no Container Binding follows (no), only those it follows (yes), or all.")
 	cmd.Flags().BoolVar(&details, "details", false, "Shows container names and Docker port mappings.")
 	return cmd
+}
+
+var (
+	containerStates   = []string{"running", "stopped", "all"}
+	containerFollowed = []string{"no", "yes", "all"}
+)
+
+// A Compose service is followed when any of its containers is, so every container of it stays or goes together.
+func filterContainers(containers []client.ListedContainer, state, followed string) []client.ListedContainer {
+	composeFollowed := make(map[string]bool)
+	for _, container := range containers {
+		if container.ComposeProject != "" && container.ComposeService != "" && len(container.FollowedBy) != 0 {
+			composeFollowed[container.ComposeProject+"/"+container.ComposeService] = true
+		}
+	}
+	var shown []client.ListedContainer
+	for _, container := range containers {
+		if state != "all" && (state == "running") != container.Running {
+			continue
+		}
+		isFollowed := len(container.FollowedBy) != 0
+		if container.ComposeProject != "" && container.ComposeService != "" {
+			isFollowed = composeFollowed[container.ComposeProject+"/"+container.ComposeService]
+		}
+		if followed != "all" && (followed == "yes") != isFollowed {
+			continue
+		}
+		shown = append(shown, container)
+	}
+	return shown
 }
 
 func printContainerService(out io.Writer, service string, containers []client.ListedContainer, details bool) {

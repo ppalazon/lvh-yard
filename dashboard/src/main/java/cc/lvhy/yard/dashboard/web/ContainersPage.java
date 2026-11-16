@@ -8,15 +8,19 @@ import cc.lvhy.yard.dashboard.services.ListedContainer;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import org.springframework.web.util.UriComponentsBuilder;
 import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.FlowContent;
+import org.xmlet.htmlapifaster.Form;
 
 /** Compose targets follow every replica, while their container rows show Docker's state. */
 final class ContainersPage {
@@ -25,8 +29,107 @@ final class ContainersPage {
 
   private ContainersPage() {}
 
+  /** A label and a value in the page's address for a choice of a filter. */
+  private interface Choice {
+    String value();
+
+    String label();
+  }
+
+  /** Which containers the State selector shows. */
+  enum StateFilter implements Choice {
+    RUNNING("running", "Running"),
+    STOPPED("stopped", "Stopped"),
+    ALL("all", "All");
+
+    private final String value;
+    private final String label;
+
+    StateFilter(String value, String label) {
+      this.value = value;
+      this.label = label;
+    }
+
+    @Override
+    public String value() {
+      return value;
+    }
+
+    @Override
+    public String label() {
+      return label;
+    }
+
+    static Optional<StateFilter> named(String value) {
+      return Arrays.stream(values()).filter(filter -> filter.value.equals(value)).findFirst();
+    }
+
+    boolean shows(ListedContainer container) {
+      return this == ALL || (this == RUNNING) == container.running();
+    }
+  }
+
+  /** Which containers and Compose services the Followed selector shows. */
+  enum FollowedFilter implements Choice {
+    NO("no", "Not followed"),
+    YES("yes", "Followed"),
+    ALL("all", "All");
+
+    private final String value;
+    private final String label;
+
+    FollowedFilter(String value, String label) {
+      this.value = value;
+      this.label = label;
+    }
+
+    @Override
+    public String value() {
+      return value;
+    }
+
+    @Override
+    public String label() {
+      return label;
+    }
+
+    static Optional<FollowedFilter> named(String value) {
+      return Arrays.stream(values()).filter(filter -> filter.value.equals(value)).findFirst();
+    }
+
+    boolean shows(boolean followed) {
+      return this == ALL || (this == YES) == followed;
+    }
+  }
+
+  /**
+   * Both stay in the page's address, as {@code ?state=<state>&followed=<followed>}, except the
+   * defaults: running containers that no Container Binding follows.
+   */
+  record Filters(StateFilter state, FollowedFilter followed) {
+
+    static final Filters DEFAULT = new Filters(StateFilter.RUNNING, FollowedFilter.NO);
+
+    String path() {
+      return UriComponentsBuilder.fromPath(PATH)
+          .queryParamIfPresent(
+              "state",
+              Optional.of(state).filter(chosen -> chosen != DEFAULT.state).map(StateFilter::value))
+          .queryParamIfPresent(
+              "followed",
+              Optional.of(followed)
+                  .filter(chosen -> chosen != DEFAULT.followed)
+                  .map(FollowedFilter::value))
+          .build()
+          .toUriString();
+    }
+  }
+
   static String render(
-      Workstation workstation, List<ListedContainer> containers, String dockerProblem) {
+      Workstation workstation,
+      List<ListedContainer> containers,
+      Filters filters,
+      String dockerProblem) {
     return Layout.page(
         "Containers",
         workstation.name(),
@@ -43,20 +146,87 @@ final class ContainersPage {
                 .text("Create a Service from a container or Compose service on this Workstation.")
                 .__()
                 .__()
+                .of(page -> filterForm(page, filters))
                 .of(page ->
                     Layout.refreshed(
                         page,
                         "containers",
-                        PATH,
+                        filters.path(),
                         List.of(CONTAINERS_CHANGED, YARD_CHANGED),
-                        region -> listing(region, workstation, containers, dockerProblem)))
+                        region -> listing(region, workstation, containers, filters, dockerProblem)))
                 .__());
+  }
+
+  /** A Compose service is followed when any of its containers is, as its Create Service link is. */
+  private static boolean followed(
+      ListedContainer container, Map<String, Set<String>> composeFollowers) {
+    if (container.composeProject() != null && container.composeService() != null) {
+      return composeFollowers.containsKey(
+          container.composeProject() + "/" + container.composeService());
+    }
+    return !container.followedBy().isEmpty();
+  }
+
+  private static String empty(boolean running, FollowedFilter followed) {
+    return "No "
+        + (running ? "running" : "stopped")
+        + " containers"
+        + switch (followed) {
+          case NO -> " that are not followed";
+          case YES -> " that are followed";
+          case ALL -> "";
+        }
+        + ".";
+  }
+
+  /** The selectors sit outside the refreshed region, so a refresh keeps what you chose. */
+  private static void filterForm(Div<?> page, Filters filters) {
+    page.form()
+        .attrClass("container-filters flex flex-wrap items-end gap-3")
+        .addAttr("hx-get", PATH)
+        .addAttr("hx-trigger", "change")
+        .addAttr("hx-target", "#containers")
+        .addAttr("hx-select", "#containers")
+        .addAttr("hx-swap", "outerHTML")
+        .addAttr("hx-push-url", "true")
+        .addAttr("hx-status:4xx", "swap:none")
+        .addAttr("hx-status:5xx", "swap:none")
+        .of(form -> selector(form, "state", "State", StateFilter.values(), filters.state()))
+        .of(form ->
+            selector(form, "followed", "Followed", FollowedFilter.values(), filters.followed()))
+        .__();
+  }
+
+  private static <T extends Choice> void selector(
+      Form<?> form, String name, String label, T[] choices, T chosen) {
+    form.div()
+        .attrClass("flex min-w-0 flex-col gap-1.5 md:flex-row md:items-center md:gap-3")
+        .label()
+        .attrFor(name)
+        .text(label)
+        .__()
+        .select()
+        .attrClass("select")
+        .attrId(name)
+        .attrName(name)
+        .of(select ->
+            Arrays.stream(choices)
+                .forEach(choice ->
+                    select
+                        .option()
+                        .attrValue(choice.value())
+                        .of(option -> option.attrSelected(choice == chosen))
+                        .text(choice.label())
+                        .__()))
+        .__()
+        .__();
   }
 
   private static void listing(
       Div<?> region,
       Workstation workstation,
       List<ListedContainer> containers,
+      Filters filters,
       String dockerProblem) {
     if (dockerProblem != null) {
       region
@@ -91,12 +261,21 @@ final class ContainersPage {
             .addAll(container.followedBy());
       }
     }
+    List<ListedContainer> shown =
+        ordered.stream()
+            .filter(container -> filters.state().shows(container))
+            .filter(container -> filters.followed().shows(followed(container, composeFollowers)))
+            .toList();
     region
         .div()
         .attrClass("container-list")
         .of(list -> {
-          stateSection(list, workstation, ordered, composeFollowers, true);
-          stateSection(list, workstation, ordered, composeFollowers, false);
+          if (filters.state() != StateFilter.STOPPED) {
+            stateSection(list, workstation, shown, composeFollowers, filters, true);
+          }
+          if (filters.state() != StateFilter.RUNNING) {
+            stateSection(list, workstation, shown, composeFollowers, filters, false);
+          }
         })
         .__();
   }
@@ -106,6 +285,7 @@ final class ContainersPage {
       Workstation workstation,
       List<ListedContainer> containers,
       Map<String, Set<String>> composeFollowers,
+      Filters filters,
       boolean running) {
     Map<String, Map<String, List<ListedContainer>>> projects = new TreeMap<>();
     List<ListedContainer> standalone = new ArrayList<>();
@@ -144,11 +324,7 @@ final class ContainersPage {
         .__()
         .of(section -> {
           if (total == 0) {
-            section
-                .p()
-                .attrClass("container-empty")
-                .text(running ? "No running containers." : "No stopped containers.")
-                .__();
+            section.p().attrClass("container-empty").text(empty(running, filters.followed())).__();
             return;
           }
           for (var project : projects.entrySet()) {

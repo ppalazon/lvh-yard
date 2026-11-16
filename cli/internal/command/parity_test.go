@@ -32,7 +32,7 @@ var commands = map[string][]string{
 	"register static":    {"port", "host", "check", "path", "interval", "timeout", "tag", "meta"},
 	"register container": {"port", "service"},
 	"register compose":   {"port", "service"},
-	"containers":         {"details"},
+	"containers":         {"state", "followed", "details"},
 	"remove":             {"id", "port", "host", "container", "compose-project", "compose-service"},
 	"publish":            {"scope", "access-log", "profile", "no-profiles"},
 	"priority":           {"on", "off"},

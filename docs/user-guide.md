@@ -1123,7 +1123,8 @@ lvh-yard register static web --port 8080    # at this Workstation's LAN address
 lvh-yard register static web --host 127.0.0.1 --port 8080
 lvh-yard register static web --port 8080 --path /health --interval 5s --timeout 1s   # an HTTP check (default: TCP, 10s, 2s)
 lvh-yard register static web --port 8080 --tag backend --meta owner=pablo           # repeat --tag and --meta for more
-lvh-yard containers                         # Compose service counts and Container Ports
+lvh-yard containers                         # running containers that no Service follows
+lvh-yard containers --state all --followed all   # every container, as the Docker list
 lvh-yard containers --details               # each container and its Host Port mappings
 lvh-yard register container shop-web-1     # bind only this named container
 lvh-yard register container shop-web-1 --port 9000 --service shop
@@ -2197,7 +2198,16 @@ no Edit button.
 
 Open Containers in the navigation bar to see this Workstation's Docker
 containers. Running and Stopped have separate sections, grouped by Compose
-project and service. Open the container count or Container details to see
+project and service.
+
+Two selectors above the list filter it. State shows Running, Stopped or All
+containers. Followed shows containers and Compose services that no Service
+follows (Not followed), only those that one does (Followed), or All. The page
+starts with Running and Not followed. A Compose service counts as followed
+when any of its containers is. The filters stay in the page address, and the
+list keeps them when it refreshes.
+
+Open the container count or Container details to see
 Container Ports, Host Ports and bind addresses. Details start closed and
 stay open or closed as you left them when the list refreshes.
 Links under Followed by open the Services that follow the target.
@@ -2243,8 +2253,11 @@ that have a Container Binding that matches the container, whatever the port of
 the Binding, and is empty when none does. If the dashboard cannot read Docker,
 the answer is 503 and says why.
 
-`lvh-yard containers` lists every container of this Workstation, running or
-stopped. It groups them by Compose project and service. Each service line
+`lvh-yard containers` lists the running containers of this Workstation that no
+Container Binding follows. Use `--state running|stopped|all` and
+`--followed no|yes|all` to change that. A Compose service counts as followed
+when any of its containers is. `--state all --followed all` lists every
+container. It groups them by Compose project and service. Each service line
 starts with its name, then gives the container count and combined Container
 Ports. When some containers are stopped, the line gives both counts.
 It marks each Unfollowed Container by name: a running container that no

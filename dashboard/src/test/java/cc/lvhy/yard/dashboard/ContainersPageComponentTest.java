@@ -21,6 +21,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 /** Browsing containers and creating a Service from one container or Compose service. */
 class ContainersPageComponentTest extends DashboardComponentTest {
   private static final String ACTION = "/containers/services";
+  private static final String EVERY_CONTAINER = "/containers?state=all&followed=all";
 
   @Test
   void runningAndStoppedReplicasOfferTheSameComposeTargetWithoutIndividualCreationLinks() {
@@ -30,9 +31,9 @@ class ContainersPageComponentTest extends DashboardComponentTest {
     start(FakeDocker.container(running).compose(project, "web").publishedOn("127.0.0.1", 80));
     stopContainer(start(FakeDocker.container(stopped).compose(project, "web").port(80)));
 
-    String page = decoded(getPage("/containers").getBody());
-    int runningSection = page.indexOf(">Running<");
-    int stoppedSection = page.indexOf(">Stopped<");
+    String page = decoded(getPage(EVERY_CONTAINER).getBody());
+    int runningSection = page.indexOf("id=\"running-containers\"");
+    int stoppedSection = page.indexOf("id=\"stopped-containers\"");
     assertThat(runningSection).isNotNegative().isLessThan(stoppedSection);
     assertThat(page.substring(runningSection, stoppedSection))
         .contains(createPath(project + "/web"));
@@ -56,12 +57,57 @@ class ContainersPageComponentTest extends DashboardComponentTest {
     bind(followed, stopped, 80);
     bind(followed, plain, 80);
 
-    String page = decoded(getPage("/containers").getBody());
+    String page = decoded(getPage(EVERY_CONTAINER).getBody());
 
     assertThat(page).doesNotContain(createPath(project + "/web")).doesNotContain(createPath(plain));
     assertThat(page)
         .contains(createPath(unused))
         .contains("href=\"/services/ws-test/" + followed + "\"");
+  }
+
+  @Test
+  void filtersChooseContainersByStateAndByWhetherAServiceFollowsThem() {
+    String project = newComposeProject();
+    String free = newContainerName();
+    String freeStopped = newContainerName();
+    String bound = newContainerName();
+    String composeRunning = newContainerName();
+    String composeStopped = newContainerName();
+    start(FakeDocker.container(free).port(80));
+    stopContainer(start(FakeDocker.container(freeStopped).port(80)));
+    start(FakeDocker.container(bound).port(80));
+    start(FakeDocker.container(composeRunning).compose(project, "web").port(80));
+    stopContainer(start(FakeDocker.container(composeStopped).compose(project, "web").port(80)));
+    bind(newServiceName("bound"), bound, 80);
+    bind(newServiceName("compose"), composeStopped, 80);
+
+    // The default: running containers that no Service follows.
+    String page = containers("/containers");
+    assertThat(page).contains(">" + free + "<");
+    assertThat(page)
+        .doesNotContain(">" + freeStopped + "<", ">" + bound + "<", ">" + composeRunning + "<");
+
+    // A Binding to one replica makes the Compose service followed, in both states.
+    page = containers("/containers?followed=yes");
+    assertThat(page).contains(">" + bound + "<", ">" + composeRunning + "<");
+    assertThat(page).doesNotContain(">" + free + "<", ">" + composeStopped + "<");
+
+    page = containers("/containers?state=stopped&followed=all");
+    assertThat(page).contains(">" + freeStopped + "<", ">" + composeStopped + "<");
+    assertThat(page)
+        .doesNotContain(">" + free + "<", ">" + bound + "<", ">" + composeRunning + "<");
+
+    page = containers("/containers?state=all&followed=no");
+    assertThat(page).contains(">" + free + "<", ">" + freeStopped + "<");
+    assertThat(page)
+        .doesNotContain(">" + bound + "<", ">" + composeRunning + "<", ">" + composeStopped + "<");
+    assertThat(page).contains("hx-get=\"/containers?state=all\"");
+  }
+
+  @Test
+  void unknownFilterValuesAreRefused() {
+    assertThat(getPage("/containers?state=up").getStatusCode().value()).isEqualTo(400);
+    assertThat(getPage("/containers?followed=maybe").getStatusCode().value()).isEqualTo(400);
   }
 
   @Test
@@ -202,6 +248,10 @@ class ContainersPageComponentTest extends DashboardComponentTest {
           assertThat(page).contains("No Docker socket at /nowhere/docker.sock");
         },
         "--lvh-yard.docker.host=unix:///nowhere/docker.sock");
+  }
+
+  private String containers(String path) {
+    return decoded(getPage(path).getBody());
   }
 
   private static String createPath(String target) {
