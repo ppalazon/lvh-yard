@@ -28,7 +28,7 @@ func TestWindowsInitTakesTheDetectedAddressWithoutATerminal(t *testing.T) {
 }
 
 // The rule that picks the default route adapter lives in LANAddress. When it refuses, init must ask for
-// --address and write nothing, so a VirtualBox, VMware or VPN adapter is never taken silently.
+// --address and write nothing, so a VPN or another tunnel adapter is never taken silently.
 func TestWindowsInitRequiresAddressWhenNoAdapterHoldsTheDefaultRoute(t *testing.T) {
 	yard := commandtest.New(t)
 	yard.Process.LANIP = ""

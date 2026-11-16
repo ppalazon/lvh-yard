@@ -28,7 +28,7 @@ func TestChooseLANAddress(t *testing.T) {
 		{name: "the only candidate holds the default route", candidates: plain("192.168.1.20"), route: ip("192.168.1.20"), want: "192.168.1.20"},
 		{name: "the only candidate is not on the default route", candidates: plain("192.168.56.1"), route: ip("172.19.144.1"), refusal: "the default route is not on a suitable adapter"},
 		{name: "a lone candidate without a default route is not guessed", candidates: plain("192.168.56.1"), refusal: "no default route was found"},
-		{name: "the default route adapter is a tunnel", candidates: append(plain("192.168.1.20"), lanCandidate{IP: ip("10.8.0.2"), Adapter: "OpenVPN", Tunnel: true}), route: ip("10.8.0.2"), refusal: `the default route is on "OpenVPN", which looks like a VPN or virtual adapter; other adapter addresses: 192.168.1.20`},
+		{name: "the default route adapter is a tunnel", candidates: append(plain("192.168.1.20"), lanCandidate{IP: ip("10.8.0.2"), Adapter: "OpenVPN", Tunnel: true}), route: ip("10.8.0.2"), refusal: `the default route is on "OpenVPN", which looks like a VPN or tunnel adapter; other adapter addresses: 192.168.1.20`},
 		{name: "a tunnel that does not hold the default route is ignored", candidates: append(plain("192.168.1.20"), lanCandidate{IP: ip("10.8.0.2"), Adapter: "OpenVPN", Tunnel: true}), route: ip("192.168.1.20"), want: "192.168.1.20"},
 		{name: "a lone tunnel with the default route lists no other address", candidates: []lanCandidate{{IP: ip("10.8.0.2"), Adapter: "WireGuard", Tunnel: true}}, route: ip("10.8.0.2"), refusal: "other adapter addresses: none"},
 		{name: "no candidate", route: ip("192.168.1.20"), refusal: "other adapter addresses: none"},
@@ -65,9 +65,12 @@ func TestIsTunnelAdapter(t *testing.T) {
 		{name: "wg0", description: "WireGuard Tunnel", flags: net.FlagUp, want: true},
 		{name: "Tailscale", flags: net.FlagUp, want: true},
 		{name: "Ethernet 4", description: "ZeroTier Virtual Port", flags: net.FlagUp, want: true},
-		{name: "vEthernet (Default Switch)", description: "Hyper-V Virtual Ethernet Adapter", flags: net.FlagUp, want: true},
-		{name: "Ethernet 5", description: "VMware Virtual Ethernet Adapter for VMnet8", flags: net.FlagUp, want: true},
-		{name: "Ethernet 6", description: "VirtualBox Host-Only Ethernet Adapter", flags: net.FlagUp, want: true},
+		// A Windows guest on Hyper-V, VMware, VirtualBox or KVM has a real NIC with one of these names, and it holds
+		// the default route. It is not a tunnel.
+		{name: "Ethernet 3", description: "Microsoft Hyper-V Network Adapter", flags: net.FlagUp | net.FlagBroadcast},
+		{name: "Ethernet0", description: "vmxnet3 Ethernet Adapter", flags: net.FlagUp | net.FlagBroadcast},
+		{name: "Ethernet", description: "Intel(R) PRO/1000 MT Desktop Adapter", flags: net.FlagUp | net.FlagBroadcast},
+		{name: "Ethernet", description: "Red Hat VirtIO Ethernet Adapter", flags: net.FlagUp | net.FlagBroadcast},
 		{name: "Ethernet 7", description: "WAN Miniport (PPP)", flags: net.FlagUp, want: true},
 		{name: "ETHERNET 8", description: "TUN adapter", flags: net.FlagUp, want: true},
 	}

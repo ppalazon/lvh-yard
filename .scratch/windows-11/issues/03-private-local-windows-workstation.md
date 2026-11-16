@@ -13,7 +13,7 @@
 - [x] Apply effective Windows ACL protection to private configuration and secrets while preserving required Docker access. A second ordinary local user cannot read protected secrets; testing ACL declarations alone is insufficient.
 - [x] Preserve rooted-filesystem containment. Windows-invalid output filenames and escaping reparse points fail with actionable errors rather than writing outside the intended location.
 - [ ] Suggest a suitable LAN IPv4 address and allow override. Multiple suitable adapters require a choice; ambiguous noninteractive setup requires an explicit value rather than silently choosing a VPN or VM address.
-      Accepted limit (maintainer, 2026-11-16): the test VM has one eligible adapter, so no real Windows run had two. The default-route rule and the VPN or virtual adapter refusal are unit tests only. The box stays unticked because it was not observed.
+      Accepted limit (maintainer, 2026-11-16): the test VM has one eligible adapter, so no real Windows run had two. The default-route rule and the VPN or tunnel adapter refusal are unit tests only. The box stays unticked because it was not observed.
 - [x] Separate container binding, Consul advertisement and the default Instance host. Unsupported native interface binding is rejected instead of silently becoming a wildcard listener.
 - [x] The generated Windows Compose setup validates and starts directly from the Workstation Folder without hidden launch-time overlays or CLI-only environment preparation.
 - [x] Consul and the dashboard run non-root. Consul can write its project-scoped named volume, and the dashboard can read the Docker socket and write a Backup into the protected folder.

@@ -379,9 +379,10 @@ Address selection has these limits:
 - Setup suggests the address of the adapter that holds the default route. It
   skips adapters that are down, loopback and link-local addresses, and adapters
   whose name contains `vEthernet`, `WSL` or `docker`. It suggests nothing when
-  that adapter looks like a VPN or virtual adapter: its name or description
-  has `vpn`, `tap`, `tun`, `wireguard`, `wintun`, `ppp`, `tailscale`,
-  `zerotier`, `hyper-v`, `vmware` or `virtualbox`, or it is a point-to-point
+  that adapter looks like a VPN or another tunnel: its name or description
+  has `vpn`, `tap`, `tun`, `wireguard`, `wintun`, `ppp`, `tailscale` or
+  `zerotier`, or it is a point-to-point adapter. The network card of a virtual
+  machine, such as a Hyper-V, VMware or VirtualBox guest, counts as a normal
   adapter. Then setup asks you to choose, or needs `--address` when no
   terminal is available.
 - `--address` takes any specific IPv4 address that is not loopback,
