@@ -85,6 +85,10 @@ jobs:
           pattern: lvh-yard-*
           merge-multiple: true
       - run: sha256sum lvh-yard-*.tar.gz lvh-yard-*.zip > SHA256SUMS
-      - run: gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes lvh-yard-*.tar.gz lvh-yard-*.zip SHA256SUMS
+      # A tag with a hyphen, such as v0.1.1-rc.1, is a pre-release. GitHub's latest release, which install.sh and
+      # install.ps1 download, never picks a pre-release.
+      - run: |
+          case "$GITHUB_REF_NAME" in *-*) flag=--prerelease ;; *) flag= ;; esac
+          gh release create "$GITHUB_REF_NAME" $flag --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes lvh-yard-*.tar.gz lvh-yard-*.zip SHA256SUMS
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

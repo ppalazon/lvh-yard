@@ -590,11 +590,14 @@ A local site build and native installer test do not prove a live Pages
 deployment or a GitHub release upload. Do not announce Windows support until
 the maintainer approves publication and the remaining Windows acceptance.
 
-Before the first public release, prove the publish workflow on a private
-repository. Push a test tag such as `v0.0.0-rc.1`, and check the image, all four
-archives and `SHA256SUMS` of the release. Then run `--version` on the Linux
-arm64 and macOS arm64 executables on their own platforms. Delete the test
-release, the tag and the test image before you tag `v0.1.0`.
+Before a public release, prove the publish workflow with a test tag such as
+`v0.0.2-rc.1`. A tag with a hyphen makes a pre-release. The latest release,
+which `install.sh` and `install.ps1` download, never picks it, and the image
+gets only its own tag, not `latest`. Check the image, all archives including
+the Windows ZIP, and `SHA256SUMS` of the release. Then run `--version` on the
+Linux arm64 and macOS arm64 executables on their own platforms. Delete the
+test release, the tag and the test image (`gh release delete`, `git push origin
+:refs/tags/<tag>`, and the package version on GitHub) when the check is done.
 
 Versions follow [Semantic Versioning](https://semver.org/). Before 1.0.0, a
 minor release can change how LVH Yard works. The release notes are the
