@@ -15,11 +15,9 @@ func TestWSInitCreatesPrivateFolder(t *testing.T) {
 	if run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
-	for _, name := range []string{"backups", "consul-data"} {
-		info, err := os.Stat(filepath.Join(folder, name))
-		if err != nil || !info.IsDir() {
-			t.Fatalf("%s folder: %v", name, err)
-		}
+	info, err := os.Stat(filepath.Join(folder, "backups"))
+	if err != nil || !info.IsDir() {
+		t.Fatalf("backups folder: %v", err)
 	}
 	assertPrivateWorkstation(t, folder)
 }

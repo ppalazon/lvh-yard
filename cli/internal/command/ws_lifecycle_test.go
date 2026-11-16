@@ -21,6 +21,9 @@ func TestWSLifecycleRunsCompose(t *testing.T) {
 		{[]string{"compose", "stop"}, []string{"stop"}},
 		{[]string{"compose", "restart"}, []string{"restart"}},
 		{[]string{"compose", "recreate"}, []string{"up", "-d", "--force-recreate"}},
+		{[]string{"compose", "down"}, []string{"down"}},
+		{[]string{"compose", "down", "-v"}, []string{"down", "--volumes"}},
+		{[]string{"compose", "down", "--volumes"}, []string{"down", "--volumes"}},
 		{[]string{"compose", "logs"}, []string{"logs"}},
 	} {
 		t.Run(strings.Join(test.command, " "), func(t *testing.T) {
@@ -96,7 +99,7 @@ func TestWSLogsRejectsUnknownServicesBeforeRunning(t *testing.T) {
 }
 
 func TestWSLifecycleReturnsComposeExitCode(t *testing.T) {
-	for _, subcommand := range [][]string{{"compose", "start"}, {"compose", "stop"}, {"compose", "restart"}, {"compose", "recreate"}, {"compose", "logs"}} {
+	for _, subcommand := range [][]string{{"compose", "start"}, {"compose", "stop"}, {"compose", "restart"}, {"compose", "recreate"}, {"compose", "down"}, {"compose", "logs"}} {
 		yard := commandtest.New(t)
 		yard.Process.RunCommand = func(string, []string, string, io.Writer, io.Writer) (int, error) {
 			return 37, nil

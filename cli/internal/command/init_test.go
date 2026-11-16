@@ -48,9 +48,10 @@ func TestInitWritesNewWorkstationFolder(t *testing.T) {
 			t.Fatalf("Consul must use user 1000 and the Docker volume: %s", compose)
 		}
 	} else if !strings.Contains(compose, `user: "${YARD_UID:?set YARD_UID in .env}:${YARD_GID:?set YARD_GID in .env}"`) ||
-		!strings.Contains(compose, "./consul-data:/consul/data") ||
-		strings.Contains(compose, "\nvolumes:\n") {
-		t.Fatalf("Consul must use the Workstation user and local data folder: %s", compose)
+		!strings.Contains(compose, "      - consul-data:/consul/data\n") ||
+		!strings.Contains(compose, "\nvolumes:\n  consul-data:") ||
+		strings.Contains(compose, "./consul-data") {
+		t.Fatalf("Consul must use the Workstation user and the Docker volume: %s", compose)
 	}
 	info, err := os.Stat(filepath.Join(folder, "backups"))
 	if err != nil || !info.IsDir() {

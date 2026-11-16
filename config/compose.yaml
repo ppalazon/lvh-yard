@@ -4,12 +4,28 @@
 # the dashboard listen on 127.0.0.1, unless YARD_TRAEFIK_BIND_ADDRESS and YARD_DASHBOARD_BIND_ADDRESS say
 # otherwise.
 services:
+  # Docker makes the data volume owned by root. This step runs once and gives it to the user that Consul runs as.
+  consul-data-init:
+    image: hashicorp/consul:2.1.0
+    user: "0:0"
+    restart: "no"
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      [
+        "chown -R ${YARD_UID:?set YARD_UID in .env}:${YARD_GID:?set YARD_GID in .env} /consul/data",
+      ]
+    volumes:
+      - consul-data:/consul/data
+
   # The own Consul datacenter of this Workstation, joined to the other Workstations by WAN federation (ADR-0001).
   consul:
     image: hashicorp/consul:2.1.0
     network_mode: host
     restart: unless-stopped
     user: "${YARD_UID:?set YARD_UID in .env}:${YARD_GID:?set YARD_GID in .env}"
+    depends_on:
+      consul-data-init:
+        condition: service_completed_successfully
     environment:
       YARD_WORKSTATION: ${YARD_WORKSTATION:?set YARD_WORKSTATION in .env}
       YARD_GOSSIP_KEY: ${YARD_GOSSIP_KEY:?set YARD_GOSSIP_KEY in .env}
@@ -42,7 +58,7 @@ services:
       start_period: 60s
       start_interval: 1s
     volumes:
-      - ./consul-data:/consul/data
+      - consul-data:/consul/data
       - ./consul.d:/consul/config:ro
       - ./tls/consul:/consul/tls:ro
 
@@ -162,3 +178,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./backups:/var/lib/lvh-yard/backups
       - ./lvh-yard.yaml:/app/config/application.yaml:ro
+
+# Compose prefixes this name with the project. ws compose down keeps it, and ws compose down -v removes it.
+volumes:
+  consul-data:

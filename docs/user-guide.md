@@ -60,7 +60,8 @@ Java or a copy of this repository.
 
    On Linux and macOS, `ws init` writes `compose.yaml`, `.env` and
    `lvh-yard.yaml` to `~/.config/lvh-yard`. If `XDG_CONFIG_HOME` is set, it writes
-   to `$XDG_CONFIG_HOME/lvh-yard`. It creates `backups/` and `consul-data/`.
+   to `$XDG_CONFIG_HOME/lvh-yard`. It creates `backups/`. Consul keeps its data in a
+   Docker volume, not in this folder.
    Folders have mode 700, and files have mode 600.
    `ws init`, `ws compose upgrade` and `ws set` repair these modes.
    For Windows paths and storage, see [Windows Workstation setup](#windows-workstation-setup).
@@ -109,6 +110,13 @@ services. `recreate` runs `docker compose up -d --force-recreate`, which applies
 changed settings. Each command prints the `docker compose` line it runs, with the Workstation Folder as the project
 directory. The commands work while the dashboard is down and return the exit
 code of `docker compose`. Docker with Compose must be on your `PATH`.
+
+`lvh-yard ws compose down` removes the containers and the network of this
+Workstation. Consul keeps its data in the Docker volume `<project>_consul-data`,
+so a later `ws compose start` finds Services, Routes and the other setup as they
+were. Add `-v` (`--volumes`) to remove the volumes too. Then Consul starts empty.
+Export a [Backup](#backups) first. `-v` also removes any volume that you added to
+`compose.yaml`. It leaves the files in the Workstation Folder, `backups/` too.
 
 `lvh-yard ws compose logs` shows all service logs. Give `consul`, `traefik` or
 `dashboard` to show one service, and add `-f` to follow its logs. For example,
@@ -210,7 +218,7 @@ Runtime containers never receive the Yard CA private key.
 
 #### Keeping, resetting, moving and removing Windows state
 
-Consul stores Windows state in a named Docker volume scoped to the Compose
+Consul stores its state in a named Docker volume scoped to the Compose
 project. Compose names it `<project>_consul-data`.
 `lvh-yard ws init` writes the project name as `COMPOSE_PROJECT_NAME` in `.env`.
 It is the folder name in lowercase letters, digits and `-`, then a short code
@@ -703,7 +711,7 @@ Consul and for Traefik, and for every pair of operating systems.
    three files: `ca.crt`, the certificate and its `.key`.
 3. Send only those folders, through a private channel that you start yourself:
    `scp` or SFTP over a login that you trust, or an encrypted drive. Never send
-   `ca/`, `ca.key`, `.env`, `consul-data/`, `certificates/` of other
+   `ca/`, `ca.key`, `.env`, `certificates/` of other
    Workstations or the whole Workstation Folder. The Yard CA key never leaves
    the sender.
 4. The keys are secrets. Delete `certificates/<name>/` when the recipient has
@@ -867,10 +875,16 @@ Certificate signed by the Yard CA. The default option does not require one.
 `lvh-yard ws init` does not overwrite a file unless you give `--force`.
 After you install a new `lvh-yard`, run `lvh-yard ws compose upgrade`.
 It changes only the image lines in `compose.yaml`: consul, traefik and
-dashboard, and on Windows the one-shot `consul-data-init` too.
+dashboard, and the one-shot `consul-data-init` too.
 It also rewrites `consul.d/00-lvh-yard.hcl`.
 Then run `lvh-yard ws compose recreate`,
 even if every image is current. This makes Consul load the generated options.
+
+A Linux or macOS folder from an older `lvh-yard` mounts `./consul-data` and keeps
+doing so, because the upgrade changes only image lines. `ws compose down -v` does
+not remove that folder. To use the Docker volume, export a Backup, make a new
+folder with `lvh-yard ws init --dir <new folder>` and the same Workstation name
+and Gossip Key, start it, and run `lvh-yard import <file>`.
 
 LVH Yard owns `consul.d/00-lvh-yard.hcl`, `consul.d/10-tls.hcl` and
 `traefik/dynamic/10-tls.yaml`. Generated files start with

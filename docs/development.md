@@ -65,9 +65,11 @@ lvh-yard --dashboard http://127.0.0.1:17780 profiles set profiles.yaml   # ws-a
 lvh-yard --dashboard http://127.0.0.1:17790 profiles set profiles.yaml   # ws-b
 ```
 
-Each Workstation Folder holds its own `backups/`, Consul data and TLS files.
-Git ignores both folders. `dev:dashboard` reads that Workstation's `.env`
-and `lvh-yard.yaml`. `dev:down` uses `ws compose stop` and keeps the files.
+Each Workstation Folder holds its own `backups/` and TLS files. Its Consul data
+is in a Docker volume named after its Compose project. Git ignores both folders.
+`dev:dashboard` reads that Workstation's `.env` and `lvh-yard.yaml`. `dev:down`
+uses `ws compose stop` and keeps the files and the volume. To start one folder
+with empty Consul data, run `lvh-yard ws --dir dev/ws-a compose down -v`.
 The dashboard tests use a new temporary folder for each test JVM, through
 the `lvh-yard.backups.path` setting.
 
@@ -171,9 +173,10 @@ docker compose --project-directory dev/ws-a --env-file dev/ws-a/.env \
 ```
 
 On Linux and macOS, the CLI creates Workstation Folders with mode 700 and files
-with mode 600. It creates `backups/` and `consul-data/` before Compose starts,
-so Docker does not create them as root. Consul uses the user and group in
-`.env` (`YARD_UID` and `YARD_GID`) and stores its data in `consul-data/`.
+with mode 600. It creates `backups/` before Compose starts,
+so Docker does not create it as root. Consul uses the user and group in
+`.env` (`YARD_UID` and `YARD_GID`) and stores its data in the `consul-data` volume.
+The `consul-data-init` service gives that volume to this user before Consul starts.
 The CLI mode tests cover new folders and repair of existing folders.
 
 ### Windows runtime development
@@ -216,7 +219,7 @@ This setting adds no HTTP API field or domain property.
 The Windows Compose file reads `YARD_INSTANCE_HOST` from `.env`. If it is empty,
 the file uses `YARD_BIND_ADDRESS`, the LAN address that Consul advertises.
 Consul always listens on `0.0.0.0` inside Docker Desktop.
-`ws init` also writes `COMPOSE_PROJECT_NAME` to the Windows `.env`.
+`ws init` also writes `COMPOSE_PROJECT_NAME` to `.env`, on every platform.
 `composeProjectName` makes it from the folder name and a short code of the full
 path, so two folders never share the `consul-data` volume.
 

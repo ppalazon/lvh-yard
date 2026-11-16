@@ -52,7 +52,7 @@ func composeVariables(t *testing.T, name string) map[string][]string {
 func TestWindowsEnvTemplateKeepsTheUnixSettings(t *testing.T) {
 	unix, windows := settingKeys(t, ".env.example"), settingKeys(t, ".env.windows.example")
 	// Only Windows has these. The Windows Compose file does not read the three user settings, so they stay commented out.
-	windowsOnly := []string{"COMPOSE_PROJECT_NAME", "YARD_INSTANCE_HOST"}
+	windowsOnly := []string{"YARD_INSTANCE_HOST"}
 	for key := range unix {
 		if _, found := windows[key]; !found {
 			t.Errorf("the Windows .env template lacks %s", key)
@@ -63,7 +63,7 @@ func TestWindowsEnvTemplateKeepsTheUnixSettings(t *testing.T) {
 			t.Errorf("the Windows .env template has %s, which only Windows has", key)
 		}
 	}
-	for _, key := range windowsOnly {
+	for _, key := range []string{"COMPOSE_PROJECT_NAME", "YARD_INSTANCE_HOST"} {
 		if commented, found := windows[key]; !found || commented {
 			t.Errorf("the Windows .env template must set %s", key)
 		}

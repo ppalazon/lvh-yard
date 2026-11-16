@@ -23,7 +23,7 @@ func (e *processExit) Error() string {
 func newWSLifecycle(options *Options, folder func() string) []*cobra.Command {
 	compose := &cobra.Command{
 		Use:   "compose",
-		Short: "Starts, stops, upgrades and shows the logs of this Workstation's services.",
+		Short: "Starts, stops, removes, upgrades and shows the logs of this Workstation's services.",
 		Args:  cobra.NoArgs,
 		RunE:  func(cmd *cobra.Command, args []string) error { return cmd.Help() },
 	}
@@ -46,6 +46,21 @@ func newWSLifecycle(options *Options, folder func() string) []*cobra.Command {
 			},
 		})
 	}
+	var volumes bool
+	down := &cobra.Command{
+		Use:   "down",
+		Short: "Removes this Workstation's containers. Add -v to remove its data volumes too.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			compose := []string{"down"}
+			if volumes {
+				compose = append(compose, "--volumes")
+			}
+			return runWSCompose(options, cmd, folder(), compose)
+		},
+	}
+	down.Flags().BoolVarP(&volumes, "volumes", "v", false, "Also removes the data volumes. Consul loses its Services, Routes and other setup.")
+	compose.AddCommand(down)
 	compose.AddCommand(&cobra.Command{
 		Use:   "upgrade",
 		Short: "Updates the service images in compose.yaml.",

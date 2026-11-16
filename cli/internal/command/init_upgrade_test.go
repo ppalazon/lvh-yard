@@ -3,7 +3,6 @@ package command_test
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -61,12 +60,8 @@ func TestInitUpgradeChangesOnlyImageValues(t *testing.T) {
 	}
 }
 
-// dataInitService is the consul-data-init service. Only the Windows compose file has it, and the
-// upgrade refuses a Windows file without its image.
+// dataInitService is the consul-data-init service. The upgrade changes its image when compose.yaml has it.
 func dataInitService(image string) string {
-	if runtime.GOOS != "windows" {
-		return ""
-	}
 	return "  consul-data-init:\n    image: " + image + "\n"
 }
 

@@ -37,9 +37,6 @@ const lanAddressRequired = false
 // platformWorkstationFiles are the files that only this platform's ws init writes. Unix has none.
 func platformWorkstationFiles() []workstationFile { return nil }
 
-// platformUpgradeServices are the services whose image a ws init upgrade changes only on this platform.
-var platformUpgradeServices []string
-
 // protectNewFolder does nothing: on Unix, MkdirAll makes a new folder 0700, and ws init must leave the modes of an
 // existing folder alone until it writes.
 func protectNewFolder(string) error { return nil }

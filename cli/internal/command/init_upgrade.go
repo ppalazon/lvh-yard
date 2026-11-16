@@ -11,8 +11,12 @@ import (
 	"github.com/ppalazon/lvh-yard/cli/internal/templates"
 )
 
-// upgradeServices are the services whose image the upgrade changes.
-var upgradeServices = append([]string{"consul", "traefik", "dashboard"}, platformUpgradeServices...)
+// upgradeServices are the services whose image the upgrade changes. The compose.yaml must have all of them.
+var upgradeServices = []string{"consul", "traefik", "dashboard"}
+
+// dataInitService is the one-shot service that prepares the Consul data volume. The upgrade changes its image when
+// compose.yaml has it. A Linux folder from before the volume has none, and still upgrades.
+const dataInitService = "consul-data-init"
 
 func upgradeInit(options *Options, folder, ws string, out io.Writer) error {
 	text, images, err := readComposeImages(folder)
@@ -120,7 +124,11 @@ func writeFixedFiles(folder string) error {
 // new images when one does.
 func upgradeImages(folder, text string, images, desired []composefile.Image, out io.Writer) error {
 	changed := false
-	for _, service := range upgradeServices {
+	services := append([]string{}, upgradeServices...)
+	if _, found := composefile.Find(images, dataInitService); found {
+		services = append(services, dataInitService)
+	}
+	for _, service := range services {
 		from, _ := composefile.Find(images, service)
 		to, ok := composefile.Find(desired, service)
 		if !ok {
@@ -142,7 +150,7 @@ func upgradeImages(folder, text string, images, desired []composefile.Image, out
 		return fmt.Errorf("Could not write %s: %w", file, err)
 	}
 	defer func() { _ = root.Close() }()
-	if err := root.WriteFile("compose.yaml", []byte(composefile.Replace(text, images, desired, upgradeServices)), 0600); err != nil {
+	if err := root.WriteFile("compose.yaml", []byte(composefile.Replace(text, images, desired, services)), 0600); err != nil {
 		return fmt.Errorf("Could not write %s: %w", file, err)
 	}
 	return nil
