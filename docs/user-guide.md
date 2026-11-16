@@ -539,7 +539,8 @@ Addresses use IPv4. Ports run from 1 to 65535. `out-of-range` takes
 comma-separated CIDR ranges or an empty value. `stack-traces` takes `true` or `false`.
 `traefik` takes `on` or `off`.
 `instance-host` is for Windows only. It takes an IPv4 address, or an empty value
-to use `bind-address`.
+to use `bind-address`. It refuses `0.0.0.0` and multicast addresses, because no
+connection can reach them. `127.0.0.1` is allowed. It works for Local Scope only.
 On Linux and macOS, an empty `bind-address` lets Consul choose its address.
 For Windows LAN identity and listener limits, see
 [Windows Workstation setup](#windows-workstation-setup).

@@ -128,6 +128,9 @@ func validateNativeListener(name, value string) error {
 			return fmt.Errorf("invalid Windows bind-address: use the LAN IPv4 address that other Workstations can reach")
 		}
 	}
+	if name == "instance-host" {
+		return checkInstanceHost(value)
+	}
 	if (name == "dashboard-bind-address" || name == "traefik-bind-address") && value != "127.0.0.1" && value != "0.0.0.0" {
 		return fmt.Errorf("unsupported Windows %s: Docker Desktop supports 127.0.0.1 or 0.0.0.0, not a native interface address", name)
 	}

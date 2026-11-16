@@ -12,6 +12,17 @@ func isGlobalUnicastIPv4(ip net.IP) bool {
 	return ip.To4() != nil && ip.IsGlobalUnicast()
 }
 
+// checkInstanceHost refuses an Instance host that no connection can reach: the wildcard address, a multicast
+// address and the broadcast address. Loopback is allowed: it works for Local Scope, and a Service with Yard
+// Scope shows a warning for it. An empty value follows bind-address.
+func checkInstanceHost(value string) error {
+	ip := net.ParseIP(value)
+	if ip != nil && (ip.IsUnspecified() || ip.IsMulticast() || ip.Equal(net.IPv4bcast)) {
+		return fmt.Errorf("invalid instance-host %s: no connection can reach it. Use the LAN IPv4 address of this computer", value)
+	}
+	return nil
+}
+
 // defaultRouteSource is the address that the system uses to reach the Internet, or nil when there is
 // no default route. A UDP connect selects a source address without sending a packet.
 func defaultRouteSource() net.IP {

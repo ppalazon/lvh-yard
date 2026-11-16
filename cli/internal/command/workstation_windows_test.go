@@ -168,3 +168,27 @@ func TestWindowsSetsTheInstanceHostApartFromTheAdvertisedAddress(t *testing.T) {
 		t.Fatalf("settings: %s, %v", text, err)
 	}
 }
+
+func TestWindowsRefusesAnInstanceHostThatNoConnectionCanReach(t *testing.T) {
+	yard := commandtest.New(t)
+	folder := filepath.Join(t.TempDir(), "private")
+	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "native", "--address", "192.168.122.117"); run.ExitCode != 0 {
+		t.Fatalf("init: %+v", run)
+	}
+	before, err := os.ReadFile(filepath.Join(folder, ".env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, value := range []string{"0.0.0.0", "224.0.0.1", "255.255.255.255"} {
+		if run := yard.Run("ws", "set", "--dir", folder, "instance-host", value); run.ExitCode == 0 || !strings.Contains(run.Stdout+run.Stderr, "instance-host") {
+			t.Fatalf("set instance-host %s: %+v, want a refusal", value, run)
+		}
+	}
+	if after, err := os.ReadFile(filepath.Join(folder, ".env")); err != nil || string(after) != string(before) {
+		t.Fatalf(".env changed after refused values: %v", err)
+	}
+	// A process on loopback is a normal Instance for Local Scope.
+	if run := yard.Run("ws", "set", "--dir", folder, "instance-host", "127.0.0.1"); run.ExitCode != 0 {
+		t.Fatalf("set instance-host 127.0.0.1: %+v", run)
+	}
+}

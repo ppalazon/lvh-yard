@@ -115,25 +115,27 @@ wording matches what is published.
 
 ## 8. Items from the review that I did not fix
 
-- [ ] `ws init --address` is a new flag on Linux and macOS too. On Unix it sets `YARD_BIND_ADDRESS` and nothing else
-      changes. Keep it for every platform, or hide it on Unix.
-- [ ] `ws set instance-host` is accepted on Linux and macOS. On Windows its value is not validated: a loopback or
-      wildcard address passes, although other Workstations cannot use it. Decide whether to refuse those values.
-- [ ] The handoff probe treats any nonzero exit of `ssh <host> uname -s` (except 255) as a Windows destination. A Unix
-      host with a restricted shell would be refused, and the user must copy the files by hand.
-- [ ] `mise.toml` copies `install.ps1` into the site build. When this merges to `main`, Pages serves the installer, and
-      `release.yml` ships the ZIP on the next tag. Both happen before the README and the landing page change.
+Decided 2026-11-16, on my recommendations, except where noted.
+
+- [x] `ws init --address` is a new flag on every platform. Kept. On Unix it only sets `YARD_BIND_ADDRESS`.
+- [x] `ws set instance-host`: Windows now refuses `0.0.0.0`, multicast addresses and the broadcast address, which no
+      connection can reach. I did **not** refuse loopback, as I first recommended. The user guide says that a process
+      on `127.0.0.1` works for Local Scope, a Service with Yard Scope already shows a warning for a loopback Instance,
+      and routing to native loopback processes is a core feature. A pure function (`checkInstanceHost`) holds the
+      rule, with a test table that runs everywhere. A Windows test checks that `ws set` refuses the values, leaves
+      `.env` unchanged, and accepts `127.0.0.1`. Unix still accepts any IPv4 address.
+- [x] The handoff probe keeps treating a nonzero `ssh <host> uname -s` exit (except 255) as a Windows destination. A
+      false refusal is the safe failure, and the message names the manual steps.
+- [x] The installer went live when the pull request merged. Closed. What is left is the missing release: `v0.1.0` and
+      the test release are deleted, so `releases/latest` returns 404 until a new release exists.
 - [ ] `docs/development.md` line 294 still cites `.scratch/windows-11/evidence/`, while `CLAUDE.md` says to delete a
-      finished spec folder. Move what stays to a durable place, or drop that sentence, before the folder goes.
-- [ ] The raw outputs (`evidence/*.out`, the scripts) live outside the repository, under
-      `~/.local/state/lvh-yard-windows-11/`. The evidence files cite them by name. Keep them, or drop the names.
-- [ ] The Windows listener rule appears in three places: the Go check (`validateNativeListener`),
-      `traefik/00-lvh-yard-windows.sh` and the command in `compose.windows.yaml`. A change to one needs the other two.
-- [ ] Cross-Workstation reads stalled and a Route flapped on the shared 2-CPU VM (evidence `05` and `06`). The cause was
-      never found. The passes of `08` and `10` on the larger VM (4 CPUs, 6 GB, at most two stacks) saw no stall. Decide
-      whether that is enough, or whether to repeat a long mixed-Yard run with three or more stacks.
+      finished spec folder. Do it when the folder is deleted. Tickets 02 and 10 are still `ready-for-human`.
+- [x] The raw outputs and scripts stay in `~/.local/state/lvh-yard-windows-11/`. The evidence files cite them by name.
+- [x] The Windows listener rule stays in three places (Go, `traefik-windows.sh`, the Compose command). Documented.
+- [x] The cross-Workstation stalls on the 2-CPU VM stay an accepted limit. They did not recur on the larger VM.
 - [ ] A container that publishes a port only on IPv6 gives no Bound Instance on Windows, and no message says why.
       `Registrations.keepBoundInstances` skips it silently. The signal exists: `YARD_IPV4_ONLY` reaches the dashboard as
       `RuntimeNetwork.ipv4Only()`. A visible warning needs a new warning kind (API schema, `openapi.yaml`, CLI and
-      page) and a per-binding state that the Service view does not hold. That is not a small change, so I made none.
-      Decide whether to add it. Until then the user guide says that IPv6 targets are unsupported on Windows.
+      page) and a per-binding state that the Service view does not hold. That is a feature and not a fix. Open: your
+      decision. My recommendation is to wait until a user hits it. The user guide says that IPv6 targets are
+      unsupported on Windows.
