@@ -88,8 +88,8 @@ ws-b
 ## Install
 
 You need Docker with Compose on every Workstation. The `lvh-yard` executable is
-available for Linux (amd64, arm64) and macOS (arm64). Docker is the only
-container runtime that LVH Yard supports. Podman is not supported.
+available for Linux (amd64, arm64), macOS (arm64) and Windows 11 (x64). Docker
+is the only container runtime that LVH Yard supports. Podman is not supported.
 
 Run the install script. It downloads the archive of your platform, checks it
 against `SHA256SUMS`, and puts `lvh-yard` in `~/.local/bin`:
@@ -101,6 +101,21 @@ curl -fsSL https://lvhy.cc/install.sh | sh
 To install by hand, or to set the version and the folder, read
 [Installing the CLI](docs/user-guide.md#installing-the-cli).
 
+On Windows 11, use Docker Desktop with the WSL2 backend and host networking. In
+Windows PowerShell 5.1 or PowerShell 7, run the installer. It needs no
+administrator rights:
+
+```powershell
+Invoke-RestMethod https://lvhy.cc/install.ps1 | Invoke-Expression
+```
+
+The Windows executable is not signed, so Windows may warn you. The Windows
+Workstation supports IPv4 only. GitHub's CI tests the CLI on Windows Server.
+Windows 11 with Docker Desktop is tested by hand, see
+[Development](docs/development.md#windows-runtime-development). Read
+[Windows Workstation setup](docs/user-guide.md#windows-workstation-setup)
+before you start.
+
 ## Quick start
 
 ```sh
@@ -108,6 +123,9 @@ lvh-yard ws init                             # writes ~/.config/lvh-yard
 cd ~/.config/lvh-yard && docker compose up -d  # starts Consul, the dashboard and Traefik
 lvh-yard status                                # checks that it all works
 ```
+
+On Windows, `lvh-yard ws init` writes the Workstation Folder to
+`$env:LOCALAPPDATA\lvh-yard\workstation`.
 
 Open [yard.lvh.me](http://yard.lvh.me), the dashboard. To add a second
 Workstation to your Yard, see

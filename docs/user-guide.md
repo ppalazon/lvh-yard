@@ -142,9 +142,6 @@ to the dashboard.
 
 ### Windows Workstation setup
 
-This setup is a draft for Windows 11 x64 development checks.
-Windows runtime acceptance is not complete.
-
 Use Docker Desktop with Linux containers and the WSL2 backend. The tests used Docker Desktop 4.99.0.
 In Docker Desktop, enable host networking and disable Enhanced Container
 Isolation. The CLI does not change Docker settings, Windows Firewall or
@@ -921,8 +918,8 @@ on host networking in the settings.
 
 ## Installing the CLI
 
-Each release has `lvh-yard` as one executable for Linux (amd64, arm64) and
-macOS (arm64). It needs no Java.
+Each release has `lvh-yard` as one executable for Linux (amd64, arm64), macOS
+(arm64) and Windows 11 (x64). It needs no Java.
 
 ### Linux and macOS
 
@@ -961,15 +958,14 @@ On macOS, the system blocks a downloaded executable. To unblock it, run
 
 ### Windows 11 x64
 
-The Windows ZIP and PowerShell installer need maintainer publication before
-these public commands can be used. They apply to a release that includes
-`lvh-yard-<version>-windows-amd64.zip` and a deployed `install.ps1`.
-Installing the CLI alone does not prove full Windows Workstation support.
+The installer installs the Windows ZIP of a release,
+`lvh-yard-<version>-windows-amd64.zip`. It installs the CLI only. To set up a
+Workstation, see [Windows Workstation setup](#windows-workstation-setup).
 
 In Windows PowerShell 5.1 or PowerShell 7, read the installer before running it:
 
 ```powershell
-$installer = (Invoke-WebRequest -UseBasicParsing https://lvhy.cc/install.ps1).Content
+$installer = Invoke-RestMethod https://lvhy.cc/install.ps1
 $installer
 Invoke-Expression $installer
 ```
@@ -1057,8 +1053,7 @@ lvh-yard completions powershell | Out-String | Invoke-Expression
 ```
 
 To load it in each new session, add that line to your PowerShell profile.
-Native CLI checks cover Windows PowerShell 5.1 and PowerShell 7.
-Full Windows Workstation acceptance remains open.
+The completion script is tested in Windows PowerShell 5.1 and PowerShell 7.
 
 ## Using the CLI
 

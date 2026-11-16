@@ -178,8 +178,7 @@ The CLI mode tests cover new folders and repair of existing folders.
 
 ### Windows runtime development
 
-Windows runtime acceptance is not complete. The
-[Windows setup draft](user-guide.md#windows-workstation-setup) owns the
+The [Windows Workstation setup](user-guide.md#windows-workstation-setup) owns the
 Docker Desktop prerequisites, native storage rules, and the reset, Backup
 transfer and complete removal procedures.
 The repository's developer tasks do not imply a native Windows build toolchain.
@@ -585,19 +584,21 @@ the original user PATH and removes its acceptance root. Its fresh shell
 rebuilds PATH from the registry because an SSH service can retain an older
 environment.
 
-The Windows public installation entry point still needs maintainer publication.
-A local site build and native installer test do not prove a live Pages
-deployment or a GitHub release upload. Do not announce Windows support until
-the maintainer approves publication and the remaining Windows acceptance.
+A local site build and a native installer test do not prove a live Pages
+deployment or a GitHub release upload. Prove those with a test tag, as the next
+paragraph says.
 
 Before a public release, prove the publish workflow with a test tag such as
-`v0.0.2-rc.1`. A tag with a hyphen makes a pre-release. The latest release,
+`v0.1.1-rc.1`. A tag with a hyphen makes a pre-release. The latest release,
 which `install.sh` and `install.ps1` download, never picks it, and the image
 gets only its own tag, not `latest`. Check the image, all archives including
-the Windows ZIP, and `SHA256SUMS` of the release. Then run `--version` on the
-Linux arm64 and macOS arm64 executables on their own platforms. Delete the
-test release, the tag and the test image (`gh release delete`, `git push origin
-:refs/tags/<tag>`, and the package version on GitHub) when the check is done.
+the Windows ZIP, and `SHA256SUMS` of the release. On Windows, set
+`LVH_YARD_VERSION` to the test version, run `install.ps1` in both PowerShell
+versions, and compare the installed `lvh-yard.exe` with the one inside the
+published ZIP. Then run `--version` on the Linux arm64 and macOS arm64
+executables on their own platforms. When the check is done, delete the test
+release and its tag with `gh release delete <tag> --cleanup-tag`, and delete
+the test image version on GitHub.
 
 Versions follow [Semantic Versioning](https://semver.org/). Before 1.0.0, a
 minor release can change how LVH Yard works. The release notes are the

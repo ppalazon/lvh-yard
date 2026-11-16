@@ -86,24 +86,27 @@ keeps package managers, Authenticode signing and a self-update command out of sc
       list also omits `go-pkcs12`, but `main` already had that dependency before this work, so that gap is older than
       the Windows port. Leave it, or record it through a new ADR if you ever want that list fixed.
 
-## 6. Documentation after your approval
+## 6. Documentation
 
-On hold (decided 2026-11-16): do this section after the test tag and the first `windows` CI run on GitHub, so the
-wording matches what is published.
-
-- [ ] README: add the Windows install line and the platform list. Today `README.md` shows only `install.sh` and no
-      Windows text (review item 26). Keep it short, link to the user guide, and state the exclusions and the
-      unsigned-binary warning.
-- [ ] Landing page: `docs/site/index.html` has the hero terminal (about line 168), "1. Install" (about line 210) and
-      "What you need" (about line 544). They show only the Unix installer and no Windows platform line.
-- [ ] User guide (review item 22): `docs/user-guide.md` line 146 says "This setup is a draft ... Windows runtime
-      acceptance is not complete", and `docs/development.md` line 181 says it too. Remove or move the status text only
-      after you approve. I did not touch either, as instructed.
-- [ ] User guide wording to review when you approve: the native-process firewall note, the Consul TLS note for mixed
-      Yards, and the statement of Docker Desktop versions tested.
-- [ ] Review item 24 ("reparse points" in user text) no longer appears in `docs/` or the README (`grep`).
-- [ ] `docs/development.md` has the release matrix and the new count of six required Windows-only tests. Check the
-      "Releasing" proof steps against the first real release.
+- [x] Done on 2026-11-16 after the test tag and the first CI run, with your approval:
+  - The README lists Windows 11 (x64), has the PowerShell install command, and states the unsigned executable,
+    IPv4 only, and the manual Windows 11 test. It links to the user guide.
+  - The landing page names Windows in "1. Install" and "What you need". The hero terminal still shows the Unix
+    installer only.
+  - The user guide and `docs/development.md` no longer say that the setup is a draft or that acceptance is
+    incomplete. The release proof steps match what was run for the test release.
+  - The guide's installer command was wrong. The site serves `install.ps1` as `application/octet-stream`, so
+    `(Invoke-WebRequest ...).Content` is a byte array, and `Invoke-Expression` refused it in both shells (observed).
+    The guide and the README now use `Invoke-RestMethod`, which returned text in both shells.
+- [ ] Run the documented command without `LVH_YARD_VERSION` in both shells after the first real release. No release
+      exists now, so `releases/latest/download` returns 404. The test used a version tag, never `latest`. Windows
+      PowerShell 5.1 also failed intermittently on GitHub error responses ("connection was closed unexpectedly", 1 of 2
+      runs on a missing tag, 2 of 2 on `latest`) and the same shell downloaded the real release without trouble. The
+      cause was not found.
+- [ ] Review the wording you approved: the native-process firewall note, the Consul TLS note for mixed Yards, and the
+      Docker Desktop version statement.
+- [ ] Optional: `install.sh` fails on Git Bash or MSYS with "no lvh-yard release for MINGW64_NT ..." and does not
+      mention `install.ps1`. Add a hint if you want one.
 
 ## 7. Clean up the test fixtures
 
