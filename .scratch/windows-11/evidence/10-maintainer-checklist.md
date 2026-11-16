@@ -7,18 +7,19 @@ Nothing below is done. Each item is a decision or an action that belongs to the 
 
 - [ ] Read [10-windows-acceptance.md](10-windows-acceptance.md) and the evidence files `01` to `09` and `10-native-ci.md`.
       Decide whether the observed results meet every release gate of the specification.
-- [ ] Decide about the two results that did not pass cleanly in the integrated pass:
-  - A native PowerShell listener on `0.0.0.0` was not reachable from the Linux host, while a container listener on the
-    same address was. The cause was not confirmed. A Yard Scope Publication of a native Windows process may need a
-    Windows Firewall rule that the user adds.
-  - `status --strict` fails when Consul TLS is on and a Yard peer has none. The CLI says so. The user guide should say
-    that every Workstation in the Yard needs Consul TLS.
-- [ ] Decide whether the gaps are acceptable or need another run:
+- [x] Two results did not pass cleanly in the integrated pass. Both are decided (2026-11-16):
+  - A native PowerShell listener on `0.0.0.0` was not reachable from the Linux host. Proven to be the firewall: it
+    timed out with no rule, connected with one scoped inbound rule, and timed out again after the rule was removed
+    ([10-native-process-firewall.md](10-native-process-firewall.md)). The user guide now says that such a program
+    needs an inbound rule that the user adds.
+  - `status --strict` fails when Consul TLS is on and a Yard peer has none. The user guide now says so.
+- [x] Gaps: you chose no extra runs (2026-11-16). They stay recorded as limits:
   - The second LAN computer is a Linux host. No Windows or macOS peer was used.
   - No real second eligible adapter (VPN, VirtualBox, VMware) was produced. The ambiguity rule is a unit test only.
   - Only Docker Desktop 4.99.0 was tested. The guide says so. It no longer asks for 4.34 or later, because no
     evidence shows that version.
-  - The Windows build is `10.0.26300.9974`. I did not check whether it is a release or a preview build.
+  - The Windows build is `10.0.26300.9974` (display version 26H2, branch `ge_release`). You do not know whether it is
+    a public release, so it stays unchecked.
   - PowerShell 7 ran the native checks and a smoke test, not the whole journey.
   - Wildcard-published and explicit-bind container ports, the Docker Desktop restart, image upgrade, destructive
     reset, NTFS live reload and Backup import were observed in the earlier tickets and not repeated.
@@ -56,8 +57,7 @@ tagged nothing.
       and I preserved them. They let wildcard container listeners (Consul's federation ports, and any container
       that binds `0.0.0.0`) reach the LAN and any network that the profile covers. Decide what the user guide tells
       users: keep the broad rules, narrow them to the Yard's addresses, or prefer a rule for each port.
-- [ ] Decide whether the guide states that a native Windows process in a Yard Scope Publication needs its own
-      firewall rule (see item 1).
+- [x] The guide states that a native Windows process in a Yard Scope Publication needs its own firewall rule (item 1).
 
 ## 5. Reconcile the decision records
 
@@ -92,15 +92,11 @@ tagged nothing.
 
 ## 7. Clean up the test fixtures
 
-I removed nothing. These are stopped:
-
-- Containers `lvhy-win-10-*`, `lvhy-win-10p7-*`, `lvhy-win10-box`, `lvhy-win10-yard`, `lvhy-win10-control`; network
-  `lvhy-win10-net-a`; volumes `lvhy-win-10_consul-data` and `lvhy-win-10p7_consul-data`.
-- Folders `C:\Users\yarddev\lvh-dev\10\journey51`, `journey7` and `run`, and the image tag
-  `lvhy-win10-dashboard:acceptance`.
-- On the host: `~/.local/state/lvh-yard-windows-11/bin/10-*` and `evidence/10-*`.
-
-The Linux peer `lvhy-win-peer` was left running with its earlier `YARD_PEERS`.
+- [x] Done on 2026-11-16, with your approval. Removed: the Linux peer project, its volumes and its folder; on the VM, all
+      `lvhy*` containers, networks and volumes, and the `lvhy-win0N-dashboard:acceptance` and `lvh-probe:1` images.
+      Kept: the public images, the Workstation folders and test binaries under `C:\Users\yarddev\lvh-dev`, the portable
+      PowerShell 7, the accounts `yarddev` and `yardother`, the `.wslconfig` files and the VM's CPU topology. The scripts
+      and raw output under `~/.local/state/lvh-yard-windows-11/` also stay.
 
 ## 8. Items from the review that I did not fix
 

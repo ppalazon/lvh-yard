@@ -710,6 +710,8 @@ Consul and for Traefik, and for every pair of operating systems.
 4. Run the `compose recreate` command that `import` prints, then
    `lvh-yard status`. Every Workstation of the Yard must run Consul TLS with
    the same Yard CA.
+   If one Workstation of the Yard has Consul TLS and another has none,
+   `lvh-yard status --strict` fails.
 
 The recipient runs the same two commands on any system. Only `import` writes
 the recipient's files. No command copies a whole private Workstation Folder.
@@ -2078,6 +2080,13 @@ Windows computer, and these limits apply:
 A port that Docker publishes on every address, or on the LAN address, is open
 on the LAN. Other Workstations reach it only when Windows Firewall lets Docker
 Desktop accept their connections. LVH Yard never changes the firewall.
+
+A program that runs on Windows itself, not in a container, is different. For
+example, a dev server that you start in PowerShell may listen on every address,
+but Windows Firewall still blocks other computers from reaching it. To give a
+Yard Scope Publication to such a program, add an inbound rule in Windows
+Firewall that allows that program or port from the Yard's addresses only. LVH
+Yard never changes the firewall.
 
 #### Bind a container on the Service page
 
