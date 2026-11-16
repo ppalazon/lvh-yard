@@ -32,6 +32,10 @@ Nothing below is done. Each item is a decision or an action that belongs to the 
 The release and site workflows are `.github/workflows/release.yml` and `.github/workflows/pages.yml`. I pushed and
 tagged nothing.
 
+Decided 2026-11-16: release only the PowerShell installer. A double-click `.exe` installer (for example a Go
+wrapper that embeds `install.ps1`) and GoReleaser are deferred. No ticket exists for either. The specification
+keeps package managers, Authenticode signing and a self-update command out of scope.
+
 - [ ] Push a test tag such as `v0.0.0-rc.1` first, as `docs/development.md` describes. Check that the release holds
       the Windows ZIP with `lvh-yard.exe` and `LICENSE`, and that `SHA256SUMS` lists it.
 - [ ] Deploy the site so that `install.ps1` is served. `mise run site:build` copies it to `docs/site/dist` (observed
