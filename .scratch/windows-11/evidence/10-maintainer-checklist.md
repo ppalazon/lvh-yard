@@ -30,22 +30,29 @@ Nothing below is done. Each item is a decision or an action that belongs to the 
 
 ## 2. Publish the release
 
-The release and site workflows are `.github/workflows/release.yml` and `.github/workflows/pages.yml`. I pushed and
-tagged nothing.
+The release and site workflows are `.github/workflows/release.yml` and `.github/workflows/pages.yml`. On 2026-11-16 I
+pushed the test tag `v0.1.1-rc.1` with your approval and nothing else. The result is in [10-test-release.md](10-test-release.md).
 
 Decided 2026-11-16: release only the PowerShell installer. A double-click `.exe` installer (for example a Go
 wrapper that embeds `install.ps1`) and GoReleaser are deferred. No ticket exists for either. The specification
 keeps package managers, Authenticode signing and a self-update command out of scope.
 
-- [ ] Push a test tag such as `v0.0.0-rc.1` first, as `docs/development.md` describes. Check that the release holds
-      the Windows ZIP with `lvh-yard.exe` and `LICENSE`, and that `SHA256SUMS` lists it.
+- [x] Test tag `v0.1.1-rc.1` (your choice, 2026-11-16): the release job passed. The release is a pre-release with the
+      Windows ZIP (`lvh-yard.exe` and `LICENSE`), the Linux and macOS archives and `SHA256SUMS`. All four checksums
+      verify. `releases/latest` is still `v0.1.0`. I first added `--prerelease` for hyphenated tags, because the
+      installers use `releases/latest`.
+- [ ] Delete the test release, the tag and the image `lvh-yard-dashboard:0.1.1-rc.1` when you have finished looking at
+      them. I did not, because the token has no `delete:packages` scope, and you may want to look first.
+      `gh release delete v0.1.1-rc.1 --cleanup-tag` removes the release and the tag. Delete the image version in the
+      package settings on GitHub.
 - [ ] Deploy the site so that `install.ps1` is served. `mise run site:build` copies it to `docs/site/dist` (observed
       locally); no deployment was observed.
-- [ ] Run the documented install command on the real Windows 11 computer against the published files. The tested ZIPs
-      were built locally by `dev/package-cli.sh`. The release job builds its own. Compare them, or run
-      `dev/test-windows-native.ps1` against the published archives.
-- [ ] Run the `windows` CI job on GitHub once. It never ran there. Check the artifact transfer, the `cmd` step, the
-      runner's shells and line endings after checkout.
+- [x] Install on the real Windows 11 computer against the published files, partly. As `yarddev`, in Windows PowerShell 5.1
+      and PowerShell 7, the installer file from the branch installed the published ZIP: the executable's SHA-256
+      matched the one inside the ZIP, `--version` printed `lvh-yard 0.1.1-rc.1`, a reinstall left one PATH entry, and
+      the PATH was restored exactly. Not run: the documented one-line command (the site is not deployed).
+- [ ] Run the `windows` CI job on GitHub once. It never ran there. It starts on a pull request or a push to `main`, not
+      on a tag. Check the artifact transfer, the `cmd` step, the runner's shells and line endings after checkout.
 
 ## 3. Decide about CI
 
