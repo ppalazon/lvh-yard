@@ -48,19 +48,19 @@ keeps package managers, Authenticode signing and a self-update command out of sc
 
 ## 3. Decide about CI
 
-- [ ] The `windows` job runs as an administrator, because a hosted runner does. It cannot show ordinary-user
-      behavior. I could not make an ordinary-user process on an elevated session: a restricted token and
-      `Start-Process -Credential` both failed (`10-native-ci.md`). Decide whether to add a non-administrator step,
-      for example on a self-hosted runner, or to keep the manual Windows 11 acceptance as the only ordinary-user proof.
-- [ ] Decide whether the native job also runs the unit test binaries on every pull request (it does now) or only on
-      release tags. It takes about 35 to 50 s on the VM.
+- [x] Decided 2026-11-16: keep the `windows` job as an administrator job. The manual Windows 11 acceptance stays the
+      only ordinary-user proof, and the limit stays documented. No self-hosted runner, no non-administrator step.
+- [x] Decided 2026-11-16: the native job keeps running the unit test binaries on every pull request (35 to 50 s on the
+      VM, not measured on a hosted runner). Move it to release tags only if the first GitHub runs are slow.
 
 ## 4. Decide about the firewall policy
 
-- [ ] Docker's backend has inbound Allow rules on the Private and Public profiles on the test VM. They are user-owned,
-      and I preserved them. They let wildcard container listeners (Consul's federation ports, and any container
-      that binds `0.0.0.0`) reach the LAN and any network that the profile covers. Decide what the user guide tells
-      users: keep the broad rules, narrow them to the Yard's addresses, or prefer a rule for each port.
+- [x] Decided 2026-11-16: document the facts and change nothing. Docker's backend has inbound Allow rules on the Private
+      and Public profiles on the test VM (user-owned, preserved). The user guide now says that such a rule lets any
+      computer on those networks reach every `0.0.0.0` container port, Consul's included, and that a narrow rule of the
+      user's own does not limit that. It lists three steps: a Private network only where trusted, Consul TLS for a Yard
+      that is not fully trusted, and no `0.0.0.0` container port unless wanted. The guide does not show how to narrow
+      Docker's rule. Not checked: who created these rules, and whether every Docker Desktop install has them.
 - [x] The guide states that a native Windows process in a Yard Scope Publication needs its own firewall rule (item 1).
 
 ## 5. Reconcile the decision records

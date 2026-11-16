@@ -335,13 +335,31 @@ visible on the Windows computer. A Consul bind to the address of the Docker
 virtual machine was not reachable from the LAN. So on Windows, Consul starts
 with `-bind=0.0.0.0` and listens on every adapter. `bind-address` sets only the
 address that Consul advertises to other Workstations. It does not limit where
-Consul listens. Windows Firewall is what limits who can reach Consul, so allow
-only the Yard's addresses, as described next.
+Consul listens.
+
+Windows Firewall decides who can reach those ports, and Docker Desktop may
+already allow them. On a computer that we tested, Docker's own rules for
+`com.docker.backend.exe` allowed inbound connections on the Private and Public
+networks. Such a rule lets any computer on those networks reach every port that
+a container listens on at `0.0.0.0`, Consul's ports included. A narrow rule of
+your own does not limit that. To see the rules, run this in PowerShell as
+administrator:
+
+```powershell
+Get-NetFirewallRule -Direction Inbound -Action Allow -Enabled True | Where-Object DisplayName -match 'docker'
+```
+
+To lower the risk:
+
+- Set your network to Private, and only on a network that you trust.
+- Turn on Consul TLS for a Yard that is not fully trusted.
+- Do not publish a container port on `0.0.0.0` unless you want other computers
+  to reach it.
 
 The Consul server port (TCP, default 8300) and the WAN gossip port (TCP and
 UDP, default 8302) must be reachable from the other Workstations.
-Allow them in Windows Firewall yourself, in both directions, for the
-Yard's addresses only. The CLI never changes firewall rules.
+If no Docker rule already allows them, add rules yourself, in both directions,
+for the Yard's addresses only. The CLI never changes firewall rules.
 Docker Desktop also listens on the LAN gossip port (default 8301) on every
 address. The Yard does not need it, so do not allow it.
 Consul HTTP, DNS and gRPC, the dashboard, Traefik and the Traefik admin
