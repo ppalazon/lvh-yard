@@ -95,6 +95,8 @@ jobs:
         with:
           name: windows-package
           path: windows-package
+          # The tests read config/.env.example and other dotfiles. The action skips hidden files by default.
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 1
 
