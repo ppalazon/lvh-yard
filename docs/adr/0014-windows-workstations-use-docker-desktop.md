@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, in part superseded by ADR-0015
 ---
 
 # Windows Workstations use Docker Desktop as their runtime boundary

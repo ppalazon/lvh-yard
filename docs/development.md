@@ -219,9 +219,8 @@ This setting adds no HTTP API field or domain property.
 The Windows Compose file reads `YARD_INSTANCE_HOST` from `.env`. If it is empty,
 the file uses `YARD_BIND_ADDRESS`, the LAN address that Consul advertises.
 Consul always listens on `0.0.0.0` inside Docker Desktop.
-`ws init` also writes `COMPOSE_PROJECT_NAME` to `.env`, on every platform.
-`composeProjectName` makes it from the folder name and a short code of the full
-path, so two folders never share the `consul-data` volume.
+`ws init` does not write `COMPOSE_PROJECT_NAME`. Compose names the project after
+the Workstation Folder, so give each test folder its own name.
 
 `InstanceHostComponentTest` checks the configured host through the existing
 dashboard API, pages, Backup export/import and Traefik configuration.
@@ -232,8 +231,8 @@ startup, persistent state and local listener isolation.
 Check native-loopback routing through real Traefik requests separately from
 Health and Reachability results. Record only observed outcomes.
 
-To check persistence, start two fresh Workstations with different
-`COMPOSE_PROJECT_NAME` values and ports. Save a Backup export of each with
+To check persistence, start two fresh Workstations in folders with different
+names and different ports. Save a Backup export of each with
 `lvh-yard export`, ignoring its `at:` line. Run stop and start, recreate, an
 image upgrade and a Docker Desktop restart on one. After each, its export, its
 Consul node ID and the creation time of its `consul-data` volume must not

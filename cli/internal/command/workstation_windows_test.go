@@ -4,7 +4,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -126,31 +125,22 @@ func TestWindowsWorkstationRejectsSharedAndSyncedFolders(t *testing.T) {
 	}
 }
 
-func TestWindowsInitNamesTheComposeProjectOfEachFolder(t *testing.T) {
+func TestWindowsInitLeavesTheInstanceHostEmpty(t *testing.T) {
 	yard := commandtest.New(t)
-	root := t.TempDir()
-	names := map[string]string{}
-	for _, parent := range []string{"a", "b"} {
-		folder := filepath.Join(root, parent, "Work Station 日本")
-		if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "native", "--address", "192.168.122.117"); run.ExitCode != 0 {
-			t.Fatalf("init: %+v", run)
-		}
-		text, err := os.ReadFile(filepath.Join(folder, ".env"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		match := regexp.MustCompile(`(?m)^COMPOSE_PROJECT_NAME=(work-station-[0-9a-f]{8})$`).FindStringSubmatch(string(text))
-		if match == nil {
-			t.Fatalf("project name: %s", text)
-		}
-		names[parent] = match[1]
-		// The Instance host follows the LAN address until a person sets it.
-		if !strings.Contains(string(text), "\nYARD_INSTANCE_HOST=\n") || !strings.Contains(string(text), "\nYARD_BIND_ADDRESS=192.168.122.117\n") {
-			t.Fatalf("addresses: %s", text)
-		}
+	folder := filepath.Join(t.TempDir(), "Work Station 日本")
+	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "native", "--address", "192.168.122.117"); run.ExitCode != 0 {
+		t.Fatalf("init: %+v", run)
 	}
-	if names["a"] == names["b"] {
-		t.Fatalf("two folders share the project %s", names["a"])
+	text, err := os.ReadFile(filepath.Join(folder, ".env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The Instance host follows the LAN address until a person sets it.
+	if !strings.Contains(string(text), "\nYARD_INSTANCE_HOST=\n") || !strings.Contains(string(text), "\nYARD_BIND_ADDRESS=192.168.122.117\n") {
+		t.Fatalf("addresses: %s", text)
+	}
+	if strings.Contains(string(text), "COMPOSE_PROJECT_NAME") {
+		t.Fatalf("init must leave the Compose project name to Compose: %s", text)
 	}
 }
 

@@ -63,7 +63,7 @@ func TestWindowsEnvTemplateKeepsTheUnixSettings(t *testing.T) {
 			t.Errorf("the Windows .env template has %s, which only Windows has", key)
 		}
 	}
-	for _, key := range []string{"COMPOSE_PROJECT_NAME", "YARD_INSTANCE_HOST"} {
+	for _, key := range []string{"YARD_INSTANCE_HOST"} {
 		if commented, found := windows[key]; !found || commented {
 			t.Errorf("the Windows .env template must set %s", key)
 		}

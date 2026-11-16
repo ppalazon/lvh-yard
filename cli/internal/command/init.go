@@ -225,10 +225,6 @@ func (f *initOptions) fillEnv(env *envfile.File, options *Options, folder, name,
 	if err := fillPlatformEnv(env, options, folder, f.dockerSocket); err != nil {
 		return err
 	}
-	// Compose names the consul-data volume after the project, so each Workstation Folder needs its own name.
-	if err := env.Set("COMPOSE_PROJECT_NAME", composeProjectName(folder)); err != nil {
-		return err
-	}
 	for _, setting := range [][2]string{{"YARD_WORKSTATION", name}, {"YARD_BASE_DOMAIN", domain}, {"YARD_GOSSIP_KEY", key}, {"YARD_PEERS", peers}} {
 		if err := env.Set(setting[0], setting[1]); err != nil {
 			return err

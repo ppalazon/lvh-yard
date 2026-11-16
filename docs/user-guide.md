@@ -219,12 +219,9 @@ Runtime containers never receive the Yard CA private key.
 #### Keeping, resetting, moving and removing Windows state
 
 Consul stores its state in a named Docker volume scoped to the Compose
-project. Compose names it `<project>_consul-data`.
-`lvh-yard ws init` writes the project name as `COMPOSE_PROJECT_NAME` in `.env`.
-It is the folder name in lowercase letters, digits and `-`, then a short code
-of the whole folder path. Two folders with the same name under different
-parents get different projects, so they never share Consul state.
-Keep the project name when reusing it; a different project selects different state.
+project. Compose names the project after the Workstation Folder and the volume
+`<project>_consul-data`. Two folders with the same name share one volume, so
+give each Workstation Folder its own name.
 
 Four actions treat this state in different ways:
 
