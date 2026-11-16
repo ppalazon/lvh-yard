@@ -209,9 +209,9 @@
               <header>
                 <h3>1. Install</h3>
                 <p>
-                  Run the install script. Then <code>lvh-yard</code> writes the
-                  setup files and Docker starts Consul, the dashboard and
-                  Traefik.
+                  Run the install script, on Linux, macOS or Windows 11. Then
+                  <code>lvh-yard</code> writes the setup files and Docker starts
+                  Consul, the dashboard and Traefik.
                 </p>
               </header>
             </li>
@@ -541,8 +541,13 @@ ws-b
             <ul class="text-muted-foreground mt-6 list-disc space-y-2 pl-5">
               <li>Docker with Compose on every Workstation.</li>
               <li>
-                <code>lvh-yard</code> for Linux (amd64, arm64) or macOS (arm64).
-                It needs no Java.
+                <code>lvh-yard</code> for Linux (amd64, arm64), macOS (arm64)
+                or Windows 11 (x64). It needs no Java.
+              </li>
+              <li>
+                On Windows 11: Docker Desktop with the WSL2 backend and host
+                networking. The Windows Workstation supports IPv4 only, and
+                the executable is not signed.
               </li>
               <li>
                 Docker is the only container runtime that LVH Yard supports.
