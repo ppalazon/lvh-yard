@@ -1,12 +1,12 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Windows Workstations use Docker Desktop as their runtime boundary
 
 The Windows support specification requires a native CLI and a full Workstation in a mixed-platform Yard. Keep Consul, Traefik and the dashboard on Docker Desktop's host network, while treating Windows LAN identity separately from container binding.
 
-This is a proposed Windows extension to [ADR-0012](0012-services-keep-host-networking.md), with a Windows storage exception to [ADR-0011](0011-consul-files-traefik-flags-and-owned-files.md). Existing platform decisions remain unchanged. Accept this proposal only after the specification's runtime gates pass.
+This is a Windows extension to [ADR-0012](0012-services-keep-host-networking.md), with a Windows storage exception to [ADR-0011](0011-consul-files-traefik-flags-and-owned-files.md). Existing platform decisions remain unchanged. The maintainer accepted it on 2026-11-16, before every release gate closed. The section "Acceptance, 2026-11-16" lists what stays open.
 
 ## Context
 
@@ -45,7 +45,7 @@ The runtime must preserve separate certificate mounts from [ADR-0013](0013-one-y
 
 The CLI gains one dependency, `golang.org/x/sys`, for Windows file ACLs. Only files that build on Windows import it.
 
-If the runtime fails the specification's release gates, the maintainer must reconsider this proposal. There is no approved fallback that silently removes routing behavior or Yard participation.
+If the runtime fails the specification's release gates, the maintainer must reconsider this decision. There is no approved fallback that silently removes routing behavior or Yard participation.
 
 ## IPv4-only Windows runtime, 2026-11-14
 
@@ -84,4 +84,14 @@ The measurements were observed on 2026-11-14 on Windows 11 Pro x64 (build 26300)
 | Java client                    | same listener, with `-Djava.net.preferIPv4Stack=true` | `java.net.SocketException: IPv6 protocol family unavailable`.                      |
 
 The Windows Workstation acceptance record must include these results before
-release. This ADR remains proposed until the remaining release gates pass.
+release.
+
+## Acceptance, 2026-11-16
+
+The maintainer accepted this decision on 2026-11-16. Accepting it does not announce Windows support. The release gates below were not closed on that date:
+
+- No release, tag or site deployment has run, so the published installer and ZIP are untested. The `windows` CI job has not run on GitHub.
+- Only Docker Desktop 4.99.0 was tested, and the Enhanced Container Isolation setting was not recorded.
+- No test had two eligible network adapters. The rule that refuses a VPN or virtual adapter is covered by unit tests only.
+- The read stalls and Route flapping seen on a 2-CPU test computer were not diagnosed. They did not appear again on a larger one.
+- The second LAN computer in the tests was a Linux host. No macOS Workstation took part.

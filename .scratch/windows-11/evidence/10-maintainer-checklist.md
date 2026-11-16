@@ -65,11 +65,11 @@ keeps package managers, Authenticode signing and a self-update command out of sc
 
 ## 5. Reconcile the decision records
 
-- [ ] Accept, change or reject ADR-0014 through the repository's decision-recording process. It is `proposed`, and I did
-      not change its status. You said to go on with Section 5, so I folded the facts observed since it was written into
-      the ADR (2026-11-16): the separate `instance-host` setting, `COMPOSE_PROJECT_NAME` in the generated `.env`, the
-      new `golang.org/x/sys` dependency, and the Docker firewall rule fact. The IPv4-only section was already there.
-      Accepting it is your decision, after you read the evidence.
+- [x] Decided 2026-11-16: the maintainer accepted ADR-0014. I folded the facts observed since it was written into the
+      ADR first: the separate `instance-host` setting, `COMPOSE_PROJECT_NAME` in the generated `.env`, the new
+      `golang.org/x/sys` dependency and the Docker firewall rule fact. The IPv4-only section was already there. The
+      ADR now has a section "Acceptance, 2026-11-16" that lists the gates still open. An accepted ADR can change only
+      its status line, so any later change needs a new ADR.
 - [x] The ADR no longer cites a file under `.scratch/`. I moved the Java socket measurements into the ADR as a table, and
       it names the specification in plain text instead of linking it.
 - [x] ADR-0010 stays unchanged, as the specification requires. `golang.org/x/sys` is recorded in ADR-0014. ADR-0010's
@@ -77,6 +77,9 @@ keeps package managers, Authenticode signing and a self-update command out of sc
       the Windows port. Leave it, or record it through a new ADR if you ever want that list fixed.
 
 ## 6. Documentation after your approval
+
+On hold (decided 2026-11-16): do this section after the test tag and the first `windows` CI run on GitHub, so the
+wording matches what is published.
 
 - [ ] README: add the Windows install line and the platform list. Today `README.md` shows only `install.sh` and no
       Windows text (review item 26). Keep it short, link to the user guide, and state the exclusions and the

@@ -18,4 +18,4 @@
 - [ ] Publish the tested installer and artifacts through the existing release and site workflows. Public installation instructions resolve to those tested assets.
 - [ ] Update the user guide for prerequisites, setup, install/upgrade, storage/reset, firewall access, shell behavior and manual certificate handoff. Update development documentation for the release matrix and verification process.
 - [ ] Align short README and landing-page support/install entry points with the guide without duplicating it. State the approved exclusions, unsigned-binary warnings and manual Windows acceptance process.
-- [ ] Reconcile the proposed runtime ADR with the proven implementation through the repository's decision-recording process. Preserve accepted historical decisions and do not describe unverified behavior as accepted or shipped.
+- [x] Reconcile the proposed runtime ADR with the proven implementation through the repository's decision-recording process. Preserve accepted historical decisions and do not describe unverified behavior as accepted or shipped. (ADR-0014 was accepted by the maintainer on 2026-11-16. It lists the gates that stayed open and claims no support.)

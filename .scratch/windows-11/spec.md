@@ -179,7 +179,7 @@ Windows support is complete only after native CLI checks and real Windows runtim
 
 The user approved the support contract in the design interview and confirmed the testing seams for this specification. This specification is the single local tracker record for the feature; implementation has not started here.
 
-The [proposed Windows runtime ADR](../../docs/adr/0014-windows-workstations-use-docker-desktop.md) records the networking and storage trade-offs. Keep it proposed until the runtime gates pass. Existing accepted ADRs remain unchanged.
+The [Windows runtime ADR](../../docs/adr/0014-windows-workstations-use-docker-desktop.md) records the networking and storage trade-offs. The maintainer accepted it on 2026-11-16, before every runtime gate closed; the ADR lists the open gates. Existing accepted ADRs remain unchanged.
 
 Use the [domain glossary](../../GLOSSARY.md) for Workstation, Publication, Container Binding, Backup and related terms. A Backup does not become a raw Consul-volume backup or an archive of private certificates.
 
@@ -199,5 +199,5 @@ The maintainer approved an IPv4-only Windows Workstation runtime after the
 Java socket-family measurements. The Windows setup may use
 `-Djava.net.preferIPv4Stack=true`. Unsupported IPv6 targets must receive clear
 errors rather than misleading Health or Reachability results. Linux and macOS
-keep their existing endpoint-family behavior. The proposed Windows runtime ADR
+keep their existing endpoint-family behavior. The Windows runtime ADR
 records the measured failure, trade-off and rejected transport alternative.
