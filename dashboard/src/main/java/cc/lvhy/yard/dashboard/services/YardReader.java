@@ -1,5 +1,6 @@
 package cc.lvhy.yard.dashboard.services;
 
+import cc.lvhy.yard.dashboard.RuntimeNetwork;
 import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.consul.ConsulFederation;
 import java.util.List;
@@ -32,15 +33,19 @@ public class YardReader {
 
   private final DatacenterServices datacenterServices;
 
+  private final RuntimeNetwork network;
+
   YardReader(
       Workstation workstation,
       ConsulFederation federation,
       DatacenterReads reads,
-      DatacenterServices datacenterServices) {
+      DatacenterServices datacenterServices,
+      RuntimeNetwork network) {
     this.workstation = workstation;
     this.federation = federation;
     this.reads = reads;
     this.datacenterServices = datacenterServices;
+    this.network = network;
   }
 
   /**
@@ -100,8 +105,9 @@ public class YardReader {
   public Optional<Service> service(String workstation, String name) {
     checkInYard(workstation);
     Optional<Service> service =
-        reads.read(
-            workstation, datacenter -> datacenterServices.one(workstation, datacenter, name));
+        reads
+            .read(workstation, datacenter -> datacenterServices.one(workstation, datacenter, name))
+            .map(this::withRuntimeRouting);
     return this.workstation.is(workstation)
         ? service.map(found -> withAliases(List.of(found), this::aliasTarget).getFirst())
         : service;
@@ -128,7 +134,7 @@ public class YardReader {
                     .filter(Service::sharedWithYard)
                     .ifPresent(found -> aliased.put(alias.id(), found.instances()));
               });
-          return aliased.isEmpty() ? service : service.withAliases(aliased);
+          return withRuntimeRouting(aliased.isEmpty() ? service : service.withAliases(aliased));
         })
         .toList();
   }
@@ -151,7 +157,32 @@ public class YardReader {
   }
 
   private List<Service> read(String workstation) {
-    return reads.read(workstation, datacenter -> datacenterServices.all(workstation, datacenter));
+    List<Service> services =
+        reads.read(workstation, datacenter -> datacenterServices.all(workstation, datacenter));
+    return network.ipv4Only() ? services.stream().map(this::withRuntimeRouting).toList() : services;
+  }
+
+  /** Keep the catalog and sources intact; only the Routes depend on this runtime's sockets. */
+  private Service withRuntimeRouting(Service service) {
+    if (!network.ipv4Only()
+        || !service.routed()
+        || service.givenInstances().allMatch(instance -> network.supports(instance.host()))) {
+      return service;
+    }
+    List<InstanceSource> supported =
+        service.sources().stream()
+            .map(source ->
+                new InstanceSource(
+                    source.id(),
+                    source.kind(),
+                    source.givenInstances().stream()
+                        .filter(instance -> network.supports(instance.host()))
+                        .toList()))
+            .toList();
+    Routing routing =
+        Routing.of(supported, service.instancePriority(), workstation.is(service.workstation()))
+            .orElse(null);
+    return service.withRouting(routing);
   }
 
   private YardWorkstation remote(String workstation) {

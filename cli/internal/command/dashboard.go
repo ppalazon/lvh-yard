@@ -2,7 +2,6 @@ package command
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
@@ -17,7 +16,12 @@ func (o *Options) DashboardAddress() string {
 	if url := o.Process.Getenv("YARD_DASHBOARD_URL"); strings.TrimSpace(url) != "" {
 		return url
 	}
-	text, err := os.ReadFile(filepath.Join(o.WorkstationFolder(), ".env"))
+	root, err := os.OpenRoot(o.WorkstationFolder())
+	if err != nil {
+		return defaultDashboard
+	}
+	defer func() { _ = root.Close() }()
+	text, err := root.ReadFile(".env")
 	if err != nil {
 		return defaultDashboard
 	}
@@ -34,12 +38,5 @@ func (o *Options) WorkstationFolder() string {
 	if folder := o.Process.Getenv("YARD_CONFIG_DIR"); strings.TrimSpace(folder) != "" {
 		return folder
 	}
-	if folder := o.Process.Getenv("XDG_CONFIG_HOME"); strings.TrimSpace(folder) != "" {
-		return filepath.Join(folder, "lvh-yard")
-	}
-	home := o.Process.Getenv("HOME")
-	if home == "" {
-		home, _ = os.UserHomeDir()
-	}
-	return filepath.Join(home, ".config", "lvh-yard")
+	return defaultWorkstationFolder(o.Process)
 }

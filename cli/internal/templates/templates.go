@@ -6,11 +6,12 @@ import (
 	"strings"
 )
 
-//go:embed compose.yaml
-var compose string
+//go:embed traefik-windows.sh
+var windowsTraefik string
 
-//go:embed .env.example
-var env string
+func WindowsTraefik() string {
+	return windowsTraefik
+}
 
 //go:embed 00-lvh-yard.hcl
 var consul string
@@ -34,19 +35,21 @@ func TraefikTLS() string { return traefikTLS }
 //go:embed lvh-yard.yaml
 var dashboard string
 
+// Compose is the compose.yaml of this platform, with the dashboard image pinned to version.
 func Compose(version string) (string, error) {
 	const image = "ghcr.io/ppalazon/lvh-yard-dashboard:"
-	if !strings.Contains(compose, image+"latest}") {
+	if !strings.Contains(platformCompose, image+"latest}") {
 		return "", fmt.Errorf("compose.yaml no longer has the dashboard image that init edits")
 	}
 	if version == "" || version == "dev" {
 		version = "latest"
 	}
-	return strings.ReplaceAll(compose, image+"latest}", image+version+"}"), nil
+	return strings.ReplaceAll(platformCompose, image+"latest}", image+version+"}"), nil
 }
 
+// Env is the .env template of this platform.
 func Env() string {
-	return env
+	return platformEnv
 }
 
 func Dashboard() string {

@@ -6,10 +6,10 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"unicode"
 
 	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
@@ -22,6 +22,7 @@ type initOptions struct {
 	workstation  string
 	baseDomain   string
 	peers        []string
+	address      string
 	gossipKey    string
 	force        bool
 	dockerSocket string
@@ -43,6 +44,7 @@ func newWSInit(options *Options, folder func() string) *cobra.Command {
 	f.StringVar(&flags.workstation, "workstation", "", "Sets this Workstation's unique name in the Yard.")
 	f.StringVar(&flags.baseDomain, "base-domain", "", "Sets the Base Domain at the end of this Workstation's hostnames.")
 	f.StringArrayVar(&flags.peers, "peers", nil, "Sets the LAN addresses of other Workstations, separated by spaces or commas.")
+	f.StringVar(&flags.address, "address", "", "Sets this Workstation's LAN IPv4 address.")
 	f.StringVar(&flags.gossipKey, "gossip-key", "", "Uses the Yard's shared Gossip Key.")
 	f.BoolVar(&flags.force, "force", false, "Overwrites the files when they exist.")
 	f.StringVar(&flags.dockerSocket, "docker-socket", "/var/run/docker.sock", "Reads the Docker group from this socket.")
@@ -78,7 +80,10 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	if err != nil {
 		return err
 	}
-	if err := f.fillEnv(env, options, name, domain, key, peers); err != nil {
+	if err := f.lanIdentity(prompt, options, env); err != nil {
+		return err
+	}
+	if err := f.fillEnv(env, options, folder, name, domain, key, peers); err != nil {
 		return err
 	}
 	compose, err := templates.Compose(options.Version)
@@ -88,8 +93,8 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	if err := writeWorkstationFiles(folder, compose, env.Text(), f.force); err != nil {
 		return err
 	}
-	if strings.TrimSpace(env.Get("YARD_DOCKER_GID")) == "" {
-		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: no Docker socket at %s, so YARD_DOCKER_GID in .env is empty. Set it to the group of /var/run/docker.sock, or the dashboard will not start.\n", f.dockerSocket)
+	if warning := dockerGroupWarning(env, f.dockerSocket); warning != "" {
+		fmt.Fprintln(cmd.ErrOrStderr(), warning)
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "Wrote compose.yaml, .env, lvh-yard.yaml to %s.\n\n", folder)
 	printInitNextSteps(cmd.OutOrStdout(), folder, env, options.WorkstationFolder())
@@ -213,16 +218,12 @@ func (f *initOptions) checkedPeers() (string, error) {
 }
 
 // fillEnv gives the template's empty settings a value of this computer, and sets the answers.
-func (f *initOptions) fillEnv(env *envfile.File, options *Options, name, domain, key, peers string) error {
-	for _, found := range [][2]string{
-		{"COMPOSE_PROFILES", "dashboard,traefik"},
-		{"YARD_UID", options.Process.ID("-u")},
-		{"YARD_GID", options.Process.ID("-g")},
-		{"YARD_DOCKER_GID", dockerGroup(f.dockerSocket)},
-	} {
-		if err := env.FillIfEmpty(found[0], found[1]); err != nil {
-			return err
-		}
+func (f *initOptions) fillEnv(env *envfile.File, options *Options, folder, name, domain, key, peers string) error {
+	if err := env.FillIfEmpty("COMPOSE_PROFILES", "dashboard,traefik"); err != nil {
+		return err
+	}
+	if err := fillPlatformEnv(env, options, folder, f.dockerSocket); err != nil {
+		return err
 	}
 	for _, setting := range [][2]string{{"YARD_WORKSTATION", name}, {"YARD_BASE_DOMAIN", domain}, {"YARD_GOSSIP_KEY", key}, {"YARD_PEERS", peers}} {
 		if err := env.Set(setting[0], setting[1]); err != nil {
@@ -261,66 +262,121 @@ func nameFromHostname(hostname string) string {
 	return strings.TrimRight(name, "-")
 }
 
-func dockerGroup(socket string) string {
-	info, err := os.Stat(socket)
-	if err != nil {
-		return ""
+func (f *initOptions) lanIdentity(prompt *initPrompt, options *Options, env *envfile.File) error {
+	if !lanAddressRequired && f.address == "" {
+		return nil
 	}
-	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
-		return fmt.Sprint(stat.Gid)
+	address := f.address
+	valid := func(value string) bool { return isGlobalUnicastIPv4(net.ParseIP(value)) }
+	if address == "" {
+		offered, selectionErr := options.Process.LANAddress()
+		if selectionErr != nil {
+			fmt.Fprintln(prompt.out, selectionErr)
+		}
+		if prompt.terminal || !valid(offered) {
+			var err error
+			address, err = prompt.askValid("LAN IPv4 address ["+offered+"]: ", "--address", offered, valid, func(string) string {
+				return "Use a LAN IPv4 address that other Workstations can reach."
+			})
+			if err != nil {
+				return err
+			}
+		} else {
+			address = offered
+		}
 	}
-	return ""
+	if !valid(address) {
+		return fmt.Errorf("invalid --address: use a LAN IPv4 address that other Workstations can reach")
+	}
+	return env.Set("YARD_BIND_ADDRESS", address)
+}
+
+type workstationFile struct {
+	name string
+	text string
+}
+
+// workstationFiles lists the files that ws init writes. Each one is private to the user.
+func workstationFiles(compose, env string) []workstationFile {
+	files := []workstationFile{{"compose.yaml", compose}, {".env", env}, {"lvh-yard.yaml", templates.Dashboard()}, {"consul.d/00-lvh-yard.hcl", templates.Consul()}}
+	return append(files, platformWorkstationFiles()...)
 }
 
 func writeWorkstationFiles(folder, compose, env string, force bool) error {
-	files := []struct {
-		name string
-		text string
-		mode os.FileMode
-	}{{"compose.yaml", compose, 0600}, {".env", env, 0600}, {"lvh-yard.yaml", templates.Dashboard(), 0600}, {"consul.d/00-lvh-yard.hcl", templates.Consul(), 0600}}
+	files := workstationFiles(compose, env)
+	if err := validateWorkstationStorage(folder); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(folder, 0700); err != nil {
+		return fmt.Errorf("could not create %s: %w", folder, err)
+	}
+	// Windows protects the new folder before any secret is written. On Unix, MkdirAll already made it 0700, and a
+	// refused init must leave the modes of an existing folder alone.
+	if err := protectNewFolder(folder); err != nil {
+		return err
+	}
+	root, err := os.OpenRoot(folder)
+	if err != nil {
+		return fmt.Errorf("could not read %s: %w", folder, err)
+	}
+	defer func() { _ = root.Close() }()
 	if !force {
-		for _, file := range files {
-			path := filepath.Join(folder, file.name)
-			if _, err := os.Lstat(path); err == nil {
-				return fmt.Errorf("%s already exists: nothing was written. Give --force to overwrite", path)
-			} else if !os.IsNotExist(err) {
-				return fmt.Errorf("could not read %s: %w", path, err)
-			}
+		if err := refuseExistingFiles(root, folder, files); err != nil {
+			return err
 		}
 	}
 	// Create these before Compose starts, or Docker creates them owned by root.
 	for _, name := range []string{"backups", "consul-data", "consul.d", "traefik/dynamic", "tls/consul", "tls/traefik"} {
-		if err := os.MkdirAll(filepath.Join(folder, name), 0700); err != nil {
+		if err := root.MkdirAll(name, 0700); err != nil {
 			return fmt.Errorf("could not create %s: %w", folder, err)
 		}
 	}
-	if err := protectWorkstationFolder(folder); err != nil {
+	if err := protectWorkstationTree(folder); err != nil {
 		return err
 	}
 	for _, file := range files {
-		path := filepath.Join(folder, file.name)
-		flags := os.O_WRONLY | os.O_CREATE | os.O_EXCL
-		if force {
-			flags = os.O_WRONLY | os.O_CREATE | os.O_TRUNC
-		}
-		output, err := os.OpenFile(path, flags, file.mode)
-		if err != nil {
-			return fmt.Errorf("could not write %s: %w", path, err)
-		}
-		if err := output.Chmod(0600); err != nil {
-			_ = output.Close()
-			return fmt.Errorf("could not protect %s: %w", path, err)
-		}
-		_, writeErr := io.WriteString(output, file.text)
-		closeErr := output.Close()
-		if writeErr != nil {
-			return fmt.Errorf("could not write %s: %w", path, writeErr)
-		}
-		if closeErr != nil {
-			return fmt.Errorf("could not write %s: %w", path, closeErr)
+		if err := writeWorkstationFile(root, folder, file, force); err != nil {
+			return err
 		}
 	}
-	return protectWorkstationFolder(folder)
+	return protectWorkstationTree(folder)
+}
+
+func refuseExistingFiles(root *os.Root, folder string, files []workstationFile) error {
+	for _, file := range files {
+		path := filepath.Join(folder, file.name)
+		if _, err := root.Lstat(file.name); err == nil {
+			return fmt.Errorf("%s already exists: nothing was written. Give --force to overwrite", path)
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("could not read %s: %w", path, err)
+		}
+	}
+	return nil
+}
+
+func writeWorkstationFile(root *os.Root, folder string, file workstationFile, force bool) error {
+	path := filepath.Join(folder, file.name)
+	flags := os.O_WRONLY | os.O_CREATE | os.O_EXCL
+	if force {
+		flags = os.O_WRONLY | os.O_CREATE | os.O_TRUNC
+	}
+	output, err := root.OpenFile(file.name, flags, 0600)
+	if err != nil {
+		return fmt.Errorf("could not write %s: %w", path, err)
+	}
+	if err := protectFile(output, 0600); err != nil {
+		_ = output.Close()
+		return fmt.Errorf("could not protect %s: %w", path, err)
+	}
+	_, writeErr := io.WriteString(output, file.text)
+	closeErr := output.Close()
+	if writeErr != nil {
+		return fmt.Errorf("could not write %s: %w", path, writeErr)
+	}
+	if closeErr != nil {
+		return fmt.Errorf("could not write %s: %w", path, closeErr)
+	}
+	return nil
 }
 
 func printInitNextSteps(out io.Writer, folder string, env *envfile.File, defaultFolder string) {

@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * {@code publication}, {@code hostname}, {@code profiles} and {@code routing} are left out of the
@@ -122,6 +123,24 @@ public record Service(
                     ? new InstanceSource(source.id(), source.kind(), aliased.get(source.id()))
                     : source)
             .toList();
+    return with(filled, routing(hostname, filled, instancePriority, true));
+  }
+
+  /**
+   * This Service with {@code newRouting}. Its catalog and sources stay as they are, because only
+   * the Route depends on the sockets of this runtime.
+   */
+  Service withRouting(Routing newRouting) {
+    return with(sources, newRouting);
+  }
+
+  /** Every Instance that its sources give now. */
+  @JsonIgnore
+  public Stream<Instance> givenInstances() {
+    return sources.stream().flatMap(source -> source.givenInstances().stream());
+  }
+
+  private Service with(List<InstanceSource> newSources, Routing newRouting) {
     return new Service(
         workstation,
         name,
@@ -133,11 +152,11 @@ public record Service(
         instances,
         containerBindings,
         warnings,
-        filled,
+        newSources,
         instancePriority,
         profiles,
         profileDefinitions,
-        routing(hostname, filled, instancePriority, true));
+        newRouting);
   }
 
   private static Routing routing(

@@ -12,11 +12,10 @@ import (
 )
 
 // upgradeServices are the services whose image the upgrade changes.
-var upgradeServices = []string{"consul", "traefik", "dashboard"}
+var upgradeServices = append([]string{"consul", "traefik", "dashboard"}, platformUpgradeServices...)
 
 func upgradeInit(options *Options, folder, ws string, out io.Writer) error {
-	file := filepath.Join(folder, "compose.yaml")
-	text, images, err := readComposeImages(file)
+	text, images, err := readComposeImages(folder)
 	if err != nil {
 		return err
 	}
@@ -28,7 +27,7 @@ func upgradeInit(options *Options, folder, ws string, out io.Writer) error {
 	if err := writeFixedFiles(folder); err != nil {
 		return err
 	}
-	if err := upgradeImages(file, text, images, desired, out); err != nil {
+	if err := upgradeImages(folder, text, images, desired, out); err != nil {
 		return err
 	}
 	fmt.Fprintf(out, "Upgraded %s. Apply the generated options and images:\n  %s compose recreate\n", folder, ws)
@@ -39,8 +38,17 @@ func upgradeInit(options *Options, folder, ws string, out io.Writer) error {
 }
 
 // readComposeImages reads compose.yaml and refuses one that lacks the image of a service to upgrade.
-func readComposeImages(file string) (string, []composefile.Image, error) {
-	data, err := os.ReadFile(file)
+func readComposeImages(folder string) (string, []composefile.Image, error) {
+	file := filepath.Join(folder, "compose.yaml")
+	root, err := os.OpenRoot(folder)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil, fmt.Errorf("%s does not exist: nothing to upgrade. Write it first with lvh-yard ws init", file)
+		}
+		return "", nil, fmt.Errorf("Could not read %s: %w", file, err)
+	}
+	defer func() { _ = root.Close() }()
+	data, err := root.ReadFile("compose.yaml")
 	if os.IsNotExist(err) {
 		return "", nil, fmt.Errorf("%s does not exist: nothing to upgrade. Write it first with lvh-yard ws init", file)
 	}
@@ -67,22 +75,32 @@ func writeFixedFiles(folder string) error {
 	if err := protectWorkstationFolder(folder); err != nil {
 		return err
 	}
+	root, err := os.OpenRoot(folder)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = root.Close() }()
 	for _, name := range []string{"consul.d", "traefik/dynamic", "tls/consul", "tls/traefik"} {
-		if err := os.MkdirAll(filepath.Join(folder, name), 0700); err != nil {
+		if err := root.MkdirAll(name, 0700); err != nil {
 			return fmt.Errorf("could not create %s: %w", name, err)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(folder, "consul.d/00-lvh-yard.hcl"), []byte(templates.Consul()), 0600); err != nil {
+	if err := root.WriteFile("consul.d/00-lvh-yard.hcl", []byte(templates.Consul()), 0600); err != nil {
 		return fmt.Errorf("could not write fixed Consul options: %w", err)
 	}
-	if _, err := os.Stat(filepath.Join(folder, "consul.d", "10-tls.hcl")); err == nil {
+	for _, file := range platformWorkstationFiles() {
+		if err := root.WriteFile(file.name, []byte(file.text), 0600); err != nil {
+			return fmt.Errorf("could not write %s: %w", file.name, err)
+		}
+	}
+	if _, err := root.Stat("consul.d/10-tls.hcl"); err == nil {
 		if err := writeConsulTLS(folder); err != nil {
 			return err
 		}
 	} else if !os.IsNotExist(err) {
 		return err
 	}
-	if _, err := os.Stat(filepath.Join(folder, "traefik/dynamic/10-tls.yaml")); err == nil {
+	if _, err := root.Stat("traefik/dynamic/10-tls.yaml"); err == nil {
 		env, err := readWSEnv(folder)
 		if err != nil {
 			return err
@@ -95,12 +113,12 @@ func writeFixedFiles(folder string) error {
 	} else if !os.IsNotExist(err) {
 		return err
 	}
-	return protectWorkstationFolder(folder)
+	return protectWorkstationTree(folder)
 }
 
 // upgradeImages says for each service whether its image changes, and writes compose.yaml with the
 // new images when one does.
-func upgradeImages(file, text string, images, desired []composefile.Image, out io.Writer) error {
+func upgradeImages(folder, text string, images, desired []composefile.Image, out io.Writer) error {
 	changed := false
 	for _, service := range upgradeServices {
 		from, _ := composefile.Find(images, service)
@@ -118,7 +136,13 @@ func upgradeImages(file, text string, images, desired []composefile.Image, out i
 	if !changed {
 		return nil
 	}
-	if err := os.WriteFile(file, []byte(composefile.Replace(text, images, desired, upgradeServices)), 0600); err != nil {
+	file := filepath.Join(folder, "compose.yaml")
+	root, err := os.OpenRoot(folder)
+	if err != nil {
+		return fmt.Errorf("Could not write %s: %w", file, err)
+	}
+	defer func() { _ = root.Close() }()
+	if err := root.WriteFile("compose.yaml", []byte(composefile.Replace(text, images, desired, upgradeServices)), 0600); err != nil {
 		return fmt.Errorf("Could not write %s: %w", file, err)
 	}
 	return nil

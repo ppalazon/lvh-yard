@@ -76,17 +76,27 @@ func traefikOff(env *envfile.File) bool {
 }
 
 func writeConsulTLS(folder string) error {
-	if err := os.MkdirAll(filepath.Join(folder, "consul.d"), 0700); err != nil {
+	root, err := os.OpenRoot(folder)
+	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(folder, "consul.d", "10-tls.hcl"), []byte(templates.ConsulTLS()), 0600)
+	defer func() { _ = root.Close() }()
+	if err := root.MkdirAll("consul.d", 0700); err != nil {
+		return err
+	}
+	return root.WriteFile(filepath.Join("consul.d", "10-tls.hcl"), []byte(templates.ConsulTLS()), 0600)
 }
 
 func writeTraefikTLS(folder string) error {
-	if err := os.MkdirAll(filepath.Join(folder, "traefik", "dynamic"), 0700); err != nil {
+	root, err := os.OpenRoot(folder)
+	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(folder, "traefik", "dynamic", "10-tls.yaml"), []byte(templates.TraefikTLS()), 0600)
+	defer func() { _ = root.Close() }()
+	if err := root.MkdirAll(filepath.Join("traefik", "dynamic"), 0700); err != nil {
+		return err
+	}
+	return root.WriteFile(filepath.Join("traefik", "dynamic", "10-tls.yaml"), []byte(templates.TraefikTLS()), 0600)
 }
 
 // turnOnRole writes the generated option file of a role. Traefik keeps an HTTPS port that was set
@@ -174,15 +184,20 @@ func newWSTLSDisable(folder func() string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			root, err := os.OpenRoot(folder())
+			if err != nil {
+				return err
+			}
+			defer func() { _ = root.Close() }()
 			if args[0] == roleConsul {
-				if err := os.Remove(filepath.Join(folder(), "consul.d", "10-tls.hcl")); err != nil && !os.IsNotExist(err) {
+				if err := root.Remove(filepath.Join("consul.d", "10-tls.hcl")); err != nil && !os.IsNotExist(err) {
 					return err
 				}
 				fmt.Fprintln(cmd.OutOrStdout(), "Consul TLS is off. "+consulTLSOffWarning)
 				printApplyHint(cmd, folder())
 				return nil
 			}
-			if err := os.Remove(filepath.Join(folder(), "traefik", "dynamic", "10-tls.yaml")); err != nil && !os.IsNotExist(err) {
+			if err := root.Remove(filepath.Join("traefik", "dynamic", "10-tls.yaml")); err != nil && !os.IsNotExist(err) {
 				return err
 			}
 			if err := env.Set("YARD_HTTPS_PORT", ""); err != nil {

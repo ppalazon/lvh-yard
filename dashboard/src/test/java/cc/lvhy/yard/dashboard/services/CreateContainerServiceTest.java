@@ -12,6 +12,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import cc.lvhy.yard.dashboard.OutOfRange;
+import cc.lvhy.yard.dashboard.RuntimeNetwork;
 import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.consul.Consul;
 import cc.lvhy.yard.dashboard.consul.FakeConsul;
@@ -31,7 +32,8 @@ class CreateContainerServiceTest {
   private final ServiceRecords records = new ServiceRecords(consul, consul);
 
   private final Registrations registrations =
-      new Registrations(workstation, consul, records, Duration.ofSeconds(10));
+      new Registrations(
+          workstation, consul, records, Duration.ofSeconds(10), "", new RuntimeNetwork(false));
 
   private final Publications publications =
       new Publications(workstation, consul, records, null, event -> {});
@@ -44,7 +46,8 @@ class CreateContainerServiceTest {
           registrations,
           records,
           publications,
-          new OutOfRange(List.of()));
+          new OutOfRange(List.of()),
+          new RuntimeNetwork(false));
 
   private final Services services =
       new Services(workstation, records, publications, registrations, bindings);

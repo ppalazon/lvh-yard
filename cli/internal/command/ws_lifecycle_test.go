@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -41,7 +42,12 @@ func TestWSLifecycleRunsCompose(t *testing.T) {
 			if got.Name != "docker" || got.Dir != folder || !reflect.DeepEqual(got.Args, want) {
 				t.Fatalf("compose command: %+v, want args %v in %s", got, want, folder)
 			}
-			line := "docker compose --project-directory '" + strings.ReplaceAll(folder, "'", "'\"'\"'") + "' " + strings.Join(test.args, " ") + "\n"
+			// PowerShell writes a quote inside a quoted value twice. A POSIX shell closes, escapes and reopens it.
+			quote := "'\"'\"'"
+			if runtime.GOOS == "windows" {
+				quote = "''"
+			}
+			line := "docker compose --project-directory '" + strings.ReplaceAll(folder, "'", quote) + "' " + strings.Join(test.args, " ") + "\n"
 			if run.ExitCode != 0 || run.Stdout != line+"service output\n" || run.Stderr != "service error\n" {
 				t.Fatalf("command output: %+v", run)
 			}

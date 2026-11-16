@@ -1,5 +1,6 @@
-# The checks of a pull request and of main. They are the same as `mise run check`, `mise run fmt` and
-# `mise run secrets` on your computer.
+# The checks of a pull request and of main. The `check`, `format` and `secrets` jobs are the same as `mise run check`,
+# `mise run fmt` and `mise run secrets` on your computer. The Windows jobs have no `mise` task: they run the
+# native tests of `dev/test-windows-native.ps1` on a Windows runner.
 name: CI
 
 on:
@@ -47,3 +48,80 @@ jobs:
           fetch-depth: 0
       - uses: jdx/mise-action@v5
       - run: mise run secrets
+
+  # The packages that the native Windows job runs. The Linux packaging script builds the archives, so the
+  # Windows job needs no Go and no Unix shell. 9.8.7 and 9.8.8 are test versions that the Windows tests expect:
+  # the installer test upgrades from one to the other, and the integration tests expect 9.8.7.
+  windows-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+      - name: Package two versions like a release
+        run: |
+          for version in 9.8.7 9.8.8; do
+            sh dev/package-cli.sh "$version"
+            mkdir -p "windows-package/$version"
+            mv cli/target/lvh-yard-"$version"-* "windows-package/$version/"
+            (cd "windows-package/$version" && sha256sum lvh-yard-*.tar.gz lvh-yard-*.zip > SHA256SUMS)
+          done
+      - name: Build the integration tests for Windows
+        working-directory: cli
+        env:
+          CGO_ENABLED: "0"
+          GOOS: windows
+          GOARCH: amd64
+        run: go test -c -tags integration -o ../windows-package/lvh-yard-integration.test.exe ./cmd/lvh-yard
+      # `go test -c` with a folder as -o writes one <package>.test.exe for each package that has tests. Some tests read
+      # files by a path relative to their package, so the Windows job gets those files beside the binaries.
+      - name: Build the unit tests for Windows
+        working-directory: cli
+        env:
+          CGO_ENABLED: "0"
+          GOOS: windows
+          GOARCH: amd64
+        run: |
+          go test -c -o ../windows-package/unit/bin/ ./internal/...
+          mkdir -p ../windows-package/unit/cli
+          cp -r internal ../windows-package/unit/cli/internal
+          find ../windows-package/unit/cli -name '*.go' -delete
+          cp -r ../config ../windows-package/unit/config
+          mkdir -p ../windows-package/unit/dashboard
+          cp ../dashboard/openapi.yaml ../windows-package/unit/dashboard/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-package
+          path: windows-package
+          # The tests read config/.env.example and other dotfiles. The action skips hidden files by default.
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  # Runs the packaged lvh-yard.exe and the PowerShell installer on Windows Server, in Windows PowerShell 5.1 and in
+  # PowerShell 7. It uses only what the runner image has. It is not Windows 11 acceptance with Docker Desktop.
+  # See "Continuous integration" in docs/development.md.
+  windows:
+    needs: windows-package
+    runs-on: windows-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { shell: powershell, major: 5 }
+          - { shell: pwsh, major: 7 }
+    name: windows (${{ matrix.shell }})
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-package
+          path: ${{ runner.temp }}\windows-package
+      # The script drops Git's Unix tools from its own PATH. Execution policy Bypass is for this process only.
+      # The runner account is an administrator, so the script gets -AllowAdministrator and says so in its output.
+      - name: Run the executable and the installer
+        shell: cmd
+        run: ${{ matrix.shell }} -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File dev\test-windows-native.ps1 -Package "${{ runner.temp }}\windows-package" -Installer docs\site\install.ps1 -PowerShellMajor ${{ matrix.major }} -AllowAdministrator

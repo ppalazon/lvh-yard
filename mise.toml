@@ -29,7 +29,7 @@ run = [
   "mkdir -p docs/site/dist",
   "npx tailwindcss -i docs/site/site.css -o docs/site/dist/site.css --minify",
   "cp docs/site/index.html docs/site/dist/",
-  "cp docs/site/install.sh docs/site/dist/",
+  "cp docs/site/install.sh docs/site/install.ps1 docs/site/dist/",
   "cp dashboard/src/main/resources/static/theme.js docs/site/dist/",
   "cp -r docs/site/assets docs/site/dist/assets",
 ]
@@ -78,7 +78,10 @@ run = "./mvnw -q -pl dashboard test -Dtest='*ComponentTest' -Dsurefire.failIfNoS
 description = "Refresh the Go CLI's embedded configuration templates"
 run = [
   "cp config/compose.yaml cli/internal/templates/compose.yaml",
+  "cp config/compose.windows.yaml cli/internal/templates/compose.windows.yaml",
+  "cp config/traefik-windows.sh cli/internal/templates/traefik-windows.sh",
   "cp config/.env.example cli/internal/templates/.env.example",
+  "cp config/.env.windows.example cli/internal/templates/.env.windows.example",
   "cp config/00-lvh-yard.hcl cli/internal/templates/00-lvh-yard.hcl",
   "cp config/10-tls.hcl cli/internal/templates/10-tls.hcl",
   "cp config/10-tls.yaml cli/internal/templates/10-tls.yaml",
@@ -91,12 +94,15 @@ dir = "{{config_root}}/cli"
 run = 'CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${VERSION:-dev}" -o target/lvh-yard ./cmd/lvh-yard'
 
 [tasks."cli:check"]
-description = "Run go vet, golangci-lint and the Go CLI unit tests"
+description = "Run go vet, golangci-lint for this computer and for Windows, and the Go CLI unit tests"
 dir = "{{config_root}}/cli"
 # The gate runs only the linters that report nothing today. quality:go runs the full set of cli/.golangci.yml.
+# The second lint run type-checks the _windows.go files and the Windows tests, which the first run skips.
+env = { GATE_LINTERS = "errcheck,errorlint,modernize,staticcheck,bodyclose,misspell,unconvert,govet,ineffassign,unused,gosec" }
 run = [
   "go vet ./...",
-  "golangci-lint run --enable-only=errcheck,errorlint,modernize,staticcheck,bodyclose,misspell,unconvert,govet,ineffassign,unused ./...",
+  "golangci-lint run --enable-only=$GATE_LINTERS ./...",
+  "GOOS=windows GOARCH=amd64 CGO_ENABLED=0 golangci-lint run --enable-only=$GATE_LINTERS ./...",
   "go test ./...",
 ]
 

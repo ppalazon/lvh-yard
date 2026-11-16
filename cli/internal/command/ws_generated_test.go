@@ -3,6 +3,7 @@ package command_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -18,7 +19,7 @@ func TestWSGeneratedFiles(t *testing.T) {
 	generated := readInitFile(t, folder, "consul.d/00-lvh-yard.hcl")
 	for _, name := range []string{"consul.d", "traefik", "traefik/dynamic"} {
 		info, err := os.Stat(filepath.Join(folder, name))
-		if err != nil || !info.IsDir() || info.Mode().Perm() != 0700 {
+		if err != nil || !info.IsDir() || (commandtest.UnixModes && info.Mode().Perm() != 0700) {
 			t.Fatalf("private configuration folder %s: %v, %v", name, info, err)
 		}
 	}
@@ -41,10 +42,15 @@ func TestWSGeneratedFiles(t *testing.T) {
 	if run := yard.Run("ws", "compose", "upgrade", "--dir", folder); run.ExitCode != 0 {
 		t.Fatalf("upgrade: %+v", run)
 	}
+	// Windows mounts the folder as a source that its script copies, because NTFS does not tell Traefik about changes.
+	dynamicMount := "./traefik/dynamic:/etc/traefik/dynamic:ro"
+	if runtime.GOOS == "windows" {
+		dynamicMount = "./traefik/dynamic:/source/dynamic:ro"
+	}
 	for _, option := range []string{
 		"-config-dir=/consul/config",
 		"./consul.d:/consul/config:ro",
-		"./traefik/dynamic:/etc/traefik/dynamic:ro",
+		dynamicMount,
 		"--providers.file.directory=/etc/traefik/dynamic",
 		"--providers.file.watch=true",
 	} {

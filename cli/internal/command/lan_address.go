@@ -1,3 +1,5 @@
+//go:build !windows
+
 package command
 
 import (
@@ -7,14 +9,8 @@ import (
 
 func (systemProcess) LANAddress() (string, error) {
 	// Prefer the default route to avoid guessing among host and bridge interfaces.
-	// UDP connect selects a source address without sending a packet.
-	conn, err := net.DialUDP("udp4", nil, &net.UDPAddr{IP: net.IPv4(192, 0, 2, 1), Port: 9})
-	if err == nil {
-		ip := conn.LocalAddr().(*net.UDPAddr).IP
-		_ = conn.Close()
-		if ip.To4() != nil && ip.IsGlobalUnicast() {
-			return ip.String(), nil
-		}
+	if ip := defaultRouteSource(); isGlobalUnicastIPv4(ip) {
+		return ip.String(), nil
 	}
 
 	interfaces, err := net.Interfaces()
@@ -32,7 +28,7 @@ func (systemProcess) LANAddress() (string, error) {
 		}
 		for _, address := range addresses {
 			network, ok := address.(*net.IPNet)
-			if !ok || network.IP.To4() == nil || !network.IP.IsGlobalUnicast() {
+			if !ok || !isGlobalUnicastIPv4(network.IP) {
 				continue
 			}
 			if candidate != nil && !candidate.Equal(network.IP) {

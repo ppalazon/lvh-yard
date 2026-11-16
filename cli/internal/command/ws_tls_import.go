@@ -21,8 +21,13 @@ func installRole(cmd *cobra.Command, folder string, env *envfile.File, role stri
 	if err := protectWorkstationFolder(folder); err != nil {
 		return err
 	}
+	root, err := os.OpenRoot(folder)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = root.Close() }()
 	dir := roleDir(folder, role)
-	if err := writeRole(dir, role, caPEM, certPEM, keyPEM); err != nil {
+	if err := writeRole(root, roleDir("", role), role, caPEM, certPEM, keyPEM); err != nil {
 		return err
 	}
 	if err := turnOnRole(folder, role, env); err != nil {
@@ -55,15 +60,15 @@ uses to check Client Certificates.`,
 			if role == roleTraefik && traefikOff(env) {
 				return fmt.Errorf("Traefik is off on this Workstation: turn it on with lvh-yard ws set traefik on")
 			}
-			caPEM, err := os.ReadFile(caFile)
+			caPEM, err := os.ReadFile(caFile) // #nosec G304 -- --ca selects an input file outside the Workstation Folder.
 			if err != nil {
 				return fmt.Errorf("read CA: %w", err)
 			}
-			certPEM, err := os.ReadFile(certFile)
+			certPEM, err := os.ReadFile(certFile) // #nosec G304 -- --cert selects an input file outside the Workstation Folder.
 			if err != nil {
 				return fmt.Errorf("read certificate: %w", err)
 			}
-			keyPEM, err := os.ReadFile(keyFile)
+			keyPEM, err := os.ReadFile(keyFile) // #nosec G304 -- --key selects an input file outside the Workstation Folder.
 			if err != nil {
 				return fmt.Errorf("read key: %w", err)
 			}
@@ -106,18 +111,29 @@ func newWSTLSInstall(options *Options, folder func() string) *cobra.Command {
 			return err
 		}
 		ws := wsCommand(folder(), options.WorkstationFolder())
-		signed, available := readSignedTLSRoles(folder, name)
+		signed, available, err := readSignedTLSRoles(folder(), name)
+		if err != nil {
+			return err
+		}
 		if len(available) == 0 {
 			return fmt.Errorf("the Yard CA has signed nothing for %s: run %s tls ca issue workstation %s", name, ws, quoteShell(name))
 		}
 		checkEnv := env
 		if name != self {
 			checkEnv = nil
-			// First, because it is about where the files go, not which ones.
-			if !cmd.Flags().Changed("scp") && p.terminal {
+			if err := checkNativeWindowsSender(options, name, remote); err != nil {
+				return err
+			}
+			// First, because it is about where the files go, not which ones. Native Windows
+			// has no automated copy, so it does not ask.
+			if !cmd.Flags().Changed("scp") && p.terminal && options.Process.OS() != "windows" {
 				if remote, err = p.text("Copy the files into its Workstation Folder with scp? Give user@host or user@host:folder, or leave empty to copy them yourself", "", checkSCPHost); err != nil {
 					return err
 				}
+			}
+			// Before anything is written here or run there.
+			if err := checkHandoffDestination(cmd, options, name, remote); err != nil {
+				return err
 			}
 		}
 		roles, err := services.choose(cmd, p, checkEnv, available, name != self)
@@ -138,18 +154,29 @@ func newWSTLSInstall(options *Options, folder func() string) *cobra.Command {
 	return cmd
 }
 
-func readSignedTLSRoles(folder func() string, name string) (map[string][2][]byte, []string) {
+func readSignedTLSRoles(folder, name string) (map[string][2][]byte, []string, error) {
+	root, err := os.OpenRoot(folder)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() { _ = root.Close() }()
 	signed := map[string][2][]byte{}
 	var available []string
 	for _, role := range tlsRoles {
-		certPEM, certErr := os.ReadFile(issuedPath(folder(), name, role, ".crt"))
-		keyPEM, keyErr := os.ReadFile(issuedPath(folder(), name, role, ".key"))
+		certPEM, certErr := root.ReadFile(issuedPath("", name, role, ".crt"))
+		keyPEM, keyErr := root.ReadFile(issuedPath("", name, role, ".key"))
+		if certErr != nil && !os.IsNotExist(certErr) {
+			return nil, nil, certErr
+		}
+		if keyErr != nil && !os.IsNotExist(keyErr) {
+			return nil, nil, keyErr
+		}
 		if certErr == nil && keyErr == nil {
 			signed[role] = [2][]byte{certPEM, keyPEM}
 			available = append(available, role)
 		}
 	}
-	return signed, available
+	return signed, available, nil
 }
 
 func installLocalTLSRoles(cmd *cobra.Command, folder func() string, env *envfile.File, roles []string, caPEM []byte, signed map[string][2][]byte) error {
@@ -168,9 +195,14 @@ func installRemoteTLSRoles(cmd *cobra.Command, options *Options, folder func() s
 	if err := protectWorkstationFolder(folder()); err != nil {
 		return err
 	}
+	workstationRoot, err := os.OpenRoot(folder())
+	if err != nil {
+		return err
+	}
+	defer func() { _ = workstationRoot.Close() }()
 	root := bundleRoot(folder(), name)
 	for _, role := range roles {
-		if err := writeRole(filepath.Join(root, role), role, caPEM, signed[role][0], signed[role][1]); err != nil {
+		if err := writeRole(workstationRoot, filepath.Join(bundleRoot("", name), role), role, caPEM, signed[role][0], signed[role][1]); err != nil {
 			return err
 		}
 	}
@@ -210,9 +242,6 @@ func checkSCPHost(target string) error {
 // checks each certificate first.
 func handOverBundle(cmd *cobra.Command, options *Options, name, root string, roles []string, target string) error {
 	out := cmd.OutOrStdout()
-	if err := checkSCPHost(target); err != nil {
-		return fmt.Errorf("--scp: %w", err)
-	}
 	fmt.Fprintf(out, "Files for %s saved in %s:\n", name, root)
 	var dirs []string
 	for _, role := range roles {
@@ -228,7 +257,7 @@ func handOverBundle(cmd *cobra.Command, options *Options, name, root string, rol
 			name string
 			args []string
 		}{
-			{"ssh", []string{host, "umask 077 && mkdir -p " + quoteShell(folder+"/tls")}},
+			{"ssh", []string{host, "umask 077 && mkdir -p " + quotePOSIX(folder+"/tls")}},
 			{"scp", append(append([]string{"-r"}, dirs...), host+":"+folder+"/tls/")},
 		} {
 			code, err := options.Process.Run(step.name, step.args, "", out, cmd.ErrOrStderr())
@@ -246,20 +275,33 @@ func handOverBundle(cmd *cobra.Command, options *Options, name, root string, rol
 	}
 	ws := "lvh-yard ws"
 	if folder != remoteFolderDefault {
-		ws += " --dir " + quoteShell(folder)
+		ws += " --dir " + quotePOSIX(folder)
 	}
 	quotedDirs := make([]string, len(dirs))
 	for i, dir := range dirs {
 		quotedDirs[i] = quoteShell(dir)
 	}
 	if target == "" {
-		fmt.Fprintf(out, "\nIf %[1]s runs on another computer, copy the folders into the tls folder of its Workstation Folder (%[2]s on it unless you chose another):\n  ssh %[3]s 'umask 077 && mkdir -p %[2]s/tls'\n  scp -r %[4]s %[3]s:%[2]s/tls/\nTo do this from here, run this command again with --scp %[3]s, or --scp %[3]s:<its-folder>.\n", name, folder, host, strings.Join(quotedDirs, " "))
+		fmt.Fprintf(out, "\nIf %[1]s runs on another computer, copy the folders into the tls folder of its Workstation Folder (%[2]s on it unless you chose another):\n  ssh %[3]s 'umask 077 && mkdir -p %[2]s/tls'\n  scp -r %[4]s %[3]s:%[2]s/tls/\n", name, folder, host, strings.Join(quotedDirs, " "))
+		if options.Process.OS() == "windows" {
+			fmt.Fprintln(out, "Native Windows cannot copy the files for you with --scp: copy them yourself.")
+		} else {
+			fmt.Fprintf(out, "To do this from here, run this command again with --scp %[1]s, or --scp %[1]s:<its-folder>.\n", host)
+		}
 	}
 	fmt.Fprintf(out, "\nThen, on %s, turn on what it needs. Each command checks the certificate first:\n  ssh %s\n", name, host)
 	for _, role := range roles {
 		fmt.Fprintf(out, "  %s tls enable %s\n", ws, role)
 	}
 	if target == "" {
+		// A Unix sender prints no Windows text: its --scp probe refuses a Windows destination.
+		if options.Process.OS() == "windows" {
+			fmt.Fprintf(out, "\nIf %s runs on Windows, send the folders to it through a private channel. Then, on it, import each one into its Workstation Folder (this installs the certificate and turns it on):\n", name)
+			for _, role := range roles {
+				files := roleFiles(role)
+				fmt.Fprintf(out, "  lvh-yard ws tls import %s --ca '<received-folder>\\%s\\%s' --cert '<received-folder>\\%s\\%s' --key '<received-folder>\\%s\\%s'\n", role, role, files[0], role, files[1], role, files[2])
+			}
+		}
 		fmt.Fprintf(out, "\nIf %s runs on this computer, import from the folders, with its own Workstation Folder:\n", name)
 		for _, role := range roles {
 			dir := filepath.Join(root, role)

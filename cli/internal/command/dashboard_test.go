@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/ppalazon/lvh-yard/cli/internal/command"
@@ -59,22 +60,22 @@ func TestDashboardEnvironmentWinsOverEnvFile(t *testing.T) {
 }
 
 func TestDashboardUsesWorkstationFolder(t *testing.T) {
-	for _, source := range []string{"YARD_CONFIG_DIR", "XDG_CONFIG_HOME", "HOME"} {
+	for _, source := range []string{"YARD_CONFIG_DIR", "config root", "HOME"} {
 		t.Run(source, func(t *testing.T) {
 			yard := commandtest.New(t)
-			home := yard.Process.Env["HOME"]
+			writeEnv(t, commandtest.HomeFolder(yard.Process.Env["HOME"]), "YARD_DASHBOARD_PORT=9001\n")
+			// The root setting is XDG_CONFIG_HOME on Unix and LOCALAPPDATA on Windows.
 			xdg := t.TempDir()
 			override := t.TempDir()
-			writeEnv(t, filepath.Join(home, ".config", "lvh-yard"), "YARD_DASHBOARD_PORT=9001\n")
-			writeEnv(t, filepath.Join(xdg, "lvh-yard"), "YARD_DASHBOARD_PORT=9002\n")
+			writeEnv(t, commandtest.RootFolder(xdg), "YARD_DASHBOARD_PORT=9002\n")
 			writeEnv(t, override, "YARD_DASHBOARD_BIND_ADDRESS=10.1.2.3\nYARD_DASHBOARD_PORT=9003\n")
 			switch source {
 			case "YARD_CONFIG_DIR":
 				yard.Process.Env["YARD_CONFIG_DIR"] = override
-				yard.Process.Env["XDG_CONFIG_HOME"] = xdg
+				commandtest.UseConfigRoot(yard.Process.Env, xdg)
 				assertAddress(t, yard, "http://10.1.2.3:9003")
-			case "XDG_CONFIG_HOME":
-				yard.Process.Env["XDG_CONFIG_HOME"] = xdg
+			case "config root":
+				commandtest.UseConfigRoot(yard.Process.Env, xdg)
 				assertAddress(t, yard, "http://127.0.0.1:9002")
 			case "HOME":
 				assertAddress(t, yard, "http://127.0.0.1:9001")
@@ -133,7 +134,10 @@ func TestBlankEnvironmentSettingsFallThrough(t *testing.T) {
 	yard := commandtest.New(t)
 	yard.Process.Env["YARD_DASHBOARD_URL"] = " \t"
 	yard.Process.Env["YARD_CONFIG_DIR"] = " \t"
-	yard.Process.Env["XDG_CONFIG_HOME"] = " \t"
-	writeEnv(t, filepath.Join(yard.Process.Env["HOME"], ".config", "lvh-yard"), "YARD_DASHBOARD_PORT=9001\n")
+	writeEnv(t, commandtest.HomeFolder(yard.Process.Env["HOME"]), "YARD_DASHBOARD_PORT=9001\n")
+	// A blank LOCALAPPDATA makes Windows read the real user profile, so only Unix tests it.
+	if runtime.GOOS != "windows" {
+		yard.Process.Env["XDG_CONFIG_HOME"] = " \t"
+	}
 	assertAddress(t, yard, "http://127.0.0.1:9001")
 }

@@ -38,22 +38,22 @@ func roleFiles(role string) [3]string {
 	return [3]string{"ca.crt", role + ".crt", role + ".key"}
 }
 
-func readRole(dir, role string) (caPEM, certPEM, keyPEM []byte, err error) {
+func readRole(root *os.Root, dir, role string) (caPEM, certPEM, keyPEM []byte, err error) {
 	var pems [3][]byte
 	for i, name := range roleFiles(role) {
-		if pems[i], err = os.ReadFile(filepath.Join(dir, name)); err != nil {
+		if pems[i], err = root.ReadFile(filepath.Join(dir, name)); err != nil {
 			return nil, nil, nil, err
 		}
 	}
 	return pems[0], pems[1], pems[2], nil
 }
 
-func writeRole(dir, role string, caPEM, certPEM, keyPEM []byte) error {
-	if err := os.MkdirAll(dir, 0700); err != nil {
+func writeRole(root *os.Root, dir, role string, caPEM, certPEM, keyPEM []byte) error {
+	if err := root.MkdirAll(dir, 0700); err != nil {
 		return err
 	}
 	for i, data := range [3][]byte{caPEM, certPEM, keyPEM} {
-		if err := os.WriteFile(filepath.Join(dir, roleFiles(role)[i]), data, 0600); err != nil {
+		if err := root.WriteFile(filepath.Join(dir, roleFiles(role)[i]), data, 0600); err != nil {
 			return err
 		}
 	}
@@ -82,7 +82,12 @@ func checkRoleCertificate(role string, env *envfile.File, caPEM, certPEM, keyPEM
 // checkInstalledRole runs the checks of an import on what is in tls/<role>/, so a certificate
 // that was copied there by hand is checked too.
 func checkInstalledRole(folder, role string, env *envfile.File) error {
-	caPEM, certPEM, keyPEM, err := readRole(roleDir(folder, role), role)
+	root, err := os.OpenRoot(folder)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = root.Close() }()
+	caPEM, certPEM, keyPEM, err := readRole(root, roleDir("", role), role)
 	if err != nil {
 		return fmt.Errorf("this Workstation has no %s certificate in tls/%s: install one with lvh-yard ws tls import %s, or with lvh-yard ws tls ca install on the Workstation with the Yard CA: %w", role, role, role, err)
 	}

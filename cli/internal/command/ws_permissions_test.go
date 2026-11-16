@@ -51,15 +51,18 @@ func TestWSUpgradeRepairsExistingFolderModesEvenWhenImagesAreCurrent(t *testing.
 	if err := os.WriteFile(outside, []byte("outside"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(outside, filepath.Join(folder, "link")); err != nil {
-		t.Fatal(err)
+	// An ordinary Windows user may not create a symbolic link.
+	if commandtest.UnixModes {
+		if err := os.Symlink(outside, filepath.Join(folder, "link")); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if run := yard.Run("ws", "compose", "upgrade", "--dir", folder); run.ExitCode != 0 {
 		t.Fatalf("upgrade: %+v", run)
 	}
 	assertPrivateWorkstation(t, folder)
 	info, err := os.Stat(outside)
-	if err != nil || info.Mode().Perm() != 0644 {
+	if err != nil || (commandtest.UnixModes && info.Mode().Perm() != 0644) {
 		t.Fatalf("outside permissions changed: %v, %v", info, err)
 	}
 }
@@ -84,8 +87,13 @@ func TestWSSetRepairsExistingFolderModes(t *testing.T) {
 	assertPrivateWorkstation(t, folder)
 }
 
+// assertPrivateWorkstation checks mode bits. Windows has no mode bits: it uses access control
+// lists, which Go does not report.
 func assertPrivateWorkstation(t *testing.T, folder string) {
 	t.Helper()
+	if !commandtest.UnixModes {
+		return
+	}
 	if err := filepath.WalkDir(folder, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err

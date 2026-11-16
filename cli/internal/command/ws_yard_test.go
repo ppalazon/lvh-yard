@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -140,14 +141,24 @@ func TestWSYardShareSelectsReachablePeer(t *testing.T) {
 		{name: "detection unavailable", bind: "0.0.0.0", err: errors.New("no route"), want: "<this-workstation-lan-ip>:18302"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			if runtime.GOOS == "windows" && tc.bind == "0.0.0.0" {
+				// Windows never binds to the wildcard. Init keeps the detected address, and share offers it.
+				if tc.err != nil {
+					t.Skip("Windows needs a LAN address to set up, so share never has to guess one")
+				}
+				tc.bind = ""
+			}
 			folder := t.TempDir()
 			yard := commandtest.New(t)
 			yard.Process.LANIP, yard.Process.LANError = tc.detects, tc.err
-			for _, args := range [][]string{
+			setup := [][]string{
 				{"ws", "init", "--dir", folder, "--workstation", "ws-a"},
-				{"ws", "--dir", folder, "set", "bind-address", tc.bind},
 				{"ws", "--dir", folder, "set", "consul-serf-wan-port", "18302"},
-			} {
+			}
+			if tc.bind != "" {
+				setup = append(setup, []string{"ws", "--dir", folder, "set", "bind-address", tc.bind})
+			}
+			for _, args := range setup {
 				if run := yard.Run(args...); run.ExitCode != 0 {
 					t.Fatal(run.Stderr)
 				}

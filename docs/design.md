@@ -262,8 +262,10 @@ turns off ST1005 and the revive rule for them. It also skips unchecked
 small findings are fixed, and `mise run check` fails on a new one. It also turns
 off three revive rules that say nothing for a command (doc comments on exported
 names, package comments and unused parameters), and `gosec` in the tests.
-`mise run quality:go` lists the remaining complexity, function length and
-production `gosec` findings. Test functions still have complexity and length checks.
+`mise run quality:go` lists the remaining complexity and function length
+findings. Test functions still have complexity and length checks. `gosec` runs
+in the normal gate, with local exceptions for intentional file access and
+subprocesses. [development.md](development.md#code-quality) explains the policy.
 
 ### Target
 

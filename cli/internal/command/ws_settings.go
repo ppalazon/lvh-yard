@@ -44,10 +44,13 @@ func newWSSet(folder func() string) *cobra.Command {
 			}
 			key, ok := settings.EnvKey(name)
 			if !ok {
-				return fmt.Errorf("unknown setting %q: use base-domain, peers, bind-address, traefik-bind-address, dashboard-bind-address, http-port, https-port, traefik-admin-port, dashboard-port, consul-http-port, consul-dns-port, consul-grpc-tls-port, consul-server-port, consul-serf-lan-port, consul-serf-wan-port, out-of-range, stack-traces or traefik", name)
+				return fmt.Errorf("unknown setting %q: use base-domain, peers, bind-address, instance-host (Windows only), traefik-bind-address, dashboard-bind-address, http-port, https-port, traefik-admin-port, dashboard-port, consul-http-port, consul-dns-port, consul-grpc-tls-port, consul-server-port, consul-serf-lan-port, consul-serf-wan-port, out-of-range, stack-traces or traefik", name)
 			}
 			checked, err := settings.Check(name, value)
 			if err != nil {
+				return err
+			}
+			if err := validateNativeListener(name, checked); err != nil {
 				return err
 			}
 			env, err := readWSEnv(folder())
@@ -85,7 +88,12 @@ func newWSSet(folder func() string) *cobra.Command {
 
 func readWSEnv(folder string) (*envfile.File, error) {
 	path := filepath.Join(folder, ".env")
-	text, err := os.ReadFile(path)
+	root, err := os.OpenRoot(folder)
+	if err != nil {
+		return nil, fmt.Errorf("could not read %s: %w", path, err)
+	}
+	defer func() { _ = root.Close() }()
+	text, err := root.ReadFile(".env")
 	if err != nil {
 		return nil, fmt.Errorf("could not read %s: %w", path, err)
 	}
@@ -96,7 +104,12 @@ func saveWSEnv(cmd *cobra.Command, folder string, env *envfile.File) error {
 	if err := protectWorkstationFolder(folder); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(folder, ".env"), []byte(env.Text()), 0600); err != nil {
+	root, err := os.OpenRoot(folder)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = root.Close() }()
+	if err := root.WriteFile(".env", []byte(env.Text()), 0600); err != nil {
 		return err
 	}
 	fmt.Fprintln(cmd.OutOrStdout(), "Saved .env. Apply the settings:")

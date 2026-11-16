@@ -24,6 +24,10 @@ lvh-yard:
   workstation:
     name: ${YARD_WORKSTATION:ws-a}
     base-domain: ${YARD_BASE_DOMAIN:lvh.me}
+  # A native LAN host can differ from Consul's container address. Empty uses the Consul agent's address.
+  instance-host: ${YARD_INSTANCE_HOST:}
+  # Windows uses IPv4 sockets. Other runtimes keep IPv6 targets.
+  ipv4-only: ${YARD_IPV4_ONLY:false}
   # The addresses that only the own Workstation of an Instance can reach: loopback and the default Docker bridge
   # networks. An Instance of a Remote Service there is out of range here, and gets no Route. YARD_OUT_OF_RANGE
   # replaces the whole list.

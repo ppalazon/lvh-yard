@@ -58,15 +58,24 @@ Java or a copy of this repository.
    lvh-yard ws init --workstation ws-a --base-domain lvh.me
    ```
 
-   `ws init` writes `compose.yaml`, `.env` and `lvh-yard.yaml` to
-   `~/.config/lvh-yard`. If `XDG_CONFIG_HOME` is set, it writes to
-   `$XDG_CONFIG_HOME/lvh-yard`. `--dir` picks another folder for any `ws` command.
-   You can put it before or after the subcommand. It also creates
-   the empty [Backups folder](#the-backups-folder-and-the-safety-backup),
-   `backups/`, and `consul-data/` for Consul's data. The Workstation Folder
-   and all folders inside it have mode 700. All files have mode 600.
-   Only your user can read them. `ws init`, `ws compose upgrade` and `ws set`
-   fix these modes on an existing Workstation Folder.
+   On Linux and macOS, `ws init` writes `compose.yaml`, `.env` and
+   `lvh-yard.yaml` to `~/.config/lvh-yard`. If `XDG_CONFIG_HOME` is set, it writes
+   to `$XDG_CONFIG_HOME/lvh-yard`. It creates `backups/` and `consul-data/`.
+   Folders have mode 700, and files have mode 600.
+   `ws init`, `ws compose upgrade` and `ws set` repair these modes.
+   For Windows paths and storage, see [Windows Workstation setup](#windows-workstation-setup).
+   `--dir` picks another folder for any `ws` command, before or after the
+   subcommand. Every platform keeps the
+   [Backups folder](#the-backups-folder-and-the-safety-backup) at `backups/`.
+
+   On Linux and macOS, settings, generated options and certificates may use
+   relative symbolic links whose targets stay inside the Workstation Folder.
+   Windows requires real files and folders, with no links of any kind.
+   Backup input and output paths, and the TLS import flags `--ca`, `--cert`
+   and `--key`, may name files elsewhere.
+
+   This restriction covers the CLI's own file operations. Docker Compose,
+   your editor and `scp` or `ssh` still run with your normal permissions.
 
    `ws init` makes a new Gossip Key and stores it in `.env`. It does not print
    the key. This Workstation then starts a Yard of its own.
@@ -131,6 +140,264 @@ way. The comments in `compose.yaml` and `.env` explain each value. The `ws`
 commands use local files and `docker compose`. Other `lvh-yard` commands talk
 to the dashboard.
 
+### Windows Workstation setup
+
+This setup is a draft for Windows 11 x64 development checks.
+Windows runtime acceptance is not complete.
+
+Use Docker Desktop with Linux containers and the WSL2 backend. The tests used Docker Desktop 4.99.0.
+In Docker Desktop, enable host networking and disable Enhanced Container
+Isolation. The CLI does not change Docker settings, Windows Firewall or
+PowerShell execution policy. See
+[Docker's host-network requirements](https://docs.docker.com/engine/network/drivers/host/#docker-desktop),
+read on 2026-11-14.
+
+The Windows runtime supports IPv4 targets only.
+Use IPv4 addresses for Peers. Instances may use IPv4 addresses or hostnames
+with IPv4 addresses.
+IPv6 targets are unsupported on Windows. Linux and macOS keep their existing
+endpoint support.
+
+Run the CLI natively in Windows PowerShell 5.1 or PowerShell 7 as an ordinary
+Windows user. The default Workstation Folder is
+`$env:LOCALAPPDATA\lvh-yard\workstation`. `--dir` or `YARD_CONFIG_DIR` can select
+another folder, including paths with spaces, apostrophes or Unicode.
+The executable folder, `$env:LOCALAPPDATA\lvh-yard\bin`, stays separate.
+Use local NTFS storage. Network shares, mapped network drives and cloud-synced
+folders, such as OneDrive, are unsupported even when a write succeeds.
+
+The CLI makes configuration, certificates and `backups/` private to your
+Windows account. The privacy boundary covers other ordinary local users.
+It does not protect against administrators or anyone who controls Docker.
+Keep exported Backups private too: they can contain basic-auth hashes.
+The [certificate roles](#yard-ca-and-workstation-certificates) stay separate.
+Consul receives only `tls/consul/`, and Traefik receives only `tls/traefik/`.
+Runtime containers never receive the Yard CA private key.
+
+1. Create the Workstation with `lvh-yard ws init`.
+   Setup suggests a LAN IPv4 address when it can choose one safely.
+   If several suitable adapters remain, choose the address reachable from the
+   other Workstations. Without a terminal, an ambiguous address needs
+   `--address`, for example:
+
+   ```powershell
+   lvh-yard ws init --workstation ws-win --address 192.168.1.20
+   ```
+
+   The advertised LAN address is separate from container listener addresses.
+   For dashboard and Traefik listeners, use only `127.0.0.1` or `0.0.0.0`.
+   Docker Desktop containers cannot bind a native Windows interface address.
+   `0.0.0.0` exposes a listener on every address; it is not a private default.
+   Consul HTTP and the Traefik admin listener stay on loopback.
+
+2. From the Workstation Folder, start the generated setup directly:
+
+   ```powershell
+   Set-Location -LiteralPath "$env:LOCALAPPDATA\lvh-yard\workstation"
+   docker compose config
+   docker compose up -d
+   ```
+
+   If you selected another folder, use that path instead.
+   Compose needs no hidden overlay or CLI-only environment preparation.
+   Its one-shot volume setup gives Consul access to its data.
+   The long-lived Consul and dashboard processes run non-root.
+   The generated `traefik/00-lvh-yard-windows.sh` copies stable configuration
+   and Traefik certificate snapshots into Linux-local storage.
+   It touches unchanged local configuration when certificate content changes.
+   Keep custom YAML or TOML in `traefik/dynamic/` and use
+   `/etc/traefik/tls/` for Traefik certificate paths.
+
+3. Check `lvh-yard status`, then open `http://127.0.0.1:7780`.
+   For LAN membership, follow [Joining a Yard](#joining-a-yard).
+
+#### Keeping, resetting, moving and removing Windows state
+
+Consul stores Windows state in a named Docker volume scoped to the Compose
+project. Compose names it `<project>_consul-data`.
+`lvh-yard ws init` writes the project name as `COMPOSE_PROJECT_NAME` in `.env`.
+It is the folder name in lowercase letters, digits and `-`, then a short code
+of the whole folder path. Two folders with the same name under different
+parents get different projects, so they never share Consul state.
+Keep the project name when reusing it; a different project selects different state.
+
+Four actions treat this state in different ways:
+
+| Action                                                         | Consul state | Workstation Folder                 |
+| -------------------------------------------------------------- | ------------ | ---------------------------------- |
+| Stop, start, recreate, image upgrade, Docker Desktop restart   | Kept         | Kept                               |
+| [Reset](#reset-a-windows-workstation)                          | Deleted      | Kept                               |
+| [Backup transfer](#move-a-workstation-to-another-platform)     | Not copied   | A Backup file goes into `backups/` |
+| [Complete removal](#remove-all-state-of-a-windows-workstation) | Deleted      | Deleted                            |
+
+After Docker Desktop or the computer restarts, run `lvh-yard ws compose start`.
+It starts the same project and uses the same volume.
+`lvh-yard ws compose upgrade` changes only image lines, so it keeps the volume
+too. See [Upgrading](#upgrading).
+
+##### Reset a Windows Workstation
+
+A reset deletes the Consul state of one Workstation and keeps its files.
+Export a Backup first. A Backup restores only [its defined contents](#backups).
+Then select the Workstation Folder and check the Compose project:
+
+```powershell
+Set-Location -LiteralPath "$env:LOCALAPPDATA\lvh-yard\workstation"
+lvh-yard export -o backups\before-reset.yaml
+docker compose ls
+docker compose config
+```
+
+**Data loss:** the second command below removes the Consul volume of the
+selected project. It deletes Services, Publications, Route Profiles and other
+setup held in Consul. There is no undo for state outside a Backup. Run it only
+for the project you intend to erase. First stop the project. Do not add
+`--volumes`: that would also remove the volumes that you added to your
+`compose.yaml`.
+
+```powershell
+docker compose down
+docker volume rm <project>_consul-data
+```
+
+Use the same project name and Compose files that started the Workstation.
+`docker compose config` shows the project name, and `docker volume ls` shows
+the volume. Never use a global volume prune as a Workstation reset.
+The commands do not touch another project's volumes, and your own volumes in
+this project stay too. They leave configuration, certificates, private keys and
+exported Backups in the Workstation Folder. The next `lvh-yard ws compose start`
+begins with an empty Consul. To get your setup back, import the Backup:
+
+```powershell
+lvh-yard ws compose start
+lvh-yard import backups\before-reset.yaml
+```
+
+See [Compose's volume removal rules](https://docs.docker.com/reference/cli/docker/compose/down/),
+read on 2026-11-14.
+
+##### Move a Workstation to another platform
+
+A move between Windows, Linux and macOS uses a fresh Workstation and a Backup.
+Compose files are not portable between platforms. Do not copy `compose.yaml`,
+`.env`, a Docker volume or a Consul data folder to another platform.
+LVH Yard has no migration of raw Consul state.
+
+1. On the old Workstation, run `lvh-yard export -o <file>`.
+   On Windows, the file is protected from other ordinary users.
+2. Copy the file to the new computer. Treat it as private: it holds the
+   basic-auth hashes of your Route Profiles.
+3. On the new computer, run `lvh-yard ws init` and start the Workstation.
+4. Run `lvh-yard import <file>`. See [Importing a Backup](#importing-a-backup).
+
+Only what a Backup holds arrives. A Backup holds no Bound Instances, Foreign
+Instances, Health, Remote Services, certificates or private keys, and no Gossip
+Key. A Backup does not archive private keys. Install certificates on the new
+Workstation by [hand](#handing-certificates-over-by-hand), and set its `.env`
+again.
+
+##### Remove all state of a Windows Workstation
+
+Deleting the Workstation Folder alone leaves Docker-managed state: the project's
+containers, its network and its `consul-data` volume stay in Docker.
+To remove all state, first remove the project, then delete the folder.
+This deletes the private keys and exported Backups in the folder too:
+
+```powershell
+Set-Location -LiteralPath "$env:LOCALAPPDATA\lvh-yard\workstation"
+docker compose down --volumes
+Set-Location $env:USERPROFILE
+Remove-Item -Recurse -Force -LiteralPath "$env:LOCALAPPDATA\lvh-yard\workstation"
+```
+
+This also removes any volume that you added to the project's `compose.yaml`.
+Images stay in Docker. Remove the ones you no longer need with `docker image rm`.
+If you deleted the folder first, find the project name with `docker compose ls -a`
+and remove it by name:
+
+```powershell
+docker compose -p <project> down --volumes
+```
+
+### Joining a Yard from Windows
+
+A Windows Workstation uses these addresses for different jobs:
+
+| Setting                         | Job                                                                                      |
+| ------------------------------- | ---------------------------------------------------------------------------------------- |
+| `YARD_BIND_ADDRESS`             | The LAN address that Consul tells other Workstations. `ws init --address` sets it.       |
+| `YARD_INSTANCE_HOST`            | The host of Instances for other Workstations. If it is empty, it is `YARD_BIND_ADDRESS`. |
+| Consul listen address           | Always `0.0.0.0` inside Docker Desktop. You cannot change it.                            |
+| Dashboard and Traefik listeners | `127.0.0.1` by default.                                                                  |
+
+Docker Desktop makes only wildcard and loopback listeners of a container
+visible on the Windows computer. A Consul bind to the address of the Docker
+virtual machine was not reachable from the LAN. So on Windows, Consul starts
+with `-bind=0.0.0.0` and listens on every adapter. `bind-address` sets only the
+address that Consul advertises to other Workstations. It does not limit where
+Consul listens.
+
+Windows Firewall decides who can reach those ports, and Docker Desktop may
+already allow them. On a computer that we tested, Docker's own rules for
+`com.docker.backend.exe` allowed inbound connections on the Private and Public
+networks. Such a rule lets any computer on those networks reach every port that
+a container listens on at `0.0.0.0`, Consul's ports included. A narrow rule of
+your own does not limit that. To see the rules, run this in PowerShell:
+
+```powershell
+Get-NetFirewallRule -Direction Inbound -Action Allow -Enabled True | Where-Object DisplayName -match 'docker'
+```
+
+To lower the risk:
+
+- Set your network to Private, and only on a network that you trust.
+- Turn on Consul TLS for a Yard that is not fully trusted.
+- Do not publish a container port on `0.0.0.0` unless you want other computers
+  to reach it.
+
+The Consul server port (TCP, default 8300) and the WAN gossip port (TCP and
+UDP, default 8302) must be reachable from the other Workstations.
+If no Docker rule already allows them, add rules yourself, in both directions,
+for the Yard's addresses only. The CLI never changes firewall rules.
+Docker Desktop also listens on the LAN gossip port (default 8301) on every
+address. The Yard does not need it, so do not allow it.
+Consul HTTP, DNS and gRPC, the dashboard, Traefik and the Traefik admin
+listener stay on `127.0.0.1`. Joining a Yard does not change that, and you
+must not open them for federation.
+
+If the Yard uses Consul TLS, a Windows Workstation joins with the same rules
+as any other: it needs a Consul certificate that the Yard CA signed for its
+name, and it keeps the Consul TLS mode of the Yard. The Windows CLI does not
+copy certificates over ssh. Hand the files over by hand, as the sender or as the
+recipient: see [Handing certificates over by hand](#handing-certificates-over-by-hand).
+A Windows Workstation can hold the Yard CA key and send or receive certificates.
+The tests joined a Windows and a Linux Workstation with Consul TLS. They did
+not use a macOS Workstation.
+
+Address selection has these limits:
+
+- Setup suggests the address of the adapter that holds the default route. It
+  skips adapters that are down, loopback and link-local addresses, and adapters
+  whose name contains `vEthernet`, `WSL` or `docker`. It suggests nothing when
+  that adapter looks like a VPN or another tunnel: its name or description
+  has `vpn`, `tap`, `tun`, `wireguard`, `wintun`, `ppp`, `tailscale` or
+  `zerotier`, or it is a point-to-point adapter. The network card of a virtual
+  machine, such as a Hyper-V, VMware or VirtualBox guest, counts as a normal
+  adapter. Then setup asks you to choose, or needs `--address` when no
+  terminal is available.
+- `--address` takes any specific IPv4 address that is not loopback,
+  link-local or `0.0.0.0`. It does not check which adapter has the address or
+  whether other Workstations reach it. Use the address of your LAN adapter.
+  A WSL, VPN or other VM-only address is not reachable. Other Workstations
+  also treat an address from 172.17.0.0 to 172.31.255.255 as Out-of-range and
+  give its Instances no Route.
+- Names such as `host.docker.internal` are refused. An address must be an IPv4
+  address.
+- A Static Instance without `--host` uses `YARD_INSTANCE_HOST`, which is
+  `YARD_BIND_ADDRESS` unless you set it. It must listen on that address or on
+  every IPv4 address. A process that listens only on `127.0.0.1` works for
+  Local Scope only.
+
 ### Dashboard settings
 
 `lvh-yard.yaml` holds structured dashboard settings in the Workstation Folder.
@@ -179,6 +446,22 @@ appear on their own indented lines. Keep the output private: it contains the Gos
 Sharing reads local files and network settings only. It works while the
 dashboard is down.
 
+On Windows, the saved advertised LAN address is the invitation's default.
+`ws yard share --address` changes only the invitation; it does not reconfigure
+the Workstation. Check that other Workstations can reach the selected address.
+If setup cannot choose between adapters, give `ws init --address <lan-ip>`.
+For Windows firewall access and address limits, see
+[Joining a Yard from Windows](#joining-a-yard-from-windows).
+
+Before joining, manually allow traffic between the Workstations in each
+computer's firewall. With the default ports, allow server RPC on TCP 8300 and
+WAN gossip on TCP and UDP 8302, in both directions. If you changed the ports,
+use the values printed by `ws yard share`.
+Keep these rules scoped to the Yard's computers and the intended network.
+Do not expose the Consul HTTP API or Traefik admin listener for federation.
+See [Consul's ports reference](https://developer.hashicorp.com/consul/docs/reference/architecture/ports),
+read on 2026-11-14.
+
 On an already initialized Workstation, use the invitation's key and Peer:
 
 ```sh
@@ -197,6 +480,8 @@ With a company CA, ask its issuer for that certificate instead.
 `consul.crt` and `consul.key` in `certificates/<new-workstation>/consul/`.
 Copy only those files to it through a private channel, then run the printed
 `ws tls import consul` command before applying the Yard settings.
+This works the same when either Workstation runs on Windows: see
+[Handing certificates over by hand](#handing-certificates-over-by-hand).
 Never share `ca.key` or reuse another Workstation's certificate keys.
 Client Certificate `.p12` files are for people using protected Routes, not
 for Workstation membership.
@@ -245,7 +530,7 @@ lvh-yard ws set peers "192.168.1.10,192.168.1.11:8302"
 lvh-yard ws set dashboard-bind-address 0.0.0.0
 ```
 
-The setting names are `base-domain`, `peers`, `bind-address`,
+The setting names are `base-domain`, `peers`, `bind-address`, `instance-host`,
 `traefik-bind-address`, `dashboard-bind-address`, `http-port`,
 `traefik-admin-port`, `dashboard-port`, `consul-http-port`, `consul-dns-port`,
 `consul-grpc-tls-port`, `consul-server-port`, `consul-serf-lan-port`,
@@ -253,7 +538,11 @@ The setting names are `base-domain`, `peers`, `bind-address`,
 Addresses use IPv4. Ports run from 1 to 65535. `out-of-range` takes
 comma-separated CIDR ranges or an empty value. `stack-traces` takes `true` or `false`.
 `traefik` takes `on` or `off`.
-An empty `bind-address` lets Consul choose its address.
+`instance-host` is for Windows only. It takes an IPv4 address, or an empty value
+to use `bind-address`.
+On Linux and macOS, an empty `bind-address` lets Consul choose its address.
+For Windows LAN identity and listener limits, see
+[Windows Workstation setup](#windows-workstation-setup).
 
 To change the Workstation name, export a Backup, run `lvh-yard ws init`
 under the new name, and import the Backup. There is no `ws rename`.
@@ -291,7 +580,7 @@ terminal, it uses the defaults.
 
 `lvh-yard ws tls ca create` writes `ca/ca.crt` and `ca/ca.key` in the
 Workstation Folder. The CA uses ECDSA P-256 and lasts 3650 days. Its key has
-mode 600, and the `ca/` folder is not mounted by the reference Compose setup.
+mode 600 on Linux and macOS. The reference Compose setup never mounts `ca/`.
 The command refuses to replace either CA file unless you give `--force`.
 Replacing the CA does not update certificates that it already signed.
 
@@ -304,7 +593,7 @@ The files are `ca/certs/<name>/consul.crt|key` and
 Workstation. Signing does not copy anything to `tls/`, start TLS or change
 running services. A certificate uses ECDSA P-256 and lasts 365 days. The Consul
 certificate allows server and client use, because Consul checks both ways.
-The Traefik certificate allows server use only. Private keys have mode 600.
+The Traefik certificate allows server use only. On Linux and macOS, private keys have mode 600.
 
 The Traefik certificate names `*.<Base Domain>`, `localhost` and `127.0.0.1`.
 Each `--address` adds one IP address or DNS name to it.
@@ -314,7 +603,7 @@ Wildcards cannot cover IP addresses.
 For example, `lvh-yard ws tls ca issue workstation ws-b --base-domain example.test --address 192.168.1.11`
 signs for another Workstation. `--days <number>` changes the validity.
 A certificate must expire before or with its CA. All these commands accept
-`--dir <folder>` and repair the Workstation Folder's private file modes.
+`--dir <folder>` and repair the Workstation Folder's private permissions.
 
 The default `*.<Base Domain>` covers local Routes only. A wildcard matches
 one label, so `*.lvh.me` does not cover `app.ws-b.lvh.me`.
@@ -351,13 +640,17 @@ belong, and turns each one on:
     line. Then log in and run `lvh-yard ws tls enable consul` and
     `lvh-yard ws tls enable traefik`, as you need. Each one checks the
     certificate first. Send the `.key` files only through a private channel.
-    Never send `ca.key`.
+    Never send `ca.key`. For a Windows computer, import the folders instead:
+    see [Handing certificates over by hand](#handing-certificates-over-by-hand).
   - **Another computer, over ssh.** Give `--scp user@host`, or
     `--scp user@host:<its-folder>` for another folder, or answer the
-    question at a terminal. The command makes `tls/` there with mode 700 and
-    copies the folders into it. It needs `ssh` and `scp` on this computer. It
-    does not run anything on the other Workstation. Log in and run
-    `ws tls enable`, as above, to turn on what it needs.
+    question at a terminal. Before it changes anything, the command runs
+    `ssh user@host uname -s`, which only reads. Then it makes `tls/` there with
+    mode 700 and copies the folders into it. It needs `ssh` and `scp` on this
+    computer, and a Unix shell on the other one. It does not run anything else
+    on the other Workstation. Log in and run `ws tls enable`, as above, to turn
+    on what it needs. The probe and the copy are separate ssh logins, so ssh can
+    ask for a password more than once. Windows cannot use this way: see below.
 
 `install` asks which certificates to install, or takes `--consul[=false]` and
 `--traefik[=false]`. Without a terminal, it takes every certificate that the
@@ -393,6 +686,67 @@ rewrites the generated TLS options and keeps the installed certificates. If your
 mount `./tls/consul` in Consul and `./tls/traefik` in Traefik, and install the
 certificates again.
 
+#### Handing certificates over by hand
+
+The automated copy with `--scp` runs Unix commands (`umask`, `mkdir -p`) on the
+other computer. It works from a Unix computer to a Unix computer, and nowhere
+else. A Windows Workstation takes part by hand, as sender or as recipient. The
+sender and the recipient each have their own duties. The steps are the same for
+Consul and for Traefik, and for every pair of operating systems.
+
+**Sender: the Workstation that holds the Yard CA key**
+
+1. Sign for the recipient's Workstation name, for example
+   `lvh-yard ws tls ca issue workstation <name> --address <its-lan-ip>`, or
+   `ws tls ca issue consul <name>` for Consul alone.
+2. Run `lvh-yard ws tls ca install <name>` without `--scp`. Add `--consul` or
+   `--traefik=false` to choose the certificates. It saves
+   `certificates/<name>/consul/` and `certificates/<name>/traefik/`. Each holds
+   three files: `ca.crt`, the certificate and its `.key`.
+3. Send only those folders, through a private channel that you start yourself:
+   `scp` or SFTP over a login that you trust, or an encrypted drive. Never send
+   `ca/`, `ca.key`, `.env`, `consul-data/`, `certificates/` of other
+   Workstations or the whole Workstation Folder. The Yard CA key never leaves
+   the sender.
+4. The keys are secrets. Delete `certificates/<name>/` when the recipient has
+   imported the files. The CA keeps its own copy under `ca/certs/<name>/`.
+
+**Recipient: the Workstation that joins**
+
+1. Put the received folders in a folder that only you can read, such as a new
+   folder in your own home directory. On Windows, a folder in your user profile
+   is readable by you and by administrators. A shared folder or a USB drive is
+   not private. Keep it out of the Workstation Folder.
+2. Run `lvh-yard ws tls import consul --ca <folder>/consul/ca.crt --cert
+<folder>/consul/consul.crt --key <folder>/consul/consul.key`, and the same
+   for `traefik` if you received it. The command checks the key, the chain
+   and the name before it writes. It installs the files in `tls/`, turns the
+   service on and makes the files private: mode 600 on Linux and macOS, and an
+   access for your account only on Windows. In PowerShell, write each
+   path in single quotes.
+3. Delete the received folders.
+4. Run the `compose recreate` command that `import` prints, then
+   `lvh-yard status`. Every Workstation of the Yard must run Consul TLS with
+   the same Yard CA.
+   If one Workstation of the Yard has Consul TLS and another has none,
+   `lvh-yard status --strict` fails.
+
+The recipient runs the same two commands on any system. Only `import` writes
+the recipient's files. No command copies a whole private Workstation Folder.
+
+**What the CLI refuses**
+
+- Native Windows has no automated copy. `ws tls ca install <name> --scp ...`
+  fails with an error that names the manual steps, and the question about scp
+  is not asked at a terminal.
+- A Unix sender asks the destination first. It refuses a target whose folder
+  looks like Windows (`C:\...`, `C:/...` or a backslash), and a destination that
+  does not answer `uname -s` with a Unix name. Windows `cmd.exe` has no `uname`.
+  A failed ssh login is reported as it is, not as a Windows computer.
+- Each of these checks runs before the command writes a file here or runs a
+  command there. A refused copy leaves both computers as they were.
+- Other `--scp` checks stay: no leading `-`, no space or quote, no `~` folder.
+
 #### Browser trust
 
 The CLI does not change browser trust. In your browser's certificate settings,
@@ -405,12 +759,27 @@ Import only `ca.crt`, never `ca.key` or a Workstation's private key.
 Trusting the CA lets the browser trust any website certificate it signs.
 To remove that trust, remove the CA from the same certificate store.
 
+On Windows, import the CA into your user's certificate store, without
+administrator rights. The tests ran no browser for this step:
+
+```powershell
+$ws = "$env:LOCALAPPDATA\lvh-yard\workstation"   # or the folder you chose
+Import-Certificate -FilePath "$ws\ca\ca.crt" -CertStoreLocation Cert:\CurrentUser\Root
+```
+
+The command needs a desktop session. Over SSH it fails with
+`UI is not allowed in this operation`.
+Firefox has its own store: use its Authorities tab. To remove the trust, delete
+the certificate from the same store. To check a certificate without changing
+trust, name the file for one request:
+`curl.exe --ssl-no-revoke --cacert "$ws\ca\ca.crt" https://app.lvh.me/`.
+
 #### Client Certificates
 
 On the Workstation with the Yard CA key, run
 `lvh-yard ws tls ca issue user alice`. It asks for the username or email, a password and
 the validity, and writes `ca/clients/alice.p12` in the Workstation Folder with
-mode 600.
+private permissions.
 The file holds Alice's private key, Client Certificate and Yard CA certificate.
 If you leave the password empty, the command makes a random one and prints it
 once. Save it before closing the terminal. To choose a password, answer the
@@ -429,6 +798,22 @@ system may manage this store. Follow its import instructions if so.
 When a Route asks for a Client Certificate, select Alice's certificate.
 Import the Yard CA for website trust as described above, too.
 Share the `.p12` file and its password only with the person it identifies.
+
+On Windows, `ca/clients/alice.p12` stays private like the other secrets: other
+Windows users cannot read it. A copy in another folder gets that folder's
+access rights, so import the file and delete the copy. To import it for your
+user, run:
+
+```powershell
+$password = Read-Host -AsSecureString 'Password of alice.p12'
+Import-PfxCertificate -FilePath "$ws\ca\clients\alice.p12" -CertStoreLocation Cert:\CurrentUser\My -Password $password
+```
+
+Firefox needs its own import, as above. The tests did not use a browser for
+this step. To check the import without a browser, give `curl.exe` the thumbprint that
+`Import-PfxCertificate` printed:
+`curl.exe --ssl-no-revoke --cacert "$ws\ca\ca.crt" --cert "CurrentUser\MY\<thumbprint>" https://admin.lvh.me/`.
+Remove it with `Remove-Item Cert:\CurrentUser\My\<thumbprint>`.
 
 ### A host without Traefik
 
@@ -483,26 +868,30 @@ Certificate signed by the Yard CA. The default option does not require one.
 
 `lvh-yard ws init` does not overwrite a file unless you give `--force`.
 After you install a new `lvh-yard`, run `lvh-yard ws compose upgrade`.
-It changes only the consul, traefik and dashboard image lines in `compose.yaml`
-and rewrites `consul.d/00-lvh-yard.hcl`.
+It changes only the image lines in `compose.yaml`: consul, traefik and
+dashboard, and on Windows the one-shot `consul-data-init` too.
+It also rewrites `consul.d/00-lvh-yard.hcl`.
 Then run `lvh-yard ws compose recreate`,
 even if every image is current. This makes Consul load the generated options.
 
 LVH Yard owns `consul.d/00-lvh-yard.hcl`, `consul.d/10-tls.hcl` and
 `traefik/dynamic/10-tls.yaml`. Generated files start with
 `# Generated, do not edit.` The TLS files exist only when TLS is set up.
+On Windows, LVH Yard also owns `traefik/00-lvh-yard-windows.sh`.
+`ws compose upgrade` rewrites that script.
 You own `compose.yaml`, `.env`, `lvh-yard.yaml` and every other file you add
 to `consul.d/` or `traefik/dynamic/`. Put custom options in your own files.
 `ws compose upgrade` keeps their contents unchanged.
-Consul reads `consul.d/` read-only. Traefik watches `traefik/dynamic/`
-read-only for routing options.
+Consul reads `consul.d/` read-only. On Linux and macOS, Traefik watches the
+read-only `traefik/dynamic/` mount. Windows stages the same source files locally.
 
 ### Addresses and ports
 
 Traefik and the dashboard listen on `127.0.0.1`, so only this computer reaches
 them. To change that, set `YARD_TRAEFIK_BIND_ADDRESS` or
-`YARD_DASHBOARD_BIND_ADDRESS` to an IPv4 address. `0.0.0.0` listens on every
-address, loopback too.
+`YARD_DASHBOARD_BIND_ADDRESS`. On Linux and macOS, these accept an IPv4 address.
+On Windows, use only `127.0.0.1` or `0.0.0.0`.
+`0.0.0.0` listens on every address, loopback too.
 
 If Traefik does not listen on loopback, the `lvh.me` hostnames do not work on
 this computer, because they resolve to `127.0.0.1`.
@@ -533,6 +922,8 @@ on host networking in the settings.
 
 Each release has `lvh-yard` as one executable for Linux (amd64, arm64) and
 macOS (arm64). It needs no Java.
+
+### Linux and macOS
 
 The install script downloads the archive of your platform from the
 [releases](https://github.com/ppalazon/lvh-yard/releases), checks it against
@@ -567,9 +958,75 @@ sudo mv lvh-yard /usr/local/bin/
 On macOS, the system blocks a downloaded executable. To unblock it, run
 `xattr -d com.apple.quarantine lvh-yard`.
 
+### Windows 11 x64
+
+The Windows ZIP and PowerShell installer need maintainer publication before
+these public commands can be used. They apply to a release that includes
+`lvh-yard-<version>-windows-amd64.zip` and a deployed `install.ps1`.
+Installing the CLI alone does not prove full Windows Workstation support.
+
+In Windows PowerShell 5.1 or PowerShell 7, read the installer before running it:
+
+```powershell
+$installer = (Invoke-WebRequest -UseBasicParsing https://lvhy.cc/install.ps1).Content
+$installer
+Invoke-Expression $installer
+```
+
+The installer needs no administrator rights. It checks the Windows ZIP
+against the release's `SHA256SUMS`, then installs `lvh-yard.exe` in
+`$env:LOCALAPPDATA\lvh-yard\bin`. This bin folder is separate from the
+Workstation Folder. It adds the bin folder to your user `PATH` without
+duplicates and leaves machine `PATH` unchanged. Open a new terminal, then
+run `lvh-yard --version`.
+
+To choose a version or destination, set these variables before running the
+installer:
+
+```powershell
+$env:LVH_YARD_VERSION = '0.1.0' # v0.1.0 also works
+$env:LVH_YARD_INSTALL_DIR = "$env:LOCALAPPDATA\My tools\lvh-yard\bin"
+Invoke-Expression $installer
+```
+
+Without these variables, the installer uses the latest release and its
+default bin folder. To upgrade or reinstall, run it again. A download,
+checksum or replacement failure preserves the installed executable. If
+Windows locks that file, close the process using it, then rerun the installer.
+To return to an earlier version, set `LVH_YARD_VERSION` to that release and
+rerun it.
+
+For a manual installation, download the Windows x64 ZIP and `SHA256SUMS`
+from the same [release](https://github.com/ppalazon/lvh-yard/releases).
+In their download folder, substitute the downloaded ZIP's name below:
+
+```powershell
+$archive = 'lvh-yard-0.1.0-windows-amd64.zip'
+$line = Get-Content -LiteralPath .\SHA256SUMS |
+    Where-Object { $_.EndsWith("  $archive") }
+if (@($line).Count -ne 1) { throw 'Expected one checksum for this ZIP.' }
+if ((Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash -ine
+    ($line -split '  ', 2)[0]) { throw 'ZIP checksum mismatch.' }
+$bin = "$env:LOCALAPPDATA\lvh-yard\bin"
+Expand-Archive -LiteralPath $archive -DestinationPath $bin
+& "$bin\lvh-yard.exe" --version
+```
+
+The ZIP contains `lvh-yard.exe` and `LICENSE`. Choose an empty destination
+for manual extraction. To run `lvh-yard` without its full path, add that folder
+to your **user** Path in Windows Environment Variables, then open a new terminal.
+Keep the old executable until the new one reports the expected version.
+
+The Windows executable is unsigned. Windows may warn about an unknown
+publisher or block a downloaded file. A matching SHA256 checksum checks
+download integrity against the release manifest; it does not authenticate an
+Authenticode publisher. Follow your organization's security policy before
+running it. The installer does not relax execution policy, install Docker,
+or change Docker settings or firewall rules.
+
 ### Shell completion
 
-`lvh-yard completions <shell>` prints a completion script for Bash or Zsh.
+`lvh-yard completions <shell>` prints a completion script for Bash, Zsh or PowerShell.
 It completes commands, subcommands, flags and known values, such as Service
 states. It does not fetch Service names from the dashboard.
 The `completions` command stays out of the main help menu.
@@ -591,6 +1048,16 @@ source <(lvh-yard completions zsh)
 To load it in each new Zsh session, add that line to `~/.zshrc`.
 The Zsh script is a native Zsh script. It calls `compdef`, so run `compinit`
 before you load it. Most Zsh setups do this already.
+
+For PowerShell, load the script in your current session:
+
+```powershell
+lvh-yard completions powershell | Out-String | Invoke-Expression
+```
+
+To load it in each new session, add that line to your PowerShell profile.
+Native CLI checks cover Windows PowerShell 5.1 and PowerShell 7.
+Full Windows Workstation acceptance remains open.
 
 ## Using the CLI
 
@@ -698,15 +1165,29 @@ If the dashboard refuses the file, the command prints each reason. If a
 Publication or a chain names a profile, `lvh-yard profiles remove` refuses and
 names each Service and chain.
 
-`lvh-yard profiles edit <name>` opens the profile in `$EDITOR`, in the format of
-`show`. If `$EDITOR` is not set, it opens `vi`. After you close the editor, the
-command saves the profile. If you did not change the text, it saves nothing.
+`lvh-yard profiles edit <name>` opens the profile in the editor named by `EDITOR`,
+in the format of `show`. When `EDITOR` is empty, it opens `vi` on Unix or
+`notepad` on Windows. After you close the editor, the command saves the profile.
+If you did not change the text, it saves nothing.
 The file must hold only that one profile, with the same name. If LVH Yard
 refuses your change, the command prints the reason and asks
 `Edit again? [Y/n]`. Press Enter to open your text again. Answer `n` to stop. The
 command also stops if the input ends or the editor fails. Then it saves nothing,
 exits with 1 and prints the path of the file that holds your text. After a
 save, or when nothing changed, it deletes the file.
+
+In PowerShell, set the editor with `$env:EDITOR`. A whole executable path can
+contain spaces without extra quotes inside the value. If you add arguments,
+put double quotes around the executable path inside the value:
+
+```powershell
+$env:EDITOR = '"C:\Program Files\My Editor\editor.exe" --wait'
+```
+
+Choose an editor mode that waits until you finish the file. Windows invokes
+the executable directly, without a Unix shell. Printed Windows commands use
+PowerShell quoting: a single quote inside a single-quoted value appears twice.
+Keep that quoting when you paste a printed command.
 
 The `/status` page of the dashboard and `GET /api/status` show the same status
 as `lvh-yard status`.
@@ -804,6 +1285,18 @@ Client Certificate Route Profiles, such as `certificate` above.
 A Backup holds the basic-auth hashes of your Route Profiles. Anyone who can
 read the file can read them. Keep a Backup as private as a password file.
 `lvh-yard export -o` writes the file so that only you can read it.
+
+To move between operating systems, export a Backup, create a fresh Workstation
+on the destination, then import the Backup there.
+On Windows, follow [Move a Workstation to another platform](#move-a-workstation-to-another-platform).
+Recreate its environment settings and install its own certificates separately.
+A Backup contains no private certificates, raw Consul data or Compose files.
+Do not copy a Consul data folder or Docker volume across operating systems.
+Keep the destination's generated Compose setup.
+The Backup holds the own Services of the source, such as `yard`, with their
+Static Instances. If the two Workstations use different ports, the import adds
+the source's Instances to the own Services of the destination. They stay
+critical, because nothing listens there. Remove them with `lvh-yard remove`.
 
 ### Importing a Backup
 
@@ -1543,6 +2036,16 @@ it does not change the Docker binding or where the process listens. A port that
 Docker publishes on every address stays open on the LAN. A process that listens
 only on loopback does not accept connections at the LAN address.
 
+A container with no Host Port needs no published port and no shared Docker
+network. The Consul check, the Reachability test and Traefik reach its own
+address from the Workstation, also on Windows with Docker Desktop. Containers on
+unrelated Docker networks work the same way. That address is private to this
+computer. The Docker ranges are in Out-of-range, so other Workstations do not
+route to it. Under Yard Scope this Workstation still routes to it, and the
+Service page warns that other Workstations cannot reach it.
+When the container stops, its Bound Instance goes. When it starts again, the
+Bound Instance returns at the container's new address.
+
 Each source on the Instance Sources card has a box with its Instances, such as
 "1 Instance, 1 passing". Open it to read each Instance's address and Health.
 A thick bar at the left of each Instance sets it apart from the next one. Under
@@ -1563,6 +2066,45 @@ Instance has a Host Port. A Static Instance has none of these fields.
 The dashboard follows the Docker events at `DOCKER_HOST`. If that is not set,
 it uses `unix:///var/run/docker.sock`. When it starts, or when Docker answers
 again, it updates each Binding to the containers that run then.
+
+#### Published ports on Windows
+
+The table above holds on Windows. Docker Desktop publishes each port on the
+Windows computer, and these limits apply:
+
+- Docker Desktop lists a port that it publishes on every address twice, on
+  `0.0.0.0` and on `::`. A Windows Workstation uses only the IPv4 mapping. A
+  port published only on an IPv6 address gives no Bound Instance.
+- `-p 8080:80` is open on `127.0.0.1` and on the LAN address of the Windows
+  computer. Local Scope uses `127.0.0.1`. Yard Scope uses the Instance host,
+  which is the saved LAN address unless `YARD_INSTANCE_HOST` says otherwise.
+- `-p 127.0.0.1:8080:80` is open on the Windows computer only. A Service with
+  Yard Scope keeps the Bound Instance at `127.0.0.1` and shows a warning.
+  Other Workstations get no Route. To share the port, publish it on every
+  address or on the LAN address.
+- `-p <LAN address>:8080:80` is open at that address only. It is not open at
+  `127.0.0.1`. The Bound Instance stays at the LAN address under every Scope,
+  so the Route works on this Workstation and on other Workstations.
+- A port with no Host Port has an address inside the Docker virtual machine,
+  such as `172.17.0.7`. This Workstation reaches it, but other Workstations
+  do not. Yard Scope warns and gives no Route to them. Publish the port to
+  share it.
+- The Bound Instance never uses `host.docker.internal`, or an address of WSL
+  or of the Docker virtual machine, as the address that other Workstations
+  use.
+- When Docker restarts or replaces a container, the Host Port or address can
+  change. The Bound Instance follows the new mapping.
+
+A port that Docker publishes on every address, or on the LAN address, is open
+on the LAN. Other Workstations reach it only when Windows Firewall lets Docker
+Desktop accept their connections. LVH Yard never changes the firewall.
+
+A program that runs on Windows itself, not in a container, is different. For
+example, a dev server that you start in PowerShell may listen on every address,
+but Windows Firewall still blocks other computers from reaching it. To give a
+Yard Scope Publication to such a program, add an inbound rule in Windows
+Firewall that allows that program or port from the Yard's addresses only. LVH
+Yard never changes the firewall.
 
 #### Bind a container on the Service page
 

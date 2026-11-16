@@ -5,7 +5,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -18,8 +17,9 @@ import (
 // Responses are empty JSON objects; operation calls may ignore decoding errors.
 func AssertOperations(t testing.TB, operations ...func(*client.Client)) {
 	t.Helper()
-	_, file, _, _ := runtime.Caller(0)
-	data, err := os.ReadFile(filepath.Join(filepath.Dir(file), "../../../../dashboard/openapi.yaml"))
+	// A test runs in the folder of internal/client, so the repository root is three folders up. The path of this
+	// source file would name the computer that built a cross-compiled test binary.
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "dashboard", "openapi.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func AssertOperations(t testing.TB, operations ...func(*client.Client)) {
 			t.Errorf("OpenAPI lacks %s %s", r.Method, r.URL.EscapedPath())
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{}`))
+		_, _ = w.Write([]byte(`{}`))
 	}))
 	defer server.Close()
 	for _, operation := range operations {

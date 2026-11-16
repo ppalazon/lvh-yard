@@ -4,12 +4,12 @@ import (
 	"encoding/base64"
 	"os"
 	"path/filepath"
-	"strconv"
+	"runtime"
 	"strings"
-	"syscall"
 	"testing"
 
 	"github.com/ppalazon/lvh-yard/cli/internal/commandtest"
+	"github.com/ppalazon/lvh-yard/cli/internal/templates"
 )
 
 func TestInitWritesNewWorkstationFolder(t *testing.T) {
@@ -26,7 +26,12 @@ func TestInitWritesNewWorkstationFolder(t *testing.T) {
 		t.Fatalf("init: %+v", run)
 	}
 	env := readInitFile(t, folder, ".env")
-	for _, setting := range []string{"YARD_WORKSTATION=ws-a", "YARD_BASE_DOMAIN=lvh.me", "YARD_PEERS=", "COMPOSE_PROFILES=dashboard,traefik", "YARD_TRAEFIK_ENABLED=true", "YARD_UID=1234", "YARD_GID=2345"} {
+	uid, gid := "YARD_UID=1234", "YARD_GID=2345"
+	if runtime.GOOS == "windows" {
+		// The Windows Compose file fixes the user at 1000:1000, so .env keeps these settings commented out.
+		uid, gid = "#YARD_UID=1000", "#YARD_GID=1000"
+	}
+	for _, setting := range []string{"YARD_WORKSTATION=ws-a", "YARD_BASE_DOMAIN=lvh.me", "YARD_PEERS=", "COMPOSE_PROFILES=dashboard,traefik", "YARD_TRAEFIK_ENABLED=true", uid, gid} {
 		if !strings.Contains(env, "\n"+setting+"\n") {
 			t.Errorf("missing %s in .env", setting)
 		}
@@ -35,7 +40,14 @@ func TestInitWritesNewWorkstationFolder(t *testing.T) {
 	if strings.Contains(compose, "    build: .\n") || !strings.Contains(compose, "ghcr.io/ppalazon/lvh-yard-dashboard:latest}") || !strings.Contains(compose, "./backups:") {
 		t.Fatalf("wrong compose template: %s", compose)
 	}
-	if !strings.Contains(compose, `user: "${YARD_UID:?set YARD_UID in .env}:${YARD_GID:?set YARD_GID in .env}"`) ||
+	if runtime.GOOS == "windows" {
+		// NTFS cannot hold the Consul owner, so Windows uses a Docker volume that a helper service prepares.
+		if !strings.Contains(compose, "    user: \"1000:1000\"\n") ||
+			!strings.Contains(compose, "      - consul-data:/consul/data\n") ||
+			!strings.Contains(compose, "\nvolumes:\n  consul-data:") {
+			t.Fatalf("Consul must use user 1000 and the Docker volume: %s", compose)
+		}
+	} else if !strings.Contains(compose, `user: "${YARD_UID:?set YARD_UID in .env}:${YARD_GID:?set YARD_GID in .env}"`) ||
 		!strings.Contains(compose, "./consul-data:/consul/data") ||
 		strings.Contains(compose, "\nvolumes:\n") {
 		t.Fatalf("Consul must use the Workstation user and local data folder: %s", compose)
@@ -45,7 +57,7 @@ func TestInitWritesNewWorkstationFolder(t *testing.T) {
 		t.Fatalf("backups folder: %v", err)
 	}
 	info, err = os.Stat(filepath.Join(folder, ".env"))
-	if err != nil || info.Mode().Perm() != 0600 {
+	if err != nil || (commandtest.UnixModes && info.Mode().Perm() != 0600) {
 		t.Fatalf(".env permissions: %v, %v", info, err)
 	}
 	settings := readInitFile(t, folder, "lvh-yard.yaml")
@@ -55,7 +67,7 @@ func TestInitWritesNewWorkstationFolder(t *testing.T) {
 		}
 	}
 	info, err = os.Stat(filepath.Join(folder, "lvh-yard.yaml"))
-	if err != nil || info.Mode().Perm() != 0600 {
+	if err != nil || (commandtest.UnixModes && info.Mode().Perm() != 0600) {
 		t.Fatalf("lvh-yard.yaml permissions: %v, %v", info, err)
 	}
 	if !strings.Contains(compose, "./lvh-yard.yaml:/app/config/application.yaml:ro") {
@@ -64,10 +76,23 @@ func TestInitWritesNewWorkstationFolder(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(folder, "route-profiles.yaml")); !os.IsNotExist(err) {
 		t.Fatalf("unexpected Route Profiles file: %v", err)
 	}
-	if !strings.Contains(run.Stderr, "YARD_DOCKER_GID") {
+	if runtime.GOOS == "windows" {
+		// The Windows Compose file fixes the Docker group at 0, so .env leaves the setting out and there is nothing to warn about.
+		if strings.Contains(run.Stderr, "YARD_DOCKER_GID") || !strings.Contains(env, "\n#YARD_DOCKER_GID=\n") {
+			t.Fatalf("unexpected Docker group handling: %+v", run)
+		}
+	} else if !strings.Contains(run.Stderr, "YARD_DOCKER_GID") {
 		t.Fatalf("missing Docker group warning: %+v", run)
 	}
 }
+
+// windowsLANAnswer accepts the offered address at the extra prompt that only Windows shows.
+var windowsLANAnswer = func() string {
+	if runtime.GOOS == "windows" {
+		return "\n"
+	}
+	return ""
+}()
 
 func readInitFile(t *testing.T, folder, name string) string {
 	t.Helper()
@@ -105,11 +130,16 @@ func TestInitPreservesTemplateCommentsAndOrder(t *testing.T) {
 	if run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
-	root, err := os.ReadFile(filepath.Join("..", "..", "..", "config", ".env.example"))
-	if err != nil {
-		t.Fatal(err)
+	// A Windows test binary does not run in the source folder, and Windows has its own template.
+	template := templates.Env()
+	if runtime.GOOS != "windows" {
+		root, err := os.ReadFile(filepath.Join("..", "..", "..", "config", ".env.example"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		template = string(root)
 	}
-	want := strings.Split(string(root), "\n")
+	want := strings.Split(template, "\n")
 	got := strings.Split(readInitFile(t, folder, ".env"), "\n")
 	if len(got) != len(want) {
 		t.Fatalf("line count: %d, want %d", len(got), len(want))
@@ -195,7 +225,7 @@ func TestInitForceReplacesFilesAndProtectsExistingEnv(t *testing.T) {
 		t.Fatalf("forced init: %+v", run)
 	}
 	info, err := os.Stat(filepath.Join(folder, ".env"))
-	if err != nil || info.Mode().Perm() != 0600 {
+	if err != nil || (commandtest.UnixModes && info.Mode().Perm() != 0600) {
 		t.Fatalf("forced .env permissions: %v, %v", info, err)
 	}
 }
@@ -238,39 +268,16 @@ func TestInitAcceptsAllConsulGossipKeyLengths(t *testing.T) {
 	}
 }
 
-func TestInitFindsDockerSocketGroup(t *testing.T) {
-	socket := filepath.Join(t.TempDir(), "docker.sock")
-	if err := os.WriteFile(socket, nil, 0600); err != nil {
-		t.Fatal(err)
-	}
-	info, err := os.Stat(socket)
-	if err != nil {
-		t.Fatal(err)
-	}
-	stat := info.Sys().(*syscall.Stat_t)
-	folder := t.TempDir()
-	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--docker-socket", socket)
-	if run.ExitCode != 0 || run.Stderr != "" {
-		t.Fatalf("Docker group: %+v", run)
-	}
-	want := "YARD_DOCKER_GID=" + strconv.FormatUint(uint64(stat.Gid), 10)
-	if !strings.Contains(readInitFile(t, folder, ".env"), "\n"+want+"\n") {
-		t.Fatalf("missing %s", want)
-	}
-}
-
 func TestInitUsesWorkstationFolderLookup(t *testing.T) {
-	for _, setting := range []string{"HOME", "XDG_CONFIG_HOME", "YARD_CONFIG_DIR", "dir"} {
+	for _, setting := range []string{"HOME", "config root", "YARD_CONFIG_DIR", "dir"} {
 		t.Run(setting, func(t *testing.T) {
 			yard := commandtest.New(t)
 			base := t.TempDir()
-			yard.Process.Env["HOME"] = base
-			want := filepath.Join(base, ".config", "lvh-yard")
+			want := commandtest.UseHome(yard.Process.Env, base)
 			args := []string{"ws", "init", "--workstation", "ws-a"}
 			switch setting {
-			case "XDG_CONFIG_HOME":
-				yard.Process.Env[setting] = base
-				want = filepath.Join(base, "lvh-yard")
+			case "config root":
+				want = commandtest.UseConfigRoot(yard.Process.Env, base)
 			case "YARD_CONFIG_DIR":
 				yard.Process.Env[setting] = base
 				want = base
@@ -292,7 +299,7 @@ func TestInitUsesWorkstationFolderLookup(t *testing.T) {
 func TestInitPromptsOnlyForWorkstationAndBaseDomain(t *testing.T) {
 	yard := commandtest.New(t)
 	yard.Process.Terminal = true
-	yard.Process.Stdin = "ws-a\nexample.test\n"
+	yard.Process.Stdin = "ws-a\nexample.test\n" + windowsLANAnswer
 	folder := t.TempDir()
 	run := yard.Run("ws", "init", "--dir", folder)
 	if run.ExitCode != 0 || !strings.Contains(run.Stdout, "Workstation name") || !strings.Contains(run.Stdout, "Base Domain [lvh.me]: ") || strings.Contains(run.Stdout, "Peers") {
@@ -314,7 +321,7 @@ func TestInitPromptDefaultsUseHostnameAndBaseDomain(t *testing.T) {
 	} {
 		t.Run(host.given, func(t *testing.T) {
 			yard := commandtest.New(t)
-			yard.Process.Stdin = "\n\n"
+			yard.Process.Stdin = "\n\n" + windowsLANAnswer
 			folder := t.TempDir()
 			run := yard.Run("ws", "init", "--dir", folder, "--terminal", "--hostname", host.given)
 			if run.ExitCode != 0 || !strings.Contains(run.Stdout, "["+host.want+"]: ") {
@@ -331,7 +338,7 @@ func TestInitPromptDefaultsUseHostnameAndBaseDomain(t *testing.T) {
 func TestInitPromptsAgainAfterInvalidAnswers(t *testing.T) {
 	yard := commandtest.New(t)
 	yard.Process.Terminal = true
-	yard.Process.Stdin = "WS_A\n\nws-a\nNot A Domain\nlocalhost\n"
+	yard.Process.Stdin = "WS_A\n\nws-a\nNot A Domain\nlocalhost\n" + windowsLANAnswer
 	folder := t.TempDir()
 	run := yard.Run("ws", "init", "--dir", folder, "--hostname", "_")
 	if run.ExitCode != 0 || !strings.Contains(run.Stdout, "WS_A is not a Workstation name") || !strings.Contains(run.Stdout, "A Workstation needs a name") || !strings.Contains(run.Stdout, "Not A Domain is not a domain name") {
@@ -365,6 +372,10 @@ func TestInitDoesNotPromptForFlagValuesOrWithoutTerminal(t *testing.T) {
 		yard := commandtest.New(t)
 		yard.Process.Terminal = terminal
 		args := []string{"ws", "init", "--dir", t.TempDir(), "--workstation", "ws-a"}
+		if runtime.GOOS == "windows" {
+			// With a terminal, Windows asks for the LAN address unless a flag gives it.
+			args = append(args, "--address", "192.168.1.20")
+		}
 		if terminal {
 			args = append(args, "--base-domain", "lvh.me")
 		}

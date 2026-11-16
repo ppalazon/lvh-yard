@@ -35,13 +35,17 @@ func NewExport(options *Options) *cobra.Command {
 }
 
 func writeBackup(path, backup string) error {
+	if err := validateOutputPath(path); err != nil {
+		return err
+	}
+	// #nosec G304 -- The user selects the output path with --output.
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = file.Close() }() // The last line reports the error of Close. This one only covers early returns.
 	// A Backup holds basic-auth hashes. Restrict an existing file before writing them.
-	if err := file.Chmod(0600); err != nil {
+	if err := protectFile(file, 0600); err != nil {
 		return err
 	}
 	if err := file.Truncate(0); err != nil {

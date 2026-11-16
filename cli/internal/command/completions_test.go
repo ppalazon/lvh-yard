@@ -8,7 +8,7 @@ import (
 )
 
 func TestCompletionsPrintsAScriptForEachShell(t *testing.T) {
-	for shell, marker := range map[string]string{"bash": "bash completion V2 for lvh-yard", "zsh": "#compdef lvh-yard"} {
+	for shell, marker := range map[string]string{"bash": "bash completion V2 for lvh-yard", "zsh": "#compdef lvh-yard", "powershell": "Register-ArgumentCompleter -CommandName 'lvh-yard'"} {
 		run := commandtest.New(t).Run("completions", shell)
 		if run.ExitCode != 0 || run.Stderr != "" || !strings.Contains(run.Stdout, marker) {
 			t.Errorf("%s: exit %d, stderr %q, stdout starts %.60q", shell, run.ExitCode, run.Stderr, run.Stdout)
@@ -41,7 +41,7 @@ func TestShellCompletesFixedValues(t *testing.T) {
 		{[]string{"publish", "web", "--scope", ""}, []string{"local", "yard"}},
 		{[]string{"publish", "web", "--access-log", ""}, []string{"on", "off"}},
 		{[]string{"register", "static", "web", "--check", ""}, []string{"tcp", "http"}},
-		{[]string{"completions", ""}, []string{"bash", "zsh"}},
+		{[]string{"completions", ""}, []string{"bash", "zsh", "powershell"}},
 	}
 	for _, c := range cases {
 		run := commandtest.New(t).Run(append([]string{"__complete"}, c.args...)...)
