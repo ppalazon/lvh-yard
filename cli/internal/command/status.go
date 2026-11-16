@@ -39,6 +39,7 @@ func NewStatus(options *Options) *cobra.Command {
 					fmt.Fprintf(out, "          %s: %s%s\n", detail.Name, detail.Value, suffix)
 				}
 			}
+			fmt.Fprintf(out, "\nOpen the dashboard at %s\n", options.DashboardAddress())
 			if status.Overall != "ok" && (status.Overall != "warning" || strict) {
 				return errStatusFailed
 			}

@@ -1232,6 +1232,8 @@ Keep that quoting when you paste a printed command.
 The `/status` page of the dashboard and `GET /api/status` show the same status
 as `lvh-yard status`.
 
+`lvh-yard status` ends with the address of the dashboard. Open it in a browser.
+
 ## Backups
 
 A Backup is one YAML file that holds what you set up on one Workstation:
