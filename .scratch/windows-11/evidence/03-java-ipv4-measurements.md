@@ -1,9 +1,9 @@
 # Java socket measurements on Docker Desktop for Windows
 
-[ADR-0014](../../../docs/adr/0014-windows-workstations-use-docker-desktop.md) cites these measurements. Each one was
-observed on 2026-11-14. The raw outputs stay on the measurement host as `03-java-ipv4-probe.out`,
-`03-java-ipv4-corrected.out` and `03-java-ipv6-impact.out` under `~/.local/state/lvh-yard-windows-11/evidence/`. This file
-keeps the facts, so the ADR does not cite a path outside the repository. The longer account is in
+[ADR-0014](../../../docs/adr/0014-windows-workstations-use-docker-desktop.md) now holds these measurements, so it cites no
+file under `.scratch/`. Each one was observed on 2026-11-14. The raw outputs stay on the measurement host as
+`03-java-ipv4-probe.out`, `03-java-ipv4-corrected.out` and `03-java-ipv6-impact.out` under
+`~/.local/state/lvh-yard-windows-11/evidence/`. The longer account is in
 [the ticket 03 evidence](03-private-local-windows-workstation.md#measured-java-transport-failure-and-ipv4-scope).
 
 ## Environment

@@ -342,8 +342,7 @@ already allow them. On a computer that we tested, Docker's own rules for
 `com.docker.backend.exe` allowed inbound connections on the Private and Public
 networks. Such a rule lets any computer on those networks reach every port that
 a container listens on at `0.0.0.0`, Consul's ports included. A narrow rule of
-your own does not limit that. To see the rules, run this in PowerShell as
-administrator:
+your own does not limit that. To see the rules, run this in PowerShell:
 
 ```powershell
 Get-NetFirewallRule -Direction Inbound -Action Allow -Enabled True | Where-Object DisplayName -match 'docker'

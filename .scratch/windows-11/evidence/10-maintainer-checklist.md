@@ -65,18 +65,16 @@ keeps package managers, Authenticode signing and a self-update command out of sc
 
 ## 5. Reconcile the decision records
 
-- [ ] Accept, change or reject ADR-0014 through the repository's decision-recording process. It is `proposed`. I did
-      not change its status. It now records that Consul binds `0.0.0.0` on Windows and advertises the LAN address.
-      Facts observed since it was written, for you to fold in or leave out:
-  - The Instance host is a separate setting, `instance-host` (`YARD_INSTANCE_HOST`), that defaults to the LAN address.
-  - The generated `.env` carries `COMPOSE_PROJECT_NAME`, so the Consul volume belongs to one folder.
-  - The Windows setup is IPv4-only, as approved on 2026-11-14.
-- [ ] The ADR now cites [03-java-ipv4-measurements.md](03-java-ipv4-measurements.md), a file under `.scratch/`.
-      `CLAUDE.md` says to delete a feature's folder when its tickets are done. Move that file, or its facts, to a
-      durable place before the folder goes.
-- [ ] ADR-0010 is unchanged, as the specification requires. Its dependency bullet is now stale: it omits `go-pkcs12`
-      (Client Certificate files) and `golang.org/x/sys` (Windows file privacy, imported only by Windows files). Decide
-      whether to record that through a new dated entry.
+- [ ] Accept, change or reject ADR-0014 through the repository's decision-recording process. It is `proposed`, and I did
+      not change its status. You said to go on with Section 5, so I folded the facts observed since it was written into
+      the ADR (2026-11-16): the separate `instance-host` setting, `COMPOSE_PROJECT_NAME` in the generated `.env`, the
+      new `golang.org/x/sys` dependency, and the Docker firewall rule fact. The IPv4-only section was already there.
+      Accepting it is your decision, after you read the evidence.
+- [x] The ADR no longer cites a file under `.scratch/`. I moved the Java socket measurements into the ADR as a table, and
+      it names the specification in plain text instead of linking it.
+- [x] ADR-0010 stays unchanged, as the specification requires. `golang.org/x/sys` is recorded in ADR-0014. ADR-0010's
+      list also omits `go-pkcs12`, but `main` already had that dependency before this work, so that gap is older than
+      the Windows port. Leave it, or record it through a new ADR if you ever want that list fixed.
 
 ## 6. Documentation after your approval
 
@@ -112,8 +110,8 @@ keeps package managers, Authenticode signing and a self-update command out of sc
       host with a restricted shell would be refused, and the user must copy the files by hand.
 - [ ] `mise.toml` copies `install.ps1` into the site build. When this merges to `main`, Pages serves the installer, and
       `release.yml` ships the ZIP on the next tag. Both happen before the README and the landing page change.
-- [ ] `.scratch/` evidence is cited by ADR-0014 and `docs/development.md`, while `CLAUDE.md` says to delete a finished
-      spec folder. Move what stays to a durable place first.
+- [ ] `docs/development.md` line 294 still cites `.scratch/windows-11/evidence/`, while `CLAUDE.md` says to delete a
+      finished spec folder. Move what stays to a durable place, or drop that sentence, before the folder goes.
 - [ ] The raw outputs (`evidence/*.out`, the scripts) live outside the repository, under
       `~/.local/state/lvh-yard-windows-11/`. The evidence files cite them by name. Keep them, or drop the names.
 - [ ] The Windows listener rule appears in three places: the Go check (`validateNativeListener`),

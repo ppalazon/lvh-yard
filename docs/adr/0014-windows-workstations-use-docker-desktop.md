@@ -4,7 +4,7 @@ status: proposed
 
 # Windows Workstations use Docker Desktop as their runtime boundary
 
-The [Windows support specification](../../.scratch/windows-11/spec.md) requires a native CLI and a full Workstation in a mixed-platform Yard. Keep Consul, Traefik and the dashboard on Docker Desktop's host network, while treating Windows LAN identity separately from container binding.
+The Windows support specification requires a native CLI and a full Workstation in a mixed-platform Yard. Keep Consul, Traefik and the dashboard on Docker Desktop's host network, while treating Windows LAN identity separately from container binding.
 
 This is a proposed Windows extension to [ADR-0012](0012-services-keep-host-networking.md), with a Windows storage exception to [ADR-0011](0011-consul-files-traefik-flags-and-owned-files.md). Existing platform decisions remain unchanged. Accept this proposal only after the specification's runtime gates pass.
 
@@ -18,13 +18,13 @@ The specification requires both native-loopback routing and Container Bindings w
 
 ## Decision
 
-Separate container binding, the Workstation's advertised LAN address and the default Instance host. A bind address must name an address available to the container runtime. Advertisement and Yard-visible Instances must use an address reachable by the other Workstations.
+Separate container binding, the Workstation's advertised LAN address and the default Instance host. A bind address must name an address available to the container runtime. Advertisement and Yard-visible Instances must use an address reachable by the other Workstations. The Instance host has its own setting, `instance-host` (`YARD_INSTANCE_HOST`), which defaults to the advertised LAN address.
 
 Use platform-appropriate Compose setup while preserving direct Docker Compose use and user ownership of configuration files. Windows must not depend on a CLI wrapper to repair its runtime environment at launch.
 
-Keep configuration, certificates and exported Backups in the Windows Workstation Folder. Use a named Docker volume for Consul state so its Linux ownership does not depend on NTFS bind-mount identity mapping. Initialize volume ownership separately and keep the long-lived runtime processes non-root.
+Keep configuration, certificates and exported Backups in the Windows Workstation Folder. Use a named Docker volume for Consul state so its Linux ownership does not depend on NTFS bind-mount identity mapping. The generated `.env` sets `COMPOSE_PROJECT_NAME` from the folder, so each Workstation Folder owns one Consul volume. Initialize volume ownership separately and keep the long-lived runtime processes non-root.
 
-On Windows, Consul starts with `-bind=0.0.0.0` and advertises the LAN address in `YARD_BIND_ADDRESS`, because Docker Desktop forwards only wildcard and loopback listeners of a container to the computer. A bind to the address of the Docker virtual machine was not reachable from the LAN. So Consul listens on every adapter, `bind-address` sets only the advertised address, and the Windows Firewall is what limits who can reach Consul.
+On Windows, Consul starts with `-bind=0.0.0.0` and advertises the LAN address in `YARD_BIND_ADDRESS`, because Docker Desktop forwards only wildcard and loopback listeners of a container to the computer. A bind to the address of the Docker virtual machine was not reachable from the LAN. So Consul listens on every adapter, and `bind-address` sets only the advertised address. The Windows Firewall rules decide who can reach Consul. That includes Docker's own inbound rules, which on the test computer allowed every port that a container listens on at `0.0.0.0`.
 
 Protect Windows files with ACLs, preserving Docker's required access. Do not represent Unix permission modes as an effective Windows privacy boundary.
 
@@ -42,6 +42,8 @@ Windows has a distinct setup path, an ACL implementation and persistent state ou
 Host networking imposes the Docker prerequisites owned by the specification. It does not establish LAN federation, safe listener exposure or access to unpublished containers. The implementer must supply Windows evidence for each path before acceptance.
 
 The runtime must preserve separate certificate mounts from [ADR-0013](0013-one-yard-ca-and-two-certificates-per-workstation.md). A networking or storage change must not expose Consul's identity key to Traefik.
+
+The CLI gains one dependency, `golang.org/x/sys`, for Windows file ACLs. Only files that build on Windows import it.
 
 If the runtime fails the specification's release gates, the maintainer must reconsider this proposal. There is no approved fallback that silently removes routing behavior or Yard participation.
 
@@ -68,7 +70,18 @@ HTTP and TCP transports. That alternative preserves IPv6 targets but adds
 transport code and runtime verification. The approved scope keeps the stock
 Java clients and limits Windows to IPv4.
 
-The measured outputs are recorded in
-[the Java socket measurements](../../.scratch/windows-11/evidence/03-java-ipv4-measurements.md).
+### Java socket measurements
+
+The measurements were observed on 2026-11-14 on Windows 11 Pro x64 (build 26300) as the ordinary user `yarddev`. They used Docker Desktop 4.99.0 (Linux engine 29.9.3, WSL2 backend, host networking enabled). The client was the dashboard image of the Workstation, running as uid 1000 with `--network host`. The target was the Consul HTTP API on `127.0.0.1:49182`, an IPv4 listener.
+
+| Client in the same container   | Command line                                          | Observed result                                                                    |
+| ------------------------------ | ----------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| curl                           | no Java option                                        | HTTP 200 from the Consul leader URL and the Traefik ping URL.                      |
+| Java `Socket`                  | default JVM, `preferIPv4Stack=null`                   | `java.net.ConnectException: Connection refused (connect failed)`.                  |
+| Java `HttpClient`              | default JVM                                           | `java.net.ConnectException`, caused by `java.nio.channels.ClosedChannelException`. |
+| Java `Socket` and `HttpClient` | `-Djava.net.preferIPv4Stack=true`                     | `Socket connected /127.0.0.1:57848`, then `HTTP 200 "192.168.122.117:49186"`.      |
+| Java client, unchanged JVM     | IPv6 loopback listener `[::1]:49192`                  | `IPv6 response=42`.                                                                |
+| Java client                    | same listener, with `-Djava.net.preferIPv4Stack=true` | `java.net.SocketException: IPv6 protocol family unavailable`.                      |
+
 The Windows Workstation acceptance record must include these results before
 release. This ADR remains proposed until the remaining release gates pass.
