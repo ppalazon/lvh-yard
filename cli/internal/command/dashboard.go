@@ -10,13 +10,19 @@ import (
 const defaultDashboard = "http://127.0.0.1:7780"
 
 func (o *Options) DashboardAddress() string {
+	return o.dashboardAddressIn(o.WorkstationFolder())
+}
+
+// dashboardAddressIn is the address of the dashboard of a Workstation Folder, unless --dashboard or
+// YARD_DASHBOARD_URL names one.
+func (o *Options) dashboardAddressIn(folder string) string {
 	if o.dashboard != "" {
 		return o.dashboard
 	}
 	if url := o.Process.Getenv("YARD_DASHBOARD_URL"); strings.TrimSpace(url) != "" {
 		return url
 	}
-	root, err := os.OpenRoot(o.WorkstationFolder())
+	root, err := os.OpenRoot(folder)
 	if err != nil {
 		return defaultDashboard
 	}

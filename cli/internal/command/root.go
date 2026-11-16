@@ -4,8 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
+	"path/filepath"
 
+	"github.com/ppalazon/lvh-yard/cli/internal/update"
 	"github.com/spf13/cobra"
 )
 
@@ -16,6 +19,12 @@ type Options struct {
 	Err     io.Writer
 	// Dashboard builds the dashboard of an address. The default is the HTTP client.
 	Dashboard func(address string) Dashboard
+	// Releases is the address of the GitHub releases that update reads. Tests give their own server.
+	Releases string
+	// Executable is the path of this executable, which update replaces. The default is the running one.
+	Executable func() (string, error)
+	// HTTP is the client that update downloads with.
+	HTTP *http.Client
 
 	dashboard string
 }
@@ -36,6 +45,15 @@ func NewRoot(options Options, groups ...func(*Options) *cobra.Command) *cobra.Co
 	}
 	if options.Err == nil {
 		options.Err = os.Stderr
+	}
+	if options.Releases == "" {
+		options.Releases = update.Releases
+	}
+	if options.Executable == nil {
+		options.Executable = runningExecutable
+	}
+	if options.HTTP == nil {
+		options.HTTP = update.Client
 	}
 	root := &cobra.Command{
 		Use:           "lvh-yard",
@@ -60,7 +78,7 @@ func NewRoot(options Options, groups ...func(*Options) *cobra.Command) *cobra.Co
 	root.AddCommand(NewService(&options), NewRegister(&options), NewRemove(&options))
 	root.AddCommand(NewProfiles(&options))
 	root.AddCommand(NewExport(&options), NewImport(&options))
-	root.AddCommand(NewWS(&options))
+	root.AddCommand(NewWS(&options), NewUpdate(&options))
 	root.AddCommand(NewContainers(&options))
 	root.AddCommand(NewPublish(&options), NewUnpublish(&options), NewPriority(&options))
 	root.AddCommand(NewAlias(&options))
@@ -70,6 +88,16 @@ func NewRoot(options Options, groups ...func(*Options) *cobra.Command) *cobra.Co
 	}
 	finishCommands(root)
 	return root
+}
+
+// runningExecutable is the path of this executable with symbolic links followed, so that update replaces the file
+// and not a link to it.
+func runningExecutable() (string, error) {
+	path, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	return filepath.EvalSymlinks(path)
 }
 
 func Execute(args []string, options Options) int {

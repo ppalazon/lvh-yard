@@ -18,6 +18,9 @@ func (e *processExit) Error() string {
 	return fmt.Sprintf("docker compose exited with code %d", e.code)
 }
 
+// composeRecreate is the docker compose command of ws compose recreate.
+var composeRecreate = []string{"up", "-d", "--force-recreate"}
+
 // newWSLifecycle returns ws compose, which holds the commands that run docker compose on this
 // Workstation's services or change compose.yaml.
 func newWSLifecycle(options *Options, folder func() string) []*cobra.Command {
@@ -35,7 +38,7 @@ func newWSLifecycle(options *Options, folder func() string) []*cobra.Command {
 		{"start", "Starts this Workstation's services.", []string{"up", "-d"}},
 		{"stop", "Stops this Workstation's services.", []string{"stop"}},
 		{"restart", "Restarts this Workstation's services.", []string{"restart"}},
-		{"recreate", "Recreates this Workstation's services to apply changed settings.", []string{"up", "-d", "--force-recreate"}},
+		{"recreate", "Recreates this Workstation's services to apply changed settings.", composeRecreate},
 	} {
 		compose.AddCommand(&cobra.Command{
 			Use:   action.name,

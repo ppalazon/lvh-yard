@@ -557,6 +557,31 @@ The PowerShell installer stages the verified executable beside its
 destination and uses Windows atomic file replacement. It never deletes the
 installed executable to make room for an upgrade.
 
+`lvh-yard update` reads the same `SHA256SUMS` through `releases/latest/download`
+(or `releases/download/v<version>` for a given version), so the archive names
+also matter there. The code is in `cli/internal/update`. It swaps the
+executable by renaming the old file aside, because Windows can rename a running
+executable but not overwrite it. A failed swap puts the old file back. Then
+`update` runs `<new executable> ws compose upgrade`. It must be the new
+executable, because the compose and Consul templates are embedded in it.
+
+### Migrations
+
+A release that needs a change in an existing Workstation Folder adds an entry at
+the end of `migrations` in `cli/internal/command/migrations.go`. `ws compose
+upgrade` runs the entries that the folder has not had, in order, and records
+each in `.lvh-yard-layout`. A new `ws init` writes the current number, so a new
+folder runs none. Rules:
+
+- Append only. Never reorder or remove an entry: a folder's layout is a place in
+  the list.
+- An entry reads the folder before it changes anything, and does nothing for a
+  folder that it does not concern.
+- `compose.yaml`, `.env` and `lvh-yard.yaml` belong to the user. An entry may
+  print what to change in them. It must not rewrite them, except the image lines
+  that `upgrade` already changes.
+- A failed entry stops the run and is tried again at the next `upgrade`.
+
 To build the release archives locally:
 
 ```sh

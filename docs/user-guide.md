@@ -872,22 +872,50 @@ Certificate signed by the Yard CA. The default option does not require one.
 
 ### Upgrading
 
+`lvh-yard update` installs the latest release from GitHub and upgrades this
+Workstation. It checks the download against `SHA256SUMS`. Before it changes
+anything, it asks the dashboard for a [Backup](#backups) and saves it in the
+Backups folder as `<workstation>-<yyyyMMdd-HHmmss>-before-update.yaml`. If the
+dashboard is stopped, it warns that there is no Backup and goes on, because the
+Consul data stays in its Docker volume. To get a Backup first, run
+`lvh-yard ws compose start` and then `lvh-yard update`. Then `update` replaces
+the executable that you ran. Then the new executable runs `ws compose upgrade`,
+because only the new release has the files of the new release. On a terminal, it
+asks whether to recreate the services. Without a terminal, it prints the command.
+
+```sh
+lvh-yard update --check          # shows the latest release, changes nothing
+lvh-yard update                  # installs the latest release
+lvh-yard update 0.4.0            # installs this release, an older one too
+lvh-yard update --dir <folder>   # upgrades another Workstation Folder
+```
+
+`update` upgrades one Workstation Folder. Run `ws --dir <folder> compose upgrade`
+for each other one. A development build cannot update. If you cannot write to
+the folder of the executable, run the install script again.
+
 `lvh-yard ws init` does not overwrite a file unless you give `--force`.
-After you install a new `lvh-yard`, run `lvh-yard ws compose upgrade`.
+After you install a new `lvh-yard` by hand, run `lvh-yard ws compose upgrade`.
 It changes only the image lines in `compose.yaml`: consul, traefik and
 dashboard, and the one-shot `consul-data-init` too.
 It also rewrites `consul.d/00-lvh-yard.hcl`.
 Then run `lvh-yard ws compose recreate`,
 even if every image is current. This makes Consul load the generated options.
 
+`ws compose upgrade` also runs the migrations that a release adds. A migration
+changes a file that LVH Yard owns, or tells you what to change in a file that
+you own. It runs once for a folder. The file `.lvh-yard-layout` in the folder
+records how many migrations the folder has had. Do not edit it.
+
 A Linux or macOS folder from an older `lvh-yard` mounts `./consul-data` and keeps
-doing so, because the upgrade changes only image lines. `ws compose down -v` does
-not remove that folder. To use the Docker volume, export a Backup, make a new
+doing so, because the upgrade changes only image lines. The first upgrade prints
+a note about it. `ws compose down -v` does not remove that folder. To use the
+Docker volume, export a Backup, make a new
 folder with `lvh-yard ws init --dir <new folder>` and the same Workstation name
 and Gossip Key, start it, and run `lvh-yard import <file>`.
 
-LVH Yard owns `consul.d/00-lvh-yard.hcl`, `consul.d/10-tls.hcl` and
-`traefik/dynamic/10-tls.yaml`. Generated files start with
+LVH Yard owns `consul.d/00-lvh-yard.hcl`, `consul.d/10-tls.hcl`,
+`traefik/dynamic/10-tls.yaml` and `.lvh-yard-layout`. Generated files start with
 `# Generated, do not edit.` The TLS files exist only when TLS is set up.
 On Windows, LVH Yard also owns `traefik/00-lvh-yard-windows.sh`.
 `ws compose upgrade` rewrites that script.
@@ -933,7 +961,8 @@ on host networking in the settings.
 ## Installing the CLI
 
 Each release has `lvh-yard` as one executable for Linux (amd64, arm64), macOS
-(arm64) and Windows 11 (x64). It needs no Java.
+(arm64) and Windows 11 (x64). It needs no Java. To move to a newer release
+later, run `lvh-yard update` (see [Upgrading](#upgrading)).
 
 ### Linux and macOS
 

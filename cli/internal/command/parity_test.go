@@ -13,6 +13,7 @@ import (
 
 // Every command with the options it must accept, by name.
 var commands = map[string][]string{
+	"update":             {"check", "dir"},
 	"":                   {"dashboard"},
 	"ws":                 {"dir"},
 	"ws init":            {"workstation", "peers", "gossip-key", "base-domain", "address", "force", "docker-socket", "hostname", "terminal"},

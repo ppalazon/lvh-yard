@@ -23,6 +23,10 @@ type Harness struct {
 	Dashboard command.Dashboard
 	Version   string
 	Groups    []func(*command.Options) *cobra.Command
+	// Releases is the address of a fake GitHub releases server for update. With none, update would reach GitHub.
+	Releases string
+	// Executable is the file that update replaces.
+	Executable string
 }
 
 func New(t testing.TB) *Harness {
@@ -43,6 +47,10 @@ func (h *Harness) Run(args ...string) Result {
 	}
 	if h.Dashboard != nil {
 		options.Dashboard = func(string) command.Dashboard { return h.Dashboard }
+	}
+	options.Releases = h.Releases
+	if h.Executable != "" {
+		options.Executable = func() (string, error) { return h.Executable, nil }
 	}
 	root := command.NewRoot(options, h.Groups...)
 	exitCode := command.Run(root, args)

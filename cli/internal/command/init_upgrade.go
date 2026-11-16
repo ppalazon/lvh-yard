@@ -34,6 +34,9 @@ func upgradeInit(options *Options, folder, ws string, out io.Writer) error {
 	if err := upgradeImages(folder, text, images, desired, out); err != nil {
 		return err
 	}
+	if err := runMigrations(folder, out); err != nil {
+		return err
+	}
 	fmt.Fprintf(out, "Upgraded %s. Apply the generated options and images:\n  %s compose recreate\n", folder, ws)
 	if strings.Contains(text, "./tls:/consul/tls") || strings.Contains(text, "./tls:/etc/traefik/tls") {
 		fmt.Fprintln(out, "Your compose.yaml still mounts ./tls in Consul and Traefik. Certificates now live in tls/consul and tls/traefik: mount ./tls/consul:/consul/tls:ro in Consul and ./tls/traefik:/etc/traefik/tls:ro in Traefik, and install the certificates again.")

@@ -302,7 +302,7 @@ type workstationFile struct {
 
 // workstationFiles lists the files that ws init writes. Each one is private to the user.
 func workstationFiles(compose, env string) []workstationFile {
-	files := []workstationFile{{"compose.yaml", compose}, {".env", env}, {"lvh-yard.yaml", templates.Dashboard()}, {"consul.d/00-lvh-yard.hcl", templates.Consul()}}
+	files := []workstationFile{{"compose.yaml", compose}, {".env", env}, {"lvh-yard.yaml", templates.Dashboard()}, {"consul.d/00-lvh-yard.hcl", templates.Consul()}, {layoutFile, layoutText()}}
 	return append(files, platformWorkstationFiles()...)
 }
 
