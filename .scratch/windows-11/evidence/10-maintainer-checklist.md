@@ -5,8 +5,9 @@ Nothing below is done. Each item is a decision or an action that belongs to the 
 
 ## 1. Review the evidence
 
-- [ ] Read [10-windows-acceptance.md](10-windows-acceptance.md) and the evidence files `01` to `09` and `10-native-ci.md`.
-      Decide whether the observed results meet every release gate of the specification.
+- [x] The maintainer read [10-windows-acceptance.md](10-windows-acceptance.md) and approved its results on 2026-11-16.
+      Tickets 03, 05 and 06 became `done` with their open limits recorded as accepted limits. Their unobserved boxes
+      stay unticked. Ticket 02 and ticket 10 stay `ready-for-human` until the release and the documentation are done.
 - [x] Two results did not pass cleanly in the integrated pass. Both are decided (2026-11-16):
   - A native PowerShell listener on `0.0.0.0` was not reachable from the Linux host. Proven to be the firewall: it
     timed out with no rule, connected with one scoped inbound rule, and timed out again after the rule was removed
