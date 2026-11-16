@@ -51,15 +51,17 @@ keeps package managers, Authenticode signing and a self-update command out of sc
       and PowerShell 7, the installer file from the branch installed the published ZIP: the executable's SHA-256
       matched the one inside the ZIP, `--version` printed `lvh-yard 0.1.1-rc.1`, a reinstall left one PATH entry, and
       the PATH was restored exactly. Not run: the documented one-line command (the site is not deployed).
-- [ ] Run the `windows` CI job on GitHub once. It never ran there. It starts on a pull request or a push to `main`, not
-      on a tag. Check the artifact transfer, the `cmd` step, the runner's shells and line endings after checkout.
+- [x] Run the `windows` CI job on GitHub once: done on pull request #3 on 2026-11-16 ([10-github-ci-run.md](10-github-ci-run.md)).
+      The first two runs failed and found two real defects, fixed on the branch: a virtual machine's own network card
+      was refused as a tunnel adapter, and the artifact dropped hidden files. The third run passed all six jobs.
 
 ## 3. Decide about CI
 
 - [x] Decided 2026-11-16: keep the `windows` job as an administrator job. The manual Windows 11 acceptance stays the
       only ordinary-user proof, and the limit stays documented. No self-hosted runner, no non-administrator step.
-- [x] Decided 2026-11-16: the native job keeps running the unit test binaries on every pull request (35 to 50 s on the
-      VM, not measured on a hosted runner). Move it to release tags only if the first GitHub runs are slow.
+- [x] Decided 2026-11-16: the native job keeps running the unit test binaries on every pull request. On the hosted
+      runner the two `windows` jobs took 45 and 52 s in the passing run, and `windows-package` took 31 s. Move it to
+      release tags only if that changes.
 
 ## 4. Decide about the firewall policy
 
