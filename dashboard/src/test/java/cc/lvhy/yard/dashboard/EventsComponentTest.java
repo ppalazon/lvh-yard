@@ -11,6 +11,7 @@ import cc.lvhy.yard.dashboard.web.Layout;
 import htmlflow.HtmlFlow;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,7 +68,7 @@ class EventsComponentTest extends DashboardComponentTest {
 
   @Test
   void cleansUpDisconnectedClients() throws Exception {
-    int initialCount = broadcaster.clientCount();
+    int initialCount = settledClientCount();
     EventStreamClient client = new EventStreamClient(port);
     assertThat(broadcaster.clientCount()).isEqualTo(initialCount + 1);
 
@@ -77,9 +78,28 @@ class EventsComponentTest extends DashboardComponentTest {
         .atMost(Duration.ofSeconds(5))
         .untilAsserted(() -> {
           broadcaster.sendHeartbeat();
-          // A stream that an earlier test left open can close meanwhile too.
           assertThat(broadcaster.clientCount()).isLessThanOrEqualTo(initialCount);
         });
+  }
+
+  /**
+   * The count once the streams that earlier tests closed are gone. The broadcaster removes a closed
+   * stream when a write to it fails, which can take two heartbeats. Without this wait, one of those
+   * removals can land between the baseline and the next check, and the count is one too low.
+   */
+  private int settledClientCount() {
+    AtomicInteger last = new AtomicInteger(-1);
+    AtomicInteger steadyPolls = new AtomicInteger();
+    await()
+        .atMost(Duration.ofSeconds(10))
+        .pollInterval(Duration.ofMillis(100))
+        .until(() -> {
+          broadcaster.sendHeartbeat();
+          int now = broadcaster.clientCount();
+          steadyPolls.set(now == last.getAndSet(now) ? steadyPolls.get() + 1 : 0);
+          return steadyPolls.get() >= 5;
+        });
+    return last.get();
   }
 
   @Test
