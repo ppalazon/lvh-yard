@@ -46,11 +46,11 @@ func TestWSTLSRefusesEscapingCA(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	run := yard.Run("ws", "tls", "ca", "issue", "traefik", "--dir", folder)
+	run := yard.Run("ws", "tls", "ca", "issue", "service", "grafana", "--dir", folder)
 	if run.ExitCode == 0 {
 		t.Fatal("signing read a CA outside the Workstation Folder")
 	}
-	if _, err := os.Stat(filepath.Join(outside, "certs", "ws-a")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(outside, "service")); !os.IsNotExist(err) {
 		t.Fatalf("signing wrote outside the Workstation Folder: %v", err)
 	}
 }
@@ -159,7 +159,7 @@ func TestWSTLSRefusesEscapingPrivateOutputs(t *testing.T) {
 		args []string
 	}{
 		{"CA replacement", "ca/ca.key", []string{"ca", "create", "--force"}},
-		{"Client Certificate", "ca/clients/alice.p12", []string{"ca", "issue", "user", "alice", "--password", "fixture"}},
+		{"Client Certificate", "ca/client/alice.p12", []string{"ca", "issue", "user", "alice", "--password", "fixture"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			yard, folder := newSecurityWorkstation(t)
@@ -192,18 +192,17 @@ func TestWSTLSRefusesEscapingPrivateOutputs(t *testing.T) {
 	}
 }
 
-func TestWSTLSInstallRefusesEscapingRoleDirectory(t *testing.T) {
+func TestWSTLSClientCreateRefusesEscapingTraefikDirectory(t *testing.T) {
 	commandtest.SkipOnWindows(t, "a symbolic link needs a privilege that an ordinary Windows user lacks; TestWindowsWorkstationRejectsJunctionEscape covers escapes on Windows")
 	yard, folder := newSecurityWorkstation(t)
 	for _, args := range [][]string{
 		{"ws", "tls", "ca", "create", "--dir", folder},
-		{"ws", "tls", "ca", "issue", "consul", "--dir", folder},
 	} {
 		if run := yard.Run(args...); run.ExitCode != 0 {
 			t.Fatal(run)
 		}
 	}
-	path := filepath.Join(folder, "tls", "consul")
+	path := filepath.Join(folder, "tls", "traefik")
 	if err := os.Remove(path); err != nil {
 		t.Fatal(err)
 	}
@@ -212,10 +211,10 @@ func TestWSTLSInstallRefusesEscapingRoleDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if run := yard.Run("ws", "tls", "install", "consul", "--dir", folder); run.ExitCode == 0 {
+	if run := yard.Run("ws", "tls", "client", "create", "--dir", folder); run.ExitCode == 0 {
 		t.Fatal("installation accepted an escaping role directory")
 	}
-	for _, name := range []string{"ca.crt", "consul.crt", "consul.key"} {
+	for _, name := range []string{"client-ca.crt", "https.crt", "https.key"} {
 		if _, err := os.Stat(filepath.Join(outside, name)); !os.IsNotExist(err) {
 			t.Fatalf("installation wrote %s outside the Workstation Folder: %v", name, err)
 		}

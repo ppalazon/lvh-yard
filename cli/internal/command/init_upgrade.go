@@ -107,17 +107,7 @@ func writeFixedFiles(folder string) error {
 	} else if !os.IsNotExist(err) {
 		return err
 	}
-	if _, err := root.Stat("traefik/dynamic/10-tls.yaml"); err == nil {
-		env, err := readWSEnv(folder)
-		if err != nil {
-			return err
-		}
-		if env.Get("YARD_TRAEFIK_ENABLED") != "false" {
-			if err := writeTraefikTLS(folder); err != nil {
-				return err
-			}
-		}
-	} else if !os.IsNotExist(err) {
+	if err := regenerateTraefikTLS(folder); err != nil {
 		return err
 	}
 	return protectWorkstationTree(folder)

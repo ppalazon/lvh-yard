@@ -1,0 +1,9 @@
+# Generated, do not edit.
+http:
+  serversTransports:
+    yard-mtls:
+      rootCAs:
+        - /etc/traefik/tls/mtls-ca.crt
+      certificates:
+        - certFile: /etc/traefik/tls/mtls.crt
+          keyFile: /etc/traefik/tls/mtls.key

@@ -185,7 +185,7 @@ func checkOwnYard(folder string, caPEM []byte) error {
 	return fmt.Errorf("this Workstation trusts the Main CA of another Yard. Share from the Workstation that made that Main CA, or run \"ws yard standalone\" first")
 }
 
-// signConsul signs the Consul certificate of a Workstation and keeps it in ca/certs/<name>/.
+// signConsul signs the Consul certificate of a Workstation and keeps it in ca/yard/<name>/.
 func signConsul(folder string, ca *x509.Certificate, signer *ecdsa.PrivateKey, name string, days int) error {
 	leaf, key, err := tlsca.NewCertificate(name, days)
 	if err != nil {

@@ -1,49 +1,25 @@
 package command
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
-	"github.com/ppalazon/lvh-yard/cli/internal/tlsca"
 )
 
-// A Workstation has one certificate for each job. Consul uses its own, from the main CA of the
-// Yard. Traefik uses another for HTTPS, from this Workstation's CA or from a public or company
-// CA. Each has its own key, and Consul and Traefik mount only their own folder.
-const (
-	roleConsul  = "consul"
-	roleTraefik = "traefik"
-)
-
-func roleSettingName(role string) string {
-	if role == roleConsul {
-		return "Consul"
-	}
-	return "Traefik"
-}
+// Consul has its own certificate, from the main CA of the Yard, and its own folder: tls/consul. Traefik
+// has its own folder too, tls/traefik, with one set of files for each of its three parts (see
+// ws_tls_traefik.go). Compose mounts each folder only in its own container.
+const roleConsul = "consul"
 
 // roleDir is where Compose mounts the files of one role: tls/consul or tls/traefik.
 func roleDir(folder, role string) string {
 	return filepath.Join(folder, "tls", role)
 }
 
-// roleFiles are the three files of a role in its folder: the CA to check peers or clients with,
-// the certificate and the key.
+// roleFiles are the three files of the Consul role in its folder: the CA to check peers with, the
+// certificate and the key.
 func roleFiles(role string) [3]string {
 	return [3]string{"ca.crt", role + ".crt", role + ".key"}
-}
-
-func readRole(root *os.Root, dir, role string) (caPEM, certPEM, keyPEM []byte, err error) {
-	var pems [3][]byte
-	for i, name := range roleFiles(role) {
-		if pems[i], err = root.ReadFile(filepath.Join(dir, name)); err != nil {
-			return nil, nil, nil, err
-		}
-	}
-	return pems[0], pems[1], pems[2], nil
 }
 
 func writeRole(root *os.Root, dir, role string, caPEM, certPEM, keyPEM []byte) error {
@@ -58,33 +34,41 @@ func writeRole(root *os.Root, dir, role string, caPEM, certPEM, keyPEM []byte) e
 	return nil
 }
 
-// issuedPath is where this Workstation's CA keeps what it signed for a Workstation.
-func issuedPath(folder, workstation, role, extension string) string {
-	return filepath.Join(folder, "ca", "certs", workstation, role+extension)
-}
+// Where this Workstation's CA keeps what it signed, relative to the Workstation Folder. The CA is
+// ca/ca.crt and ca/ca.key. The rest sits in one directory for each group.
+const (
+	// yardDir holds ca/yard/<workstation>/: the Consul, HTTPS and mutual TLS certificates of this
+	// Workstation and of the others in the Yard.
+	yardDir = "yard"
+	// clientDir holds ca/client/<name>.p12: the Client Certificates of people.
+	clientDir = "client"
+	// serviceDir holds ca/service/<name>/: the certificates of Services.
+	serviceDir = "service"
+)
 
-// checkRoleCertificate refuses a certificate that Consul or Traefik could not use here.
-func checkRoleCertificate(role string, env *envfile.File, caPEM, certPEM, keyPEM []byte) error {
-	if role == roleConsul {
-		return tlsca.CheckConsul(caPEM, certPEM, keyPEM, strings.Trim(env.Get("YARD_WORKSTATION"), "\"'"))
+// issuedPath is where this Workstation's CA keeps what it signed under a name: a Workstation or a
+// Service. The kind is consul, https, mtls or service, with -fullchain after service for the chain.
+func issuedPath(folder, name, kind, extension string) string {
+	group := yardDir
+	if strings.HasPrefix(kind, "service") {
+		group = serviceDir
 	}
-	return tlsca.CheckTraefik(caPEM, certPEM, keyPEM, "yard."+env.ValueOrDefault("YARD_BASE_DOMAIN"))
+	return filepath.Join(folder, "ca", group, name, kind+extension)
 }
 
-// checkInstalledRole runs the checks of an import on what is in tls/<role>/, so a certificate
-// that was copied there by hand is checked too.
-func checkInstalledRole(folder, role string, env *envfile.File) error {
+// readSignedTLSRole reads what this Workstation's CA signed under a name. A certificate that was
+// never signed is an error that satisfies os.IsNotExist.
+func readSignedTLSRole(folder, name, kind string) (certPEM, keyPEM []byte, err error) {
 	root, err := os.OpenRoot(folder)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	defer func() { _ = root.Close() }()
-	caPEM, certPEM, keyPEM, err := readRole(root, roleDir("", role), role)
-	if err != nil {
-		return fmt.Errorf("this Workstation has no %s certificate in tls/%s. Run \"lvh-yard ws tls install\": %w", role, role, err)
+	if certPEM, err = root.ReadFile(issuedPath("", name, kind, ".crt")); err != nil {
+		return nil, nil, err
 	}
-	if err := checkRoleCertificate(role, env, caPEM, certPEM, keyPEM); err != nil {
-		return fmt.Errorf("the certificate in tls/%s cannot be used: %w", role, err)
+	if keyPEM, err = root.ReadFile(issuedPath("", name, kind, ".key")); err != nil {
+		return nil, nil, err
 	}
-	return nil
+	return certPEM, keyPEM, nil
 }

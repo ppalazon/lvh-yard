@@ -24,6 +24,8 @@ type migration struct {
 
 var migrations = []migration{
 	{run: noteConsulDataFolder},
+	{run: splitTraefikTLS},
+	{run: organizeCADirectory},
 }
 
 // currentLayout is the layout that this executable writes.

@@ -21,9 +21,22 @@ func ConsulTLS() string {
 }
 
 //go:embed 10-tls.yaml
-var traefikTLS string
+var traefikHTTPS string
 
-func TraefikTLS() string { return traefikTLS }
+// TraefikHTTPS is the generated Traefik file for the HTTPS certificate.
+func TraefikHTTPS() string { return traefikHTTPS }
+
+//go:embed 11-client-auth.yaml
+var traefikClientAuth string
+
+// TraefikClientAuth is the generated Traefik file that checks the Client Certificates of people.
+func TraefikClientAuth() string { return traefikClientAuth }
+
+//go:embed 12-mtls.yaml
+var traefikMutualTLS string
+
+// TraefikMutualTLS is the generated Traefik file for mutual TLS to the Services.
+func TraefikMutualTLS() string { return traefikMutualTLS }
 
 //go:embed lvh-yard.yaml
 var dashboard string

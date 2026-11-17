@@ -26,7 +26,7 @@ func TestInitRecordsTheLayoutSoNoMigrationRuns(t *testing.T) {
 	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"); run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
-	if got := strings.TrimSpace(readInitFile(t, folder, ".lvh-yard-layout")); got != "1" {
+	if got := strings.TrimSpace(readInitFile(t, folder, ".lvh-yard-layout")); got != "3" {
 		t.Fatalf("layout = %q", got)
 	}
 	run := yard.Run("ws", "compose", "upgrade", "--dir", folder)
@@ -42,7 +42,7 @@ func TestUpgradeRunsEachMigrationOnce(t *testing.T) {
 	if run.ExitCode != 0 || !strings.Contains(run.Stdout, oldDataFolderNote) {
 		t.Fatalf("first upgrade: %+v", run)
 	}
-	if got := strings.TrimSpace(readInitFile(t, folder, ".lvh-yard-layout")); got != "1" {
+	if got := strings.TrimSpace(readInitFile(t, folder, ".lvh-yard-layout")); got != "3" {
 		t.Fatalf("layout after the upgrade = %q", got)
 	}
 	if !strings.Contains(readInitFile(t, folder, "compose.yaml"), "./consul-data:/consul/data") {
@@ -61,7 +61,7 @@ func TestMigrationStaysQuietForAFolderThatItDoesNotConcern(t *testing.T) {
 	if run.ExitCode != 0 || strings.Contains(run.Stdout, "Note:") {
 		t.Fatalf("upgrade: %+v", run)
 	}
-	if got := strings.TrimSpace(readInitFile(t, folder, ".lvh-yard-layout")); got != "1" {
+	if got := strings.TrimSpace(readInitFile(t, folder, ".lvh-yard-layout")); got != "3" {
 		t.Fatalf("layout = %q", got)
 	}
 }

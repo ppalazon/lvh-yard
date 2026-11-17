@@ -37,7 +37,7 @@ func TestWSYardRejectsUnknownCommands(t *testing.T) {
 func TestWSCommandsOnAFolderWithoutAWorkstationSayToRunInit(t *testing.T) {
 	for _, args := range [][]string{
 		{"yard", "join", "invitation.zip"}, {"yard", "share", "ws-b"}, {"yard", "standalone"}, {"yard", "peers"},
-		{"show"}, {"set", "peers", "192.168.1.10"}, {"tls", "ca", "create"}, {"tls", "install"},
+		{"show"}, {"set", "peers", "192.168.1.10"}, {"tls", "ca", "create"}, {"tls", "https", "import", "--cert", "a", "--key", "b"}, {"tls", "client", "create"}, {"tls", "mtls", "disable"},
 	} {
 		folder := filepath.Join(t.TempDir(), "none")
 		run := commandtest.New(t).Run(append(append([]string{"ws"}, args...), "--dir", folder)...)

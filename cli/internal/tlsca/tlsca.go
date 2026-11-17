@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"slices"
 	"time"
 
 	pkcs12 "software.sslmate.com/src/go-pkcs12"
@@ -60,13 +61,36 @@ func FillConsul(leaf *x509.Certificate, workstation string) {
 	leaf.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
 }
 
-// FillTraefik sets the names and usages of the Traefik certificate. Traefik answers browsers, which
-// need the Route names and a server usage. An address is an IP address or a DNS name.
+// FillTraefik sets the names and usages of the Traefik certificate for HTTPS. Traefik answers
+// browsers, which need the Route names and a server usage. An address is an IP address or a DNS
+// name.
 func FillTraefik(leaf *x509.Certificate, baseDomain string, addresses []string) {
 	leaf.KeyUsage = x509.KeyUsageDigitalSignature
 	leaf.IPAddresses = []net.IP{net.ParseIP("127.0.0.1")}
 	leaf.DNSNames = []string{"*." + baseDomain, "localhost"}
 	leaf.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
+	addAddresses(leaf, addresses)
+}
+
+// FillService sets the names and usages of the certificate of a Service. Traefik checks the
+// address of the Instance against these names, so the caller gives that address. Both usages let
+// the same certificate serve and call other Services.
+func FillService(leaf *x509.Certificate, name string, addresses []string) {
+	leaf.KeyUsage = x509.KeyUsageDigitalSignature
+	leaf.IPAddresses = []net.IP{net.ParseIP("127.0.0.1")}
+	leaf.DNSNames = []string{name, "localhost"}
+	leaf.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
+	addAddresses(leaf, addresses)
+}
+
+// FillClient sets the usage of a certificate that only shows who the caller is. Traefik shows one
+// to the Services that it calls over mutual TLS.
+func FillClient(leaf *x509.Certificate) {
+	leaf.KeyUsage = x509.KeyUsageDigitalSignature
+	leaf.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}
+}
+
+func addAddresses(leaf *x509.Certificate, addresses []string) {
 	for _, address := range addresses {
 		if ip := net.ParseIP(address); ip != nil {
 			leaf.IPAddresses = append(leaf.IPAddresses, ip)
@@ -202,34 +226,117 @@ func CheckConsul(caPEM, certPEM, keyPEM []byte, workstation string) error {
 	return nil
 }
 
-// CheckTraefik refuses a certificate that Traefik could not use for the address of the Yard Route.
-// Browsers need only a server certificate, and a public CA may have signed it. The CA file is what
-// Traefik checks Client Certificates with.
+// CheckTraefik refuses a certificate that Traefik could not use for HTTPS at the address of the Yard
+// Route. Browsers need only a server certificate. It must be valid for the given CA, or for a
+// public CA. Without a CA file, only a public CA counts.
 func CheckTraefik(caPEM, certPEM, keyPEM []byte, yardHostname string) error {
-	leaf, roots, intermediates, err := parseBundle(caPEM, certPEM, keyPEM)
+	leaf, intermediates, err := parseLeaf(certPEM, keyPEM)
 	if err != nil {
 		return err
 	}
 	options := x509.VerifyOptions{Intermediates: intermediates, KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}
-	options.Roots = roots
-	if _, yardErr := leaf.Verify(options); yardErr != nil {
-		options.Roots = nil
-		if _, publicErr := leaf.Verify(options); publicErr != nil {
-			return fmt.Errorf("certificate is valid neither for the given CA nor for a public CA: %w", yardErr)
+	var yardErr error
+	if len(caPEM) != 0 {
+		options.Roots = x509.NewCertPool()
+		if !options.Roots.AppendCertsFromPEM(caPEM) {
+			return fmt.Errorf("invalid CA certificate")
 		}
+		if _, yardErr = leaf.Verify(options); yardErr == nil {
+			return checkHostname(leaf, yardHostname)
+		}
+		options.Roots = nil
 	}
+	if _, publicErr := leaf.Verify(options); publicErr != nil {
+		if yardErr == nil {
+			yardErr = publicErr
+		}
+		return fmt.Errorf("certificate is valid neither for the given CA nor for a public CA: %w", yardErr)
+	}
+	return checkHostname(leaf, yardHostname)
+}
+
+// CheckHTTPS refuses a certificate that Traefik could not use for HTTPS now: the key must match,
+// it must be valid now and name the address of the Yard Route. The CA that signed it is not known
+// here, so the chain is not checked.
+func CheckHTTPS(certPEM, keyPEM []byte, yardHostname string) error {
+	leaf, _, err := parseLeaf(certPEM, keyPEM)
+	if err != nil {
+		return err
+	}
+	now := time.Now()
+	if now.Before(leaf.NotBefore) || now.After(leaf.NotAfter) {
+		return fmt.Errorf("the certificate is not valid now")
+	}
+	return checkHostname(leaf, yardHostname)
+}
+
+func checkHostname(leaf *x509.Certificate, yardHostname string) error {
 	if err := leaf.VerifyHostname(yardHostname); err != nil {
 		return fmt.Errorf("certificate needs %s, the address of the Yard Route: %w", yardHostname, err)
 	}
 	return nil
 }
 
-func parseBundle(caPEM, certPEM, keyPEM []byte) (leaf *x509.Certificate, roots, intermediates *x509.CertPool, err error) {
+// CheckCA refuses a file that holds no CA certificate, a certificate that is not a CA, or only
+// certificates that are not valid now. Traefik uses such a file to check the Client Certificates of
+// people, and to check the Services that it calls. A file may hold more than one CA.
+func CheckCA(caPEM []byte) error {
+	found, valid := 0, 0
+	now := time.Now()
+	for rest := caPEM; ; {
+		var block *pem.Block
+		block, rest = pem.Decode(rest)
+		if block == nil {
+			break
+		}
+		if block.Type != "CERTIFICATE" {
+			continue
+		}
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return fmt.Errorf("invalid CA certificate: %w", err)
+		}
+		if !cert.IsCA {
+			return fmt.Errorf("%q is not a CA certificate", cert.Subject.CommonName)
+		}
+		found++
+		if !now.Before(cert.NotBefore) && !now.After(cert.NotAfter) {
+			valid++
+		}
+	}
+	switch {
+	case found == 0:
+		return fmt.Errorf("invalid CA certificate")
+	case valid == 0:
+		return fmt.Errorf("the CA certificate has expired or is not valid yet")
+	}
+	return nil
+}
+
+// CheckMutualTLS refuses a certificate that Traefik could not show to a Service: the key must match,
+// the certificate must be valid now and allow client use. The Service has its own CA, so the
+// certificate is not checked against the CA file, which checks the Services.
+func CheckMutualTLS(certPEM, keyPEM []byte) error {
 	pair, err := tls.X509KeyPair(certPEM, keyPEM)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("certificate and key do not match or are invalid: %w", err)
+		return fmt.Errorf("certificate and key do not match or are invalid: %w", err)
 	}
-	leaf, err = x509.ParseCertificate(pair.Certificate[0])
+	leaf, err := x509.ParseCertificate(pair.Certificate[0])
+	if err != nil {
+		return err
+	}
+	now := time.Now()
+	if now.Before(leaf.NotBefore) || now.After(leaf.NotAfter) {
+		return fmt.Errorf("the certificate is not valid now")
+	}
+	if len(leaf.ExtKeyUsage) != 0 && !slices.Contains(leaf.ExtKeyUsage, x509.ExtKeyUsageClientAuth) && !slices.Contains(leaf.ExtKeyUsage, x509.ExtKeyUsageAny) {
+		return fmt.Errorf("the certificate does not allow client use")
+	}
+	return nil
+}
+
+func parseBundle(caPEM, certPEM, keyPEM []byte) (leaf *x509.Certificate, roots, intermediates *x509.CertPool, err error) {
+	leaf, intermediates, err = parseLeaf(certPEM, keyPEM)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -237,13 +344,26 @@ func parseBundle(caPEM, certPEM, keyPEM []byte) (leaf *x509.Certificate, roots, 
 	if !roots.AppendCertsFromPEM(caPEM) {
 		return nil, nil, nil, fmt.Errorf("invalid CA certificate")
 	}
+	return leaf, roots, intermediates, nil
+}
+
+// parseLeaf reads a certificate and its key, and gives the leaf with the rest of the chain.
+func parseLeaf(certPEM, keyPEM []byte) (leaf *x509.Certificate, intermediates *x509.CertPool, err error) {
+	pair, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		return nil, nil, fmt.Errorf("certificate and key do not match or are invalid: %w", err)
+	}
+	leaf, err = x509.ParseCertificate(pair.Certificate[0])
+	if err != nil {
+		return nil, nil, err
+	}
 	intermediates = x509.NewCertPool()
 	for _, der := range pair.Certificate[1:] {
 		cert, err := x509.ParseCertificate(der)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 		intermediates.AddCert(cert)
 	}
-	return leaf, roots, intermediates, nil
+	return leaf, intermediates, nil
 }

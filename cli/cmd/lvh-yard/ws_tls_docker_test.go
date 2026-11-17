@@ -80,8 +80,7 @@ func TestWorkstationTLSYard(t *testing.T) {
 		if i != 0 {
 			run("ws", "tls", "ca", "create", "--dir", folder)
 		}
-		run("ws", "tls", "ca", "issue", "traefik", "--dir", folder)
-		run("ws", "tls", "install", "--dir", folder)
+		run("ws", "tls", "https", "create", "--dir", folder)
 		run("ws", "set", "--dir", folder, "https-port", fmt.Sprint(ports[i][9]))
 	}
 	for i, folder := range folders {
@@ -145,7 +144,7 @@ func TestWorkstationTLSYard(t *testing.T) {
 		}
 		time.Sleep(time.Second)
 	}
-	caPEM, err := os.ReadFile(filepath.Join(folders[0], "tls", "traefik", "ca.crt"))
+	caPEM, err := os.ReadFile(filepath.Join(folders[0], "ca", "ca.crt"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,7 +190,7 @@ func TestWorkstationTLSYard(t *testing.T) {
 	run("--dashboard", dashboard, "register", "static", "private", "--host", "127.0.0.1", "--port", fmt.Sprint(ports[0][6]))
 	run("--dashboard", dashboard, "publish", "private", "--profile", "certificate")
 	run("ws", "tls", "ca", "issue", "user", "alice", "--dir", folders[0], "--password", "integration-client")
-	p12, err := os.ReadFile(filepath.Join(folders[0], "ca", "clients", "alice.p12"))
+	p12, err := os.ReadFile(filepath.Join(folders[0], "ca", "client", "alice.p12"))
 	if err != nil {
 		t.Fatal(err)
 	}

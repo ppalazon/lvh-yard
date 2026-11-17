@@ -88,7 +88,7 @@ func TestWSTLSCACreateAsksAgainAfterDifferentPasswords(t *testing.T) {
 	if r.ExitCode != 0 || !strings.Contains(r.Stdout, "The passwords differ") {
 		t.Fatalf("%+v", r)
 	}
-	if r := yard.Run("ws", "tls", "ca", "issue", "traefik", "--dir", folder, "--ca-key-password", "  spaced pass "); r.ExitCode != 0 {
+	if r := yard.Run("ws", "tls", "ca", "issue", "service", "svc", "--dir", folder, "--ca-key-password", "  spaced pass "); r.ExitCode != 0 {
 		t.Fatalf("the spaces of the password were lost: %+v", r)
 	}
 }
@@ -110,7 +110,7 @@ func TestSigningNeedsThePasswordOfTheCAKey(t *testing.T) {
 	if r := yard.Run("ws", "tls", "ca", "create", "--dir", folder, "--ca-key-password", "hunter2"); r.ExitCode != 0 || strings.Contains(r.Stdout+r.Stderr, "hunter2") {
 		t.Fatalf("create: %+v", r)
 	}
-	issue := []string{"ws", "tls", "ca", "issue", "traefik", "--dir", folder}
+	issue := []string{"ws", "tls", "ca", "issue", "service", "svc", "--dir", folder}
 	if r := yard.Run(issue...); r.ExitCode == 0 || !strings.Contains(r.Stderr, "--ca-key-password") {
 		t.Fatalf("no password: %+v", r)
 	}
@@ -121,7 +121,7 @@ func TestSigningNeedsThePasswordOfTheCAKey(t *testing.T) {
 		t.Fatalf("right password: %+v", r)
 	}
 	ca := readTLSCertificate(t, filepath.Join(folder, "ca", "ca.crt"))
-	leaf := readTLSCertificate(t, filepath.Join(folder, "ca", "certs", "ws-a", "traefik.crt"))
+	leaf := readTLSCertificate(t, filepath.Join(folder, "ca", "service", "svc", "service.crt"))
 	if err := leaf.CheckSignatureFrom(ca); err != nil {
 		t.Fatalf("the CA did not sign: %v", err)
 	}
@@ -134,13 +134,12 @@ func TestSigningNeedsThePasswordOfTheCAKey(t *testing.T) {
 	}
 }
 
-func TestInstallAndExportNeedNoCAKeyPassword(t *testing.T) {
+func TestClientCreateNeedsNoCAKeyPassword(t *testing.T) {
 	yard, folder := newCAFolder(t)
 	for _, args := range [][]string{
 		{"ws", "tls", "ca", "create", "--dir", folder, "--ca-key-password", "hunter2"},
-		{"ws", "tls", "ca", "issue", "traefik", "--dir", folder, "--ca-key-password", "hunter2"},
-		{"ws", "tls", "install", "--dir", folder},
-		{"ws", "tls", "ca", "export", "ca", "--dir", folder},
+		{"ws", "tls", "ca", "issue", "service", "svc", "--dir", folder, "--ca-key-password", "hunter2"},
+		{"ws", "tls", "client", "create", "--dir", folder},
 	} {
 		if r := yard.Run(args...); r.ExitCode != 0 {
 			t.Fatalf("%v: %+v", args, r)
@@ -167,10 +166,10 @@ func TestTheCAKeyPasswordComesFromAFileOrTheStandardInput(t *testing.T) {
 	if !strings.Contains(caKeyFile(t, folder), "BEGIN ENCRYPTED "+"PRIVATE KEY") {
 		t.Fatal("the key is not encrypted")
 	}
-	if r := yard.Run("ws", "tls", "ca", "issue", "traefik", "--dir", folder, "--ca-key-password", "from-file"); r.ExitCode != 0 {
+	if r := yard.Run("ws", "tls", "ca", "issue", "service", "svc", "--dir", folder, "--ca-key-password", "from-file"); r.ExitCode != 0 {
 		t.Fatalf("the password in the file is not the one that was set: %+v", r)
 	}
-	if r := yard.Run("ws", "tls", "ca", "issue", "traefik", "--dir", folder, "--ca-key-password-file", file); r.ExitCode != 0 {
+	if r := yard.Run("ws", "tls", "ca", "issue", "service", "svc", "--dir", folder, "--ca-key-password-file", file); r.ExitCode != 0 {
 		t.Fatalf("issue with the file: %+v", r)
 	}
 
@@ -179,7 +178,7 @@ func TestTheCAKeyPasswordComesFromAFileOrTheStandardInput(t *testing.T) {
 		t.Fatalf("create with the standard input: %+v", r)
 	}
 	yard.Process.Stdin = "piped\n"
-	if r := yard.Run("ws", "tls", "ca", "issue", "traefik", "--dir", folder, "--ca-key-password-file", "-"); r.ExitCode != 0 {
+	if r := yard.Run("ws", "tls", "ca", "issue", "service", "svc", "--dir", folder, "--ca-key-password-file", "-"); r.ExitCode != 0 {
 		t.Fatalf("issue with the standard input: %+v", r)
 	}
 }

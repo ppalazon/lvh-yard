@@ -50,7 +50,7 @@ func TestWSTLSClientCertificate(t *testing.T) {
 				t.Fatalf("random password not printed once: %+v", r)
 			}
 		}
-		data, err := os.ReadFile(filepath.Join(folder, "ca", "clients", name+".p12"))
+		data, err := os.ReadFile(filepath.Join(folder, "ca", "client", name+".p12"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -130,7 +130,7 @@ func TestWSTLSIssueUserAsksForUsernameOrEmail(t *testing.T) {
 	if !strings.Contains(r.Stdout, "Username or email") || !strings.Contains(r.Stdout, "needs a username or an email") || !strings.Contains(r.Stdout, "Password: ") {
 		t.Fatalf("unexpected questions or output:\n%s", r.Stdout)
 	}
-	if _, err := os.Stat(filepath.Join(folder, "ca", "clients", "bob@example.com.p12")); err != nil {
+	if _, err := os.Stat(filepath.Join(folder, "ca", "client", "bob@example.com.p12")); err != nil {
 		t.Fatal(err)
 	}
 }

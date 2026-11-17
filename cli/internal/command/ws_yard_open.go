@@ -96,7 +96,7 @@ func runYardInit(cmd *cobra.Command, options *Options, folder, address string, d
 		if err != nil {
 			return err
 		}
-		if err := installRole(cmd, folder, env, roleConsul, caPEM, certPEM, keyPEM); err != nil {
+		if err := installConsul(cmd, folder, env, caPEM, certPEM, keyPEM); err != nil {
 			return err
 		}
 	}

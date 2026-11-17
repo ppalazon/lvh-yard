@@ -14,14 +14,14 @@ const issueUserHelp = `Signs a Client Certificate for a person, in a .p12 file.
 
 Does:
   1. Signs the certificate with the Workstation CA.
-  2. Writes it in ca/clients/<name>.p12.
+  2. Writes it in ca/client/<name>.p12.
 
 Next:
   1. Import the .p12 file into the browser of the person.
 
 Note:
   - Traefik asks for it on Routes whose Route Profile has clientCertificate: {}.
-  - For the HTTPS certificate of Traefik, use "ws tls ca issue traefik".`
+  - Turn that check on with "ws tls client create".`
 
 func newWSTLSIssueUser(options *Options, folder func() string) *cobra.Command {
 	var password string
@@ -62,17 +62,17 @@ func newWSTLSIssueUser(options *Options, folder func() string) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		dir := filepath.Join(folder(), "ca", "clients")
+		dir := filepath.Join(folder(), "ca", clientDir)
 		root, err := os.OpenRoot(folder())
 		if err != nil {
 			return err
 		}
 		defer func() { _ = root.Close() }()
-		if err := root.MkdirAll(filepath.Join("ca", "clients"), 0700); err != nil {
+		if err := root.MkdirAll(filepath.Join("ca", clientDir), 0700); err != nil {
 			return err
 		}
 		path := filepath.Join(dir, name+".p12")
-		if err := root.WriteFile(filepath.Join("ca", "clients", name+".p12"), data, 0600); err != nil {
+		if err := root.WriteFile(filepath.Join("ca", clientDir, name+".p12"), data, 0600); err != nil {
 			return err
 		}
 		if err := protectWorkstationFolder(folder()); err != nil {

@@ -39,6 +39,14 @@ func (f *File) Set(key, value string) error {
 	return fmt.Errorf(".env has no setting %s", key)
 }
 
+// SetOrAppend sets the key like Set, and adds a line at the end when the file has none. A
+// Workstation Folder from before a setting existed has no line for it.
+func (f *File) SetOrAppend(key, value string) {
+	if f.Set(key, value) != nil {
+		f.lines = append(f.lines, key+"="+value)
+	}
+}
+
 // FillIfEmpty sets the key to found, unless found is empty or the key already has a value.
 func (f *File) FillIfEmpty(key, found string) error {
 	if strings.TrimSpace(f.Get(key)) == "" && found != "" {

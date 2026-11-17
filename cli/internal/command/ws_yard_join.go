@@ -79,7 +79,7 @@ func joinWithInvitation(cmd *cobra.Command, options *Options, folder, path, pass
 	if err != nil {
 		return err
 	}
-	if err := installRole(cmd, folder, env, roleConsul, invitation.caPEM, invitation.certPEM, invitation.keyPEM); err != nil {
+	if err := installConsul(cmd, folder, env, invitation.caPEM, invitation.certPEM, invitation.keyPEM); err != nil {
 		return err
 	}
 	for _, setting := range [][2]string{{"YARD_GOSSIP_KEY", invitation.GossipKey}, {"YARD_PEERS", invitation.Peer}, {"YARD_BIND_ADDRESS", bind}} {

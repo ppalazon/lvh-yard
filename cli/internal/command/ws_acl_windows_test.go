@@ -199,7 +199,7 @@ func TestWindowsProtectionLeavesAHardLinkedOutsideFileAlone(t *testing.T) {
 	if err := os.WriteFile(victim, []byte("victim"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	clients := filepath.Join(folder, "ca", "clients")
+	clients := filepath.Join(folder, "ca", "client")
 	if err := os.MkdirAll(clients, 0700); err != nil {
 		t.Fatal(err)
 	}

@@ -89,6 +89,8 @@ run = [
   "cp config/00-lvh-yard.hcl cli/internal/templates/00-lvh-yard.hcl",
   "cp config/10-tls.hcl cli/internal/templates/10-tls.hcl",
   "cp config/10-tls.yaml cli/internal/templates/10-tls.yaml",
+  "cp config/11-client-auth.yaml cli/internal/templates/11-client-auth.yaml",
+  "cp config/12-mtls.yaml cli/internal/templates/12-mtls.yaml",
   "cp config/lvh-yard.yaml cli/internal/templates/lvh-yard.yaml",
 ]
 

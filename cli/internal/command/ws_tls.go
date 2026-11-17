@@ -17,11 +17,11 @@ import (
 
 func newWSTLS(options *Options, folder func() string) *cobra.Command {
 	tls := &cobra.Command{Use: "tls", Short: "Manages the certificates and TLS.", Args: cobra.NoArgs}
-	tls.AddCommand(newWSTLSCA(options, folder), newWSTLSInstall(options, folder), newWSTLSEnable(folder), newWSTLSDisable(folder))
+	tls.AddCommand(newWSTLSCA(options, folder), newWSTLSHTTPS(options, folder), newWSTLSClient(folder), newWSTLSMTLS(options, folder))
 	return tls
 }
 
-const privateCAWarning = "Warning: this CA is for testing and development.\n  - Its key is a file on this computer.\n  - Nothing can revoke a certificate that it signed.\nFor more than testing, use a company CA or a public CA:\n  lvh-yard ws tls install --ca <file> --cert <file> --key <file>"
+const privateCAWarning = "Warning: this CA is for testing and development.\n  - Its key is a file on this computer.\n  - Nothing can revoke a certificate that it signed.\nFor more than testing, use a company CA or a public CA:\n  lvh-yard ws tls https import --ca <file> --cert <file> --key <file>"
 
 // newWSTLSCA holds every command that needs the key of this Workstation's CA.
 func newWSTLSCA(options *Options, folder func() string) *cobra.Command {
@@ -32,7 +32,7 @@ func newWSTLSCA(options *Options, folder func() string) *cobra.Command {
 			fmt.Fprintln(cmd.ErrOrStderr(), "\n"+privateCAWarning)
 		},
 	}
-	ca.AddCommand(newWSTLSCACreate(options, folder), newWSTLSIssue(options, folder), newWSTLSExport(options, folder))
+	ca.AddCommand(newWSTLSCACreate(options, folder), newWSTLSIssue(options, folder))
 	return ca
 }
 
@@ -167,14 +167,36 @@ func writeTLSCertificate(root *os.Root, dir, name string, cert, parent *x509.Cer
 }
 
 // Where this Workstation's CA keeps its files, relative to the Workstation Folder. What it signed
-// is in ca/certs/<name>/ and ca/clients/.
+// is in ca/yard/<workstation>/, ca/client/ and ca/service/<name>/.
 const (
 	caCertPath = "ca/ca.crt"
 	caKeyPath  = "ca/ca.key"
 )
 
-// readCAPEM reads the certificate of this Workstation's CA alone, which install and export need.
-// It asks for no password.
+// writeExport writes in certificates/ of the Workstation Folder, unless the user chose a file.
+func writeExport(cmd *cobra.Command, folder, output, zipName string, data []byte) (string, error) {
+	if cmd.Flags().Changed("output") {
+		if err := writePrivateFile(output, data); err != nil {
+			return "", fmt.Errorf("Cannot write %s: %w", output, err)
+		}
+		return output, nil
+	}
+	root, err := os.OpenRoot(folder)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = root.Close() }()
+	if err := root.MkdirAll("certificates", 0700); err != nil {
+		return "", err
+	}
+	rel := filepath.Join("certificates", zipName)
+	if err := root.WriteFile(rel, data, 0600); err != nil {
+		return "", err
+	}
+	return filepath.Join(folder, rel), protectWorkstationFolder(folder)
+}
+
+// readCAPEM reads the certificate of this Workstation's CA alone. It asks for no password.
 func readCAPEM(folder string) ([]byte, error) {
 	root, err := os.OpenRoot(folder)
 	if err != nil {

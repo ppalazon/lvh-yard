@@ -1,0 +1,9 @@
+# Generated, do not edit.
+tls:
+  options:
+    yard-client-certificate:
+      minVersion: VersionTLS12
+      clientAuth:
+        caFiles:
+          - /etc/traefik/tls/client-ca.crt
+        clientAuthType: RequireAndVerifyClientCert
