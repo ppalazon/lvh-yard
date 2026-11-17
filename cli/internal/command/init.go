@@ -35,7 +35,9 @@ Does:
   3. Writes compose.yaml, .env, lvh-yard.yaml and consul.d/.
 
 Next: start the Compose services, as it prints.
-Note: it stops when a file exists. Use --force to overwrite.`
+Note:
+  - it stops when a file exists. Use --force to overwrite.
+  - the Base Domain has no default. Use a domain that resolves every name to 127.0.0.1, such as lvh.me or l.lvhy.cc.`
 
 func newWSInit(options *Options, folder func() string) *cobra.Command {
 	flags := &initOptions{}
@@ -50,7 +52,7 @@ func newWSInit(options *Options, folder func() string) *cobra.Command {
 	}
 	f := cmd.Flags()
 	f.StringVar(&flags.workstation, "workstation", "", "Sets the name of this Workstation.")
-	f.StringVar(&flags.baseDomain, "base-domain", "", "Sets the Base Domain of this Workstation.")
+	f.StringVar(&flags.baseDomain, "base-domain", "", "Sets the Base Domain, such as lvh.me or l.lvhy.cc.")
 	f.StringVar(&flags.address, "address", "", "Sets the LAN IPv4 address of this Workstation.")
 	f.BoolVar(&flags.force, "force", false, "Overwrites the files when they exist.")
 	f.StringVar(&flags.dockerSocket, "docker-socket", "/var/run/docker.sock", "Reads the Docker group from this socket.")
@@ -74,7 +76,7 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	if err != nil {
 		return err
 	}
-	domain, err := f.baseDomainValue(cmd, prompt, env.Get("YARD_BASE_DOMAIN"))
+	domain, err := f.baseDomainValue(cmd, prompt)
 	if err != nil {
 		return err
 	}
@@ -177,26 +179,36 @@ func (f *initOptions) workstationName(cmd *cobra.Command, prompt *initPrompt) (s
 	return name, nil
 }
 
-// baseDomainValue is the --base-domain flag, or the answer at a terminal, or the template's.
-func (f *initOptions) baseDomainValue(cmd *cobra.Command, prompt *initPrompt, templateDomain string) (string, error) {
+// baseDomainValue is the --base-domain flag, or the answer at a terminal. It has no default: the
+// right domain depends on the person's network, so a missing one is asked for or refused.
+func (f *initOptions) baseDomainValue(cmd *cobra.Command, prompt *initPrompt) (string, error) {
 	domain := f.baseDomain
 	if !cmd.Flags().Changed("base-domain") {
-		domain = templateDomain
 		if prompt.terminal {
-			var err error
-			domain, err = prompt.askValid("Base Domain ["+templateDomain+"]: ", "--base-domain", templateDomain, settings.ValidBaseDomain, func(answer string) string {
-				return answer + " is not a domain name. Use a name such as lvh.me."
-			})
-			if err != nil {
-				return "", err
+			fmt.Fprintln(prompt.out, baseDomainExplanation)
+		}
+		var err error
+		domain, err = prompt.askValid("Base Domain: ", "--base-domain", "", settings.ValidBaseDomain, func(answer string) string {
+			if answer == "" {
+				return "A Workstation needs a Base Domain. " + baseDomainRule
 			}
+			return answer + " is not a domain name. " + baseDomainRule
+		})
+		if err != nil {
+			return "", err
 		}
 	}
 	if !settings.ValidBaseDomain(domain) {
-		return "", fmt.Errorf("--base-domain %s is not a domain name. Use a name such as lvh.me", domain)
+		return "", fmt.Errorf("--base-domain %s is not a domain name. %s", domain, baseDomainRule)
 	}
 	return domain, nil
 }
+
+const baseDomainRule = "Use a domain that resolves every name to 127.0.0.1, such as lvh.me or l.lvhy.cc."
+
+const baseDomainExplanation = `The Base Domain ends every hostname that this Workstation routes, such as web.<Base Domain>.
+Use a wildcard domain that resolves every name to 127.0.0.1, such as "lvh.me" or "l.lvhy.cc".
+If you are offline, or your router blocks such answers, use localhost.`
 
 // newGossipKey is a random Gossip Key: Base64 of 32 bytes.
 func newGossipKey() (string, error) {

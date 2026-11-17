@@ -14,7 +14,7 @@ import (
 func TestWSGeneratedFiles(t *testing.T) {
 	folder := t.TempDir()
 	yard := commandtest.New(t)
-	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); run.ExitCode != 0 {
+	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"); run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
 	generated := readInitFile(t, folder, "consul.d/00-lvh-yard.hcl")
@@ -76,7 +76,7 @@ func TestWSGeneratedFiles(t *testing.T) {
 func TestWSScriptsGetANoticeOnlyFromUpgrade(t *testing.T) {
 	folder := t.TempDir()
 	yard := commandtest.New(t)
-	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); run.ExitCode != 0 {
+	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"); run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
 	scripts := templates.Scripts()

@@ -17,7 +17,7 @@ func exportYard(t *testing.T) (*commandtest.Harness, string) {
 	yard := commandtest.New(t)
 	folder := t.TempDir()
 	for _, args := range [][]string{
-		{"ws", "init", "--dir", folder, "--workstation", "ws-a"},
+		{"ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"},
 		{"ws", "tls", "ca", "create", "--dir", folder},
 		{"ws", "tls", "ca", "issue", "user", "alice", "--password", "browser-secret", "--dir", folder},
 	} {

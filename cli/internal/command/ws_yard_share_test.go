@@ -31,7 +31,7 @@ func originWorkstationWith(t *testing.T, flags ...string) (*commandtest.Harness,
 	yard := commandtest.New(t)
 	yard.Process.LANIP = "192.168.1.10"
 	folder := t.TempDir()
-	if r := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); r.ExitCode != 0 {
+	if r := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"); r.ExitCode != 0 {
 		t.Fatal(r)
 	}
 	// The tests look for this key in what the commands print and write.
@@ -125,7 +125,7 @@ func TestWSYardInitOpensThisWorkstation(t *testing.T) {
 	yard.Process.LANIP = "192.168.50.20"
 	folder := t.TempDir()
 	for _, args := range [][]string{
-		{"ws", "init", "--dir", folder, "--workstation", "ws-a"},
+		{"ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"},
 		{"ws", "tls", "ca", "create", "--dir", folder},
 	} {
 		if r := yard.Run(args...); r.ExitCode != 0 {
@@ -162,7 +162,7 @@ func TestWSYardInitWithoutACAInvitesToMakeIt(t *testing.T) {
 	yard := commandtest.New(t)
 	yard.Process.LANIP = "192.168.1.10"
 	folder := t.TempDir()
-	if r := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); r.ExitCode != 0 {
+	if r := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"); r.ExitCode != 0 {
 		t.Fatal(r)
 	}
 	before := snapshotFolder(t, folder)
@@ -177,7 +177,7 @@ func TestWSYardInitAddress(t *testing.T) {
 	yard := commandtest.New(t)
 	folder := t.TempDir()
 	for _, args := range [][]string{
-		{"ws", "init", "--dir", folder, "--workstation", "ws-a"},
+		{"ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"},
 		{"ws", "tls", "ca", "create", "--dir", folder},
 	} {
 		if r := yard.Run(args...); r.ExitCode != 0 {
@@ -202,7 +202,7 @@ func TestWSYardOnLoopbackCanShare(t *testing.T) {
 	yard := commandtest.New(t)
 	folder := t.TempDir()
 	for _, args := range [][]string{
-		{"ws", "init", "--dir", folder, "--workstation", "ws-a"},
+		{"ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"},
 		{"ws", "tls", "ca", "create", "--dir", folder},
 		{"ws", "yard", "init", "--dir", folder, "--address", "127.0.0.1"},
 		{"ws", "yard", "share", "ws-b", "--dir", folder, "--password", "pw"},
@@ -222,9 +222,9 @@ func TestWSYardInitRefusesAMemberOfAnotherYard(t *testing.T) {
 	yard.Process.LANIP = "192.168.1.10"
 	folder, other := t.TempDir(), t.TempDir()
 	for _, args := range [][]string{
-		{"ws", "init", "--dir", folder, "--workstation", "ws-a"},
+		{"ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"},
 		{"ws", "tls", "ca", "create", "--dir", folder},
-		{"ws", "init", "--dir", other, "--workstation", "ws-x"},
+		{"ws", "init", "--dir", other, "--workstation", "ws-x", "--base-domain", "lvh.me"},
 		{"ws", "tls", "ca", "create", "--dir", other},
 	} {
 		if r := yard.Run(args...); r.ExitCode != 0 {
@@ -271,7 +271,7 @@ func TestWSYardShareNeedsAWorkstationThatYardInitOpened(t *testing.T) {
 	yard.Process.LANIP = "192.168.1.10"
 	folder := t.TempDir()
 	for _, args := range [][]string{
-		{"ws", "init", "--dir", folder, "--workstation", "ws-a"},
+		{"ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"},
 		{"ws", "tls", "ca", "create", "--dir", folder},
 	} {
 		if r := yard.Run(args...); r.ExitCode != 0 {
@@ -290,7 +290,7 @@ func TestWSYardShareRefusesAWorkstationOfAnotherYard(t *testing.T) {
 	yard, folder := originWorkstation(t)
 	other := t.TempDir()
 	for _, args := range [][]string{
-		{"ws", "init", "--dir", other, "--workstation", "ws-x"},
+		{"ws", "init", "--dir", other, "--workstation", "ws-x", "--base-domain", "lvh.me"},
 		{"ws", "tls", "ca", "create", "--dir", other},
 	} {
 		if r := yard.Run(args...); r.ExitCode != 0 {
@@ -352,7 +352,7 @@ func TestWSYardShareOpensACAKeyThatHasAPassword(t *testing.T) {
 func joiningWorkstation(t *testing.T, yard *commandtest.Harness, name string) string {
 	t.Helper()
 	folder := t.TempDir()
-	if r := yard.Run("ws", "init", "--dir", folder, "--workstation", name); r.ExitCode != 0 {
+	if r := yard.Run("ws", "init", "--dir", folder, "--workstation", name, "--base-domain", "lvh.me"); r.ExitCode != 0 {
 		t.Fatal(r)
 	}
 	return folder
@@ -484,7 +484,7 @@ func TestWSYardJoinAsksForThePasswordAndRefusesAnotherYard(t *testing.T) {
 		t.Fatal(err)
 	}
 	ws := t.TempDir()
-	if r := yard.Run("ws", "init", "--dir", ws, "--workstation", "ws-b"); r.ExitCode != 0 {
+	if r := yard.Run("ws", "init", "--dir", ws, "--workstation", "ws-b", "--base-domain", "lvh.me"); r.ExitCode != 0 {
 		t.Fatal(r)
 	}
 	if err := os.WriteFile(filepath.Join(ws, "consul.d", "10-tls.hcl"), []byte("tls"), 0600); err != nil {
@@ -510,7 +510,7 @@ func TestInitListensOnThisComputerOnly(t *testing.T) {
 		{[]string{"--address", "192.168.1.10"}, "YARD_BIND_ADDRESS=192.168.1.10\n"},
 	} {
 		folder := t.TempDir()
-		if r := commandtest.New(t).Run(append([]string{"ws", "init", "--dir", folder, "--workstation", "ws-a"}, tc.flags...)...); r.ExitCode != 0 {
+		if r := commandtest.New(t).Run(append([]string{"ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"}, tc.flags...)...); r.ExitCode != 0 {
 			t.Fatal(r)
 		}
 		if !strings.Contains(readInitFile(t, folder, ".env"), tc.want) {

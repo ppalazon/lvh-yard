@@ -110,7 +110,7 @@ func TestInitPinsDashboardToBuildVersion(t *testing.T) {
 			yard := commandtest.New(t)
 			yard.Version = version
 			folder := t.TempDir()
-			run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a")
+			run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me")
 			if run.ExitCode != 0 {
 				t.Fatalf("init: %+v", run)
 			}
@@ -127,7 +127,7 @@ func TestInitPinsDashboardToBuildVersion(t *testing.T) {
 
 func TestInitPreservesTemplateCommentsAndOrder(t *testing.T) {
 	folder := t.TempDir()
-	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a")
+	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me")
 	if run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
@@ -187,7 +187,7 @@ func TestInitGeneratesNewGossipKeys(t *testing.T) {
 	folder := t.TempDir()
 	var previous string
 	for _, args := range [][]string{nil, {"--force"}} {
-		run := yard.Run(append([]string{"ws", "init", "--dir", folder, "--workstation", "ws-a"}, args...)...)
+		run := yard.Run(append([]string{"ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"}, args...)...)
 		if run.ExitCode != 0 {
 			t.Fatalf("init: %+v", run)
 		}
@@ -209,7 +209,7 @@ func TestInitRefusesOverwriteBeforeWritingAnything(t *testing.T) {
 			if err := os.WriteFile(filepath.Join(folder, existing), []byte("mine\n"), 0644); err != nil {
 				t.Fatal(err)
 			}
-			run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a")
+			run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me")
 			if run.ExitCode != 1 || !strings.Contains(run.Stderr, "--force") {
 				t.Fatalf("overwrite refused: %+v", run)
 			}
@@ -231,7 +231,7 @@ func TestInitForceReplacesFilesAndProtectsExistingEnv(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--force")
+	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me", "--force")
 	if run.ExitCode != 0 || !strings.Contains(readInitFile(t, folder, ".env"), "YARD_WORKSTATION=ws-a\n") || !strings.Contains(readInitFile(t, folder, "compose.yaml"), "services:") {
 		t.Fatalf("forced init: %+v", run)
 	}
@@ -248,6 +248,7 @@ func TestInitInputErrorsWriteNothing(t *testing.T) {
 		{"--workstation", ""},
 		{"--workstation", "-bad"},
 		{"--workstation", strings.Repeat("a", 64)},
+		{"--workstation", "ws-a"},
 		{"--workstation", "ws-a", "--base-domain", "Not A Domain"},
 		{"--workstation", "ws-a", "--base-domain", ""},
 		{"--force", "--upgrade"},
@@ -273,7 +274,7 @@ func TestInitUsesWorkstationFolderLookup(t *testing.T) {
 			yard := commandtest.New(t)
 			base := t.TempDir()
 			want := commandtest.UseHome(yard.Process.Env, base)
-			args := []string{"ws", "init", "--workstation", "ws-a"}
+			args := []string{"ws", "init", "--workstation", "ws-a", "--base-domain", "lvh.me"}
 			switch setting {
 			case "config root":
 				want = commandtest.UseConfigRoot(yard.Process.Env, base)
@@ -301,7 +302,7 @@ func TestInitPromptsOnlyForWorkstationAndBaseDomain(t *testing.T) {
 	yard.Process.Stdin = "ws-a\nexample.test\n" + windowsLANAnswer
 	folder := t.TempDir()
 	run := yard.Run("ws", "init", "--dir", folder)
-	if run.ExitCode != 0 || !strings.Contains(run.Stdout, "Workstation name") || !strings.Contains(run.Stdout, "Base Domain [lvh.me]: ") || strings.Contains(run.Stdout, "Peers") {
+	if run.ExitCode != 0 || !strings.Contains(run.Stdout, "Workstation name") || !strings.Contains(run.Stdout, "Base Domain: ") || !strings.Contains(run.Stdout, `127.0.0.1, such as "lvh.me" or "l.lvhy.cc"`) || strings.Contains(run.Stdout, "[lvh.me]") || strings.Contains(run.Stdout, "Peers") {
 		t.Fatalf("prompts: %+v", run)
 	}
 	env := readInitFile(t, folder, ".env")
@@ -312,7 +313,7 @@ func TestInitPromptsOnlyForWorkstationAndBaseDomain(t *testing.T) {
 	}
 }
 
-func TestInitPromptDefaultsUseHostnameAndBaseDomain(t *testing.T) {
+func TestInitPromptDefaultsUseHostname(t *testing.T) {
 	for _, host := range []struct{ given, want string }{
 		{"Pablo_Laptop.local\n", "pablo-laptop"},
 		{"-dev_box-", "dev-box"},
@@ -320,14 +321,14 @@ func TestInitPromptDefaultsUseHostnameAndBaseDomain(t *testing.T) {
 	} {
 		t.Run(host.given, func(t *testing.T) {
 			yard := commandtest.New(t)
-			yard.Process.Stdin = "\n\n" + windowsLANAnswer
+			yard.Process.Stdin = "\nexample.test\n" + windowsLANAnswer
 			folder := t.TempDir()
 			run := yard.Run("ws", "init", "--dir", folder, "--terminal", "--hostname", host.given)
 			if run.ExitCode != 0 || !strings.Contains(run.Stdout, "["+host.want+"]: ") {
 				t.Fatalf("hostname default: %+v", run)
 			}
 			env := readInitFile(t, folder, ".env")
-			if !strings.Contains(env, "\nYARD_WORKSTATION="+host.want+"\n") || !strings.Contains(env, "\nYARD_BASE_DOMAIN=lvh.me\n") {
+			if !strings.Contains(env, "\nYARD_WORKSTATION="+host.want+"\n") || !strings.Contains(env, "\nYARD_BASE_DOMAIN=example.test\n") {
 				t.Fatalf("wrong default settings: %s", env)
 			}
 		})
@@ -337,10 +338,10 @@ func TestInitPromptDefaultsUseHostnameAndBaseDomain(t *testing.T) {
 func TestInitPromptsAgainAfterInvalidAnswers(t *testing.T) {
 	yard := commandtest.New(t)
 	yard.Process.Terminal = true
-	yard.Process.Stdin = "WS_A\n\nws-a\nNot A Domain\nlocalhost\n" + windowsLANAnswer
+	yard.Process.Stdin = "WS_A\n\nws-a\n\nNot A Domain\nlocalhost\n" + windowsLANAnswer
 	folder := t.TempDir()
 	run := yard.Run("ws", "init", "--dir", folder, "--hostname", "_")
-	if run.ExitCode != 0 || !strings.Contains(run.Stdout, "WS_A is not a Workstation name") || !strings.Contains(run.Stdout, "A Workstation needs a name") || !strings.Contains(run.Stdout, "Not A Domain is not a domain name") {
+	if run.ExitCode != 0 || !strings.Contains(run.Stdout, "WS_A is not a Workstation name") || !strings.Contains(run.Stdout, "A Workstation needs a name") || !strings.Contains(run.Stdout, "A Workstation needs a Base Domain") || !strings.Contains(run.Stdout, "Not A Domain is not a domain name") {
 		t.Fatalf("invalid answers: %+v", run)
 	}
 	if !strings.Contains(readInitFile(t, folder, ".env"), "\nYARD_BASE_DOMAIN=localhost\n") {
@@ -370,16 +371,13 @@ func TestInitDoesNotPromptForFlagValuesOrWithoutTerminal(t *testing.T) {
 	for _, terminal := range []bool{true, false} {
 		yard := commandtest.New(t)
 		yard.Process.Terminal = terminal
-		args := []string{"ws", "init", "--dir", t.TempDir(), "--workstation", "ws-a"}
+		args := []string{"ws", "init", "--dir", t.TempDir(), "--workstation", "ws-a", "--base-domain", "lvh.me"}
 		if runtime.GOOS == "windows" {
 			// With a terminal, Windows asks for the LAN address unless a flag gives it.
 			args = append(args, "--address", "192.168.1.20")
 		}
-		if terminal {
-			args = append(args, "--base-domain", "lvh.me")
-		}
 		run := yard.Run(args...)
-		if run.ExitCode != 0 || strings.Contains(run.Stdout, "Workstation name") || strings.Contains(run.Stdout, "Base domain") {
+		if run.ExitCode != 0 || strings.Contains(run.Stdout, "Workstation name") || strings.Contains(run.Stdout, "Base Domain") {
 			t.Fatalf("unexpected prompts: %+v", run)
 		}
 	}

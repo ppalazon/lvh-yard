@@ -35,7 +35,7 @@ func TestWSReplacesTopLevelInit(t *testing.T) {
 func TestWSDirWorksBeforeSubcommands(t *testing.T) {
 	folder := filepath.Join(t.TempDir(), "workstation")
 	yard := commandtest.New(t)
-	run := yard.Run("ws", "--dir", folder, "init", "--workstation", "ws-a")
+	run := yard.Run("ws", "--dir", folder, "init", "--workstation", "ws-a", "--base-domain", "lvh.me")
 	if run.ExitCode != 0 || !strings.Contains(readInitFile(t, folder, ".env"), "YARD_WORKSTATION=ws-a\n") {
 		t.Fatalf("init with group dir: %+v", run)
 	}

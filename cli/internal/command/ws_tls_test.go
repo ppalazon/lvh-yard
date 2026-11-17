@@ -36,7 +36,7 @@ func readTLSCertificate(t *testing.T, path string) *x509.Certificate {
 func TestWSTLSCA(t *testing.T) {
 	yard := commandtest.New(t)
 	folder := t.TempDir()
-	if r := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); r.ExitCode != 0 {
+	if r := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"); r.ExitCode != 0 {
 		t.Fatal(r)
 	}
 	args := []string{"ws", "tls", "ca", "create", "--dir", folder}
@@ -166,7 +166,7 @@ func TestWSTLSIssueIsForThisWorkstationOnly(t *testing.T) {
 	yard := commandtest.New(t)
 	folder := t.TempDir()
 	for _, args := range [][]string{
-		{"ws", "init", "--dir", folder, "--workstation", "ws-a"},
+		{"ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"},
 		{"ws", "tls", "ca", "create", "--dir", folder},
 	} {
 		if r := yard.Run(args...); r.ExitCode != 0 {
@@ -268,7 +268,7 @@ func TestWSTLSWildcardAddresses(t *testing.T) {
 func TestWSTLSRefusals(t *testing.T) {
 	yard := commandtest.New(t)
 	folder := t.TempDir()
-	if r := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); r.ExitCode != 0 {
+	if r := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"); r.ExitCode != 0 {
 		t.Fatal(r)
 	}
 	if r := yard.Run("ws", "tls", "ca", "issue", "traefik", "--dir", folder); r.ExitCode == 0 || !strings.Contains(r.Stderr, "no readable CA") {
@@ -318,7 +318,7 @@ func TestWSTLSCAWarnsThatItIsOnlyForTesting(t *testing.T) {
 	yard := commandtest.New(t)
 	folder := t.TempDir()
 	for _, args := range [][]string{
-		{"ws", "init", "--dir", folder, "--workstation", "ws-a"},
+		{"ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"},
 		{"ws", "tls", "ca", "create", "--dir", folder},
 		{"ws", "tls", "ca", "issue", "traefik", "--dir", folder},
 		{"ws", "tls", "ca", "issue", "user", "alice", "--dir", folder},

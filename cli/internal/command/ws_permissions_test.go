@@ -11,7 +11,7 @@ import (
 
 func TestWSInitCreatesPrivateFolder(t *testing.T) {
 	folder := filepath.Join(t.TempDir(), "yard")
-	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a")
+	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me")
 	if run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
@@ -25,7 +25,7 @@ func TestWSInitCreatesPrivateFolder(t *testing.T) {
 func TestWSUpgradeRepairsExistingFolderModesEvenWhenImagesAreCurrent(t *testing.T) {
 	folder := t.TempDir()
 	yard := commandtest.New(t)
-	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); run.ExitCode != 0 {
+	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"); run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
 	if err := os.MkdirAll(filepath.Join(folder, "custom", "nested"), 0755); err != nil {
@@ -68,7 +68,7 @@ func TestWSUpgradeRepairsExistingFolderModesEvenWhenImagesAreCurrent(t *testing.
 func TestWSSetRepairsExistingFolderModes(t *testing.T) {
 	folder := t.TempDir()
 	yard := commandtest.New(t)
-	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); run.ExitCode != 0 {
+	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"); run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
 	for _, name := range []string{".env", "compose.yaml"} {

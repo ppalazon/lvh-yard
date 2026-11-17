@@ -165,7 +165,7 @@ func TestInitUpgradeAcceptsTheComposeThatInitWrote(t *testing.T) {
 	folder := t.TempDir()
 	yard := commandtest.New(t)
 	yard.Version = "0.8.1"
-	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); run.ExitCode != 0 {
+	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"); run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
 	yard.Version = "0.8.2"

@@ -23,7 +23,7 @@ func oldFolder(t *testing.T) string {
 func TestInitRecordsTheLayoutSoNoMigrationRuns(t *testing.T) {
 	folder := filepath.Join(t.TempDir(), "yard")
 	yard := commandtest.New(t)
-	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); run.ExitCode != 0 {
+	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"); run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
 	if got := strings.TrimSpace(readInitFile(t, folder, ".lvh-yard-layout")); got != "1" {

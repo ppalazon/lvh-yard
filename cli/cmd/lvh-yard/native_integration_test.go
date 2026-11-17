@@ -304,7 +304,7 @@ func shells(t *testing.T) map[string]func(line string) *exec.Cmd {
 
 func TestPrintedCommandsKeepTheirValuesInTheShell(t *testing.T) {
 	folder := awkwardFolder(t)
-	printed := run(t, nil, "ws", "--dir", folder, "init", "--workstation", "ws-a")
+	printed := run(t, nil, "ws", "--dir", folder, "init", "--workstation", "ws-a", "--base-domain", "lvh.me")
 	if printed.code != 0 {
 		t.Fatalf("init: %+v", printed)
 	}

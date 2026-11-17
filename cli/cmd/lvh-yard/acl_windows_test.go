@@ -57,7 +57,7 @@ func TestBuiltExecutableProtectsTheWorkstationFolderFromAnotherUser(t *testing.T
 	}
 	folder := filepath.Join(t.TempDir(), "private")
 	for _, args := range [][]string{
-		{"ws", "init", "--dir", folder, "--workstation", "native", "--address", "192.168.1.20"},
+		{"ws", "init", "--dir", folder, "--workstation", "native", "--base-domain", "lvh.me", "--address", "192.168.1.20"},
 		{"ws", "tls", "ca", "create", "--dir", folder},
 	} {
 		if got := run(t, nil, args...); got.code != 0 {

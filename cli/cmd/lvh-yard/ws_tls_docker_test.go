@@ -56,7 +56,7 @@ func TestWorkstationTLSYard(t *testing.T) {
 	}
 	settings := []string{"consul-http-port", "consul-dns-port", "consul-grpc-tls-port", "consul-server-port", "consul-serf-lan-port", "consul-serf-wan-port", "dashboard-port", "http-port", "traefik-admin-port"}
 	for i, folder := range folders {
-		run("ws", "init", "--dir", folder, "--workstation", fmt.Sprintf("tls-ws-%d", i))
+		run("ws", "init", "--dir", folder, "--workstation", fmt.Sprintf("tls-ws-%d", i), "--base-domain", "lvh.me")
 		for j, name := range settings {
 			run("ws", "set", "--dir", folder, name, fmt.Sprint(ports[i][j]))
 		}

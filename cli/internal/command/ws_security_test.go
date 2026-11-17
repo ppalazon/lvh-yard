@@ -17,7 +17,7 @@ func TestWSInitRefusesEscapingGeneratedDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--force")
+	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me", "--force")
 	if run.ExitCode == 0 {
 		t.Fatal("initialization accepted a generated directory outside the Workstation Folder")
 	}
@@ -31,7 +31,7 @@ func TestWSTLSRefusesEscapingCA(t *testing.T) {
 	yard := commandtest.New(t)
 	folder := t.TempDir()
 	for _, args := range [][]string{
-		{"ws", "init", "--dir", folder, "--workstation", "ws-a"},
+		{"ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"},
 		{"ws", "tls", "ca", "create", "--dir", folder},
 	} {
 		if run := yard.Run(args...); run.ExitCode != 0 {
@@ -114,7 +114,7 @@ func TestWSInitRefusesEscapingOutputFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--force")
+	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me", "--force")
 	if run.ExitCode == 0 {
 		t.Fatal("initialization accepted an escaping output file")
 	}
@@ -226,7 +226,7 @@ func newSecurityWorkstation(t *testing.T) (*commandtest.Harness, string) {
 	t.Helper()
 	yard := commandtest.New(t)
 	folder := t.TempDir()
-	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); run.ExitCode != 0 {
+	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"); run.ExitCode != 0 {
 		t.Fatal(run)
 	}
 	return yard, folder

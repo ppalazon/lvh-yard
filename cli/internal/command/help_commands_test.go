@@ -54,7 +54,7 @@ func TestPrintedCommandsStandAloneOrInQuotes(t *testing.T) {
 	for _, args := range [][]string{
 		{"ws", "--dir", empty, "show"},
 		{"ws", "--dir", empty, "compose", "upgrade"},
-		{"ws", "--dir", folder, "init", "--workstation", "ws-a"},
+		{"ws", "--dir", folder, "init", "--workstation", "ws-a", "--base-domain", "lvh.me"},
 		{"ws", "--dir", folder, "set", "workstation", "ws-b"},
 		{"ws", "--dir", folder, "set", "peers", "192.168.1.11"},
 		{"ws", "--dir", folder, "yard", "init"},

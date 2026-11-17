@@ -13,7 +13,7 @@ func newCAFolder(t *testing.T) (*commandtest.Harness, string) {
 	t.Helper()
 	yard := commandtest.New(t)
 	folder := t.TempDir()
-	if r := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); r.ExitCode != 0 {
+	if r := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"); r.ExitCode != 0 {
 		t.Fatal(r)
 	}
 	return yard, folder

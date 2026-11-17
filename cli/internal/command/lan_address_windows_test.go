@@ -18,7 +18,7 @@ func TestWindowsInitTakesTheDetectedAddressWithoutATerminal(t *testing.T) {
 	yard := commandtest.New(t)
 	yard.Process.LANIP = "192.168.1.20"
 	folder := filepath.Join(t.TempDir(), "private")
-	run := yard.Run("ws", "init", "--dir", folder, "--workstation", "native")
+	run := yard.Run("ws", "init", "--dir", folder, "--workstation", "native", "--base-domain", "lvh.me")
 	if run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
@@ -34,14 +34,14 @@ func TestWindowsInitRequiresAddressWhenNoAdapterHoldsTheDefaultRoute(t *testing.
 	yard.Process.LANIP = ""
 	yard.Process.LANError = errors.New("choose a LAN IPv4 address with --address: the default route is not on a suitable adapter; other adapter addresses: 192.168.56.1")
 	folder := filepath.Join(t.TempDir(), "private")
-	run := yard.Run("ws", "init", "--dir", folder, "--workstation", "native")
+	run := yard.Run("ws", "init", "--dir", folder, "--workstation", "native", "--base-domain", "lvh.me")
 	if run.ExitCode == 0 || !strings.Contains(run.Stderr, "--address") || !strings.Contains(run.Stdout, "192.168.56.1") {
 		t.Fatalf("selection error: %+v", run)
 	}
 	if _, err := os.Stat(filepath.Join(folder, ".env")); !os.IsNotExist(err) {
 		t.Fatalf("init wrote .env: %v", err)
 	}
-	run = yard.Run("ws", "init", "--dir", folder, "--workstation", "native", "--address", "192.168.56.1")
+	run = yard.Run("ws", "init", "--dir", folder, "--workstation", "native", "--base-domain", "lvh.me", "--address", "192.168.56.1")
 	if run.ExitCode != 0 {
 		t.Fatalf("explicit address: %+v", run)
 	}

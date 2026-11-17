@@ -50,13 +50,18 @@ Java or a copy of this repository.
 1. Download `lvh-yard` and put it on your `PATH`, as
    [Installing the CLI](#installing-the-cli) shows.
 2. Run `lvh-yard ws init`. It asks for the name of this Workstation and for its
-   Base Domain. Press Enter to take the default: the hostname of this computer
-   as the name, and `lvh.me` as the Base Domain. You can give both as flags
+   Base Domain. Press Enter to take the hostname of this computer as the name.
+   The Base Domain has no default. It ends every hostname that this
+   Workstation routes. Give a wildcard domain that resolves every name to
+   `127.0.0.1`, such as `lvh.me` or `l.lvhy.cc`. If you are offline, or your
+   router blocks such answers, use `localhost`. You can give both as flags
    instead:
 
    ```sh
    lvh-yard ws init --workstation ws-a --base-domain lvh.me
    ```
+
+   Without a terminal, `--base-domain` is required.
 
    On Linux and macOS, `ws init` writes `compose.yaml`, `.env` and
    `lvh-yard.yaml` to `~/.config/lvh-yard`. If `XDG_CONFIG_HOME` is set, it writes

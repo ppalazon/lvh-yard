@@ -14,7 +14,7 @@ func signedWorkstation(t *testing.T, yard *commandtest.Harness) string {
 	t.Helper()
 	folder := t.TempDir()
 	for _, args := range [][]string{
-		{"ws", "init", "--dir", folder, "--workstation", "ws-a"},
+		{"ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"},
 		{"ws", "tls", "ca", "create", "--dir", folder},
 		{"ws", "tls", "ca", "issue", "traefik", "--dir", folder},
 	} {
@@ -50,7 +50,7 @@ func TestWSTLSInstallTakesTheFilesOfAnotherCA(t *testing.T) {
 	run("ws", "tls", "ca", "create", "--dir", elsewhere)
 	run("ws", "tls", "ca", "issue", "traefik", "--dir", elsewhere)
 	other := t.TempDir()
-	run("ws", "init", "--dir", other, "--workstation", "ws-a")
+	run("ws", "init", "--dir", other, "--workstation", "ws-a", "--base-domain", "lvh.me")
 	run("ws", "tls", "ca", "create", "--dir", other)
 	in := func(path string) string { return filepath.Join(source, path) }
 	for _, tc := range []struct{ name, ca, cert, key, message string }{
@@ -147,7 +147,7 @@ func TestWSTLSInstallRefusals(t *testing.T) {
 
 	only := t.TempDir()
 	for _, args := range [][]string{
-		{"ws", "init", "--dir", only, "--workstation", "ws-a"},
+		{"ws", "init", "--dir", only, "--workstation", "ws-a", "--base-domain", "lvh.me"},
 		{"ws", "tls", "ca", "create", "--dir", only},
 	} {
 		if r := yard.Run(args...); r.ExitCode != 0 {
@@ -210,7 +210,7 @@ func TestWSTLSEnableChecksACertificateCopiedByHand(t *testing.T) {
 	// A key that does not match the certificate must not be turned on.
 	other := t.TempDir()
 	for _, args := range [][]string{
-		{"ws", "init", "--dir", other, "--workstation", "ws-a"},
+		{"ws", "init", "--dir", other, "--workstation", "ws-a", "--base-domain", "lvh.me"},
 		{"ws", "tls", "ca", "create", "--dir", other},
 		{"ws", "tls", "ca", "issue", "traefik", "--dir", other},
 	} {

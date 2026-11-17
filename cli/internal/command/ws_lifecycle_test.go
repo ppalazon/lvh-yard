@@ -133,7 +133,7 @@ func TestOldLifecycleCommandsAreGone(t *testing.T) {
 func TestApplyHintsUseTheComposeCommand(t *testing.T) {
 	yard := commandtest.New(t)
 	folder := t.TempDir()
-	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); run.ExitCode != 0 || !strings.Contains(run.Stdout, "lvh-yard ws --dir '"+folder+"' compose start") {
+	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"); run.ExitCode != 0 || !strings.Contains(run.Stdout, "lvh-yard ws --dir '"+folder+"' compose start") {
 		t.Fatalf("init does not name ws compose start: %+v", run)
 	}
 	run := yard.Run("ws", "--dir", folder, "set", "http-port", "8081")

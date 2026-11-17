@@ -101,7 +101,7 @@ func TestWindowsProtectionDeniesAnotherUserByEffectiveAccess(t *testing.T) {
 	yard := commandtest.New(t)
 	folder := filepath.Join(t.TempDir(), "private")
 	for _, args := range [][]string{
-		{"ws", "init", "--dir", folder, "--workstation", "native"},
+		{"ws", "init", "--dir", folder, "--workstation", "native", "--base-domain", "lvh.me"},
 		{"ws", "tls", "ca", "create", "--dir", folder},
 	} {
 		if run := yard.Run(args...); run.ExitCode != 0 {
@@ -171,7 +171,7 @@ func TestWindowsProtectionLeavesAHardLinkedOutsideFileAlone(t *testing.T) {
 	yard := commandtest.New(t)
 	folder := filepath.Join(t.TempDir(), "private")
 	for _, args := range [][]string{
-		{"ws", "init", "--dir", folder, "--workstation", "native"},
+		{"ws", "init", "--dir", folder, "--workstation", "native", "--base-domain", "lvh.me"},
 		{"ws", "tls", "ca", "create", "--dir", folder},
 	} {
 		if run := yard.Run(args...); run.ExitCode != 0 {

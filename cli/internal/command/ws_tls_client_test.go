@@ -17,7 +17,7 @@ import (
 func TestWSTLSClientCertificate(t *testing.T) {
 	yard := commandtest.New(t)
 	folder := t.TempDir()
-	if r := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); r.ExitCode != 0 {
+	if r := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"); r.ExitCode != 0 {
 		t.Fatal(r)
 	}
 	if r := yard.Run("ws", "tls", "ca", "create", "--dir", folder); r.ExitCode != 0 {
@@ -90,7 +90,7 @@ func TestWSTLSClientCertificate(t *testing.T) {
 func TestWSTLSClientRefusals(t *testing.T) {
 	yard := commandtest.New(t)
 	folder := t.TempDir()
-	if r := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); r.ExitCode != 0 {
+	if r := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"); r.ExitCode != 0 {
 		t.Fatal(r)
 	}
 	if r := yard.Run("ws", "tls", "ca", "create", "--dir", folder); r.ExitCode != 0 {
@@ -114,7 +114,7 @@ func TestWSTLSClientRefusals(t *testing.T) {
 func TestWSTLSIssueUserAsksForUsernameOrEmail(t *testing.T) {
 	yard := commandtest.New(t)
 	folder := t.TempDir()
-	if r := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); r.ExitCode != 0 {
+	if r := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"); r.ExitCode != 0 {
 		t.Fatal(r)
 	}
 	if r := yard.Run("ws", "tls", "ca", "create", "--dir", folder); r.ExitCode != 0 {

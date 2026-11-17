@@ -13,7 +13,7 @@ import (
 
 func TestInitKeepsGossipKeyOutOfLocalSetupInstructions(t *testing.T) {
 	folder := t.TempDir()
-	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a")
+	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me")
 	if run.ExitCode != 0 {
 		t.Fatal(run.Stderr)
 	}
@@ -65,7 +65,7 @@ func TestWSYardPeersSyncKeepsOnlyAnsweringWorkstations(t *testing.T) {
 	defer consul.Close()
 	folder := t.TempDir()
 	yard := commandtest.New(t)
-	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); run.ExitCode != 0 {
+	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"); run.ExitCode != 0 {
 		t.Fatal(run.Stderr)
 	}
 	if run := yard.Run("ws", "--dir", folder, "set", "consul-http-port", consul.URL[strings.LastIndex(consul.URL, ":")+1:]); run.ExitCode != 0 {
@@ -104,7 +104,7 @@ func TestWSYardPeersSyncKeepsOnlyAnsweringWorkstations(t *testing.T) {
 func TestWSYardPeersNamesAConsulThatIsOff(t *testing.T) {
 	folder := t.TempDir()
 	yard := commandtest.New(t)
-	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); run.ExitCode != 0 {
+	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"); run.ExitCode != 0 {
 		t.Fatal(run.Stderr)
 	}
 	if run := yard.Run("ws", "--dir", folder, "set", "consul-http-port", "1"); run.ExitCode != 0 {

@@ -24,7 +24,7 @@ func TestInitFindsDockerSocketGroup(t *testing.T) {
 	}
 	stat := info.Sys().(*syscall.Stat_t)
 	folder := t.TempDir()
-	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--docker-socket", socket)
+	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me", "--docker-socket", socket)
 	if run.ExitCode != 0 || run.Stderr != "" {
 		t.Fatalf("Docker group: %+v", run)
 	}
@@ -47,7 +47,7 @@ func TestInitRefusalLeavesExistingModes(t *testing.T) {
 	if err := os.Chmod(existing, 0644); err != nil {
 		t.Fatal(err)
 	}
-	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a")
+	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me")
 	if run.ExitCode != 1 || !strings.Contains(run.Stderr, "--force") {
 		t.Fatalf("overwrite refused: %+v", run)
 	}

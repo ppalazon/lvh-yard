@@ -29,11 +29,11 @@ func TestWindowsWorkstationRequiresUnambiguousLANIdentity(t *testing.T) {
 	yard := commandtest.New(t)
 	yard.Process.LANIP = ""
 	folder := filepath.Join(t.TempDir(), "O'Brien café 日本")
-	run := yard.Run("ws", "init", "--dir", folder, "--workstation", "native")
+	run := yard.Run("ws", "init", "--dir", folder, "--workstation", "native", "--base-domain", "lvh.me")
 	if run.ExitCode == 0 || !strings.Contains(run.Stderr, "--address") {
 		t.Fatalf("missing address: %+v", run)
 	}
-	run = yard.Run("ws", "init", "--dir", folder, "--workstation", "native", "--address", "192.168.122.117")
+	run = yard.Run("ws", "init", "--dir", folder, "--workstation", "native", "--base-domain", "lvh.me", "--address", "192.168.122.117")
 	if run.ExitCode != 0 {
 		t.Fatalf("explicit address: %+v", run)
 	}
@@ -52,7 +52,7 @@ func TestWindowsWorkstationRequiresUnambiguousLANIdentity(t *testing.T) {
 func TestWindowsWorkstationRejectsInvalidOutputNames(t *testing.T) {
 	yard := commandtest.New(t)
 	folder := filepath.Join(t.TempDir(), "private")
-	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "native", "--address", "192.168.122.117"); run.ExitCode != 0 {
+	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "native", "--base-domain", "lvh.me", "--address", "192.168.122.117"); run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
 	if run := yard.Run("ws", "tls", "ca", "create", "--dir", folder); run.ExitCode != 0 {
@@ -69,7 +69,7 @@ func TestWindowsWorkstationRejectsInvalidOutputNames(t *testing.T) {
 func TestWindowsWorkstationRejectsJunctionEscape(t *testing.T) {
 	yard := commandtest.New(t)
 	folder, outside := t.TempDir(), t.TempDir()
-	run := yard.Run("ws", "init", "--dir", folder, "--workstation", "native", "--address", "192.168.122.117")
+	run := yard.Run("ws", "init", "--dir", folder, "--workstation", "native", "--base-domain", "lvh.me", "--address", "192.168.122.117")
 	if run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
@@ -103,7 +103,7 @@ func TestWindowsWorkstationCreatesDefaultBesideExecutables(t *testing.T) {
 	if err := os.WriteFile(executable, []byte("installed executable"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	run := yard.Run("ws", "init", "--workstation", "native", "--address", "192.168.122.117")
+	run := yard.Run("ws", "init", "--workstation", "native", "--base-domain", "lvh.me", "--address", "192.168.122.117")
 	if run.ExitCode != 0 {
 		t.Fatalf("default init: %+v", run)
 	}
@@ -118,7 +118,7 @@ func TestWindowsWorkstationCreatesDefaultBesideExecutables(t *testing.T) {
 func TestWindowsWorkstationRejectsSharedAndSyncedFolders(t *testing.T) {
 	for _, folder := range []string{`\\server\share\private`, filepath.Join(t.TempDir(), "OneDrive", "private")} {
 		yard := commandtest.New(t)
-		run := yard.Run("ws", "init", "--dir", folder, "--workstation", "native", "--address", "192.168.122.117")
+		run := yard.Run("ws", "init", "--dir", folder, "--workstation", "native", "--base-domain", "lvh.me", "--address", "192.168.122.117")
 		if run.ExitCode == 0 || !strings.Contains(run.Stderr, "NTFS") {
 			t.Fatalf("unsupported storage %q: %+v", folder, run)
 		}
@@ -128,7 +128,7 @@ func TestWindowsWorkstationRejectsSharedAndSyncedFolders(t *testing.T) {
 func TestWindowsInitLeavesTheInstanceHostEmpty(t *testing.T) {
 	yard := commandtest.New(t)
 	folder := filepath.Join(t.TempDir(), "Work Station 日本")
-	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "native", "--address", "192.168.122.117"); run.ExitCode != 0 {
+	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "native", "--base-domain", "lvh.me", "--address", "192.168.122.117"); run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
 	text, err := os.ReadFile(filepath.Join(folder, ".env"))
@@ -147,7 +147,7 @@ func TestWindowsInitLeavesTheInstanceHostEmpty(t *testing.T) {
 func TestWindowsSetsTheInstanceHostApartFromTheAdvertisedAddress(t *testing.T) {
 	yard := commandtest.New(t)
 	folder := filepath.Join(t.TempDir(), "private")
-	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "native", "--address", "192.168.122.117"); run.ExitCode != 0 {
+	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "native", "--base-domain", "lvh.me", "--address", "192.168.122.117"); run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
 	if run := yard.Run("ws", "set", "--dir", folder, "instance-host", "192.168.122.200"); run.ExitCode != 0 {
@@ -162,7 +162,7 @@ func TestWindowsSetsTheInstanceHostApartFromTheAdvertisedAddress(t *testing.T) {
 func TestWindowsRefusesAnInstanceHostThatNoConnectionCanReach(t *testing.T) {
 	yard := commandtest.New(t)
 	folder := filepath.Join(t.TempDir(), "private")
-	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "native", "--address", "192.168.122.117"); run.ExitCode != 0 {
+	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "native", "--base-domain", "lvh.me", "--address", "192.168.122.117"); run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
 	before, err := os.ReadFile(filepath.Join(folder, ".env"))
