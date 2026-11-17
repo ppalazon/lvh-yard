@@ -1,5 +1,4 @@
 #!/bin/sh
-# Generated, do not edit.
 set -eu
 umask 077
 

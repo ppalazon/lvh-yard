@@ -209,7 +209,7 @@ Runtime containers never receive the CA private key.
    Compose needs no hidden overlay or CLI-only environment preparation.
    Its one-shot volume setup gives Consul access to its data.
    The long-lived Consul and dashboard processes run non-root.
-   The generated `traefik/00-lvh-yard-windows.sh` copies stable configuration
+   The `scripts/traefik.sh` script copies stable configuration
    and Traefik certificate snapshots into Linux-local storage.
    It touches unchanged local configuration when certificate content changes.
    Keep custom YAML or TOML in `traefik/dynamic/` and use
@@ -970,8 +970,13 @@ and Gossip Key, start it, and run `lvh-yard import <file>`.
 LVH Yard owns `consul.d/00-lvh-yard.hcl`, `consul.d/10-tls.hcl`,
 `traefik/dynamic/10-tls.yaml` and `.lvh-yard-layout`. Generated files start with
 `# Generated, do not edit.` The TLS files exist only when TLS is set up.
-On Windows, LVH Yard also owns `traefik/00-lvh-yard-windows.sh`.
-`ws compose upgrade` rewrites that script.
+The scripts in `scripts/` start Consul, Traefik and, on Windows, the dashboard.
+`compose.yaml` mounts each one at `/scripts/` in its container.
+`ws init` writes them without a notice, so you can change them.
+`ws compose upgrade` writes them again and replaces your changes. It adds a
+notice to each script, so you can see that a command wrote it. To keep a change,
+copy the script and point `compose.yaml` at the copy. If a script stops working
+after you change it, fix it by hand.
 You own `compose.yaml`, `.env`, `lvh-yard.yaml` and every other file you add
 to `consul.d/` or `traefik/dynamic/`. Put custom options in your own files.
 `ws compose upgrade` keeps their contents unchanged.
@@ -982,8 +987,12 @@ read-only `traefik/dynamic/` mount. Windows stages the same source files locally
 
 Traefik and the dashboard listen on `127.0.0.1`, so only this computer reaches
 them. To change that, set `YARD_TRAEFIK_BIND_ADDRESS` or
-`YARD_DASHBOARD_BIND_ADDRESS`. On Linux and macOS, these accept an IPv4 address.
-On Windows, use only `127.0.0.1` or `0.0.0.0`.
+`YARD_DASHBOARD_BIND_ADDRESS`. On Linux and macOS,
+`YARD_TRAEFIK_BIND_ADDRESS` accepts an IPv4 address.
+Use only `127.0.0.1` or `0.0.0.0` for `YARD_DASHBOARD_BIND_ADDRESS`, because
+its health check calls `127.0.0.1`. With another address, Compose reports the
+dashboard as unhealthy.
+On Windows, use only `127.0.0.1` or `0.0.0.0` for both.
 `0.0.0.0` listens on every address, loopback too.
 
 If Traefik does not listen on loopback, the `lvh.me` hostnames do not work on

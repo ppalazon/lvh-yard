@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/ppalazon/lvh-yard/cli/internal/commandtest"
+	"github.com/ppalazon/lvh-yard/cli/internal/templates"
 )
 
 func TestWSGeneratedFiles(t *testing.T) {
@@ -67,6 +68,32 @@ func TestWSGeneratedFiles(t *testing.T) {
 	for _, name := range []string{"consul.d/90-user.hcl", "traefik/dynamic/90-user.yaml"} {
 		if got := readInitFile(t, folder, name); got != "# user\r\n\x00" {
 			t.Fatalf("user file changed: %s", name)
+		}
+	}
+}
+
+// ws init writes the scripts plain, as a start for the user. An upgrade writes them again, with a notice that it can.
+func TestWSScriptsGetANoticeOnlyFromUpgrade(t *testing.T) {
+	folder := t.TempDir()
+	yard := commandtest.New(t)
+	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); run.ExitCode != 0 {
+		t.Fatalf("init: %+v", run)
+	}
+	scripts := templates.Scripts()
+	for _, script := range scripts {
+		if got := readInitFile(t, folder, script.Name); got != script.Text {
+			t.Fatalf("init changed %s:\n%s", script.Name, got)
+		}
+		if err := os.WriteFile(filepath.Join(folder, script.Name), []byte("#!/bin/sh\n# hand edit\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if run := yard.Run("ws", "compose", "upgrade", "--dir", folder); run.ExitCode != 0 {
+		t.Fatalf("upgrade: %+v", run)
+	}
+	for _, script := range scripts {
+		if got := readInitFile(t, folder, script.Name); got != templates.Generated(script.Text) {
+			t.Fatalf("upgrade did not write %s with the notice:\n%s", script.Name, got)
 		}
 	}
 }

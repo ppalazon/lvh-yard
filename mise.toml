@@ -79,6 +79,10 @@ description = "Refresh the Go CLI's embedded configuration templates"
 run = [
   "cp config/compose.yaml cli/internal/templates/compose.yaml",
   "cp config/compose.windows.yaml cli/internal/templates/compose.windows.yaml",
+  "cp config/consul.sh cli/internal/templates/consul.sh",
+  "cp config/traefik.sh cli/internal/templates/traefik.sh",
+  "cp config/consul-windows.sh cli/internal/templates/consul-windows.sh",
+  "cp config/dashboard-windows.sh cli/internal/templates/dashboard-windows.sh",
   "cp config/traefik-windows.sh cli/internal/templates/traefik-windows.sh",
   "cp config/.env.example cli/internal/templates/.env.example",
   "cp config/.env.windows.example cli/internal/templates/.env.windows.example",

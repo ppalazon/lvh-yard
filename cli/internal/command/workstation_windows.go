@@ -9,7 +9,6 @@ import (
 	"unsafe"
 
 	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
-	"github.com/ppalazon/lvh-yard/cli/internal/templates"
 	"golang.org/x/sys/windows"
 )
 
@@ -198,11 +197,6 @@ func protectRootEntry(root *os.Root, name string, mode os.FileMode) error {
 
 // lanAddressRequired is true: Consul advertises the LAN address that Compose reads from .env, so ws init needs one.
 const lanAddressRequired = true
-
-// platformWorkstationFiles are the files that only this platform's ws init writes.
-func platformWorkstationFiles() []workstationFile {
-	return []workstationFile{{"traefik/00-lvh-yard-windows.sh", templates.WindowsTraefik()}}
-}
 
 // protectNewFolder makes the folder private before ws init writes a secret to it.
 func protectNewFolder(folder string) error { return protectWorkstationTree(folder) }

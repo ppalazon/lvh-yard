@@ -47,9 +47,6 @@ func protectRootEntry(root *os.Root, name string, mode os.FileMode) error {
 // lanAddressRequired is false: Consul finds its own address, so ws init asks for one only with --address.
 const lanAddressRequired = false
 
-// platformWorkstationFiles are the files that only this platform's ws init writes. Unix has none.
-func platformWorkstationFiles() []workstationFile { return nil }
-
 // protectNewFolder does nothing: on Unix, MkdirAll makes a new folder 0700, and ws init must leave the modes of an
 // existing folder alone until it writes.
 func protectNewFolder(string) error { return nil }

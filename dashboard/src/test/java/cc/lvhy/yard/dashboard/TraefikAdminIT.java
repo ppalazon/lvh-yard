@@ -24,12 +24,13 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.utility.MountableFile;
 import org.yaml.snakeyaml.Yaml;
 
 /**
  * Traefik's admin page and ping, with Traefik started exactly as compose.yaml's {@code traefik}
- * service says: its image, entrypoint and command, with Compose's variables filled in from a test
- * {@code .env}.
+ * service says: its image, entrypoint, command and scripts, with Compose's variables filled in from
+ * a test {@code .env}.
  */
 class TraefikAdminIT {
 
@@ -128,6 +129,16 @@ class TraefikAdminIT {
             .withNetworkMode("host");
     ((Map<String, String>) service.getOrDefault("environment", Map.of()))
         .forEach((key, value) -> container.withEnv(key, interpolate(value, env)));
+    // A script that the service mounts comes from config/, where the volume's file name says.
+    for (String volume : (List<String>) service.getOrDefault("volumes", List.of())) {
+      String[] paths = volume.split(":");
+      if (paths[0].endsWith(".sh")) {
+        container.withCopyFileToContainer(
+            MountableFile.forHostPath(
+                Path.of("..", "config", Path.of(paths[0]).getFileName().toString())),
+            paths[1]);
+      }
+    }
     List<String> entrypoint = (List<String>) service.get("entrypoint");
     List<String> command = (List<String>) service.get("command");
     return container.withCreateContainerCmdModifier(create ->

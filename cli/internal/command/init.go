@@ -291,7 +291,21 @@ type workstationFile struct {
 // workstationFiles lists the files that ws init writes. Each one is private to the user.
 func workstationFiles(compose, env string) []workstationFile {
 	files := []workstationFile{{"compose.yaml", compose}, {".env", env}, {"lvh-yard.yaml", templates.Dashboard()}, {"consul.d/00-lvh-yard.hcl", templates.Consul()}, {layoutFile, layoutText()}}
-	return append(files, platformWorkstationFiles()...)
+	return append(files, scriptFiles(false)...)
+}
+
+// scriptFiles lists the scripts that compose.yaml mounts. ws init writes them plain, because they are the user's
+// to change. Any other command writes them with a notice that it can overwrite them.
+func scriptFiles(generated bool) []workstationFile {
+	var files []workstationFile
+	for _, script := range templates.Scripts() {
+		text := script.Text
+		if generated {
+			text = templates.Generated(text)
+		}
+		files = append(files, workstationFile{script.Name, text})
+	}
+	return files
 }
 
 func writeWorkstationFiles(folder, compose, env string, force bool) error {
@@ -318,7 +332,7 @@ func writeWorkstationFiles(folder, compose, env string, force bool) error {
 		}
 	}
 	// Create these before Compose starts, or Docker creates them owned by root.
-	for _, name := range []string{"backups", "consul.d", "traefik/dynamic", "tls/consul", "tls/traefik"} {
+	for _, name := range []string{"backups", "consul.d", "scripts", "traefik/dynamic", "tls/consul", "tls/traefik"} {
 		if err := root.MkdirAll(name, 0700); err != nil {
 			return fmt.Errorf("could not create %s: %w", folder, err)
 		}

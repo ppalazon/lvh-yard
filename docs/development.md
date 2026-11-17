@@ -152,17 +152,24 @@ Java CLI, built as a native executable:
 | Java, native  | 49 MB   | 7.3 ms                                |
 
 The source templates are `config/compose.yaml`, `config/compose.windows.yaml`,
-`config/traefik-windows.sh`, `config/.env.example`, `config/.env.windows.example`,
-`config/00-lvh-yard.hcl`, `config/10-tls.hcl`, `config/10-tls.yaml` and
-`config/lvh-yard.yaml`.
+`config/.env.example`, `config/.env.windows.example`, `config/00-lvh-yard.hcl`,
+`config/10-tls.hcl`, `config/10-tls.yaml`, `config/lvh-yard.yaml` and the
+scripts that Compose mounts: `config/consul.sh` and `config/traefik.sh` on
+Linux and macOS, and `config/consul-windows.sh`, `config/dashboard-windows.sh`
+and `config/traefik-windows.sh` on Windows.
 The CLI embeds copies from `cli/internal/templates/`.
 After you edit a source, run `mise run cli:templates` to refresh the copies.
 Commit the copies with the source files. A unit test compares the raw bytes.
 `compose.windows.yaml` is a copy of `compose.yaml` with the changes that Docker
 Desktop needs. Template tests keep the keys and variable defaults that the two
 share equal. A real difference needs a named reason in
-`windows_templates_test.go`. Each platform embeds only its own Compose file and
-`.env` template.
+`windows_templates_test.go`. Each platform embeds only its own Compose file,
+`.env` template and scripts.
+A script starts with `#!/bin/sh`. Compose gives it the flags that need
+`${...}` as `command:`, so the script reads them as `"$@"`. The script adds what
+needs the shell: the Peers, the secrets and the addresses.
+`ws init` writes the scripts as they are. Any other command that writes them
+uses `templates.Generated`, which adds a notice after the first line.
 When `ws init` writes the Workstation Folder, it pins the dashboard image to
 the CLI version, or `latest` for `dev`. The user template has no build setting.
 
@@ -195,7 +202,7 @@ Long-lived Consul and dashboard containers stay non-root.
 Direct Compose startup must use the generated files without a launch-time
 overlay or environment preparation by the CLI.
 `templates.Compose` selects `compose.windows.yaml` on Windows.
-The generated `traefik/00-lvh-yard-windows.sh` takes two identical source
+The Windows `scripts/traefik.sh` script takes two identical source
 snapshots before it publishes Linux-local files. It switches the complete
 TLS directory before it publishes configuration or touches unchanged files.
 It preserves source YAML and TOML and propagates deletions.

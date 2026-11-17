@@ -76,8 +76,8 @@ func readComposeImages(folder string) (string, []composefile.Image, error) {
 	return text, images, nil
 }
 
-// writeFixedFiles writes the files that LVH Yard owns, and makes the TLS options follow the ones
-// that are on.
+// writeFixedFiles writes the files that LVH Yard writes again at each upgrade, and makes the TLS options follow
+// the ones that are on.
 func writeFixedFiles(folder string) error {
 	if err := protectWorkstationFolder(folder); err != nil {
 		return err
@@ -87,7 +87,7 @@ func writeFixedFiles(folder string) error {
 		return err
 	}
 	defer func() { _ = root.Close() }()
-	for _, name := range []string{"consul.d", "traefik/dynamic", "tls/consul", "tls/traefik"} {
+	for _, name := range []string{"consul.d", "scripts", "traefik/dynamic", "tls/consul", "tls/traefik"} {
 		if err := root.MkdirAll(name, 0700); err != nil {
 			return fmt.Errorf("could not create %s: %w", name, err)
 		}
@@ -95,7 +95,7 @@ func writeFixedFiles(folder string) error {
 	if err := root.WriteFile("consul.d/00-lvh-yard.hcl", []byte(templates.Consul()), 0600); err != nil {
 		return fmt.Errorf("could not write fixed Consul options: %w", err)
 	}
-	for _, file := range platformWorkstationFiles() {
+	for _, file := range scriptFiles(true) {
 		if err := root.WriteFile(file.name, []byte(file.text), 0600); err != nil {
 			return fmt.Errorf("could not write %s: %w", file.name, err)
 		}

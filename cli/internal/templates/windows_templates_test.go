@@ -121,7 +121,6 @@ func TestWindowsComposeKeepsTheSharedKeysOfUnixCompose(t *testing.T) {
 	windowsOnlyEnvironment := map[string]string{
 		"dashboard.YARD_IPV4_ONLY":        "Java sockets on Docker Desktop are IPv4 only.",
 		"dashboard.YARD_INSTANCE_HOST":    "The Instance host is separate from the Consul advertise address.",
-		"traefik.YARD_DASHBOARD_PORT":     "The staging script reads the dashboard address itself.",
 		"traefik.YARD_HTTP_PORT":          "The staging script reads the entry point port itself.",
 		"traefik.YARD_TRAEFIK_ADMIN_PORT": "The staging script reads the admin port itself.",
 	}
