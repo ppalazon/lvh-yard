@@ -705,7 +705,7 @@ free for questions, so pass the other answers as flags.
 
 `lvh-yard ws tls ca issue service <name>` signs a certificate for a Service, such
 as `grafana`. The Service serves HTTPS with it, and Traefik checks the Service
-with the CA when mutual TLS is on. It asks for extra addresses, the validity and a
+with the CA when the Service has mutual TLS. It asks for extra addresses, the validity and a
 password for a zip file. The files are `ca/service/<name>/service.crt|key`, and
 `service-fullchain.crt`, which holds the certificate followed by the CA certificate.
 The zip file is `certificates/<name>-service.zip`. It holds those three files, `ca.crt`
@@ -713,9 +713,9 @@ and a `README.txt`, and it is encrypted with AES-256. Give `--password <password
 set the password without a question. With an empty answer, the command makes a
 random one and prints it once. Send the password by another way than the zip file.
 The certificate names the Service,
-`localhost` and `127.0.0.1`, and each `--address`. Traefik checks the address of
-the Instance against these names, so add the host or IP address of each Instance
-with `--address`. The certificate allows server and client use. Signing does not
+`localhost` and `127.0.0.1`, and each `--address`. Traefik checks only that it
+names the Service, whatever the address of the Instance is. `--address` is for other
+programs that connect to the Service. The certificate allows server and client use. Signing does not
 copy anything to `tls/`, start TLS or change running services. A certificate uses
 ECDSA P-256 and lasts 365 days. On Linux and macOS, private keys have mode 600.
 `ws yard share` signs the Consul certificates itself, with the same CA, and puts
@@ -743,9 +743,9 @@ alone, and turning a part off keeps its files.
 | Presented by            | Traefik                                                      | The browser                                                             | Traefik                                                                        |
 | Checked by              | The browser, with the CA that it trusts                      | Traefik, with `client-ca.crt`                                           | The Service, with its CA. Traefik checks the Service with `mtls-ca.crt`        |
 | Signed by               | This Workstation's CA, a company CA or a public CA           | This Workstation's CA, or the CA that you import                        | This Workstation's CA, or a CA that you import                                 |
-| Needed for              | HTTPS on any Route                                           | Only a Route whose Route Profile has `clientCertificate: {}`            | Only a Route whose Route Profile has `mutualTLS: {}`                           |
+| Needed for              | HTTPS on any Route                                           | Only a Route whose Route Profile has `clientCertificate: {}`            | Only a Service with the setting Mutual TLS to the Instances                    |
 | Files in `tls/traefik/` | `https.crt`, `https.key`                                     | `client-ca.crt`                                                         | `mtls.crt`, `mtls.key`, `mtls-ca.crt`                                          |
-| Generated file          | `10-tls.yaml`                                                | `11-client-auth.yaml`                                                   | `12-mtls.yaml`                                                                 |
+| Generated file          | `10-tls.yaml`                                                | `11-client-auth.yaml`                                                   | None. The dashboard gives each such Service its own transport                  |
 | On when                 | `YARD_HTTPS_PORT` has a value                                | `YARD_CLIENT_AUTH_ENABLED=true`                                         | `YARD_MTLS_ENABLED=true`                                                       |
 | The other side needs    | To trust this Workstation's CA, unless a public CA signed it | A `.p12` file from `ws tls ca issue user`, in its personal certificates | A certificate from `ws tls ca issue service`, and `ca/ca.crt` to check Traefik |
 
@@ -817,25 +817,38 @@ sign the person a certificate on that Workstation, or run `ws tls client import
 ##### Mutual TLS to Services
 
 Traefik calls the Instances of a Service over HTTPS, with its certificate, only for
-a Route whose Route Profile has `mutualTLS: {}`. Other Routes keep plain HTTP, so a
-Service that has no TLS keeps working. A Service with `mutualTLS: {}` has no Route,
-and a Service Warning, while this part is off.
+a Service that has the setting **Mutual TLS to the Instances**. Other Routes keep
+plain HTTP, so a Service that has no TLS keeps working. A Service with the setting
+has no Route, and a Service Warning, while this part is off.
 
-While HTTPS is on, a Route without `mutualTLS: {}` sends the traffic to its
+While HTTPS is on, a Route without the setting sends the traffic to its
 Instances over plain HTTP. If an Instance is not on loopback, the Service has a
 Service Warning of level **risk**, because anyone on that network can read the
 traffic. An Instance on loopback gets no warning, because its traffic does not
 leave the computer.
 
 1. Run `ws tls mtls create`.
-2. Run `ws tls ca issue service <name> --address <Instance host>`, and give the
+2. Run `ws tls ca issue service <name>`, and give the
    Service `service-fullchain.crt` and `service.key`. The Service must trust `ca/ca.crt` and
    ask for a client certificate.
-3. Add the option to a Route Profile of the Service, and publish the Service with it:
+3. Turn on the setting of the Service. Use the Mutual TLS switch on the Service
+   page, or run:
 
-   ```yaml
-   mutualTLS: {}
+   ```sh
+   lvh-yard publish <name> --mutual-tls on
    ```
+
+Traefik checks each Instance's certificate in two ways. The CA of the certificate must
+be `ca/ca.crt` (`mtls-ca.crt`), and the certificate must name the Service. The dashboard
+gives each such Service its own Traefik transport, with the Service name as the
+name to check. So a certificate for another Service is refused, whatever the address
+of the Instance is, and `--address` is not needed for Traefik. The same rule applies to
+a Remote Service that your Workstation routes: its Instances need a certificate for the
+name of that Service. When an Alias gives the Instances, their certificate must name the
+Service that has the Route.
+
+If the certificate does not match, Traefik answers 500 and the Reachability test fails
+with a reason. A certificate that you import from another CA must name the Service too.
 
 The dashboard does not check that an Instance speaks TLS, and its Reachability
 test of an Instance is a plain connection.
@@ -1304,6 +1317,7 @@ lvh-yard publish web --scope yard           # also on every other Workstation (Y
 lvh-yard publish web --profile basic-auth     # apply a Route Profile; repeat for more
 lvh-yard publish web --no-profiles            # remove all Route Profiles
 lvh-yard publish web --access-log on          # Traefik logs the requests to web
+lvh-yard publish web --mutual-tls on          # Traefik calls the Instances of web over mutual TLS
 lvh-yard unpublish web
 lvh-yard priority web                       # the Instance Sources in order, with their IDs
 lvh-yard priority web <id> <id>             # put these sources first (Instance Priority)
@@ -1457,6 +1471,7 @@ services:
       route-profiles:
         - team-login
       access-log: true
+      mutual-tls: true
     instance-priority: true
     sources:
       - static-instance:
@@ -1496,6 +1511,8 @@ services:
 - A Service with no `sources`, such as `notes`, is an empty Service.
 - `access-log: true` means that Traefik logs the requests to the Service. If
   the Backup leaves it out, Traefik does not log them.
+- `mutual-tls: true` means that Traefik calls the Instances over HTTPS with its
+  certificate. If the Backup leaves it out, it uses plain HTTP.
 - If the host of a Static Instance is the LAN address of this Workstation, the
   Backup leaves the host out. So the Static Instance fits another computer.
 - The Backup leaves out empty tags and meta.
@@ -1816,9 +1833,9 @@ risks box are on the right on a wide screen, and
 below the facts on a phone.
 
 The Publication card has a switch for each setting: Published, Share with the
-Yard and Show in the access log. A switch changes its setting as soon as you
-flip it. A line under each switch says what the setting does now. The last two
-switches show while the Service is published. Route Profiles
+Yard, Show in the access log and Mutual TLS to the Instances. A switch changes its
+setting as soon as you flip it. A line under each switch says what the setting does
+now. The last three switches show while the Service is published. Route Profiles
 sits beside the card on a wide screen and below it on a phone. The Instance
 Sources card follows them at full width. Each card holds its own controls.
 Delete Service is at the bottom of the page. A Remote Service shows the same
@@ -1939,7 +1956,7 @@ You can also run `lvh-yard test`, or send
 
 The test connects to each Instance directly, also to the Instances of the Service's
 Aliases. The page names the Alias that gives an Instance. It also sends a request for the
-hostname of the Service through the local Traefik.
+hostname of the Service through the local Traefik, over HTTP.
 If the Service has no Route here, only the Instances are tested, and the result
 says why. An Out-of-range Instance is skipped, and that is not a failure.
 
@@ -1950,9 +1967,25 @@ Remote Service that gets the requests. While the Instance Priority is off, the r
 says so.
 
 If Traefik has no Route for the hostname, or answers 502, 503 or 504, the
-request through Traefik fails. Any other answer means that the request reached
-the Service. The results are not stored. If a test fails, `lvh-yard test` exits
+request through Traefik fails. It also fails when Traefik answers 500 with its
+own text, `Internal Server Error`. That happens when Traefik cannot set up TLS
+with an Instance, for example when a Service with mutual TLS has an Instance whose
+certificate does not name the Service. `lvh-yard ws compose logs
+traefik` shows the reason. Any other answer means that the request reached the
+Service. The results are not stored. If a test fails, `lvh-yard test` exits
 with 1.
+
+When [HTTPS](#https-routes) is on, the test also sends a request over HTTPS, to
+the HTTPS port of Traefik. The result shows one line for each scheme, such as
+`Route http://web.lvh.me` and `Route https://web.lvh.me`. The HTTPS request
+does not check the certificate of Traefik, because the dashboard does not trust
+the CA of this Workstation. It tests that the Route answers, not who signed the
+certificate.
+
+A Route Profile with a Client Certificate has no HTTP Route, so it gets only the
+HTTPS request. The test has no Client Certificate, so Traefik refuses it. That
+refusal shows that the Route exists, and the result says so instead of giving a
+status.
 
 ### Route Diagram
 
@@ -1977,7 +2010,7 @@ The picture shows:
   mark mean the Instance is in the Route. A dashed wire means it waits, or
   that this Workstation skips it as an Out-of-range Instance.
 - Whether each step uses TLS. A closed lock means TLS. An open lock means plain
-  HTTP. A Route Profile with `mutualTLS: {}` makes the step to the Instances
+  HTTP. A Service with mutual TLS on makes the step to the Instances
   mutual TLS.
 - The Scope. For a Yard Service, the picture names the hostname that other
   Workstations use, and says how many Instances they skip.
@@ -2084,7 +2117,7 @@ The Consul KV of this Workstation holds its Route Profiles, under
 `lvh-yard/route-profiles/<name>`. Other Workstations read the profiles there.
 A profile is one middleware in the format of Traefik, such as
 `{"headers": {"customRequestHeaders": {"X-Forwarded-Proto": "https"}}}`,
-or one of the reserved options `clientCertificate: {}` and `mutualTLS: {}`.
+or the reserved option `clientCertificate: {}`.
 
 The Route Profiles page of the dashboard lists each profile with its name, its
 Traefik type and the Services whose Publications name it. In **Used by**, click a
@@ -2170,11 +2203,8 @@ the Home Workstation, this causes a Service Warning of level **error**. See
 Dashboard hostname links use HTTPS and the configured HTTPS port for these
 Publications, with a lock icon. Other hostname links use HTTP.
 
-The reserved key `mutualTLS: {}` makes Traefik call the Instances of the Service
-over HTTPS, with its own certificate (`ws tls mtls create`). It has no settings
-and is not a Traefik middleware either. A chain can name it too. A Service with
-this key has no Route, and a Service Warning of level **error** on its Home
-Workstation, on a Workstation where mutual TLS is off.
+Mutual TLS to the Instances is not a Route Profile option. It is a setting of the
+Publication: [Mutual TLS to Services](#mutual-tls-to-services).
 
 A profile must work on every Workstation, so the dashboard refuses a profile
 that:
@@ -2185,7 +2215,7 @@ that:
 - sends `forwardAuth` to `localhost` or to an out-of-range address
 - is a chain that names a middleware that is not a Route Profile of this
   Workstation, or that is refused
-- has a type that is neither a Traefik middleware, `clientCertificate` nor `mutualTLS`
+- has a type that is neither a Traefik middleware nor `clientCertificate`
 - has a name with other characters than letters, digits, `-` and `_`
 
 A refused save answers 400 with the reason, and nothing changes. So a bad save

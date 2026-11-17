@@ -44,11 +44,14 @@ class RouteDiagramTlsComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void aMutualTlsProfileMakesTheStepToTheInstancesMutualTls() throws Exception {
-    putRouteProfiles(JSON.readTree("{\"tls-mutual\": {\"mutualTLS\": {}}}"));
+  void aMutualTlsPublicationMakesTheStepToTheInstancesMutualTls() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+    put(publicationPath(web), Map.of("scope", "local", "mutualTls", true));
 
-    assertThat(diagramOf("tls-mutual"))
+    assertThat(getPage("/services/ws-test/" + web + "/diagram").getBody())
         .contains("Traefik to Instances: mutual TLS")
+        .contains("must name " + web)
         .doesNotContain("Traefik to Instances: plain HTTP");
   }
 }

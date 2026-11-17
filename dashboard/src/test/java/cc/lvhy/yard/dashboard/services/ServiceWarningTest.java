@@ -13,14 +13,21 @@ class ServiceWarningTest {
   private static final Map<String, RouteProfileDefinition> PROFILES =
       Map.of(
           "cert",
-          new RouteProfileDefinition("cert", Map.of("cert", Map.of("clientCertificate", Map.of()))),
-          "mtls",
-          new RouteProfileDefinition("mtls", Map.of("mtls", Map.of("mutualTLS", Map.of()))));
+          new RouteProfileDefinition(
+              "cert", Map.of("cert", Map.of("clientCertificate", Map.of()))));
+
+  private static Publication publication(List<String> profiles, boolean mutualTls) {
+    return new Publication(Scope.YARD, profiles, false, mutualTls);
+  }
 
   private static List<ServiceWarning> warnings(
-      String profile, boolean noHttps, boolean noClientAuth, boolean noMtls) {
+      List<String> profiles,
+      boolean mutualTls,
+      boolean noHttps,
+      boolean noClientAuth,
+      boolean noMtls) {
     return ServiceWarning.of(
-            new Publication(Scope.YARD, List.of(profile), false),
+            publication(profiles, mutualTls),
             List.of(),
             List.of(),
             true,
@@ -36,24 +43,26 @@ class ServiceWarningTest {
 
   @Test
   void clientCertificateNamesWhatIsMissing() {
-    assertThat(warnings("cert", true, false, false))
+    List<String> cert = List.of("cert");
+    assertThat(warnings(cert, false, true, false, false))
         .singleElement()
         .satisfies(w -> {
           assertThat(w.kind()).isEqualTo(Kind.CLIENT_CERTIFICATE_UNAVAILABLE);
           assertThat(w.message()).contains("HTTPS");
         });
-    assertThat(warnings("cert", false, true, false))
+    assertThat(warnings(cert, false, false, true, false))
         .singleElement()
         .satisfies(w -> assertThat(w.message()).contains("client authentication"));
-    assertThat(warnings("cert", false, false, true)).isEmpty();
+    assertThat(warnings(cert, false, false, false, true)).isEmpty();
   }
 
   @Test
-  void mutualTlsWarnsOnlyWithoutMtlsAndDoesNotAskWhoTheUserIs() {
-    assertThat(warnings("mtls", false, false, false)).isEmpty();
-    assertThat(warnings("mtls", true, true, true))
+  void mutualTlsWarnsOnlyWithoutMtls() {
+    assertThat(warnings(List.of(), true, false, false, false)).isEmpty();
+    assertThat(warnings(List.of(), true, true, true, true))
         .singleElement()
         .satisfies(w -> assertThat(w.kind()).isEqualTo(Kind.MUTUAL_TLS_UNAVAILABLE));
+    assertThat(warnings(List.of(), false, true, true, true)).isEmpty();
   }
 
   private static Instance instance(String host) {
@@ -76,9 +85,9 @@ class ServiceWarningTest {
   }
 
   private static List<ServiceWarning> unencrypted(
-      String profile, boolean httpsAtHome, String... hosts) {
+      boolean mutualTls, boolean httpsAtHome, String... hosts) {
     return ServiceWarning.of(
-            new Publication(Scope.YARD, List.of(profile), false),
+            publication(List.of(), mutualTls),
             java.util.Arrays.stream(hosts).map(ServiceWarningTest::instance).toList(),
             List.of(),
             true,
@@ -94,14 +103,14 @@ class ServiceWarningTest {
 
   @Test
   void unencryptedHopWarnsOnlyForHttpsInstancesOffLoopbackAndWithoutMutualTls() {
-    assertThat(unencrypted("cert", true, "192.168.1.5", "127.0.0.1"))
+    assertThat(unencrypted(false, true, "192.168.1.5", "127.0.0.1"))
         .singleElement()
         .satisfies(w -> {
           assertThat(w.severity()).isEqualTo(ServiceWarning.Severity.RISK);
           assertThat(w.message()).contains("192.168.1.5:8443").doesNotContain("127.0.0.1");
         });
-    assertThat(unencrypted("cert", false, "192.168.1.5")).isEmpty();
-    assertThat(unencrypted("cert", true, "127.0.0.1", "localhost")).isEmpty();
-    assertThat(unencrypted("mtls", true, "192.168.1.5")).isEmpty();
+    assertThat(unencrypted(false, false, "192.168.1.5")).isEmpty();
+    assertThat(unencrypted(false, true, "127.0.0.1", "localhost")).isEmpty();
+    assertThat(unencrypted(true, true, "192.168.1.5")).isEmpty();
   }
 }

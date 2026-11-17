@@ -55,6 +55,16 @@ func TestPublish(t *testing.T) {
 			answer: `{"name":"web","state":"healthy","hostname":"web.lvh.me","publication":{"scope":"local","accessLog":false}}`,
 			stdout: "Published web at web.lvh.me.\n  Scope: Local\n  State: healthy\n",
 		},
+		{
+			name: "mutual tls on", args: []string{"web", "--mutual-tls", "on"}, body: `{"mutualTls":true}`,
+			answer: `{"name":"web","state":"healthy","hostname":"web.lvh.me","publication":{"scope":"local","accessLog":false,"mutualTls":true}}`,
+			stdout: "Published web at web.lvh.me.\n  Scope: Local\n  State: healthy\n  Mutual TLS: on\n",
+		},
+		{
+			name: "mutual tls off", args: []string{"web", "--mutual-tls", "off"}, body: `{"mutualTls":false}`,
+			answer: `{"name":"web","state":"healthy","hostname":"web.lvh.me","publication":{"scope":"local","accessLog":false,"mutualTls":false}}`,
+			stdout: "Published web at web.lvh.me.\n  Scope: Local\n  State: healthy\n",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			called := false
@@ -100,6 +110,7 @@ func TestPublicationRejectsUsageWithoutRequests(t *testing.T) {
 		{"publish", "web", "--profile", "cors", "--no-profiles"},
 		{"publish", "web", "--scope", "world"},
 		{"publish", "web", "--access-log", "maybe"},
+		{"publish", "web", "--mutual-tls", "maybe"},
 		{"publish", "web", "--priority", "bound,static"},
 		{"publish"},
 		{"publish", "web", "extra"},

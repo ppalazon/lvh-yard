@@ -420,7 +420,8 @@ class ImportPlanner {
           new Published(
               scope == null ? null : scope.value(),
               published.routeProfiles(),
-              published.accessLog());
+              published.accessLog(),
+              published.mutualTls());
       PlanEntry entry =
           entry(Kind.PUBLICATION, service, null, now instanceof Published, now.equals(wanted));
       entries.add(entry);
@@ -429,7 +430,8 @@ class ImportPlanner {
       }
       // Every part is set, so an overwrite keeps nothing of the Publication it replaces.
       PublicationRequest request =
-          new PublicationRequest(scope, published.routeProfiles(), published.accessLog());
+          new PublicationRequest(
+              scope, published.routeProfiles(), published.accessLog(), published.mutualTls());
       publicationSteps.add(
           new Step(
               List.of(entry), () -> publications.publish(workstation.name(), service, request)));

@@ -75,8 +75,10 @@ public record Backup(
    * @param scope {@code null} when the file leaves it out
    * @param routeProfiles in the order the Route applies them; empty when the file leaves it out
    * @param accessLog false when the file leaves it out
+   * @param mutualTls false when the file leaves it out
    */
-  public record Published(String scope, List<String> routeProfiles, boolean accessLog)
+  public record Published(
+      String scope, List<String> routeProfiles, boolean accessLog, boolean mutualTls)
       implements Publication {
 
     public Published {

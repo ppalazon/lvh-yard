@@ -66,8 +66,16 @@ func NewReachability(options *Options) *cobra.Command {
 						status = fmt.Sprint(*route.Status)
 					}
 					detail = "answered " + status
+					if route.Note != "" {
+						detail = route.Note
+					}
 				}
-				line(route.Reached, "Route "+route.Hostname, detail)
+				// A dashboard before the HTTPS check sends no scheme, and tests HTTP only.
+				scheme := route.Scheme
+				if scheme == "" {
+					scheme = "http"
+				}
+				line(route.Reached, "Route "+scheme+"://"+route.Hostname, detail)
 			}
 			if tested.NoRoute != "" {
 				fmt.Fprintln(out, tested.NoRoute)

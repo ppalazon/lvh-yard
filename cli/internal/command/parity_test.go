@@ -35,7 +35,7 @@ var commands = map[string][]string{
 	"register compose":   {"port", "service"},
 	"containers":         {"state", "followed", "details"},
 	"remove":             {"id", "port", "host", "container", "compose-project", "compose-service"},
-	"publish":            {"scope", "access-log", "profile", "no-profiles"},
+	"publish":            {"scope", "access-log", "mutual-tls", "profile", "no-profiles"},
 	"priority":           {"on", "off"},
 	"unpublish":          nil,
 	"alias":              nil,

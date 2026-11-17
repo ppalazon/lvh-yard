@@ -122,7 +122,7 @@ final class RouteProfileEditorPage {
         .p()
         .attrId("profile-definition-help")
         .attrClass("text-muted-foreground text-sm")
-        .text("Write one middleware, clientCertificate or mutualTLS as YAML.")
+        .text("Write one middleware, or clientCertificate, as YAML.")
         .__()
         .textarea()
         .attrClass("textarea profile-yaml font-mono")

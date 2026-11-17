@@ -114,8 +114,8 @@ public record ServiceWarning(
             unknown(publication, profiles),
             auth(publication, instances, profiles),
             clientCertificate(publication, profiles, noHttpsAtHome, noClientAuthAtHome),
-            mutualTls(publication, profiles, noMtlsAtHome),
-            unencrypted(publication, instances, profiles, httpsAtHome),
+            mutualTls(publication, noMtlsAtHome),
+            unencrypted(publication, instances, httpsAtHome),
             foreign(instances))
         .flatMap(warnings -> warnings)
         .toList();
@@ -228,16 +228,14 @@ public record ServiceWarning(
                 + " for this Publication's required Client Certificate."));
   }
 
-  private static Stream<ServiceWarning> mutualTls(
-      Publication publication, Map<String, RouteProfileDefinition> profiles, boolean noMtlsAtHome) {
-    if (!noMtlsAtHome
-        || !requires(publication, profiles, RouteProfileDefinition::requiresMutualTls)) {
+  private static Stream<ServiceWarning> mutualTls(Publication publication, boolean noMtlsAtHome) {
+    if (!noMtlsAtHome || !publication.mutualTls()) {
       return Stream.empty();
     }
     return Stream.of(
         new ServiceWarning(
             Kind.MUTUAL_TLS_UNAVAILABLE,
-            "This Workstation has no mutual TLS for this Publication's required mutualTLS."));
+            "This Workstation has no mutual TLS, which this Publication needs."));
   }
 
   /**
@@ -245,12 +243,8 @@ public record ServiceWarning(
    * TLS is the only way to make Traefik call an Instance over TLS.
    */
   private static Stream<ServiceWarning> unencrypted(
-      Publication publication,
-      List<Instance> instances,
-      Map<String, RouteProfileDefinition> profiles,
-      boolean httpsAtHome) {
-    if (!httpsAtHome
-        || requires(publication, profiles, RouteProfileDefinition::requiresMutualTls)) {
+      Publication publication, List<Instance> instances, boolean httpsAtHome) {
+    if (!httpsAtHome || publication.mutualTls()) {
       return Stream.empty();
     }
     List<String> exposed =
@@ -267,8 +261,7 @@ public record ServiceWarning(
             "Traefik answers on HTTPS, but it calls "
                 + String.join(", ", exposed)
                 + " over plain HTTP, so anyone on that network can read the traffic. To encrypt"
-                + " it, serve HTTPS from the Instance and add the Route Profile option"
-                + " mutualTLS."));
+                + " it, serve HTTPS from the Instance and turn on mutual TLS for this Service."));
   }
 
   private static boolean requires(

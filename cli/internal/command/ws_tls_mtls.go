@@ -5,19 +5,16 @@ import (
 	"strings"
 
 	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
-	"github.com/ppalazon/lvh-yard/cli/internal/templates"
 	"github.com/ppalazon/lvh-yard/cli/internal/tlsca"
 	"github.com/spf13/cobra"
 )
 
 var mtlsPart = traefikPart{
-	name:      "mtls",
-	label:     "mutual TLS to Services",
-	short:     "Manages mutual TLS from Traefik to Services.",
-	files:     []string{"mtls.crt", "mtls.key", "mtls-ca.crt"},
-	generated: "12-mtls.yaml",
-	template:  templates.TraefikMutualTLS,
-	flag:      "YARD_MTLS_ENABLED",
+	name:  "mtls",
+	label: "mutual TLS to Services",
+	short: "Manages mutual TLS from Traefik to Services.",
+	files: []string{"mtls.crt", "mtls.key", "mtls-ca.crt"},
+	flag:  "YARD_MTLS_ENABLED",
 	check: func(env *envfile.File, files map[string][]byte) error {
 		if err := tlsca.CheckCA(files["mtls-ca.crt"]); err != nil {
 			return err
@@ -25,7 +22,7 @@ var mtlsPart = traefikPart{
 		return tlsca.CheckMutualTLS(files["mtls.crt"], files["mtls.key"])
 	},
 	announce: func(cmd *cobra.Command, folder string, env *envfile.File) {
-		fmt.Fprintln(cmd.OutOrStdout(), "Traefik calls the Instances over HTTPS, with its certificate, on Routes whose Route Profile has mutualTLS: {}.")
+		fmt.Fprintln(cmd.OutOrStdout(), "Traefik calls the Instances over HTTPS, with its certificate, for each Service that is published with \"--mutual-tls on\".")
 	},
 }
 
@@ -108,9 +105,10 @@ Does:
   3. "enable" and "disable" turn it on and off. They keep the files.
 
 Note:
-  - It uses tls/traefik/mtls.crt, mtls.key and mtls-ca.crt, and traefik/dynamic/12-mtls.yaml.
+  - It uses tls/traefik/mtls.crt, mtls.key and mtls-ca.crt.
   - It is on when YARD_MTLS_ENABLED is true.
-  - Only Routes whose Route Profile has mutualTLS: {} use it. Other Routes keep plain HTTP.
+  - Only Routes of a Service with "publish --mutual-tls on" use it. Other Routes keep plain HTTP.
+  - Traefik checks that the certificate of each Instance names the Service, at any address.
   - A Service certificate comes from "ws tls ca issue service".`
 
 const mtlsCreateHelp = `Signs a client certificate for Traefik with the Workstation CA, and turns mutual TLS to Services on.
@@ -126,7 +124,8 @@ Does:
 Next:
   1. Sign a certificate for each Service:
        ws tls ca issue service <name>
-  2. Add mutualTLS: {} to a Route Profile of the Service.
+  2. Turn on mutual TLS for the Service:
+       publish <name> --mutual-tls on
   3. Apply it:
        ws compose recreate
 

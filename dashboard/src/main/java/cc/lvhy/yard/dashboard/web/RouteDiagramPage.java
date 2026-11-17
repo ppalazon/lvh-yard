@@ -159,7 +159,9 @@ final class RouteDiagramPage {
         .text(
             d.mutualTls()
                 ? "Traefik to Instances: mutual TLS. Traefik and the Instance check each other's"
-                    + " certificates."
+                    + " certificates. The Instance's certificate must name "
+                    + d.service()
+                    + "."
                 : "Traefik to Instances: plain HTTP.")
         .__();
     if (d.remote()) {

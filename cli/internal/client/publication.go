@@ -4,7 +4,7 @@ import "net/http"
 
 func (c *Client) Publish(service string, request PublicationRequest) (Service, error) {
 	var body any
-	if request.Scope != nil || request.Profiles != nil || request.AccessLog != nil {
+	if request.Scope != nil || request.Profiles != nil || request.AccessLog != nil || request.MutualTLS != nil {
 		body = request
 	}
 	var published Service

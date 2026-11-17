@@ -60,7 +60,7 @@ func TestWSTLSHTTPSCreateTurnsOnOnlyHTTPS(t *testing.T) {
 			t.Fatalf("10-tls.yaml lacks %s", want)
 		}
 	}
-	if strings.Contains(https, "yard-client-certificate") || exists(folder, "traefik/dynamic/11-client-auth.yaml") || exists(folder, "traefik/dynamic/12-mtls.yaml") {
+	if strings.Contains(https, "yard-client-certificate") || exists(folder, "traefik/dynamic/11-client-auth.yaml") {
 		t.Fatal("HTTPS turned on another part")
 	}
 	if !envHas(t, folder, "YARD_HTTPS_PORT=443") || !envHas(t, folder, "YARD_CLIENT_AUTH_ENABLED=false") || !envHas(t, folder, "YARD_MTLS_ENABLED=false") {
@@ -234,11 +234,9 @@ func TestWSTLSMTLSUsesAClientCertificateAndTheCA(t *testing.T) {
 	if readInitFile(t, folder, "tls/traefik/mtls-ca.crt") != readInitFile(t, folder, "ca/ca.crt") || readInitFile(t, folder, "tls/traefik/mtls.key") != readInitFile(t, folder, "ca/yard/ws-a/mtls.key") {
 		t.Fatal("tls/traefik does not hold the CA and the key that were signed")
 	}
-	transport := readInitFile(t, folder, "traefik/dynamic/12-mtls.yaml")
-	for _, want := range []string{"serversTransports:", "yard-mtls:", "/etc/traefik/tls/mtls-ca.crt", "/etc/traefik/tls/mtls.crt", "/etc/traefik/tls/mtls.key"} {
-		if !strings.Contains(transport, want) {
-			t.Fatalf("12-mtls.yaml lacks %s", want)
-		}
+	// The dashboard writes the transport of each Service, so this part has no Traefik file.
+	if entries, err := os.ReadDir(filepath.Join(folder, "traefik", "dynamic")); err == nil && len(entries) != 0 {
+		t.Fatalf("mtls create wrote Traefik files: %v", entries)
 	}
 	if !envHas(t, folder, "YARD_MTLS_ENABLED=true") || exists(folder, "traefik/dynamic/10-tls.yaml") || exists(folder, "traefik/dynamic/11-client-auth.yaml") {
 		t.Fatalf("mtls create changed more than its own part:\n%s", readInitFile(t, folder, ".env"))
@@ -246,11 +244,11 @@ func TestWSTLSMTLSUsesAClientCertificateAndTheCA(t *testing.T) {
 	assertPrivateWorkstation(t, folder)
 
 	mustRun(t, yard, "ws", "tls", "mtls", "disable", "--dir", folder)
-	if exists(folder, "traefik/dynamic/12-mtls.yaml") || !envHas(t, folder, "YARD_MTLS_ENABLED=false") || !exists(folder, "tls/traefik/mtls.key") {
+	if !envHas(t, folder, "YARD_MTLS_ENABLED=false") || !exists(folder, "tls/traefik/mtls.key") {
 		t.Fatal("disable did not turn mutual TLS off and keep the files")
 	}
 	mustRun(t, yard, "ws", "tls", "mtls", "enable", "--dir", folder)
-	if !exists(folder, "traefik/dynamic/12-mtls.yaml") || !envHas(t, folder, "YARD_MTLS_ENABLED=true") {
+	if !envHas(t, folder, "YARD_MTLS_ENABLED=true") {
 		t.Fatal("enable did not turn mutual TLS on")
 	}
 }
@@ -275,7 +273,7 @@ func TestWSTLSMTLSImportChecksTheFiles(t *testing.T) {
 	if r := imp(in("ca/yard/ws-b/mtls.crt"), in("ca/yard/ws-b/mtls.crt"), in("ca/yard/ws-b/mtls.key")); r.ExitCode == 0 {
 		t.Fatalf("a certificate that is not a CA: %+v", r)
 	}
-	if exists(folder, "tls/traefik/mtls.key") || exists(folder, "traefik/dynamic/12-mtls.yaml") {
+	if exists(folder, "tls/traefik/mtls.key") {
 		t.Fatal("a refused import wrote files")
 	}
 	// The CA that checks the Services may differ from the one that signed the certificate of Traefik.

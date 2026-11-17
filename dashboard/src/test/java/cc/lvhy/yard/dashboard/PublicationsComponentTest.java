@@ -23,6 +23,10 @@ class PublicationsComponentTest extends DashboardComponentTest {
     return service.get("publication").get("accessLog").asBoolean();
   }
 
+  private static boolean mutualTls(JsonNode service) {
+    return service.get("publication").get("mutualTls").asBoolean();
+  }
+
   @Test
   void publishedServiceHasLocalScopeAndItsHostname() {
     String grafana = newServiceName("grafana");
@@ -272,6 +276,34 @@ class PublicationsComponentTest extends DashboardComponentTest {
     put(publicationPath(web), Map.of("scope", "yard"));
 
     assertThat(accessLog(get(servicePath(web)).getBody())).isTrue();
+  }
+
+  @Test
+  void mutualTlsIsOffForANewPublicationAndOnIsKeptWhenPublishingAgain() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+
+    assertThat(mutualTls(put(publicationPath(web)).getBody())).isFalse();
+
+    put(publicationPath(web), Map.of("mutualTls", true));
+    put(publicationPath(web), Map.of("scope", "yard"));
+    assertThat(mutualTls(get(servicePath(web)).getBody())).isTrue();
+
+    put(publicationPath(web), Map.of("mutualTls", false));
+    assertThat(mutualTls(get(servicePath(web)).getBody())).isFalse();
+  }
+
+  @Test
+  void aRemotePublicationWithMutualTlsIsRead() {
+    String api = newServiceName("api");
+    remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
+    remote.putConsulValue(
+        "lvh-yard/publications/" + api, "{\"scope\":\"yard\",\"mutualTls\":true}");
+
+    JsonNode service = get("/api/services/" + RemoteWorkstation.NAME + "/" + api).getBody();
+
+    assertThat(mutualTls(service)).isTrue();
+    assertThat(service.get("publication").get("scope").asString()).isEqualTo("yard");
   }
 
   @Test

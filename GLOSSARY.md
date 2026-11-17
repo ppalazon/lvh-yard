@@ -105,11 +105,11 @@ A certificate that a Workstation CA signs for a person, and that the person's br
 _Avoid_: User certificate, mTLS certificate
 
 **TLS Part**:
-One of the three TLS jobs of Traefik: HTTPS, Client Certificate authentication, and mutual TLS to Services. Each has its own files in `tls/traefik/`, its own generated Traefik file and its own setting in `.env`. `ws tls https`, `ws tls client` and `ws tls mtls` each have `create` (signs with the Workstation CA), `import` (takes a CA, certificate and key that you bring), `enable` and `disable`.
+One of the three TLS jobs of Traefik: HTTPS, Client Certificate authentication, and mutual TLS to Services. Each has its own files in `tls/traefik/` and its own setting in `.env`. HTTPS and Client Certificate authentication also have a generated Traefik file. `ws tls https`, `ws tls client` and `ws tls mtls` each have `create` (signs with the Workstation CA), `import` (takes a CA, certificate and key that you bring), `enable` and `disable`.
 _Avoid_: TLS mode, TLS feature
 
 **Service Certificate**:
-A certificate that a Workstation CA signs for a Service with `ws tls ca issue service`. The Service serves HTTPS with it. Traefik checks the Service with the CA when the Route Profile of the Publication has `mutualTLS: {}`.
+A certificate that a Workstation CA signs for a Service with `ws tls ca issue service`. The Service serves HTTPS with it. When the Publication has mutual TLS on, Traefik checks the Service with the CA and checks that the certificate names the Service.
 _Avoid_: Backend certificate, server certificate
 
 **Base Domain**:
@@ -143,7 +143,7 @@ A problem that the Home Workstation's setup of a Service causes, found from that
 _Avoid_: Alert, issue, Health warning, Status warning
 
 **Publication**:
-The Home Workstation's opt-in choice to make a Service reachable under a hostname, with a Scope. It also says whether Traefik logs the requests to its Route. It belongs to the Service, not to its Instances, and never starts or stops a process.
+The Home Workstation's opt-in choice to make a Service reachable under a hostname, with a Scope. It also says whether Traefik logs the requests to its Route, and whether Traefik calls the Instances over mutual TLS. It belongs to the Service, not to its Instances, and never starts or stops a process.
 _Avoid_: Exposure, routing enabled, enabled
 
 **Scope**:

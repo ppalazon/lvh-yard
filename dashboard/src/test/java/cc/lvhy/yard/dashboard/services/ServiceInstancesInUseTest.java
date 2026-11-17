@@ -50,10 +50,10 @@ class ServiceInstancesInUseTest {
     return new Service(
         "ws-a",
         "web",
-        ServiceState.of(new Publication(Scope.LOCAL, List.of(), false), instances),
+        ServiceState.of(new Publication(Scope.LOCAL, List.of(), false, false), instances),
         true,
         false,
-        new Publication(Scope.LOCAL, List.of(), false),
+        new Publication(Scope.LOCAL, List.of(), false, false),
         "web.lvh.me",
         instances,
         List.of(),

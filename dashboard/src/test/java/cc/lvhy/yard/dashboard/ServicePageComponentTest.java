@@ -164,6 +164,32 @@ class ServicePageComponentTest extends DashboardComponentTest {
   }
 
   @Test
+  void mutualTlsCanBeTurnedOnAndOff() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+    publish(web);
+    String page = "/services/ws-test/" + web;
+    assertThat(getPage(page).getBody())
+        .contains("Mutual TLS to the Instances")
+        .contains("name=\"mutualTls\" value=\"true\"")
+        .contains("Traefik calls the Instances over plain HTTP.");
+
+    ResponseEntity<String> response = postForm(page + "/publish", Map.of("mutualTls", "true"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+    assertThat(getPage(page).getBody())
+        .contains("name=\"mutualTls\" value=\"false\"")
+        .contains("that each one has a certificate for " + web + ".");
+    assertThat(get(servicePath(web)).getBody().get("publication").get("mutualTls").asBoolean())
+        .isTrue();
+
+    postForm(page + "/publish", Map.of("mutualTls", "false"));
+
+    assertThat(get(servicePath(web)).getBody().get("publication").get("mutualTls").asBoolean())
+        .isFalse();
+  }
+
+  @Test
   void publicationSwitchesShowTheirStateAndPostTheOtherValue() {
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
@@ -178,12 +204,13 @@ class ServicePageComponentTest extends DashboardComponentTest {
     put(publicationPath(web), Map.of("scope", "yard"));
     String published = div(getPage(page).getBody(), "id=\"publication\"");
 
-    assertThat(published.split("role=\"switch\"", -1)).hasSize(4);
-    // Published and Share with the Yard are on. Show in the access log is off.
+    assertThat(published.split("role=\"switch\"", -1)).hasSize(5);
+    // Published and Share with the Yard are on. The access log and mutual TLS are off.
     assertThat(published.split("checked", -1)).hasSize(3);
     assertThat(published)
         .contains("name=\"scope\" value=\"local\"")
-        .contains("name=\"accessLog\" value=\"true\"");
+        .contains("name=\"accessLog\" value=\"true\"")
+        .contains("name=\"mutualTls\" value=\"true\"");
   }
 
   @Test

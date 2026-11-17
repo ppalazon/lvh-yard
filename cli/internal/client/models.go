@@ -154,11 +154,13 @@ type ProblemDetail struct {
 
 type Publication struct {
 	AccessLog bool   `json:"accessLog"`
+	MutualTLS bool   `json:"mutualTls"`
 	Scope     string `json:"scope"`
 }
 
 type PublicationRequest struct {
 	AccessLog *bool     `json:"accessLog,omitempty"`
+	MutualTLS *bool     `json:"mutualTls,omitempty"`
 	Profiles  *[]string `json:"profiles,omitempty"`
 	Scope     *string   `json:"scope,omitempty"`
 }
@@ -190,7 +192,9 @@ type RouteProfileDetail struct {
 type RouteReachability struct {
 	Error    string `json:"error,omitempty"`
 	Hostname string `json:"hostname"`
+	Note     string `json:"note,omitempty"`
 	Reached  bool   `json:"reached"`
+	Scheme   string `json:"scheme"`
 	Status   *int   `json:"status,omitempty"`
 }
 

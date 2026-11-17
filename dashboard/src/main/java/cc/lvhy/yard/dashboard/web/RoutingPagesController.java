@@ -42,6 +42,7 @@ class RoutingPagesController {
    *
    * @param profiles the Route Profiles in order, separated by commas. Blank removes them all.
    * @param accessLog true makes Traefik log the requests to the Route
+   * @param mutualTls true makes the Route call the Instances over HTTPS with mutual TLS
    */
   @PostMapping("/services/{workstation}/{service}/publish")
   ResponseEntity<String> publish(
@@ -49,7 +50,8 @@ class RoutingPagesController {
       @PathVariable String service,
       @RequestParam(required = false) String scope,
       @RequestParam(required = false) String profiles,
-      @RequestParam(required = false) Boolean accessLog) {
+      @RequestParam(required = false) Boolean accessLog,
+      @RequestParam(required = false) Boolean mutualTls) {
     Scope chosen =
         scope == null
             ? null
@@ -59,7 +61,9 @@ class RoutingPagesController {
                         HttpStatus.BAD_REQUEST, "The Scope is local or yard, not " + scope + "."));
     try {
       publications.publish(
-          home, service, new PublicationRequest(chosen, commaSeparated(profiles), accessLog));
+          home,
+          service,
+          new PublicationRequest(chosen, commaSeparated(profiles), accessLog, mutualTls));
     } catch (UnknownServiceException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
     } catch (InvalidRegistrationException | UnknownRouteProfileException e) {

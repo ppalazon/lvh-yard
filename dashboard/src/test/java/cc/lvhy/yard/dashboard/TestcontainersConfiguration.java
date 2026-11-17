@@ -172,6 +172,14 @@ class TestcontainersConfiguration {
         "http://127.0.0.1:" + dashboardPort + "/traefik/configuration");
   }
 
+  /** As {@link #traefik(int)}, with more command line {@code flags}. */
+  static GenericContainer<?> traefikWith(int dashboardPort, String... flags) {
+    GenericContainer<?> traefik = traefik(dashboardPort);
+    List<String> command = new ArrayList<>(List.of(traefik.getCommandParts()));
+    command.addAll(List.of(flags));
+    return traefik.withCommand(command.toArray(String[]::new));
+  }
+
   /**
    * Traefik on the host's network, on loopback at {@code port}, with its ping on its admin entry
    * point at {@code adminPort}, reading its Routes from {@code configuration} every second.

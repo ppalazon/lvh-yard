@@ -78,6 +78,9 @@ public final class BackupFormat {
         if (published.accessLog()) {
           publication.put("access-log", true);
         }
+        if (published.mutualTls()) {
+          publication.put("mutual-tls", true);
+        }
         entry.put("publication", publication);
       }
     }
@@ -298,15 +301,17 @@ public final class BackupFormat {
       if (!(value instanceof Map<?, ?>)) {
         problem(
             place,
-            "A publication is none, or a mapping with scope, route-profiles and access-log.");
+            "A publication is none, or a mapping with scope, route-profiles, access-log and"
+                + " mutual-tls.");
         return null;
       }
       Map<String, Object> entry =
-          keys(value, place, Set.of("scope", "route-profiles", "access-log"));
+          keys(value, place, Set.of("scope", "route-profiles", "access-log", "mutual-tls"));
       return new Published(
           text(entry.get("scope"), place + ".scope"),
           texts(entry.get("route-profiles"), place + ".route-profiles"),
-          flag(entry.get("access-log"), place + ".access-log", false));
+          flag(entry.get("access-log"), place + ".access-log", false),
+          flag(entry.get("mutual-tls"), place + ".mutual-tls", false));
     }
 
     private StaticInstance staticInstance(Object value, String place) {

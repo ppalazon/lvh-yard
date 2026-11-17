@@ -43,6 +43,7 @@ func finishCommands(root *cobra.Command) {
 	completeValues(root, []string{"containers"}, "followed", containerFollowed)
 	completeValues(root, []string{"publish"}, "scope", []string{"local", "yard"})
 	completeValues(root, []string{"publish"}, "access-log", []string{"on", "off"})
+	completeValues(root, []string{"publish"}, "mutual-tls", []string{"on", "off"})
 	completeValues(root, []string{"register", "static"}, "check", []string{"tcp", "http"})
 }
 

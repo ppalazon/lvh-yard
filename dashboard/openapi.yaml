@@ -101,7 +101,8 @@ paths:
   /api/services/{workstation}/{service}/reachability:
     get:
       description: "Connects to each Instance, and requests each hostname through\
-        \ this Workstation's Traefik. The results are not stored."
+        \ this Workstation's Traefik, over HTTP and, when Traefik has HTTPS, over\
+        \ HTTPS. The results are not stored."
       operationId: testReachability
       parameters:
       - in: path
@@ -266,9 +267,8 @@ paths:
       - route-profiles-controller
     put:
       description: "The body maps each name to its middleware in Traefik's format,\
-        \ or {\"clientCertificate\": {}} or {\"mutualTLS\": {}}. A chain may name\
-        \ either kind. The profiles that the body does not name stay. Answers the\
-        \ whole list."
+        \ or {\"clientCertificate\": {}}. A chain may name either kind. The profiles\
+        \ that the body does not name stay. Answers the whole list."
       operationId: putRouteProfiles
       requestBody:
         content:
@@ -350,8 +350,8 @@ paths:
       tags:
       - route-profiles-controller
     put:
-      description: "The body is its middleware in Traefik's format, {\"clientCertificate\"\
-        : {}} or {\"mutualTLS\": {}}."
+      description: "The body is its middleware in Traefik's format, or {\"clientCertificate\"\
+        : {}}."
       operationId: putRouteProfile
       parameters:
       - in: path
@@ -873,11 +873,14 @@ paths:
         \ With no Scope, a new Publication gets Local Scope and an existing one keeps\
         \ its own. The Route applies the Route Profiles in order. Middleware profiles\
         \ are named <workstation>_<profile>. A clientCertificate profile requires\
-        \ HTTPS and client authentication. A mutualTLS profile requires mutual TLS\
-        \ to the Instances. With no profiles, a Publication keeps its own. Empty profiles\
-        \ remove them all. With accessLog true, Traefik logs the requests to the Route.\
-        \ With no accessLog, a new Publication does not log them and an existing one\
-        \ keeps its own."
+        \ HTTPS and client authentication. With no profiles, a Publication keeps its\
+        \ own. Empty profiles remove them all. With accessLog true, Traefik logs the\
+        \ requests to the Route. With no accessLog, a new Publication does not log\
+        \ them and an existing one keeps its own. With mutualTls true, the Route calls\
+        \ the Instances over HTTPS with the certificate of Traefik, and checks that\
+        \ each Instance's certificate names the Service. It requires mutual TLS on\
+        \ every Workstation that routes the Service. With no mutualTls, a new Publication\
+        \ uses plain HTTP and an existing one keeps its own."
       operationId: publish
       parameters:
       - in: path
@@ -911,8 +914,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: This Workstation has no Service of this name
-      summary: "Publishes a Service, or changes its Scope, Route Profiles or access\
-        \ log"
+      summary: "Publishes a Service, or changes its Scope, Route Profiles, access\
+        \ log or mutual TLS"
       tags:
       - workstation-services-controller
   /api/workstation/services/{service}/reachability:
@@ -1365,6 +1368,8 @@ components:
       properties:
         accessLog:
           type: boolean
+        mutualTls:
+          type: boolean
         scope:
           type: string
           enum:
@@ -1372,6 +1377,7 @@ components:
           - yard
       required:
       - accessLog
+      - mutualTls
       - scope
     PublicationRequest:
       type: object
@@ -1381,6 +1387,12 @@ components:
           description: "true makes Traefik log the requests to its Route. When left\
             \ out, a new Publication does not log them and an existing one keeps its\
             \ own."
+        mutualTls:
+          type: boolean
+          description: "true makes the Route call the Instances over HTTPS with the\
+            \ certificate of Traefik, and check that each Instance's certificate names\
+            \ the Service. When left out, a new Publication uses plain HTTP and an\
+            \ existing one keeps its own."
         profiles:
           type: array
           description: "Names of this Workstation's Route Profiles, in the order the\
@@ -1434,8 +1446,8 @@ components:
             type: string
         type:
           type: string
-          description: "Its Traefik middleware type, clientCertificate or mutualTLS.\
-            \ Missing when it has more or none."
+          description: "Its Traefik middleware type, or clientCertificate. Missing\
+            \ when it has more or none."
       required:
       - name
       - services
@@ -1446,7 +1458,7 @@ components:
           type: object
           additionalProperties: {}
           description: "The middleware in Traefik's format, or {\"clientCertificate\"\
-            : {}} or {\"mutualTLS\": {}}."
+            : {}}."
         name:
           type: string
         services:
@@ -1456,8 +1468,8 @@ components:
             type: string
         type:
           type: string
-          description: "Its Traefik middleware type, clientCertificate or mutualTLS.\
-            \ Missing when it has more or none."
+          description: "Its Traefik middleware type, or clientCertificate. Missing\
+            \ when it has more or none."
       required:
       - definition
       - name
@@ -1469,14 +1481,19 @@ components:
           type: string
         hostname:
           type: string
+        note:
+          type: string
         reached:
           type: boolean
+        scheme:
+          type: string
         status:
           type: integer
           format: int32
       required:
       - hostname
       - reached
+      - scheme
     Routing:
       type: object
       properties:

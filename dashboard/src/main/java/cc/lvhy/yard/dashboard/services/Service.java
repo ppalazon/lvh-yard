@@ -229,8 +229,9 @@ public record Service(
     return publication != null;
   }
 
+  /** Whether its Publication makes the Route call the Instances over HTTPS with mutual TLS. */
   public boolean requiresMutualTls() {
-    return profileDefinitions.values().stream().anyMatch(RouteProfileDefinition::requiresMutualTls);
+    return published() && publication.mutualTls();
   }
 
   public boolean requiresClientCertificate() {
@@ -240,7 +241,7 @@ public record Service(
 
   /**
    * Whether a Traefik with these TLS Parts can serve its Route. A Route Profile may need HTTPS with
-   * Client Certificate authentication, or mutual TLS to the Instances.
+   * Client Certificate authentication, and the Publication may need mutual TLS to the Instances.
    */
   public boolean servedWith(boolean https, boolean clientAuth, boolean mtls) {
     return routed()

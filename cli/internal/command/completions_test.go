@@ -41,6 +41,7 @@ func TestShellCompletesFixedValues(t *testing.T) {
 		{[]string{"catalog", "--scope", ""}, []string{"in-range", "every", "local", "yard"}},
 		{[]string{"publish", "web", "--scope", ""}, []string{"local", "yard"}},
 		{[]string{"publish", "web", "--access-log", ""}, []string{"on", "off"}},
+		{[]string{"publish", "web", "--mutual-tls", ""}, []string{"on", "off"}},
 		{[]string{"register", "static", "web", "--check", ""}, []string{"tcp", "http"}},
 		{[]string{"completions", ""}, []string{"bash", "zsh", "powershell"}},
 	}

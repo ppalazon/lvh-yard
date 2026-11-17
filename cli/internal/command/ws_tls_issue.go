@@ -78,7 +78,7 @@ func issueFromCA(folder string, ca *x509.Certificate, signer *ecdsa.PrivateKey, 
 }
 
 // newWSTLSIssueService signs a certificate for a Service. The Service serves HTTPS with it, and
-// Traefik checks the Service with the CA, when the Route Profile has mutualTLS: {}.
+// Traefik checks the Service with the CA, when the Service has mutual TLS.
 func newWSTLSIssueService(options *Options, folder func() string) *cobra.Command {
 	var addresses []string
 	var days int
@@ -99,7 +99,7 @@ func newWSTLSIssueService(options *Options, folder func() string) *cobra.Command
 		if err != nil {
 			return err
 		}
-		intro := fmt.Sprintf("The certificate always names %s, localhost and 127.0.0.1.\nAdd the DNS names or IP addresses that Traefik uses to reach the Instances.\n", name)
+		intro := fmt.Sprintf("The certificate always names %s, localhost and 127.0.0.1. Traefik checks only the name of the Service.\nAdd the DNS names or IP addresses that other programs use to reach the Instances.\n", name)
 		if addresses, err = askAddresses(cmd, p, intro, addresses); err != nil {
 			return err
 		}
@@ -243,6 +243,6 @@ Next:
        ws tls mtls create
 
 Note:
-  - Traefik checks the Instance address against the names. Add the host or IP address of each Instance with --address.
-  - A Route Profile with mutualTLS: {} makes Traefik call the Instances of a Service over HTTPS.
+  - Traefik checks that the certificate names the Service, at any Instance address. --address is for other programs that connect to the Service.
+  - A Service with "publish --mutual-tls on" makes Traefik call its Instances over HTTPS.
   - The Service must ask for a certificate from Traefik to use mutual TLS, and trust ca/ca.crt.`

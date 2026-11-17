@@ -127,17 +127,9 @@ class RouteBuilderTest {
   }
 
   @Test
-  void aMutualTlsServiceUsesHttpsServersAndTheTransportAndNeedsMtls() {
-    Map<String, RouteProfileDefinition> mutual =
-        Map.of(
-            "mtls",
-            new RouteProfileDefinition(
-                "mtls",
-                Map.of(
-                    "mtls", Map.of("chain", Map.of("middlewares", List.of("inner"))),
-                    "inner", Map.of("mutualTLS", Map.of()))));
-    Service secret = service("a", "secret", List.of("mtls"), mutual, true);
-    Service plain = service("a", "plain", List.of(), Map.of(), true);
+  void aMutualTlsServiceUsesHttpsServersAndItsOwnTransportAndNeedsMtls() {
+    Service secret = service("a", "secret", List.of(), Map.of(), false, true);
+    Service plain = service("a", "plain", List.of(), Map.of(), false, false);
     Workstation workstation = new Workstation("a", "a.lvh.me");
 
     var with = RouteBuilder.build(workstation, List.of(secret, plain), false, false, true).http();
@@ -147,15 +139,53 @@ class RouteBuilderTest {
     var backend = with.services().get("secret").loadBalancer();
     assertThat(backend.servers())
         .containsExactly(new TraefikConfiguration.Server("https://10.1.2.3:8080"));
-    assertThat(backend.serversTransport()).isEqualTo("yard-mtls@file");
+    assertThat(backend.serversTransport()).isEqualTo("yard-mtls-secret");
     assertThat(with.services().get("plain").loadBalancer().serversTransport()).isNull();
     assertThat(with.services().get("plain").loadBalancer().servers())
         .containsExactly(new TraefikConfiguration.Server("http://10.1.2.3:8080"));
-    // The option is not a Traefik middleware, and its chain stays out too.
-    assertThat(with.middlewares()).isEmpty();
-    assertThat(with.routers().get("secret").middlewares()).isEmpty();
+    assertThat(with.serversTransports()).containsOnlyKeys("yard-mtls-secret");
     assertThat(without.routers()).containsOnlyKeys("plain");
     assertThat(without.services()).containsOnlyKeys("plain");
+    assertThat(without.serversTransports()).isEmpty();
+  }
+
+  /**
+   * The transport checks the certificate of the Instances against the name of the Service, so a
+   * certificate for another Service is refused, and the address of the Instance does not matter.
+   */
+  @Test
+  void theTransportChecksTheNameOfTheServiceAndGivesTheCertificateOfTraefik() {
+    Service secret = service("a", "secret", List.of(), Map.of(), false, true);
+
+    var http =
+        RouteBuilder.build(new Workstation("a", "a.lvh.me"), List.of(secret), false, false, true)
+            .http();
+
+    assertThat(http.serversTransports().get("yard-mtls-secret"))
+        .isEqualTo(
+            new TraefikConfiguration.ServersTransport(
+                List.of("/etc/traefik/tls/mtls-ca.crt"),
+                List.of(
+                    new TraefikConfiguration.Certificate(
+                        "/etc/traefik/tls/mtls.crt", "/etc/traefik/tls/mtls.key")),
+                "secret"));
+  }
+
+  /** A Remote Service has the name that its Home Workstation gave its certificates. */
+  @Test
+  void aRemoteMutualTlsServiceHasATransportOfItsOwnNamedAfterTheService() {
+    Service mine = service("a", "web", List.of(), Map.of(), false, true);
+    Service theirs = service("b", "web", List.of(), Map.of(), false, true);
+
+    var http =
+        RouteBuilder.build(
+                new Workstation("a", "a.lvh.me"), List.of(mine, theirs), false, false, true)
+            .http();
+
+    assertThat(http.serversTransports()).containsOnlyKeys("yard-mtls-web", "yard-mtls-web.b");
+    assertThat(http.services().get("web.b").loadBalancer().serversTransport())
+        .isEqualTo("yard-mtls-web.b");
+    assertThat(http.serversTransports().get("yard-mtls-web.b").serverName()).isEqualTo("web");
   }
 
   @Test
@@ -222,6 +252,16 @@ class RouteBuilderTest {
       List<String> profiles,
       Map<String, RouteProfileDefinition> definitions,
       boolean accessLog) {
+    return service(workstation, name, profiles, definitions, accessLog, false);
+  }
+
+  private static Service service(
+      String workstation,
+      String name,
+      List<String> profiles,
+      Map<String, RouteProfileDefinition> definitions,
+      boolean accessLog,
+      boolean mutualTls) {
     Instance instance =
         new Instance(
             name,
@@ -245,7 +285,7 @@ class RouteBuilderTest {
         ServiceState.HEALTHY,
         true,
         false,
-        new Publication(Scope.YARD, profiles, accessLog),
+        new Publication(Scope.YARD, profiles, accessLog, mutualTls),
         name + "." + workstation + ".lvh.me",
         List.of(instance),
         List.of(),

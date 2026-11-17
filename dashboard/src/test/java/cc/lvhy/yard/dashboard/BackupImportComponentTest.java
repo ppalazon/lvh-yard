@@ -339,6 +339,26 @@ class BackupImportComponentTest extends DashboardComponentTest {
   }
 
   @Test
+  void mutualTlsOfAPublicationIsRestored() {
+    String grafana = newServiceName("grafana");
+
+    importBackup(
+        """
+        version: 3
+        services:
+          %s:
+            publication:
+              scope: yard
+              mutual-tls: true
+        """
+            .formatted(grafana));
+
+    JsonNode publication = get(servicePath(grafana)).getBody().get("publication");
+    assertThat(publication.get("scope").asString()).isEqualTo("yard");
+    assertThat(publication.get("mutualTls").asBoolean()).isTrue();
+  }
+
+  @Test
   void eachProblemNamesItsPlaceAndNothingChanges() {
     String grafana = newServiceName("grafana");
     String loki = newServiceName("loki");

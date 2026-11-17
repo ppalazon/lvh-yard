@@ -13,7 +13,7 @@ import (
 )
 
 func TestPublicationRequests(t *testing.T) {
-	scope, log := "yard", false
+	scope, log, mutual := "yard", false, true
 	profiles := []string{"auth", "cors"}
 	empty := []string{}
 	for _, tc := range []struct {
@@ -22,7 +22,7 @@ func TestPublicationRequests(t *testing.T) {
 		body    string
 	}{
 		{"keep existing settings", client.PublicationRequest{}, ""},
-		{"chosen settings", client.PublicationRequest{Scope: &scope, AccessLog: &log, Profiles: &profiles}, `{"scope":"yard","accessLog":false,"profiles":["auth","cors"]}`},
+		{"chosen settings", client.PublicationRequest{Scope: &scope, AccessLog: &log, MutualTLS: &mutual, Profiles: &profiles}, `{"scope":"yard","accessLog":false,"mutualTls":true,"profiles":["auth","cors"]}`},
 		{"clear profiles", client.PublicationRequest{Profiles: &empty}, `{"profiles":[]}`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

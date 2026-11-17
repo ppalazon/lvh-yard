@@ -2,11 +2,13 @@ package cc.lvhy.yard.dashboard.routes;
 
 import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.profiles.RouteProfileDefinition;
+import cc.lvhy.yard.dashboard.routes.TraefikConfiguration.Certificate;
 import cc.lvhy.yard.dashboard.routes.TraefikConfiguration.Http;
 import cc.lvhy.yard.dashboard.routes.TraefikConfiguration.LoadBalancer;
 import cc.lvhy.yard.dashboard.routes.TraefikConfiguration.Observability;
 import cc.lvhy.yard.dashboard.routes.TraefikConfiguration.Router;
 import cc.lvhy.yard.dashboard.routes.TraefikConfiguration.Server;
+import cc.lvhy.yard.dashboard.routes.TraefikConfiguration.ServersTransport;
 import cc.lvhy.yard.dashboard.services.Service;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -18,8 +20,8 @@ final class RouteBuilder {
   /** The entry point compose.yaml gives Traefik for plain HTTP. */
   private static final String HTTP_ENTRY_POINT = "web";
 
-  /** The ServersTransport that the CLI writes for Traefik. */
-  private static final String MTLS_TRANSPORT = "yard-mtls@file";
+  /** Where the CLI mounts the TLS files of Traefik in its container. */
+  private static final String TLS_FOLDER = "/etc/traefik/tls/";
 
   private RouteBuilder() {}
 
@@ -33,6 +35,7 @@ final class RouteBuilder {
     Map<String, Router> routers = new LinkedHashMap<>();
     Map<String, TraefikConfiguration.Service> backends = new LinkedHashMap<>();
     Map<String, Map<String, Object>> middlewares = new LinkedHashMap<>();
+    Map<String, ServersTransport> transports = new LinkedHashMap<>();
     services.stream()
         .filter(service -> service.servedWith(https, clientAuth, mtls))
         .forEach(service -> {
@@ -64,9 +67,28 @@ final class RouteBuilder {
           backends.put(
               name,
               new TraefikConfiguration.Service(
-                  new LoadBalancer(servers, mutual ? MTLS_TRANSPORT : null)));
+                  new LoadBalancer(servers, mutual ? transport(name, service, transports) : null)));
         });
-    return new TraefikConfiguration(new Http(routers, backends, middlewares));
+    return new TraefikConfiguration(new Http(routers, backends, middlewares, transports));
+  }
+
+  /**
+   * Adds the transport of {@code service} to {@code transports}, and answers its name. It checks
+   * the certificate of each Instance against the CA of this Workstation and the name of the
+   * Service, so a certificate for another Service is refused, whatever the Instance's address is.
+   * The files are those that the CLI mounts in Traefik, which the transport cannot take from
+   * another one.
+   */
+  private static String transport(
+      String route, Service service, Map<String, ServersTransport> transports) {
+    String name = "yard-mtls-" + route;
+    transports.put(
+        name,
+        new ServersTransport(
+            List.of(TLS_FOLDER + "mtls-ca.crt"),
+            List.of(new Certificate(TLS_FOLDER + "mtls.crt", TLS_FOLDER + "mtls.key")),
+            service.name()));
+    return name;
   }
 
   /**

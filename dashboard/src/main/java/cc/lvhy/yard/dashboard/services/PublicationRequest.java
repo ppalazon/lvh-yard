@@ -13,6 +13,8 @@ import java.util.List;
  *     Empty removes them all. When left out, a Publication keeps its own.
  * @param accessLog true makes Traefik log the requests to its Route. When left out, a new
  *     Publication does not log them and an existing one keeps its own.
+ * @param mutualTls true makes the Route call the Instances over HTTPS with the certificate of
+ *     Traefik. When left out, a new Publication uses plain HTTP and an existing one keeps its own.
  */
 public record PublicationRequest(
     Scope scope,
@@ -28,8 +30,15 @@ public record PublicationRequest(
             description =
                 "true makes Traefik log the requests to its Route. When left out, a new"
                     + " Publication does not log them and an existing one keeps its own.")
-        Boolean accessLog) {
+        Boolean accessLog,
+    @Schema(
+            description =
+                "true makes the Route call the Instances over HTTPS with the certificate of"
+                    + " Traefik, and check that each Instance's certificate names the Service."
+                    + " When left out, a new Publication uses plain HTTP and an existing one keeps"
+                    + " its own.")
+        Boolean mutualTls) {
 
   /** Changes nothing: a new Publication gets the defaults, and an existing one keeps its own. */
-  public static final PublicationRequest KEEP_ALL = new PublicationRequest(null, null, null);
+  public static final PublicationRequest KEEP_ALL = new PublicationRequest(null, null, null, null);
 }

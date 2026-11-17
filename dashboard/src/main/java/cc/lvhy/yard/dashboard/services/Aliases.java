@@ -74,7 +74,7 @@ public class Aliases {
     if (missing) {
       records.put(service);
       publications.publish(
-          workstation.name(), service, new PublicationRequest(Scope.LOCAL, null, null));
+          workstation.name(), service, new PublicationRequest(Scope.LOCAL, null, null, null));
     } else {
       records.ensure(service);
     }

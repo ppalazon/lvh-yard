@@ -128,7 +128,7 @@ class HttpsRoutesComponentTest extends DashboardComponentTest {
 
   @Test
   void anHttpsPublicationWarnsAboutAnInstanceOffLoopbackThatTraefikCallsOverHttp() {
-    putRouteProfiles(new JsonMapper().readTree("{\"mtls\": {\"mutualTLS\": {}}}"));
+    // A Service with mutual TLS is the only one whose hop is encrypted.
     String lan = newServiceName("lan");
     register(lan, Map.of("host", "10.1.2.3", "port", 8080));
     String loopback = newServiceName("loopback");
@@ -141,7 +141,7 @@ class HttpsRoutesComponentTest extends DashboardComponentTest {
     assertThat(put(publicationPath(loopback), Map.of()).getBody().get("warnings").toString())
         .doesNotContain("unencrypted-instance");
     assertThat(
-            put(publicationPath(encrypted), Map.of("profiles", List.of("mtls")))
+            put(publicationPath(encrypted), Map.of("mutualTls", true))
                 .getBody()
                 .get("warnings")
                 .toString())

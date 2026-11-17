@@ -20,7 +20,7 @@ import java.util.Set;
  */
 record RouteProfileSummary(String name, boolean missing, List<Middleware> middlewares) {
 
-  /** A middleware, or the reserved option clientCertificate or mutualTLS. */
+  /** A middleware, or the reserved option clientCertificate. */
   record Middleware(String name, String type, boolean authentication, List<Option> options) {}
 
   /**

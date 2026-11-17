@@ -196,11 +196,10 @@ class RouteProfilesOnRoutesComponentTest extends DashboardComponentTest {
 
   @Test
   void mutualTlsWithoutMtlsHasNoRouteAndHasAnErrorAtHome() {
-    putRouteProfiles(JSON.readTree("{\"mtls\": {\"mutualTLS\": {}}}"));
     String service = newServiceName("no-mtls");
     register(service, Map.of("host", "10.1.2.3", "port", 8080));
 
-    JsonNode saved = put(publicationPath(service), Map.of("profiles", List.of("mtls"))).getBody();
+    JsonNode saved = put(publicationPath(service), Map.of("mutualTls", true)).getBody();
 
     JsonNode http = get("/traefik/configuration").getBody().get("http");
     assertThat(http.get("routers").has(service)).isFalse();

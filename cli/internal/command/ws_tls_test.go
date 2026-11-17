@@ -153,7 +153,7 @@ func TestWSTLSIssueService(t *testing.T) {
 	if service.NotAfter.Sub(service.NotBefore) != 42*24*time.Hour {
 		t.Fatal("wrong leaf validity")
 	}
-	if exists(folder, "tls/traefik/https.crt") || exists(folder, "traefik/dynamic/12-mtls.yaml") {
+	if exists(folder, "tls/traefik/https.crt") {
 		t.Fatal("signing a Service certificate installed or enabled TLS")
 	}
 	// The encrypted zip file holds the files to give to the Service, and opens only with its password.

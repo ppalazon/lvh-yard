@@ -21,7 +21,8 @@ type traefikPart struct {
 	short string
 	// files are the names in tls/traefik/ that the part needs.
 	files []string
-	// generated is the Traefik file in traefik/dynamic/ that holds the part's options.
+	// generated is the Traefik file in traefik/dynamic/ that holds the part's options, or empty when
+	// the part has none. Mutual TLS has none: the dashboard writes the transport of each Service.
 	generated string
 	template  func() string
 	// flag is the .env setting that says whether the part is on. HTTPS has none: it is on when
@@ -58,6 +59,9 @@ func (p traefikPart) setOn(env *envfile.File, on bool) {
 }
 
 func (p traefikPart) writeGenerated(folder string) error {
+	if p.generated == "" {
+		return nil
+	}
 	root, err := os.OpenRoot(folder)
 	if err != nil {
 		return err
@@ -70,6 +74,9 @@ func (p traefikPart) writeGenerated(folder string) error {
 }
 
 func (p traefikPart) removeGenerated(folder string) error {
+	if p.generated == "" {
+		return nil
+	}
 	root, err := os.OpenRoot(folder)
 	if err != nil {
 		return err
@@ -79,6 +86,22 @@ func (p traefikPart) removeGenerated(folder string) error {
 		return err
 	}
 	return nil
+}
+
+// enableSteps are the last steps of the help of "enable", which depend on the generated file.
+func (p traefikPart) enableSteps() string {
+	if p.generated == "" {
+		return "  2. Sets " + p.flag + " in .env."
+	}
+	return "  2. Writes traefik/dynamic/" + p.generated + "."
+}
+
+// disableSteps are the steps of the help of "disable".
+func (p traefikPart) disableSteps() string {
+	if p.generated == "" {
+		return "  1. Clears the setting in .env."
+	}
+	return "  1. Removes traefik/dynamic/" + p.generated + ".\n  2. Clears the setting in .env."
 }
 
 func (p traefikPart) writeFiles(folder string, files map[string][]byte) error {
@@ -168,7 +191,7 @@ func newWSTLSPart(folder func() string, part traefikPart, long string, create, i
 func newWSTLSPartEnable(folder func() string, part traefikPart) *cobra.Command {
 	return &cobra.Command{
 		Use: "enable", Short: "Turns on " + part.label + ".", Args: cobra.NoArgs,
-		Long: "Turns on " + part.label + " with the files in tls/traefik/.\n\nBefore:\n  - Make or import them with \"ws tls " + part.name + " create\" or \"ws tls " + part.name + " import\".\n\nDoes:\n  1. Checks the files.\n  2. Writes traefik/dynamic/" + part.generated + ".",
+		Long: "Turns on " + part.label + " with the files in tls/traefik/.\n\nBefore:\n  - Make or import them with \"ws tls " + part.name + " create\" or \"ws tls " + part.name + " import\".\n\nDoes:\n  1. Checks the files.\n" + part.enableSteps(),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			env, err := readWSEnv(folder())
 			if err != nil {
@@ -192,7 +215,7 @@ func newWSTLSPartEnable(folder func() string, part traefikPart) *cobra.Command {
 func newWSTLSPartDisable(folder func() string, part traefikPart) *cobra.Command {
 	return &cobra.Command{
 		Use: "disable", Short: "Turns off " + part.label + ".", Args: cobra.NoArgs,
-		Long: "Turns off " + part.label + " and keeps its files in tls/traefik/.\n\nDoes:\n  1. Removes traefik/dynamic/" + part.generated + ".\n  2. Clears the setting in .env.",
+		Long: "Turns off " + part.label + " and keeps its files in tls/traefik/.\n\nDoes:\n" + part.disableSteps(),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			env, err := readWSEnv(folder())
 			if err != nil {
@@ -230,6 +253,9 @@ func regenerateTraefikTLS(folder string) error {
 	defer func() { _ = root.Close() }()
 	checked := false
 	for _, part := range traefikParts {
+		if part.generated == "" {
+			continue
+		}
 		if _, err := root.Stat(filepath.Join("traefik", "dynamic", part.generated)); err != nil {
 			if os.IsNotExist(err) {
 				continue

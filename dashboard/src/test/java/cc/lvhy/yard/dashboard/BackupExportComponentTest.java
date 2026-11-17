@@ -83,6 +83,16 @@ class BackupExportComponentTest extends DashboardComponentTest {
   }
 
   @Test
+  void mutualTlsOfAPublicationIsExported() {
+    String grafana = newServiceName("grafana");
+    register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
+    put(publicationPath(grafana), Map.of("scope", "yard", "mutualTls", true));
+
+    assertThat(map(map(exported().get("services")).get(grafana)).get("publication"))
+        .isEqualTo(Map.of("scope", "yard", "mutual-tls", true));
+  }
+
+  @Test
   void clientCertificateProfileIsExported() {
     String certificate = newServiceName("certificate");
     putRouteProfiles(Map.of(certificate, Map.of("clientCertificate", Map.of())));

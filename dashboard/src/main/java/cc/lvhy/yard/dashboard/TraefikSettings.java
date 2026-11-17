@@ -23,6 +23,13 @@ public record TraefikSettings(
     return URI.create("http://" + BindAddress.host(bindAddress) + ":" + port);
   }
 
+  /** Null when HTTPS is off. */
+  public URI httpsUrl() {
+    return httpsPort == null
+        ? null
+        : URI.create("https://" + BindAddress.host(bindAddress) + ":" + httpsPort);
+  }
+
   /** On loopback, whatever {@link #bindAddress} says. */
   public URI adminUrl() {
     return URI.create("http://127.0.0.1:" + adminPort);

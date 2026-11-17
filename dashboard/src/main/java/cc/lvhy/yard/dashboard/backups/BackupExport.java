@@ -112,7 +112,8 @@ public class BackupExport {
             ? new Published(
                 service.publication().scope().value(),
                 service.profiles(),
-                service.publication().accessLog())
+                service.publication().accessLog(),
+                service.publication().mutualTls())
             : new Unpublished(),
         service.instancePriority(),
         sources);

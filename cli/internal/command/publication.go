@@ -9,7 +9,7 @@ import (
 )
 
 func NewPublish(options *Options) *cobra.Command {
-	var scope, accessLog string
+	var scope, accessLog, mutualTLS string
 	var profiles []string
 	var noProfiles bool
 	cmd := &cobra.Command{
@@ -30,6 +30,13 @@ func NewPublish(options *Options) *cobra.Command {
 				}
 				log := accessLog == "on"
 				request.AccessLog = &log
+			}
+			if cmd.Flags().Changed("mutual-tls") {
+				if mutualTLS != "on" && mutualTLS != "off" {
+					return fmt.Errorf("invalid value for --mutual-tls: %s is not on or off", mutualTLS)
+				}
+				mutual := mutualTLS == "on"
+				request.MutualTLS = &mutual
 			}
 			if cmd.Flags().Changed("profile") {
 				request.Profiles = &profiles
@@ -56,6 +63,9 @@ func NewPublish(options *Options) *cobra.Command {
 			if published.Publication.AccessLog {
 				fmt.Fprintln(out, "  Access log: on")
 			}
+			if published.Publication.MutualTLS {
+				fmt.Fprintln(out, "  Mutual TLS: on")
+			}
 			for _, warning := range published.Warnings {
 				fmt.Fprintf(cmd.ErrOrStderr(), "%s: %s\n", warning.Severity, warning.Message)
 			}
@@ -64,6 +74,7 @@ func NewPublish(options *Options) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&scope, "scope", "", "Sets the Scope: local or yard (default: the current Scope).")
 	cmd.Flags().StringVar(&accessLog, "access-log", "", "Sets the request log of the Route: on or off.")
+	cmd.Flags().StringVar(&mutualTLS, "mutual-tls", "", "Sets mutual TLS from Traefik to the Instances: on or off.")
 	cmd.Flags().StringArrayVar(&profiles, "profile", nil, "Applies a Route Profile. Repeat it to set the order.")
 	cmd.Flags().BoolVar(&noProfiles, "no-profiles", false, "Removes all Route Profiles.")
 	cmd.MarkFlagsMutuallyExclusive("profile", "no-profiles")

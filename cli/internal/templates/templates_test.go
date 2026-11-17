@@ -16,7 +16,7 @@ import (
 )
 
 func TestCommittedTemplatesMatchRepositoryBytes(t *testing.T) {
-	for _, name := range []string{"compose.yaml", "compose.windows.yaml", "consul.sh", "traefik.sh", "consul-windows.sh", "dashboard-windows.sh", "traefik-windows.sh", ".env.example", ".env.windows.example", "lvh-yard.yaml", "00-lvh-yard.hcl", "10-tls.hcl", "10-tls.yaml", "11-client-auth.yaml", "12-mtls.yaml"} {
+	for _, name := range []string{"compose.yaml", "compose.windows.yaml", "consul.sh", "traefik.sh", "consul-windows.sh", "dashboard-windows.sh", "traefik-windows.sh", ".env.example", ".env.windows.example", "lvh-yard.yaml", "00-lvh-yard.hcl", "10-tls.hcl", "10-tls.yaml", "11-client-auth.yaml"} {
 		t.Run(name, func(t *testing.T) {
 			root, err := os.ReadFile(filepath.Join("..", "..", "..", "config", name))
 			if err != nil {

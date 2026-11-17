@@ -73,7 +73,7 @@ public class CreateContainerService {
               : checked.container();
       completed.add("Bound " + target + " on Container Port " + checked.port());
       if (publish) {
-        publications.publish(home, service, new PublicationRequest(scope, null, null));
+        publications.publish(home, service, new PublicationRequest(scope, null, null, null));
         completed.add("Published with " + (scope == Scope.LOCAL ? "Local" : "Yard") + " Scope");
       }
       return new Result(service, true, completed, null);

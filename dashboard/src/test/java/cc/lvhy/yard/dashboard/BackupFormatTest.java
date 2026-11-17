@@ -39,6 +39,7 @@ class BackupFormatTest {
             route-profiles:
               - auth
             access-log: true
+            mutual-tls: true
           instance-priority: false
           sources:
             - alias:
@@ -128,6 +129,12 @@ class BackupFormatTest {
     assertThat(BackupFormat.read(BACKUP.replace("      access-log: true\n", "")).services())
         .extractingByKey("grafana")
         .extracting(service -> ((Backup.Published) service.publication()).accessLog())
+        .isEqualTo(false);
+    assertThat(((Backup.Published) backup.services().get("grafana").publication()).mutualTls())
+        .isTrue();
+    assertThat(BackupFormat.read(BACKUP.replace("      mutual-tls: true\n", "")).services())
+        .extractingByKey("grafana")
+        .extracting(service -> ((Backup.Published) service.publication()).mutualTls())
         .isEqualTo(false);
     assertThat(backup.services().get("grafana").staticInstances().get(1).host()).isNull();
   }

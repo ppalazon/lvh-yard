@@ -37,7 +37,8 @@ class ReachabilityController {
       summary = "Tests whether this Workstation reaches a Service",
       description =
           "Connects to each Instance, and requests each hostname through this Workstation's"
-              + " Traefik. The results are not stored.")
+              + " Traefik, over HTTP and, when Traefik has HTTPS, over HTTPS. The results are not"
+              + " stored.")
   @ApiResponse(
       responseCode = "200",
       description = "Tested, whether the checks passed or not",

@@ -195,6 +195,20 @@ final class ServicePage {
                     ? "Traefik logs each request to the Route. To see the log, run this command:"
                     : "Traefik does not log requests to the Route.",
                 logged ? "lvh-yard ws compose logs traefik" : null);
+            boolean mutual = service.publication().mutualTls();
+            SwitchForm.render(
+                switches,
+                path(service) + "/publish",
+                "mutualTls",
+                String.valueOf(!mutual),
+                mutual,
+                "Mutual TLS to the Instances",
+                mutual
+                    ? "Traefik calls the Instances over HTTPS with its own certificate, and checks"
+                        + " that each one has a certificate for "
+                        + service.name()
+                        + "."
+                    : "Traefik calls the Instances over plain HTTP.");
           }
         })
         .__();
@@ -501,6 +515,10 @@ final class ServicePage {
         .p()
         .attrClass("text-sm text-muted-foreground")
         .text("Access log: " + (service.publication().accessLog() ? "on" : "off"))
+        .__()
+        .p()
+        .attrClass("text-sm text-muted-foreground")
+        .text("Mutual TLS to the Instances: " + (service.publication().mutualTls() ? "on" : "off"))
         .__();
   }
 

@@ -154,7 +154,7 @@ Java CLI, built as a native executable:
 The source templates are `config/compose.yaml`, `config/compose.windows.yaml`,
 `config/.env.example`, `config/.env.windows.example`, `config/00-lvh-yard.hcl`,
 `config/10-tls.hcl`, `config/10-tls.yaml`, `config/11-client-auth.yaml`,
-`config/12-mtls.yaml`, `config/lvh-yard.yaml` and the
+`config/lvh-yard.yaml` and the
 scripts that Compose mounts: `config/consul.sh` and `config/traefik.sh` on
 Linux and macOS, and `config/consul-windows.sh`, `config/dashboard-windows.sh`
 and `config/traefik-windows.sh` on Windows.

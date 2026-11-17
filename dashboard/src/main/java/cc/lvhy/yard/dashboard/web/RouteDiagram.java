@@ -156,7 +156,7 @@ record RouteDiagram(
       return "A Route Profile needs a Client Certificate. Here HTTPS or Client Certificate"
           + " authentication is off, so there is no Route.";
     }
-    return "A Route Profile needs mutual TLS. Here it is off, so there is no Route.";
+    return "The Publication needs mutual TLS. Here it is off, so there is no Route.";
   }
 
   private static String balancing(Service service, Routing routing) {

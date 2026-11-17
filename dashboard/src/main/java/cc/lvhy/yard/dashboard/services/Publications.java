@@ -71,7 +71,8 @@ public class Publications implements ProfileUsage {
         new Publication(
             given(scope, existing, Publication::scope, Scope.LOCAL),
             given(profiles, existing, Publication::profiles, List.of()),
-            given(change.accessLog(), existing, Publication::accessLog, false));
+            given(change.accessLog(), existing, Publication::accessLog, false),
+            given(change.mutualTls(), existing, Publication::mutualTls, false));
     consul.putValue(PREFIX + service, value(chosen));
     events.publishEvent(new PublicationsChanged());
   }
@@ -96,14 +97,15 @@ public class Publications implements ProfileUsage {
 
   /** The Scope alone while every other part is the default, so most values stay short. */
   private static String value(Publication publication) {
-    if (publication.profiles().isEmpty() && !publication.accessLog()) {
+    if (publication.profiles().isEmpty() && !publication.accessLog() && !publication.mutualTls()) {
       return publication.scope().value();
     }
     return JSON.writeValueAsString(
         new StoredPublication(
             publication.scope().value(),
             publication.profiles().isEmpty() ? null : publication.profiles(),
-            publication.accessLog() ? true : null));
+            publication.accessLog() ? true : null,
+            publication.mutualTls() ? true : null));
   }
 
   private static Publication publication(String value) {
@@ -114,11 +116,13 @@ public class Publications implements ProfileUsage {
     return new Publication(
         Scope.of(stored.scope()),
         stored.profiles() == null ? List.of() : stored.profiles(),
-        Boolean.TRUE.equals(stored.accessLog()));
+        Boolean.TRUE.equals(stored.accessLog()),
+        Boolean.TRUE.equals(stored.mutualTls()));
   }
 
   @JsonInclude(JsonInclude.Include.NON_NULL)
-  private record StoredPublication(String scope, List<String> profiles, Boolean accessLog) {}
+  private record StoredPublication(
+      String scope, List<String> profiles, Boolean accessLog, Boolean mutualTls) {}
 
   /** {@code workstation} must be this one. */
   public void unpublish(String workstation, String service) {

@@ -135,7 +135,7 @@ final class ReachabilityPage {
                 .forEach(route ->
                     body.tr()
                         .td()
-                        .text("Route " + route.hostname())
+                        .text("Route " + route.scheme() + "://" + route.hostname())
                         .__()
                         .td()
                         .of(cell -> result(cell, route.reached()))
@@ -213,6 +213,9 @@ final class ReachabilityPage {
   }
 
   private static String routeDetails(RouteReachability route) {
-    return route.reached() ? "Answered " + route.status() + " through Traefik." : route.error();
+    if (!route.reached()) {
+      return route.error();
+    }
+    return route.note() != null ? route.note() : "Answered " + route.status() + " through Traefik.";
   }
 }

@@ -13,11 +13,14 @@ record TraefikConfiguration(Http http) {
   /**
    * @param middlewares the Route Profiles' middlewares, by their name in Traefik, each in Traefik's
    *     own shape
+   * @param serversTransports one for each Service with mutual TLS, by its name in Traefik
    */
   record Http(
       Map<String, Router> routers,
       Map<String, Service> services,
-      @JsonInclude(JsonInclude.Include.NON_EMPTY) Map<String, Map<String, Object>> middlewares) {}
+      @JsonInclude(JsonInclude.Include.NON_EMPTY) Map<String, Map<String, Object>> middlewares,
+      @JsonInclude(JsonInclude.Include.NON_EMPTY)
+          Map<String, ServersTransport> serversTransports) {}
 
   record Router(
       String rule,
@@ -36,4 +39,14 @@ record TraefikConfiguration(Http http) {
       List<Server> servers, @JsonInclude(JsonInclude.Include.NON_NULL) String serversTransport) {}
 
   record Server(String url) {}
+
+  /**
+   * How Traefik connects to the Instances of one Service over HTTPS. It checks their certificate
+   * against {@code rootCAs} and {@code serverName}, and shows its own {@code certificates}.
+   */
+  record ServersTransport(
+      List<String> rootCAs, List<Certificate> certificates, String serverName) {}
+
+  /** Paths in the Traefik container. */
+  record Certificate(String certFile, String keyFile) {}
 }

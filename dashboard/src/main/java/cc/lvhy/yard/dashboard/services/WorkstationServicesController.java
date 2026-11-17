@@ -274,17 +274,21 @@ class WorkstationServicesController {
   @PutMapping("/{service}/publication")
   @Operation(
       operationId = "publish",
-      summary = "Publishes a Service, or changes its Scope, Route Profiles or access log",
+      summary =
+          "Publishes a Service, or changes its Scope, Route Profiles, access log or mutual TLS",
       description =
           "With Yard Scope, the other Workstations also route it, at"
               + " <service>.<workstation>.<base-domain>. With no Scope, a new Publication gets"
               + " Local Scope and an existing one keeps its own. The Route applies the Route"
               + " Profiles in order. Middleware profiles are named <workstation>_<profile>. A"
-              + " clientCertificate profile requires HTTPS and client authentication. A mutualTLS"
-              + " profile requires mutual TLS to the Instances. With no profiles, a Publication"
-              + " keeps its own. Empty profiles remove them all. With accessLog true, Traefik logs"
-              + " the requests to the Route. With no accessLog, a new Publication does not log them"
-              + " and an existing one keeps its own.")
+              + " clientCertificate profile requires HTTPS and client authentication. With no"
+              + " profiles, a Publication keeps its own. Empty profiles remove them all. With"
+              + " accessLog true, Traefik logs the requests to the Route. With no accessLog, a new"
+              + " Publication does not log them and an existing one keeps its own. With mutualTls"
+              + " true, the Route calls the Instances over HTTPS with the certificate of Traefik,"
+              + " and checks that each Instance's certificate names the Service. It requires"
+              + " mutual TLS on every Workstation that routes the Service. With no mutualTls, a new"
+              + " Publication uses plain HTTP and an existing one keeps its own.")
   @ApiResponse(
       responseCode = "200",
       description = "The Service, published",

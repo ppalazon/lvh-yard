@@ -22,13 +22,6 @@ enum RouteProfileExample {
           notAfter: true
       """,
       "https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/passtlsclientcert/"),
-  MUTUAL_TLS(
-      "Mutual TLS",
-      "Connect to the Instances over HTTPS with the certificate of Traefik.",
-      """
-      mutualTLS: {}
-      """,
-      "https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/load-balancing/serverstransport/"),
   BASIC_AUTH(
       "Basic auth",
       "Require a user and password. Replace the placeholder with htpasswd -nB alice output."
