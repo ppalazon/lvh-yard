@@ -4,6 +4,8 @@ status: accepted
 
 # Each Workstation has its own CA, and one of them is the main CA
 
+[ADR-0018](0018-traefik-tls-has-three-independent-parts.md) replaces the Traefik commands below: `ws tls ca issue traefik`, `ws tls install`, `ws tls enable` and `ws tls disable` are now `ws tls https`, `ws tls client` and `ws tls mtls`.
+
 `ws tls ca create` makes one CA for the Workstation Folder, in `ca/ca.crt` and `ca/ca.key`. That is the Workstation CA. There is no second CA, no CA with a chosen file name, and no CA above it. This replaces the single Yard CA of [ADR-0013](0013-one-yard-ca-and-two-certificates-per-workstation.md).
 
 Consul and Traefik need different things from a CA, so they use it in different ways:

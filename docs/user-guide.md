@@ -607,71 +607,44 @@ another Workstation or a container.
 
 The CA that `ws tls ca create` makes is for testing. Its key is a file
 on one computer, and nothing can revoke a certificate it signed. Every command
-under `ws tls ca` prints a warning to say so. For more than testing, use a
-more robust CA, such as a company CA or a public CA, and install its
-certificates with `ws tls install --ca --cert --key`. A more complex CA setup, such as an
-intermediate CA, is made by hand and installed the same way.
+under `ws tls ca`, `ws tls https create` and `ws tls mtls create` prints a warning to say so. For more than testing, use a
+more robust CA, such as a company CA or a public CA, and import its
+certificates with `ws tls https import`, `ws tls client import` or `ws tls mtls import`.
+A more complex CA setup, such as an intermediate CA, is made by hand and imported the same way.
 
-Each Workstation has two certificates, with separate keys. Consul and Traefik
-use the CA in different ways:
+Each Workstation has a Consul certificate and the TLS of Traefik, with separate
+keys. Consul and Traefik use the CA in different ways:
 
 |                             | Consul                                             | Traefik                                            |
 | --------------------------- | -------------------------------------------------- | -------------------------------------------------- |
 | Needs                       | The same CA on every Workstation of the Yard       | Its own CA on this Workstation                     |
 | Names                       | `server.<name>.consul`, `localhost`, `127.0.0.1`   | `*.<Base Domain>`, `localhost`, `127.0.0.1`, more  |
 | Signed by                   | The main CA                                        | This Workstation's CA, a company CA or a public CA |
-| Made and installed with     | `ws yard init`, `ws yard share` and `ws yard join` | `ws tls ca issue traefik` and `ws tls install`     |
+| Made and installed with     | `ws yard init`, `ws yard share` and `ws yard join` | `ws tls https`, `ws tls client` and `ws tls mtls`  |
 | Sent to another Workstation | Yes, in the invitation of `ws yard share`          | Never: its key stays here                          |
 
 For a Yard, [`ws yard init`, `ws yard share` and `ws yard join`](#joining-a-yard)
 do the whole Consul part: the CA of the Workstation that starts the Yard is the
 main CA, and they sign, pack, install and turn on the Consul certificate of every
 Workstation. No other command handles a Consul certificate. The rest of this
-section explains the CA, and the commands for the Traefik certificate and the
-Client Certificates.
+section explains the CA, `ws tls ca issue`, and the three TLS parts of Traefik.
 
 Consul needs the same CA on every Workstation of a Yard. Choose the CA of one
 Workstation as the main CA of the Yard. It does not matter which one. Its
 Workstation signs the Consul certificate of every Workstation, including its
-own. Traefik needs no sharing: each Workstation signs its own Traefik
-certificate and the Client Certificates of its own people, so those keys never
-leave it.
+own. Traefik needs no sharing: each Workstation signs its own certificates and the
+Client Certificates of its own people, so those keys never leave it.
 
 Compose mounts `tls/consul/` only in Consul and `tls/traefik/` only in Traefik.
 So a Traefik process that faces browsers never holds the key that identifies
 this Workstation to the other Consul servers. The Consul certificate also never
 changes when a Workstation joins the Yard, because Consul checks only its own
-name. The Traefik certificate changes with the Routes that it covers.
+name. The HTTPS certificate changes with the Routes that it covers.
 
-Traefik meets a third certificate, the Client Certificate of a person. It is
-not a Workstation Certificate. The two answer different questions. The Traefik
-certificate makes HTTPS work, and a Client Certificate adds a login to some
-Routes. A Yard can use the first and never the second.
-
-|                   | Traefik certificate (HTTPS)                                  | Client Certificate (mutual TLS)                                         |
-| ----------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------- |
-| Proves            | The Workstation's hostnames, to the browser                  | A person, to Traefik                                                    |
-| Presented by      | Traefik                                                      | The browser                                                             |
-| Checked by        | The browser, with the CA that it trusts                      | Traefik, with `tls/traefik/ca.crt`, which is this Workstation's CA      |
-| Signed by         | This Workstation's CA, a company CA or a public CA           | This Workstation's CA, or the CA that you gave to `ws tls install --ca` |
-| Needed for        | HTTPS on any Route                                           | Only a Route whose Route Profile has `clientCertificate: {}`            |
-| Made with         | `ws tls ca issue traefik`, or `ws tls install --cert`        | `ws tls ca issue user`                                                  |
-| Kept in           | `tls/traefik/` on the Workstation                            | A `.p12` file, then the person's browser                                |
-| The browser needs | To trust this Workstation's CA, unless a public CA signed it | To have the `.p12` file in its personal certificates                    |
-
-`tls/traefik/ca.crt` is the CA that signs the Client Certificates of this
-Workstation, and Traefik uses it only to check them. It is there even when a
-public CA signed the Traefik certificate. A Route with a Client Certificate
-needs both: HTTPS turned on, and the person's certificate. The Consul
-certificate is a different, third use of mutual TLS: the Workstations check each
-other.
-
-A Client Certificate works on the Routes of the Workstation whose CA signed it,
-because each Traefik checks with its own CA. A Route Profile with
-`clientCertificate: {}` on a Publication that another Workstation routes asks
-the Traefik of that Workstation. To serve it there, sign the person a
-certificate on that Workstation, or give that Workstation the same CA with
-`ws tls install --ca`.
+Traefik has three TLS parts, and a Yard can use any of them without the others:
+HTTPS for browsers, the check of the Client Certificates of people, and mutual TLS
+to the Services. They are not Workstation Certificates. They are explained
+[below](#the-three-tls-parts-of-traefik).
 
 Every command that signs sits under `ws tls ca`, because signing needs the CA key.
 Like `ws init`, each one asks for what you did not give as a flag. Without a
@@ -683,8 +656,22 @@ mode 600 on Linux and macOS. The reference Compose setup never mounts `ca/`.
 The command refuses to replace either CA file unless you give `--force`.
 Replacing the CA does not update certificates that it already signed.
 
+What the CA signs sits in one directory for each group, next to the CA files:
+
+```text
+ca/
+  ca.crt, ca.key
+  yard/<workstation>/    consul.crt|key, https.crt|key, mtls.crt|key
+                         for this Workstation and the others in the Yard
+  service/<name>/        service.crt|key, service-fullchain.crt
+  client/<name>.p12      the Client Certificates of people
+```
+
+`ws compose upgrade` moves the files of an older folder from `ca/certs/` and
+`ca/clients/` to these places.
+
 A Workstation has one CA. For another one, use another Workstation Folder, or
-bring a CA with `ws tls install --ca --cert --key`.
+bring a CA with `ws tls https import`, `ws tls client import` or `ws tls mtls import`.
 
 It asks for the common name of the CA certificate, with `LVH Yard CA - <workstation>`
 as the default. Give `--name <name>` to set it without a question. The name has
@@ -696,10 +683,10 @@ recover a lost password. The question shows nothing while you type, and asks
 a second time to check the password. An empty answer asks no second time.
 
 Every command that signs needs the key: `ws tls ca issue user`, `ws tls ca issue
-traefik` and `ws yard share`. When the key has a password, each asks for it, or
-takes `--ca-key-password <password>`. Without a terminal and without a flag, it
-fails. `ws tls install` and `ws tls ca export` need only `ca.crt`, so they
-never ask for it.
+service`, `ws tls https create`, `ws tls mtls create` and `ws yard share`. When the
+key has a password, each asks for it, or takes `--ca-key-password <password>`.
+Without a terminal and without a flag, it fails. `ws tls client create` needs
+only `ca.crt`, so it never asks for it.
 
 A password on the command line shows in the process list of the computer. To
 keep it out, give `--ca-key-password-file <file>` instead, to `ca create` and to
@@ -716,71 +703,152 @@ error. On Linux and macOS, the command refuses a file that other users can read:
 run `chmod 600` on it. Use only one of the two flags. Standard input is then not
 free for questions, so pass the other answers as flags.
 
-`lvh-yard ws tls ca issue traefik` signs the Traefik certificate of this
-Workstation, and takes no name. It asks for extra addresses and the validity.
-The files are `ca/certs/<name>/traefik.crt|key`. Signing does not copy anything
-to `tls/`, start TLS or change running services. A certificate uses ECDSA P-256
-and lasts 365 days. The Traefik certificate allows server use only. On Linux and
-macOS, private keys have mode 600. `ws yard share` signs the Consul certificates
-itself, with the same CA, and no command signs one by hand.
+`lvh-yard ws tls ca issue service <name>` signs a certificate for a Service, such
+as `grafana`. The Service serves HTTPS with it, and Traefik checks the Service
+with the CA when mutual TLS is on. It asks for extra addresses, the validity and a
+password for a zip file. The files are `ca/service/<name>/service.crt|key`, and
+`service-fullchain.crt`, which holds the certificate followed by the CA certificate.
+The zip file is `certificates/<name>-service.zip`. It holds those three files, `ca.crt`
+and a `README.txt`, and it is encrypted with AES-256. Give `--password <password>` to
+set the password without a question. With an empty answer, the command makes a
+random one and prints it once. Send the password by another way than the zip file.
+The certificate names the Service,
+`localhost` and `127.0.0.1`, and each `--address`. Traefik checks the address of
+the Instance against these names, so add the host or IP address of each Instance
+with `--address`. The certificate allows server and client use. Signing does not
+copy anything to `tls/`, start TLS or change running services. A certificate uses
+ECDSA P-256 and lasts 365 days. On Linux and macOS, private keys have mode 600.
+`ws yard share` signs the Consul certificates itself, with the same CA, and puts
+the one of the joining Workstation in its encrypted invitation,
+`certificates/<workstation>-yard.zip`. No command signs a Consul certificate by hand.
 
-The Traefik certificate names `*.<Base Domain>`, `localhost` and `127.0.0.1`.
-Each `--address` adds one IP address or DNS name to it.
-A DNS wildcard must be the whole leftmost label, such as `*.ws-b.lvh.me`.
-Wildcards cannot cover IP addresses. The Base Domain is the one of this
-Workstation. `--days <number>` changes the validity.
+`lvh-yard ws tls ca issue user <name>` signs a Client Certificate for a person,
+in a `.p12` file in `ca/client/`. The parts of Traefik sign their own
+certificates: `ws tls https create` and `ws tls mtls create` call the Workstation
+CA, as `ca issue` does. `ws tls ca issue traefik` no longer exists.
+
 A certificate must expire before or with its CA. All these commands accept
 `--dir <folder>` and repair the Workstation Folder's private permissions.
 
-The default `*.<Base Domain>` covers local Routes only. A wildcard matches
-one label, so `*.lvh.me` does not cover `app.ws-b.lvh.me`.
-For each remote Workstation whose Routes this Workstation serves, add an
-extra wildcard to its Traefik certificate. For example, on a Workstation with
-Base Domain `lvh.me`:
+#### The three TLS parts of Traefik
+
+Each part has its own files in `tls/traefik/`, its own generated file in
+`traefik/dynamic/`, and its own setting in `.env`. So you turn each one on and off
+alone, and turning a part off keeps its files.
+
+|                         | HTTPS                                                        | Client Certificate authentication                                       | Mutual TLS to Services                                                         |
+| ----------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Group                   | `ws tls https`                                               | `ws tls client`                                                         | `ws tls mtls`                                                                  |
+| Proves                  | The Workstation's hostnames, to the browser                  | A person, to Traefik                                                    | Traefik, to a Service                                                          |
+| Presented by            | Traefik                                                      | The browser                                                             | Traefik                                                                        |
+| Checked by              | The browser, with the CA that it trusts                      | Traefik, with `client-ca.crt`                                           | The Service, with its CA. Traefik checks the Service with `mtls-ca.crt`        |
+| Signed by               | This Workstation's CA, a company CA or a public CA           | This Workstation's CA, or the CA that you import                        | This Workstation's CA, or a CA that you import                                 |
+| Needed for              | HTTPS on any Route                                           | Only a Route whose Route Profile has `clientCertificate: {}`            | Only a Route whose Route Profile has `mutualTLS: {}`                           |
+| Files in `tls/traefik/` | `https.crt`, `https.key`                                     | `client-ca.crt`                                                         | `mtls.crt`, `mtls.key`, `mtls-ca.crt`                                          |
+| Generated file          | `10-tls.yaml`                                                | `11-client-auth.yaml`                                                   | `12-mtls.yaml`                                                                 |
+| On when                 | `YARD_HTTPS_PORT` has a value                                | `YARD_CLIENT_AUTH_ENABLED=true`                                         | `YARD_MTLS_ENABLED=true`                                                       |
+| The other side needs    | To trust this Workstation's CA, unless a public CA signed it | A `.p12` file from `ws tls ca issue user`, in its personal certificates | A certificate from `ws tls ca issue service`, and `ca/ca.crt` to check Traefik |
+
+Every group has the same four commands:
+
+- **`create`** uses this Workstation's CA, and then turns the part on.
+  - `https create` signs the HTTPS certificate of this Workstation. It names
+    `*.<Base Domain>`, `localhost`, `127.0.0.1` and each `--address`. It takes
+    `--days`, and the CA key password flags.
+  - `client create` makes Traefik trust `ca/ca.crt` for Client Certificates. It
+    signs nothing, so it never asks for the CA key password. Sign each person
+    with `ws tls ca issue user`.
+  - `mtls create` signs a client certificate for Traefik, which allows client use
+    only. It also makes `ca/ca.crt` the CA that checks the Services.
+- **`import`** uses files that you bring, instead of this Workstation's CA, and
+  then turns the part on. It runs its checks before it writes any file.
+  - `https import --cert <file> --key <file> [--ca <file>]` needs a certificate
+    that names `yard.<Base Domain>`, and that `--ca` or a public CA signed. Put
+    the whole chain in the `--cert` file.
+  - `client import --ca <file>` takes only the CA certificate. The file may hold
+    more than one CA.
+  - `mtls import --ca <file> --cert <file> --key <file>` takes the certificate that
+    Traefik shows to Services, and the CA that checks the Services. The two can
+    come from different CAs.
+- **`enable`** checks the files in `tls/traefik/`, writes the generated file and
+  turns the part on. It needs the files from `create` or `import`.
+- **`disable`** removes the generated file and turns the part off. It keeps the
+  files.
+
+All commands that turn a part on or off save `.env`. Apply the change with the printed
+`lvh-yard ws compose recreate`. A part needs Traefik on: they refuse to run while
+`ws set traefik off` is in effect, except `disable`. `ws compose upgrade` writes the
+generated files of the parts that are on again, and keeps the certificates.
+
+`ws tls install`, `ws tls enable` and `ws tls disable` no longer exist. A folder
+from before the three parts has `tls/traefik/traefik.crt|key` and `ca.crt`. The
+upgrade renames them to `https.crt|key` and `client-ca.crt`, and keeps the check
+of Client Certificates on, because HTTPS used to turn it on.
+
+##### HTTPS
+
+The default `*.<Base Domain>` covers local Routes only. A wildcard matches one
+label, so `*.lvh.me` does not cover `app.ws-b.lvh.me`. A DNS wildcard must be the
+whole leftmost label, such as `*.ws-b.lvh.me`. Wildcards cannot cover IP
+addresses. For each remote Workstation whose Routes this Workstation serves, add
+an extra wildcard. For example, on a Workstation with Base Domain `lvh.me`:
 
 ```sh
-lvh-yard ws tls ca issue traefik --address '*.ws-b.lvh.me'
+lvh-yard ws tls https create --address '*.ws-b.lvh.me'
 ```
 
 This covers `app.ws-b.lvh.me`, but not `app.ws-c.lvh.me` or
-`deeper.app.ws-b.lvh.me`. Repeat `--address` for each remote Workstation.
-When a new Peer needs Route coverage, issue and install a new Traefik
-certificate with all required `--address` values. The Consul certificates do
-not change.
+`deeper.app.ws-b.lvh.me`. Repeat `--address` for each remote Workstation. When a
+new Peer needs Route coverage, run `https create` again with all the `--address`
+values. The Consul certificates do not change. HTTPS keeps a port that you set with
+`ws set https-port`, and uses 443 when none is set.
 
-`lvh-yard ws tls install` puts the Traefik certificate where Traefik reads it,
-and turns HTTPS on. It never copies a file to another computer. It has two
-sources:
+##### Client Certificate authentication
 
-- **Without flags,** it installs the certificate that this Workstation's CA signed
-  for this Workstation. It copies `ca/ca.crt` and the certificate and key to
-  `tls/traefik/`. Sign the certificate first with `ws tls ca issue traefik`. A
-  certificate that was never signed is an error, and so is Traefik while it is
-  off.
-- **With `--ca ca.crt --cert <file> --key <file>`,** it installs the files that you
-  name, from any folder. The three flags come together. Use them for a company
-  or public CA, and for any setup that you made by hand.
+Traefik asks for a Client Certificate only on Routes whose Route Profile has
+`clientCertificate: {}`, and only on HTTPS. Such a Route has no hostname while
+HTTPS or this part is off. A Client Certificate works on the Routes of the
+Workstation whose CA signed it, because each Traefik checks with its own
+`client-ca.crt`. A Route Profile with `clientCertificate: {}` on a Publication that
+another Workstation routes asks the Traefik of that Workstation. To serve it there,
+sign the person a certificate on that Workstation, or run `ws tls client import
+--ca ca.crt` there, with the CA that signed it.
 
-Both sources run the same checks before the command writes any files. The
-certificate must be valid for the CA or for a public CA, so a company or
-Let's Encrypt certificate works. It must name `yard.<Base Domain>`. `--ca` is
-the CA that signs the Client Certificates of this Workstation, because Traefik
-uses it to check them.
+##### Mutual TLS to Services
 
-It writes `traefik/dynamic/10-tls.yaml`, and `YARD_HTTPS_PORT=443` if it is
-empty. To change the choice later, use `lvh-yard ws tls enable` or
-`lvh-yard ws tls disable`. `enable` needs the files in `tls/traefik/`, and
-checks them. `disable` keeps them. Apply any change with the printed
-`lvh-yard ws compose recreate`.
+Traefik calls the Instances of a Service over HTTPS, with its certificate, only for
+a Route whose Route Profile has `mutualTLS: {}`. Other Routes keep plain HTTP, so a
+Service that has no TLS keeps working. A Service with `mutualTLS: {}` has no Route,
+and a Service Warning, while this part is off.
+
+While HTTPS is on, a Route without `mutualTLS: {}` sends the traffic to its
+Instances over plain HTTP. If an Instance is not on loopback, the Service has a
+Service Warning of level **risk**, because anyone on that network can read the
+traffic. An Instance on loopback gets no warning, because its traffic does not
+leave the computer.
+
+1. Run `ws tls mtls create`.
+2. Run `ws tls ca issue service <name> --address <Instance host>`, and give the
+   Service `service-fullchain.crt` and `service.key`. The Service must trust `ca/ca.crt` and
+   ask for a client certificate.
+3. Add the option to a Route Profile of the Service, and publish the Service with it:
+
+   ```yaml
+   mutualTLS: {}
+   ```
+
+The dashboard does not check that an Instance speaks TLS, and its Reachability
+test of an Instance is a plain connection.
+
+##### Consul
 
 Only `ws yard init` and `ws yard join` install a Consul certificate and turn
 Consul TLS on. Turn Consul TLS on everywhere in the Yard in one go. A Workstation
 without it cannot federate with one that requires it. Consul verifies
 certificates in both directions for RPC. Its local HTTP API stays plain HTTP.
-`ws compose upgrade` rewrites the generated TLS options and keeps the installed
-certificates. If your `compose.yaml` still mounts `./tls` in Consul and
-Traefik, the command says so: mount `./tls/consul` in Consul and
-`./tls/traefik` in Traefik, and install the certificates again.
+If your `compose.yaml` still mounts `./tls` in Consul and Traefik, `ws compose
+upgrade` says so: mount `./tls/consul` in Consul and `./tls/traefik` in Traefik,
+and install the certificates again.
 
 #### Browser trust
 
@@ -811,9 +879,12 @@ trust, name the file for one request:
 
 #### Client Certificates
 
+Turn on HTTPS and the check of Client Certificates first, with
+`lvh-yard ws tls https create` and `lvh-yard ws tls client create`.
+
 On the Workstation that serves the Routes, run
 `lvh-yard ws tls ca issue user alice`. It asks for the username or email, a password and
-the validity, and writes `ca/clients/alice.p12` in the Workstation Folder with
+the validity, and writes `ca/client/alice.p12` in the Workstation Folder with
 private permissions.
 The file holds Alice's private key, Client Certificate and the CA certificate.
 If you leave the password empty, the command makes a random one and prints it
@@ -835,14 +906,14 @@ When a Route asks for a Client Certificate, select Alice's certificate.
 Import this Workstation's CA for website trust as described above, too.
 Share the `.p12` file and its password only with the person it identifies.
 
-On Windows, `ca/clients/alice.p12` stays private like the other secrets: other
+On Windows, `ca/client/alice.p12` stays private like the other secrets: other
 Windows users cannot read it. A copy in another folder gets that folder's
 access rights, so import the file and delete the copy. To import it for your
 user, run:
 
 ```powershell
 $password = Read-Host -AsSecureString 'Password of alice.p12'
-Import-PfxCertificate -FilePath "$ws\ca\clients\alice.p12" -CertStoreLocation Cert:\CurrentUser\My -Password $password
+Import-PfxCertificate -FilePath "$ws\ca\client\alice.p12" -CertStoreLocation Cert:\CurrentUser\My -Password $password
 ```
 
 Firefox needs its own import, as above. The tests did not use a browser for
@@ -851,34 +922,60 @@ this step. To check the import without a browser, give `curl.exe` the thumbprint
 `curl.exe --ssl-no-revoke --cacert "$ws\ca\ca.crt" --cert "CurrentUser\MY\<thumbprint>" https://admin.lvh.me/`.
 Remove it with `Remove-Item Cert:\CurrentUser\My\<thumbprint>`.
 
-#### Sending certificates by email
+#### Sending the user to the Service
 
-`lvh-yard ws tls ca export` packs what this Workstation's CA signed in a zip file,
-with a `README.txt` that tells the recipient what to do. Run it after you sign
-the certificate:
+A Service can read who the person is from the Client Certificate. Chain the
+certificate rule with the Traefik middleware `passTLSClientCert`, which adds a
+header to each request. Save this as `profiles.yaml`:
 
-| Command                                     | The zip file holds                                           | Zip password |
-| ------------------------------------------- | ------------------------------------------------------------ | ------------ |
-| `ws tls ca export user <username-or-email>` | The `.p12` file of `ws tls ca issue user`, and `ca.crt`      | No           |
-| `ws tls ca export ca`                       | `ca.crt` only, to trust the HTTPS Routes of this Workstation | No           |
+```yaml
+http:
+  middlewares:
+    certificate:
+      clientCertificate: {}
+    cert-info:
+      passTLSClientCert:
+        info:
+          subject:
+            commonName: true
+          serialNumber: true
+          notAfter: true
+    secure-with-user:
+      chain:
+        middlewares:
+          - certificate
+          - cert-info
+```
 
-There is no export of a Traefik certificate: its key never leaves its
-Workstation. The Consul certificates travel in the invitation of
-`ws yard share`, which is encrypted.
+Run `lvh-yard profiles set profiles.yaml`, then `lvh-yard publish <service>
+--profile secure-with-user`. The **Client Certificate user** example of the
+Route Profiles page shows the second profile.
 
-The command saves `certificates/<name>-user.zip` or `ca.zip` with private
-permissions. Use `--output <file>` to write another file. It exports only
-certificates that already exist, and tells you which `ws tls ca issue` command
-to run if one is missing.
+The Service gets the header `X-Forwarded-Tls-Client-Cert-Info`, URL-encoded. After
+decoding, it holds `Subject="CN=alice";Issuer="...";SerialNumber="...";NA="..."`.
+`CN` is the name that you gave to `ws tls ca issue user`, so use an email as the
+name if the Service needs one. The value can hold the CA certificate after the
+person's certificate, when the client sends the whole chain, as `curl` does with a
+`.p12` file. Read the first entry. Add `pem: true` to also get the whole
+certificate in `X-Forwarded-Tls-Client-Cert`.
 
-A `.p12` file has its own password from `ws tls ca issue user`, so its zip file
-has none and does not hold that password. Send that password by another way than
-the email, such as a phone call or a chat message. Then the email alone cannot
-open the key.
+The Service must trust the header only on connections from Traefik. A connection
+straight to the Instance's address and port skips Traefik, so a client can send any
+header there.
 
-The recipient of a user zip file imports the `.p12` file as in
-[Client Certificates](#client-certificates). Delete the zip file and your sent
-email when the recipient has imported the files.
+#### Sending certificates
+
+Only two commands pack certificates in a zip file: `ws tls ca issue service` and
+`ws yard share`, which is encrypted. Send everything else by hand:
+
+- **A user:** send `ca/client/<name>.p12` and `ca/ca.crt`. The recipient imports
+  the `.p12` file as in [Client Certificates](#client-certificates), and `ca.crt`
+  as a certificate authority to trust the HTTPS Routes.
+- **The password of the `.p12` file:** send it by another way than the file, such
+  as a phone call or a chat message. Then one stolen email cannot open the key.
+- **Never send:** `ca/ca.key`, or a key from `tls/`.
+
+Delete the sent copies when the recipient has imported the files.
 
 ### A host without Traefik
 
@@ -1666,8 +1763,9 @@ one of two levels:
 - **error**: the hostname does not work. An unknown Route Profile is an error.
 - **risk**: the hostname works, but other Workstations or users can meet a
   problem. An Instance on loopback, a container port that is not published, a
-  Route Profile that asks who the user is, a Foreign Instance, and an Alias
-  above another Instance Source of a Service with Yard Scope are risks.
+  Route Profile that asks who the user is, a Foreign Instance, an Alias
+  above another Instance Source of a Service with Yard Scope, and an Instance
+  that Traefik calls over plain HTTP while HTTPS is on are risks.
 
 A Foreign Instance is an Instance that another tool registered straight in
 Consul, for example with `curl` or the `consul` command. LVH Yard shows it and
@@ -1944,7 +2042,7 @@ The Consul KV of this Workstation holds its Route Profiles, under
 `lvh-yard/route-profiles/<name>`. Other Workstations read the profiles there.
 A profile is one middleware in the format of Traefik, such as
 `{"headers": {"customRequestHeaders": {"X-Forwarded-Proto": "https"}}}`,
-or the reserved option `clientCertificate: {}`.
+or one of the reserved options `clientCertificate: {}` and `mutualTLS: {}`.
 
 The Route Profiles page of the dashboard lists each profile with its name, its
 Traefik type and the Services whose Publications name it. In **Used by**, click a
@@ -2023,12 +2121,18 @@ A chain can name `certificate`, including through another chain.
 
 The Publication answers only on HTTPS. A request without a Client Certificate
 from that CA is refused. There is no HTTP Route or redirect.
-A Workstation without HTTPS gives it no Route. On the Home Workstation, this
-causes a Service Warning of level **error**. See [Client Certificates](#client-certificates)
-to make a certificate for a browser.
+A Workstation without HTTPS, or with `ws tls client` off, gives it no Route. On
+the Home Workstation, this causes a Service Warning of level **error**. See
+[Client Certificates](#client-certificates) to make a certificate for a browser.
 
 Dashboard hostname links use HTTPS and the configured HTTPS port for these
 Publications, with a lock icon. Other hostname links use HTTP.
+
+The reserved key `mutualTLS: {}` makes Traefik call the Instances of the Service
+over HTTPS, with its own certificate (`ws tls mtls create`). It has no settings
+and is not a Traefik middleware either. A chain can name it too. A Service with
+this key has no Route, and a Service Warning of level **error** on its Home
+Workstation, on a Workstation where mutual TLS is off.
 
 A profile must work on every Workstation, so the dashboard refuses a profile
 that:
@@ -2039,7 +2143,7 @@ that:
 - sends `forwardAuth` to `localhost` or to an out-of-range address
 - is a chain that names a middleware that is not a Route Profile of this
   Workstation, or that is refused
-- has a type that is neither a Traefik middleware nor `clientCertificate`
+- has a type that is neither a Traefik middleware, `clientCertificate` nor `mutualTLS`
 - has a name with other characters than letters, digits, `-` and `_`
 
 A refused save answers 400 with the reason, and nothing changes. So a bad save

@@ -89,7 +89,7 @@ The encrypted zip file that `ws yard share` makes for one joining Workstation. I
 _Avoid_: Invite, join file, bundle
 
 **Workstation CA**:
-The certificate authority of one Workstation. It signs the Traefik certificate and the Client Certificates of that Workstation, and its key stays there. LVH Yard makes it, or you bring your own certificates with `ws tls install --ca --cert --key`.
+The certificate authority of one Workstation. It signs the HTTPS certificate and the mutual TLS certificate of Traefik, the Service Certificates and the Client Certificates of that Workstation, and its key stays there. LVH Yard makes it, or you bring your own certificates with `ws tls https import`, `ws tls client import` and `ws tls mtls import`.
 _Avoid_: Yard CA, Private CA, root certificate
 
 **Main CA**:
@@ -97,12 +97,20 @@ The Workstation CA of the Workstation that shares the Yard. It signs the Consul 
 _Avoid_: Yard CA, root CA
 
 **Workstation Certificate**:
-One of the two certificates of a Workstation, each with its own key: the Consul certificate, which Consul uses between Workstations, and the Traefik certificate, which Traefik uses for HTTPS on that Workstation's Routes and shows to browsers. The main CA signs the Consul certificate. The Workstation CA signs the Traefik certificate, or a company or public CA does, and its key never leaves the Workstation.
+One of the two certificates of a Workstation, each with its own key: the Consul certificate, which Consul uses between Workstations, and the HTTPS certificate of Traefik, which Traefik shows to browsers on that Workstation's Routes. The main CA signs the Consul certificate. The Workstation CA signs the HTTPS certificate, or a company or public CA does, and its key never leaves the Workstation.
 _Avoid_: Server certificate, TLS cert
 
 **Client Certificate**:
-A certificate that a Workstation CA signs for a person, and that the person's browser shows to Traefik. Traefik checks it with the CA of its own Workstation. It is not a Workstation Certificate. A Route Profile with `clientCertificate: {}` requires it. That Route answers only on HTTPS and has no Route on a Workstation without HTTPS.
+A certificate that a Workstation CA signs for a person, and that the person's browser shows to Traefik. Traefik checks it with the CA in `tls/traefik/client-ca.crt`, which is the CA of its own Workstation unless you import another one. It is not a Workstation Certificate. A Route Profile with `clientCertificate: {}` requires it. That Route answers only on HTTPS, and has no Route on a Workstation without HTTPS or without the Client Certificate authentication TLS Part.
 _Avoid_: User certificate, mTLS certificate
+
+**TLS Part**:
+One of the three TLS jobs of Traefik: HTTPS, Client Certificate authentication, and mutual TLS to Services. Each has its own files in `tls/traefik/`, its own generated Traefik file and its own setting in `.env`. `ws tls https`, `ws tls client` and `ws tls mtls` each have `create` (signs with the Workstation CA), `import` (takes a CA, certificate and key that you bring), `enable` and `disable`.
+_Avoid_: TLS mode, TLS feature
+
+**Service Certificate**:
+A certificate that a Workstation CA signs for a Service with `ws tls ca issue service`. The Service serves HTTPS with it. Traefik checks the Service with the CA when the Route Profile of the Publication has `mutualTLS: {}`.
+_Avoid_: Backend certificate, server certificate
 
 **Base Domain**:
 The domain that every hostname on one Workstation ends with, such as `lvh.me`. Each Workstation picks its own, and it can be a public domain.
