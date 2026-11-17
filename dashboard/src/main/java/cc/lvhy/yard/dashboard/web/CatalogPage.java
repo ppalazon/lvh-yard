@@ -6,6 +6,7 @@ import cc.lvhy.yard.dashboard.TraefikSettings;
 import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.services.Health;
 import cc.lvhy.yard.dashboard.services.HomeWorkstation;
+import cc.lvhy.yard.dashboard.services.Instance;
 import cc.lvhy.yard.dashboard.services.Scope;
 import cc.lvhy.yard.dashboard.services.Service;
 import cc.lvhy.yard.dashboard.services.ServiceState;
@@ -370,14 +371,15 @@ final class CatalogPage {
           if (service.empty()) {
             cell.span().attrClass("badge").addAttr("data-variant", "outline").text("Empty").__();
           } else {
+            List<Instance> counted = service.countedInstances();
             cell.text(
-                service.instances().isEmpty()
+                counted.isEmpty()
                     ? "No Instances"
-                    : service.instances().stream()
+                    : counted.stream()
                             .filter(instance -> instance.health() == Health.PASSING)
                             .count()
                         + " of "
-                        + service.instances().size()
+                        + counted.size()
                         + " passing");
           }
         })

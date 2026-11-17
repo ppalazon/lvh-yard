@@ -499,7 +499,7 @@ final class ServicePage {
   private static void header(
       Div<?> content, Service service, boolean own, TraefikSettings traefik) {
     long passing =
-        service.instances().stream()
+        service.countedInstances().stream()
             .filter(instance -> instance.health() == Health.PASSING)
             .count();
     content
@@ -533,7 +533,7 @@ final class ServicePage {
         .__()
         .p()
         .attrClass("font-medium")
-        .text(passing + " of " + service.instances().size() + " Instances passing")
+        .text(passing + " of " + service.countedInstances().size() + " Instances passing")
         .__()
         .of(facts -> {
           // An Unpublished Service has no Route, and its state says so already.

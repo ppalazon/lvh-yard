@@ -113,7 +113,7 @@ public record Service(
 
   /**
    * This Service of the Home Workstation with {@code aliased}: the Instances of the Remote Service
-   * of each Alias, by the Alias's source ID.
+   * of each Alias, by the Alias's source ID. Its state counts them, as its Route uses them.
    */
   Service withAliases(Map<String, List<Instance>> aliased) {
     List<InstanceSource> filled =
@@ -123,7 +123,29 @@ public record Service(
                     ? new InstanceSource(source.id(), source.kind(), aliased.get(source.id()))
                     : source)
             .toList();
-    return with(filled, routing(hostname, filled, instancePriority, true));
+    List<Instance> counted = counted(instances, filled);
+    return with(
+        ServiceState.of(publication, counted),
+        filled,
+        routing(hostname, filled, instancePriority, true));
+  }
+
+  /**
+   * The Instances that its state and its counts use: the ones registered here, and those of its
+   * Aliases. Only its Home Workstation lists its Aliases.
+   */
+  @JsonIgnore
+  public List<Instance> countedInstances() {
+    return counted(instances, sources);
+  }
+
+  private static List<Instance> counted(List<Instance> registered, List<InstanceSource> sources) {
+    return Stream.concat(
+            registered.stream(),
+            sources.stream()
+                .filter(source -> source.kind() == SourceKind.ALIAS)
+                .flatMap(source -> source.givenInstances().stream()))
+        .toList();
   }
 
   /**
@@ -131,7 +153,7 @@ public record Service(
    * the Route depends on the sockets of this runtime.
    */
   Service withRouting(Routing newRouting) {
-    return with(sources, newRouting);
+    return with(state, sources, newRouting);
   }
 
   /** Every Instance that its sources give now. */
@@ -140,11 +162,11 @@ public record Service(
     return sources.stream().flatMap(source -> source.givenInstances().stream());
   }
 
-  private Service with(List<InstanceSource> newSources, Routing newRouting) {
+  private Service with(ServiceState newState, List<InstanceSource> newSources, Routing newRouting) {
     return new Service(
         workstation,
         name,
-        state,
+        newState,
         created,
         empty,
         publication,

@@ -61,7 +61,7 @@ public class ReachabilityTester {
     Routing routing = service.routing();
     try (ExecutorService checks = Executors.newVirtualThreadPerTaskExecutor()) {
       List<Future<InstanceReachability>> instances =
-          service.instances().stream()
+          service.countedInstances().stream()
               .map(instance ->
                   checks.submit(
                       () -> connect(instance, routing != null && routing.routes(instance))))

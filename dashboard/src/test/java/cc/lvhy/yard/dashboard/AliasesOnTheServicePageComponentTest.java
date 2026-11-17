@@ -1,11 +1,14 @@
 package cc.lvhy.yard.dashboard;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
+import java.time.Duration;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import tools.jackson.databind.JsonNode;
 
 /** The Aliases of a Service, which its Service page adds, shows and removes. */
 class AliasesOnTheServicePageComponentTest extends DashboardComponentTest {
@@ -110,6 +113,53 @@ class AliasesOnTheServicePageComponentTest extends DashboardComponentTest {
 
     String sources = div(getPage(page(web)).getBody(), "id=\"sources\"");
     assertThat(sources).contains("data-alias-reason").contains("Local Scope");
+  }
+
+  @Test
+  void aliasInstancesCountForTheStateAndThePassingCounts() {
+    String grafana = newServiceName("grafana");
+    for (int i = 0; i < 3; i++) {
+      int port = newLanPort();
+      listenOnLanAddress(port);
+      remote.register(
+          grafana, Map.of("host", lanAddress(), "port", port, "check", Map.of("interval", "1s")));
+    }
+    remote.publish(grafana, "yard");
+    String web = newServiceName("web");
+    publish(web);
+
+    postForm(page(web) + "/aliases", Map.of("target", target(grafana)));
+
+    await()
+        .atMost(Duration.ofSeconds(15))
+        .untilAsserted(() ->
+            assertThat(get(servicePath(web)).getBody().get("state").asString())
+                .isEqualTo("healthy"));
+    assertThat(getPage(page(web)).getBody())
+        .contains("3 of 3 Instances passing")
+        .doesNotContain("No Instances are registered");
+    assertThat(getPage("/?state=healthy").getBody()).contains("3 of 3 passing");
+  }
+
+  @Test
+  void reachabilityTestsEveryInstanceOfTheAliasesRemoteService() {
+    String grafana = newServiceName("grafana");
+    for (int port = 3001; port <= 3003; port++) {
+      remote.register(grafana, Map.of("host", "127.0.0.1", "port", port));
+    }
+    remote.publish(grafana, "yard");
+    String web = newServiceName("web");
+    publish(web);
+    postForm(page(web) + "/aliases", Map.of("target", target(grafana)));
+
+    JsonNode result = get(servicePath(web) + "/reachability").getBody();
+
+    assertThat(result.get("instances"))
+        .extracting(instance -> instance.get("address").asString())
+        .containsExactlyInAnyOrder("127.0.0.1:3001", "127.0.0.1:3002", "127.0.0.1:3003");
+    assertThat(getPage(page(web) + "/reachability").getBody())
+        .contains("Instance 127.0.0.1:3002")
+        .contains("Only " + RemoteWorkstation.NAME + " reaches this address");
   }
 
   @Test

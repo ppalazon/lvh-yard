@@ -1600,7 +1600,8 @@ A Service is `unpublished`, `unavailable` (published, no Instances), `unhealthy`
 (published, no passing Instance), `degraded` (published, some Instances pass and
 some do not) or `healthy` (published, every Instance passes). Warning and critical
 Health both count as not passing. The state counts every Instance, whatever the
-Instance Priority or its Out-of-range mark. Degraded and warning Health have orange
+Instance Priority or its Out-of-range mark. On its Home Workstation, it also counts the
+Instances of the Service's Aliases. Degraded and warning Health have orange
 badges. A Degraded Service still routes to its passing Instances.
 
 A Publication covers every Instance of the Service, also the ones that you
@@ -1808,7 +1809,8 @@ do not refresh by themselves.
 You can also run `lvh-yard test`, or send
 `GET /api/services/<workstation>/<service>/reachability`.
 
-The test connects to each Instance directly. It also sends a request for the
+The test connects to each Instance directly, also to the Instances of the Service's
+Aliases. The page names the Alias that gives an Instance. It also sends a request for the
 hostname of the Service through the local Traefik.
 If the Service has no Route here, only the Instances are tested, and the result
 says why. An Out-of-range Instance is skipped, and that is not a failure.

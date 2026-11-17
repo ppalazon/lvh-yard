@@ -173,7 +173,7 @@ A Service with no Publication, by your choice. Its Instances can be registered a
 Not the same as an unpublished container port, which is Docker's word for a container port not mapped to a host port (`docker run -p`). A Bound Instance on one is at its container's own address, so a Yard-scoped Service warns about it.
 
 **Unavailable**:
-A published Service with no registered Instances.
+A published Service with no registered Instances. On its Home Workstation, the Instances of its Aliases count as registered.
 _Avoid_: Down, offline
 
 **Unhealthy**:

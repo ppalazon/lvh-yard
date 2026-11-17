@@ -4,6 +4,7 @@ import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.reachability.InstanceReachability;
 import cc.lvhy.yard.dashboard.reachability.Reachability;
 import cc.lvhy.yard.dashboard.reachability.RouteReachability;
+import cc.lvhy.yard.dashboard.services.AliasTarget;
 import cc.lvhy.yard.dashboard.services.Routing;
 import cc.lvhy.yard.dashboard.services.Service;
 import cc.lvhy.yard.dashboard.services.SourceKind;
@@ -156,17 +157,36 @@ final class ReachabilityPage {
         .__();
   }
 
-  /** Says whether the Route uses it, so a skipped Instance is not taken for a broken one. */
+  /**
+   * Says whether the Route uses it, so a skipped Instance is not taken for a broken one. An
+   * Instance of an Alias names its Remote Service.
+   */
   private static String instanceDetails(
       Service service, Reachability reachability, InstanceReachability instance) {
+    AliasTarget alias = aliasOf(service, instance);
     if (instance.outOfRange()) {
-      return "Only " + service.workstation() + " reaches this address, so it is not tested.";
+      return "Only "
+          + (alias == null ? service.workstation() : alias.workstation())
+          + " reaches this address, so it is not tested.";
     }
-    String result = instance.reached() ? "Connected directly." : instance.error();
+    String result =
+        (instance.reached() ? "Connected directly." : instance.error())
+            + (alias == null ? "" : " Given by the Alias to " + alias.label() + ".");
     if (reachability.routing() == null) {
       return result;
     }
     return result + (instance.routed() ? " In the Route." : " Not in the Route now.");
+  }
+
+  /** The Remote Service of the Alias that gives {@code instance}, if an Alias gives it. */
+  private static AliasTarget aliasOf(Service service, InstanceReachability instance) {
+    return service.sources().stream()
+        .filter(source -> source.kind() == SourceKind.ALIAS)
+        .filter(source ->
+            source.givenInstances().stream().anyMatch(given -> given.id().equals(instance.id())))
+        .findFirst()
+        .map(source -> AliasTarget.parse(source.id()))
+        .orElse(null);
   }
 
   private static String routingNow(Service service, Reachability reachability) {
