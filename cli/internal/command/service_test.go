@@ -19,7 +19,7 @@ func TestServiceCreateAndDelete(t *testing.T) {
 		{"new", "create", 201, `{"name":"web","created":true}`, "Created web."},
 		{"existing", "create", 200, `{"name":"web","created":true}`, "web exists already."},
 		{"delete", "delete", 204, "", "Deleted web with"},
-		{"missing", "delete", 404, `{"detail":"This Workstation has no Service web."}`, "web does not exist already. Nothing to delete."},
+		{"missing", "delete", 404, `{"detail":"This Workstation has no Service web."}`, "web does not exist. Nothing to delete."},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

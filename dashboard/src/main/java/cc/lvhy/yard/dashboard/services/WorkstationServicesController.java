@@ -280,7 +280,7 @@ class WorkstationServicesController {
               + " <service>.<workstation>.<base-domain>. With no Scope, a new Publication gets"
               + " Local Scope and an existing one keeps its own. The Route applies the Route"
               + " Profiles in order. Middleware profiles are named <workstation>_<profile>. A"
-              + " clientCertificate profile requires HTTPS and a Yard CA Client Certificate. With"
+              + " clientCertificate profile requires HTTPS and a Client Certificate. With"
               + " no profiles, a Publication keeps its own. Empty profiles remove them all. With"
               + " accessLog true, Traefik logs the requests to the Route. With no accessLog, a new"
               + " Publication does not log them and an existing one keeps its own.")

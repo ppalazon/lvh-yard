@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"unicode"
 
 	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
 	"github.com/ppalazon/lvh-yard/cli/internal/settings"
@@ -21,31 +20,38 @@ import (
 type initOptions struct {
 	workstation  string
 	baseDomain   string
-	peers        []string
 	address      string
-	gossipKey    string
 	force        bool
 	dockerSocket string
 	hostname     string
 	terminal     bool
 }
 
+const initHelp = `Writes the setup files for this Workstation.
+
+Does:
+  1. Asks for the name, Base Domain and LAN address when a flag is missing.
+  2. Makes a Gossip Key.
+  3. Writes compose.yaml, .env, lvh-yard.yaml and consul.d/.
+
+Next: start the Compose services, as it prints.
+Note: it stops when a file exists. Use --force to overwrite.`
+
 func newWSInit(options *Options, folder func() string) *cobra.Command {
 	flags := &initOptions{}
 	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Writes the setup files for this Workstation.",
+		Short: "Writes the setup files of this Workstation.",
+		Long:  initHelp,
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return flags.create(cmd, options, folder())
 		},
 	}
 	f := cmd.Flags()
-	f.StringVar(&flags.workstation, "workstation", "", "Sets this Workstation's unique name in the Yard.")
-	f.StringVar(&flags.baseDomain, "base-domain", "", "Sets the Base Domain at the end of this Workstation's hostnames.")
-	f.StringArrayVar(&flags.peers, "peers", nil, "Sets the LAN addresses of other Workstations, separated by spaces or commas.")
-	f.StringVar(&flags.address, "address", "", "Sets this Workstation's LAN IPv4 address.")
-	f.StringVar(&flags.gossipKey, "gossip-key", "", "Uses the Yard's shared Gossip Key.")
+	f.StringVar(&flags.workstation, "workstation", "", "Sets the name of this Workstation.")
+	f.StringVar(&flags.baseDomain, "base-domain", "", "Sets the Base Domain of this Workstation.")
+	f.StringVar(&flags.address, "address", "", "Sets the LAN IPv4 address of this Workstation.")
 	f.BoolVar(&flags.force, "force", false, "Overwrites the files when they exist.")
 	f.StringVar(&flags.dockerSocket, "docker-socket", "/var/run/docker.sock", "Reads the Docker group from this socket.")
 	f.StringVar(&flags.hostname, "hostname", "", "Offers this hostname as the Workstation name.")
@@ -72,18 +78,14 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	if err != nil {
 		return err
 	}
-	key, err := f.gossipKeyValue(cmd)
-	if err != nil {
-		return err
-	}
-	peers, err := f.checkedPeers()
+	key, err := newGossipKey()
 	if err != nil {
 		return err
 	}
 	if err := f.lanIdentity(prompt, options, env); err != nil {
 		return err
 	}
-	if err := f.fillEnv(env, options, folder, name, domain, key, peers); err != nil {
+	if err := f.fillEnv(env, options, folder, name, domain, key); err != nil {
 		return err
 	}
 	compose, err := templates.Compose(options.Version)
@@ -96,7 +98,7 @@ func (f *initOptions) create(cmd *cobra.Command, options *Options, folder string
 	if warning := dockerGroupWarning(env, f.dockerSocket); warning != "" {
 		fmt.Fprintln(cmd.ErrOrStderr(), warning)
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "Wrote compose.yaml, .env, lvh-yard.yaml to %s.\n\n", folder)
+	fmt.Fprintf(cmd.OutOrStdout(), "Wrote compose.yaml, .env and lvh-yard.yaml in %s.\n\n", folder)
 	printInitNextSteps(cmd.OutOrStdout(), folder, env, options.WorkstationFolder())
 	return nil
 }
@@ -110,16 +112,16 @@ type initPrompt struct {
 
 func (p *initPrompt) ask(question, flag string) (string, error) {
 	if !p.terminal {
-		return "", fmt.Errorf("Missing %s: no terminal to ask for it, so give it as %s", flag, flag)
+		return "", fmt.Errorf("Missing %s. No terminal is open: pass %s", flag, flag)
 	}
 	fmt.Fprint(p.out, question)
 	line, err := p.answers.ReadString('\n')
 	if err != nil && (err != io.EOF || len(line) == 0) {
 		fmt.Fprintln(p.out)
 		if err == io.EOF {
-			return "", fmt.Errorf("Missing %s: the input ended before it was given", flag)
+			return "", fmt.Errorf("Missing %s. The input ended: pass %s", flag, flag)
 		}
-		return "", fmt.Errorf("Missing %s: could not read it: %w", flag, err)
+		return "", fmt.Errorf("Missing %s. Could not read the answer: %w", flag, err)
 	}
 	return strings.TrimSpace(line), nil
 }
@@ -142,7 +144,7 @@ func (p *initPrompt) askValid(question, flag, fallback string, valid func(string
 	}
 }
 
-const workstationNameRule = "use lowercase letters, digits and -, at most 63, not starting or ending with -"
+const workstationNameRule = "use lowercase letters, digits and -; at most 63 characters; no - at the start or end"
 
 // workstationName is the --workstation flag, or the answer to a question that offers the name of
 // this computer.
@@ -154,7 +156,7 @@ func (f *initOptions) workstationName(cmd *cobra.Command, prompt *initPrompt) (s
 			hostname, _ = os.Hostname()
 		}
 		offered := nameFromHostname(hostname)
-		question := "Workstation name, unique in the Yard (lowercase letters, digits and -)"
+		question := "Workstation name (lowercase letters, digits and -)"
 		if offered != "" {
 			question += " [" + offered + "]"
 		}
@@ -183,7 +185,7 @@ func (f *initOptions) baseDomainValue(cmd *cobra.Command, prompt *initPrompt, te
 		if prompt.terminal {
 			var err error
 			domain, err = prompt.askValid("Base Domain ["+templateDomain+"]: ", "--base-domain", templateDomain, settings.ValidBaseDomain, func(answer string) string {
-				return answer + " is not a domain name such as lvh.me."
+				return answer + " is not a domain name. Use a name such as lvh.me."
 			})
 			if err != nil {
 				return "", err
@@ -191,41 +193,29 @@ func (f *initOptions) baseDomainValue(cmd *cobra.Command, prompt *initPrompt, te
 		}
 	}
 	if !settings.ValidBaseDomain(domain) {
-		return "", fmt.Errorf("--base-domain %s is not a domain name such as lvh.me", domain)
+		return "", fmt.Errorf("--base-domain %s is not a domain name. Use a name such as lvh.me", domain)
 	}
 	return domain, nil
 }
 
-// gossipKeyValue is the --gossip-key flag, checked, or a new random key.
-func (f *initOptions) gossipKeyValue(cmd *cobra.Command) (string, error) {
-	if cmd.Flags().Changed("gossip-key") || f.gossipKey != "" {
-		return f.gossipKey, checkInitGossipKey(f.gossipKey)
-	}
+// newGossipKey is a random Gossip Key: Base64 of 32 bytes.
+func newGossipKey() (string, error) {
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {
-		return "", fmt.Errorf("could not make a Gossip Key: %w", err)
+		return "", fmt.Errorf("could not make the Gossip Key: %w", err)
 	}
 	return base64.StdEncoding.EncodeToString(bytes), nil
 }
 
-// checkedPeers joins the --peers values, which may hold several addresses, and checks them.
-func (f *initOptions) checkedPeers() (string, error) {
-	var peers []string
-	for _, list := range f.peers {
-		peers = append(peers, strings.FieldsFunc(list, func(r rune) bool { return r == ',' || unicode.IsSpace(r) })...)
-	}
-	return settings.Check("peers", strings.Join(peers, " "))
-}
-
 // fillEnv gives the template's empty settings a value of this computer, and sets the answers.
-func (f *initOptions) fillEnv(env *envfile.File, options *Options, folder, name, domain, key, peers string) error {
+func (f *initOptions) fillEnv(env *envfile.File, options *Options, folder, name, domain, key string) error {
 	if err := env.FillIfEmpty("COMPOSE_PROFILES", "dashboard,traefik"); err != nil {
 		return err
 	}
 	if err := fillPlatformEnv(env, options, folder, f.dockerSocket); err != nil {
 		return err
 	}
-	for _, setting := range [][2]string{{"YARD_WORKSTATION", name}, {"YARD_BASE_DOMAIN", domain}, {"YARD_GOSSIP_KEY", key}, {"YARD_PEERS", peers}} {
+	for _, setting := range [][2]string{{"YARD_WORKSTATION", name}, {"YARD_BASE_DOMAIN", domain}, {"YARD_GOSSIP_KEY", key}} {
 		if err := env.Set(setting[0], setting[1]); err != nil {
 			return err
 		}
@@ -239,7 +229,7 @@ func checkInitGossipKey(key string) error {
 		decoded, err = base64.RawStdEncoding.DecodeString(key)
 	}
 	if err != nil || (len(decoded) != 16 && len(decoded) != 24 && len(decoded) != 32) {
-		return fmt.Errorf("--gossip-key is not a Gossip Key: copy the Yard's key, Base64 of 32 bytes, from another Workstation's .env")
+		return fmt.Errorf("the Gossip Key is not valid. Use Base64 of 16, 24 or 32 bytes")
 	}
 	return nil
 }
@@ -264,7 +254,9 @@ func nameFromHostname(hostname string) string {
 
 func (f *initOptions) lanIdentity(prompt *initPrompt, options *Options, env *envfile.File) error {
 	if !lanAddressRequired && f.address == "" {
-		return nil
+		// A new Workstation listens on this computer only. ws yard share and ws yard join open it to
+		// the LAN.
+		return env.Set("YARD_BIND_ADDRESS", loopbackAddress)
 	}
 	address := f.address
 	valid := func(value string) bool { return isGlobalUnicastIPv4(net.ParseIP(value)) }
@@ -276,7 +268,7 @@ func (f *initOptions) lanIdentity(prompt *initPrompt, options *Options, env *env
 		if prompt.terminal || !valid(offered) {
 			var err error
 			address, err = prompt.askValid("LAN IPv4 address ["+offered+"]: ", "--address", offered, valid, func(string) string {
-				return "Use a LAN IPv4 address that other Workstations can reach."
+				return "Use a LAN IPv4 address that the other Workstations can reach."
 			})
 			if err != nil {
 				return err
@@ -286,7 +278,7 @@ func (f *initOptions) lanIdentity(prompt *initPrompt, options *Options, env *env
 		}
 	}
 	if !valid(address) {
-		return fmt.Errorf("invalid --address: use a LAN IPv4 address that other Workstations can reach")
+		return fmt.Errorf("invalid --address. Use a LAN IPv4 address that the other Workstations can reach")
 	}
 	return env.Set("YARD_BIND_ADDRESS", address)
 }
@@ -346,7 +338,7 @@ func refuseExistingFiles(root *os.Root, folder string, files []workstationFile) 
 	for _, file := range files {
 		path := filepath.Join(folder, file.name)
 		if _, err := root.Lstat(file.name); err == nil {
-			return fmt.Errorf("%s already exists: nothing was written. Give --force to overwrite", path)
+			return fmt.Errorf("%s already exists. Nothing was written. Use --force to overwrite it", path)
 		} else if !os.IsNotExist(err) {
 			return fmt.Errorf("could not read %s: %w", path, err)
 		}
@@ -394,9 +386,9 @@ func printInitNextSteps(out io.Writer, folder string, env *envfile.File, default
 	if filepath.Clean(folder) != filepath.Clean(defaultFolder) {
 		status = "lvh-yard --dashboard " + quoteShell(dashboard) + " status"
 	}
-	fmt.Fprintln(out, "Next steps:")
-	fmt.Fprintf(out, "\n1. Start Consul, Traefik and the dashboard. Choose ONE:\n\n   A. Workstation command (recommended):\n      %s compose start\n\n   B. Docker Compose (same action):\n      docker compose --project-directory %s up -d\n", ws, quoteShell(folder))
-	fmt.Fprintf(out, "\n2. Check the status:\n   %s\n", status)
-	fmt.Fprintf(out, "\n3. Open either address:\n   %s\n   %s\n", dashboard, yard)
-	fmt.Fprintf(out, "\n4. Connect other Workstations. Choose ONE:\n\n   A. Invite a Workstation into this Yard:\n      %s yard share\n\n   B. Join another Yard:\n      Ask a member for its invitation. For command help:\n      lvh-yard ws yard join --help\n", ws)
+	fmt.Fprintln(out, "Next:")
+	fmt.Fprintf(out, "  1. Start Consul, Traefik and the dashboard. Use one of:\n       %s compose start\n       docker compose --project-directory %s up -d\n", ws, quoteShell(folder))
+	fmt.Fprintf(out, "  2. Check the status:\n       %s\n", status)
+	fmt.Fprintf(out, "  3. Open the dashboard or the Yard page:\n       %s\n       %s\n", dashboard, yard)
+	fmt.Fprintf(out, "  4. To start a Yard, run in this order:\n       %[1]s tls ca create\n       %[1]s yard init\n       %[1]s yard share <workstation>\n     To join a Yard, ask a member for an Invitation, then run:\n       %[1]s yard join <zip file>\n", ws)
 }

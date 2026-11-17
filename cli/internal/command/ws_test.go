@@ -26,7 +26,7 @@ func TestWSReplacesTopLevelInit(t *testing.T) {
 	}
 	for _, args := range [][]string{{"ws", "--help"}, {"__complete", "ws", ""}} {
 		run := commandtest.New(t).Run(args...)
-		if run.ExitCode != 0 || !strings.Contains(run.Stdout, "init") || !strings.Contains(run.Stdout, "upgrade") {
+		if run.ExitCode != 0 || !strings.Contains(run.Stdout, "init") || !strings.Contains(run.Stdout, "compose") {
 			t.Fatalf("missing ws commands: %+v", run)
 		}
 	}
@@ -40,7 +40,7 @@ func TestWSDirWorksBeforeSubcommands(t *testing.T) {
 		t.Fatalf("init with group dir: %+v", run)
 	}
 	run = yard.Run("ws", "--dir", folder, "compose", "upgrade")
-	if run.ExitCode != 0 || !strings.Contains(run.Stdout, "already this version's") {
+	if run.ExitCode != 0 || !strings.Contains(run.Stdout, "already this version") {
 		t.Fatalf("upgrade with group dir: %+v", run)
 	}
 }

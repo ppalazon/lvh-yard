@@ -158,16 +158,26 @@ func TestInitPreservesTemplateCommentsAndOrder(t *testing.T) {
 }
 
 func TestInitFlagsSetWorkstationSettings(t *testing.T) {
-	const key = "pUqJrVyVRj5jsiYEkM/tFQYfWyJIv4s3XkvDwy7Cu5s="
 	folder := t.TempDir()
-	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-b", "--base-domain", "localhost", "--peers", "192.168.1.10,192.168.1.11:8302", "--peers", "10.0.0.2 10.0.0.3", "--gossip-key", key)
+	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-b", "--base-domain", "localhost")
 	if run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
 	env := readInitFile(t, folder, ".env")
-	for _, value := range []string{"YARD_WORKSTATION=ws-b", "YARD_BASE_DOMAIN=localhost", "YARD_PEERS=192.168.1.10 192.168.1.11:8302 10.0.0.2 10.0.0.3", "YARD_GOSSIP_KEY=" + key} {
+	for _, value := range []string{"YARD_WORKSTATION=ws-b", "YARD_BASE_DOMAIN=localhost", "YARD_PEERS="} {
 		if !strings.Contains(env, "\n"+value+"\n") {
 			t.Errorf("missing setting %s", value)
+		}
+	}
+}
+
+// A Yard is joined with ws yard join, so ws init has no flag for its Gossip Key or its Peers.
+func TestInitHasNoFlagsForTheYard(t *testing.T) {
+	for _, flag := range []string{"--peers", "--gossip-key"} {
+		folder := filepath.Join(t.TempDir(), "not-created")
+		run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a", flag, "x")
+		if run.ExitCode == 0 || !strings.Contains(run.Stderr, "unknown flag") {
+			t.Fatalf("%s: %+v", flag, run)
 		}
 	}
 }
@@ -240,8 +250,6 @@ func TestInitInputErrorsWriteNothing(t *testing.T) {
 		{"--workstation", strings.Repeat("a", 64)},
 		{"--workstation", "ws-a", "--base-domain", "Not A Domain"},
 		{"--workstation", "ws-a", "--base-domain", ""},
-		{"--workstation", "ws-a", "--gossip-key", "secret"},
-		{"--workstation", "ws-a", "--gossip-key", ""},
 		{"--force", "--upgrade"},
 		{"--force", "--unknown"},
 		{"--upgrade", "--unknown"},
@@ -256,16 +264,6 @@ func TestInitInputErrorsWriteNothing(t *testing.T) {
 				t.Fatalf("init wrote before validation: %v", err)
 			}
 		})
-	}
-}
-
-func TestInitAcceptsAllConsulGossipKeyLengths(t *testing.T) {
-	for _, length := range []int{16, 24, 32} {
-		key := base64.StdEncoding.EncodeToString(make([]byte, length))
-		run := commandtest.New(t).Run("ws", "init", "--dir", t.TempDir(), "--workstation", "ws-a", "--gossip-key", key)
-		if run.ExitCode != 0 {
-			t.Fatalf("%d-byte key: %+v", length, run)
-		}
 	}
 }
 
@@ -384,14 +382,5 @@ func TestInitDoesNotPromptForFlagValuesOrWithoutTerminal(t *testing.T) {
 		if run.ExitCode != 0 || strings.Contains(run.Stdout, "Workstation name") || strings.Contains(run.Stdout, "Base domain") {
 			t.Fatalf("unexpected prompts: %+v", run)
 		}
-	}
-}
-
-func TestInitAcceptsGossipKeyWithoutBase64Padding(t *testing.T) {
-	const key = "pUqJrVyVRj5jsiYEkM/tFQYfWyJIv4s3XkvDwy7Cu5s"
-	folder := t.TempDir()
-	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--gossip-key", key)
-	if run.ExitCode != 0 || !strings.Contains(readInitFile(t, folder, ".env"), "\nYARD_GOSSIP_KEY="+key+"\n") {
-		t.Fatalf("unpadded gossip key: %+v", run)
 	}
 }

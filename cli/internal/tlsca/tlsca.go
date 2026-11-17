@@ -1,4 +1,4 @@
-// Package tlsca makes and checks the certificates of a Yard: the Yard CA, the Consul and Traefik
+// Package tlsca makes and checks the certificates of a Workstation: its CA, the Consul and Traefik
 // certificates of a Workstation, and the Client Certificates of people. It reads and writes no
 // file, and asks nothing.
 package tlsca
@@ -39,9 +39,9 @@ func NewCertificate(name string, days int) (*x509.Certificate, *ecdsa.PrivateKey
 	return &x509.Certificate{SerialNumber: serial, Subject: pkix.Name{CommonName: name}, NotBefore: now, NotAfter: now.Add(time.Duration(days) * 24 * time.Hour)}, key, nil
 }
 
-// NewCA is the template of the Yard CA, which signs itself.
-func NewCA(days int) (*x509.Certificate, *ecdsa.PrivateKey, error) {
-	cert, key, err := NewCertificate("LVH Yard CA", days)
+// NewCA is the template of a Workstation's CA, which signs itself. name is its common name.
+func NewCA(name string, days int) (*x509.Certificate, *ecdsa.PrivateKey, error) {
+	cert, key, err := NewCertificate(name, days)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -91,13 +91,13 @@ func Names(cert *x509.Certificate) []string {
 // CheckWithin refuses a certificate that is valid at a time when its CA is not.
 func CheckWithin(leaf, ca *x509.Certificate) error {
 	if leaf.NotAfter.After(ca.NotAfter) || leaf.NotBefore.Before(ca.NotBefore) {
-		return fmt.Errorf("certificate validity is outside the Yard CA validity: use a shorter --days value or make a new CA")
+		return fmt.Errorf("certificate validity is outside the CA validity: use a shorter --days value or make a new CA")
 	}
 	return nil
 }
 
 // Sign gives the PEM of the certificate that parent signs with signer, and the PEM of its key. The
-// Yard CA signs itself with parent == cert and signer == key.
+// CA signs itself with parent == cert and signer == key.
 func Sign(cert, parent *x509.Certificate, key, signer *ecdsa.PrivateKey) (certPEM, keyPEM []byte, err error) {
 	der, err := x509.CreateCertificate(rand.Reader, cert, parent, &key.PublicKey, signer)
 	if err != nil {
@@ -111,28 +111,42 @@ func Sign(cert, parent *x509.Certificate, key, signer *ecdsa.PrivateKey) (certPE
 		pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: private}), nil
 }
 
-// ParseCA reads the Yard CA from its PEM files, and refuses a key that does not belong to a CA
-// certificate that can sign.
-func ParseCA(caPEM, keyPEM []byte) (*x509.Certificate, *ecdsa.PrivateKey, error) {
+// ParseCACertificate reads the CA certificate from its PEM file.
+func ParseCACertificate(caPEM []byte) (*x509.Certificate, error) {
 	block, _ := pem.Decode(caPEM)
 	if block == nil {
-		return nil, nil, fmt.Errorf("invalid Yard CA certificate")
+		return nil, fmt.Errorf("invalid CA certificate")
 	}
-	ca, err := x509.ParseCertificate(block.Bytes)
+	return x509.ParseCertificate(block.Bytes)
+}
+
+// ParseCA reads a CA from its PEM files, and refuses a key that does not belong to a CA
+// certificate that can sign. The password opens a key that has one: see KeyEncrypted. A key without
+// a password ignores it.
+func ParseCA(caPEM, keyPEM []byte, password string) (*x509.Certificate, *ecdsa.PrivateKey, error) {
+	ca, err := ParseCACertificate(caPEM)
 	if err != nil {
 		return nil, nil, err
 	}
-	block, _ = pem.Decode(keyPEM)
+	block, _ := pem.Decode(keyPEM)
 	if block == nil {
-		return nil, nil, fmt.Errorf("invalid Yard CA key")
+		return nil, nil, fmt.Errorf("invalid CA key")
 	}
-	signer, err := x509.ParseECPrivateKey(block.Bytes)
+	var signer *ecdsa.PrivateKey
+	if block.Type == encryptedKeyType {
+		if password == "" {
+			return nil, nil, ErrPasswordRequired
+		}
+		signer, err = decryptKey(block.Bytes, password)
+	} else {
+		signer, err = x509.ParseECPrivateKey(block.Bytes)
+	}
 	if err != nil {
 		return nil, nil, err
 	}
 	public, ok := ca.PublicKey.(*ecdsa.PublicKey)
 	if !ok || !public.Equal(&signer.PublicKey) || !ca.IsCA || ca.KeyUsage&x509.KeyUsageCertSign == 0 {
-		return nil, nil, fmt.Errorf("Yard CA key and signing certificate do not match")
+		return nil, nil, fmt.Errorf("CA key and signing certificate do not match")
 	}
 	return ca, signer, nil
 }

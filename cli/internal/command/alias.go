@@ -10,14 +10,14 @@ import (
 func NewAlias(options *Options) *cobra.Command {
 	group := &cobra.Command{
 		Use:   "alias",
-		Short: "Manages the Aliases that give a Service Remote Instances.",
+		Short: "Manages the Aliases of a Service.",
 		Args:  cobra.NoArgs,
 		RunE:  func(cmd *cobra.Command, args []string) error { return cmd.Help() },
 	}
 	var workstation, remoteService string
 	add := &cobra.Command{
 		Use:   "add <service>",
-		Short: "Adds an Alias and creates a missing Service with Local Scope.",
+		Short: "Adds an Alias to a Service.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			create := true
@@ -35,9 +35,9 @@ func NewAlias(options *Options) *cobra.Command {
 			case !added.AliasCreated:
 				fmt.Fprintf(out, "Service %s has the Alias to %s already.\n", args[0], remote)
 			case added.ServiceCreated:
-				fmt.Fprintf(out, "Created Service %s with Local Scope and added the Alias to %s.\n", args[0], remote)
+				fmt.Fprintf(out, "Created the Service %s with Local Scope. Added the Alias to %s.\n", args[0], remote)
 			default:
-				fmt.Fprintf(out, "Added the Alias to %s to the existing Service %s.\n", remote, args[0])
+				fmt.Fprintf(out, "Added the Alias to %s to the Service %s.\n", remote, args[0])
 			}
 			if added.Reason != "" {
 				fmt.Fprintln(cmd.ErrOrStderr(), "Warning: "+added.Reason)
@@ -45,13 +45,13 @@ func NewAlias(options *Options) *cobra.Command {
 			return nil
 		},
 	}
-	add.Flags().StringVar(&workstation, "workstation", "", "The Home Workstation of the Remote Service.")
-	add.Flags().StringVar(&remoteService, "service", "", "The name of the Remote Service.")
+	add.Flags().StringVar(&workstation, "workstation", "", "Sets the Home Workstation of the Remote Service.")
+	add.Flags().StringVar(&remoteService, "service", "", "Sets the name of the Remote Service.")
 	_ = add.MarkFlagRequired("workstation")
 	_ = add.MarkFlagRequired("service")
 	list := &cobra.Command{
 		Use:   "list <service>",
-		Short: "Lists the Aliases of a Service in order, with their state.",
+		Short: "Lists the Aliases of a Service.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			aliases, err := options.connect().Aliases(args[0])
@@ -84,8 +84,8 @@ func NewAlias(options *Options) *cobra.Command {
 			return nil
 		},
 	}
-	remove.Flags().StringVar(&removeWorkstation, "workstation", "", "The Home Workstation of the Remote Service.")
-	remove.Flags().StringVar(&removeService, "service", "", "The name of the Remote Service.")
+	remove.Flags().StringVar(&removeWorkstation, "workstation", "", "Sets the Home Workstation of the Remote Service.")
+	remove.Flags().StringVar(&removeService, "service", "", "Sets the name of the Remote Service.")
 	_ = remove.MarkFlagRequired("workstation")
 	_ = remove.MarkFlagRequired("service")
 	group.AddCommand(add, list, remove)

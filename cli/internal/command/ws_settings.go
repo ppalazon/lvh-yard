@@ -12,11 +12,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const renameWorkstationHint = "To change the Workstation name, export a Backup, run lvh-yard ws init under the new name, and import the Backup"
+const renameWorkstationHint = "To change the Workstation name: export a Backup, run \"lvh-yard ws init\" with the new name, then import the Backup"
 
 func newWSShow(folder func() string) *cobra.Command {
 	return &cobra.Command{
-		Use: "show", Short: "Prints this Workstation's settings with the Gossip Key hidden.", Args: cobra.NoArgs,
+		Use: "show", Short: "Prints the settings. Hides the Gossip Key.", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			env, err := readWSEnv(folder())
 			if err != nil {
@@ -36,7 +36,7 @@ func newWSShow(folder func() string) *cobra.Command {
 
 func newWSSet(folder func() string) *cobra.Command {
 	return &cobra.Command{
-		Use: "set <name> <value>", Short: "Changes one Workstation setting without restarting services.", Args: cobra.ExactArgs(2),
+		Use: "set <name> <value>", Short: "Changes one setting of this Workstation.", Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name, value := args[0], args[1]
 			if name == "workstation" || name == "workstation-name" || name == "YARD_WORKSTATION" {
@@ -44,7 +44,7 @@ func newWSSet(folder func() string) *cobra.Command {
 			}
 			key, ok := settings.EnvKey(name)
 			if !ok {
-				return fmt.Errorf("unknown setting %q: use base-domain, peers, bind-address, instance-host (Windows only), traefik-bind-address, dashboard-bind-address, http-port, https-port, traefik-admin-port, dashboard-port, consul-http-port, consul-dns-port, consul-grpc-tls-port, consul-server-port, consul-serf-lan-port, consul-serf-wan-port, out-of-range, stack-traces or traefik", name)
+				return fmt.Errorf("unknown setting %q. Use base-domain, peers, bind-address, instance-host (Windows only), traefik-bind-address, dashboard-bind-address, http-port, https-port, traefik-admin-port, dashboard-port, consul-http-port, consul-dns-port, consul-grpc-tls-port, consul-server-port, consul-serf-lan-port, consul-serf-wan-port, out-of-range, stack-traces or traefik", name)
 			}
 			checked, err := settings.Check(name, value)
 			if err != nil {
@@ -79,23 +79,30 @@ func newWSSet(folder func() string) *cobra.Command {
 				return err
 			}
 			if name == "traefik" && checked == "false" {
-				fmt.Fprintln(cmd.OutOrStdout(), "If this Workstation has traefik-admin, run lvh-yard remove traefik-admin.")
+				fmt.Fprintln(cmd.OutOrStdout(), "If this Workstation has traefik-admin, remove it:\n  lvh-yard remove traefik-admin")
 			}
 			return nil
 		},
 	}
 }
 
+// readWSEnv reads .env of a Workstation Folder. A folder without .env has no Workstation yet.
 func readWSEnv(folder string) (*envfile.File, error) {
-	path := filepath.Join(folder, ".env")
+	noWorkstation := fmt.Errorf("no Workstation in %s. Run \"lvh-yard ws init\" first", folder)
 	root, err := os.OpenRoot(folder)
+	if os.IsNotExist(err) {
+		return nil, noWorkstation
+	}
 	if err != nil {
-		return nil, fmt.Errorf("could not read %s: %w", path, err)
+		return nil, fmt.Errorf("could not read %s: %w", folder, err)
 	}
 	defer func() { _ = root.Close() }()
 	text, err := root.ReadFile(".env")
+	if os.IsNotExist(err) {
+		return nil, noWorkstation
+	}
 	if err != nil {
-		return nil, fmt.Errorf("could not read %s: %w", path, err)
+		return nil, fmt.Errorf("could not read %s: %w", filepath.Join(folder, ".env"), err)
 	}
 	return envfile.Parse(string(text)), nil
 }
@@ -112,7 +119,7 @@ func saveWSEnv(cmd *cobra.Command, folder string, env *envfile.File) error {
 	if err := root.WriteFile(".env", []byte(env.Text()), 0600); err != nil {
 		return err
 	}
-	fmt.Fprintln(cmd.OutOrStdout(), "Saved .env. Apply the settings:")
+	fmt.Fprintln(cmd.OutOrStdout(), "Saved .env.\nNext:")
 	quotedFolder := quoteShell(folder)
 	if strings.Trim(env.Get("YARD_TRAEFIK_ENABLED"), "\"'") == "false" {
 		fmt.Fprintf(cmd.OutOrStdout(), "  docker compose --project-directory %s --profile traefik stop traefik\n", quotedFolder)

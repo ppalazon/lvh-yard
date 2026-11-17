@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+
+	"golang.org/x/term"
 )
 
 // Process holds what a command asks of the computer. The parts that differ between systems are in
@@ -14,6 +16,9 @@ type Process interface {
 	Getenv(key string) string
 	Input() io.Reader
 	IsTerminal() bool
+	// ReadSecret reads one line without showing it. Without a terminal there is nothing to hide,
+	// so it gives the line that readLine reads.
+	ReadSecret(readLine func() (string, error)) (string, error)
 	LANAddress() (string, error)
 	Edit(editor, path string) error
 	Run(name string, args []string, dir string, stdout, stderr io.Writer) (int, error)
@@ -39,6 +44,15 @@ func (systemProcess) OS() string {
 
 func (systemProcess) Input() io.Reader {
 	return os.Stdin
+}
+
+func (systemProcess) ReadSecret(readLine func() (string, error)) (string, error) {
+	fd := int(os.Stdin.Fd())
+	if !term.IsTerminal(fd) {
+		return readLine()
+	}
+	secret, err := term.ReadPassword(fd)
+	return string(secret), err
 }
 
 func (systemProcess) Run(name string, args []string, dir string, stdout, stderr io.Writer) (int, error) {

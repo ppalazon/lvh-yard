@@ -55,27 +55,11 @@ func TestWorkstationTLSYard(t *testing.T) {
 		socket.Close()
 	}
 	settings := []string{"consul-http-port", "consul-dns-port", "consul-grpc-tls-port", "consul-server-port", "consul-serf-lan-port", "consul-serf-wan-port", "dashboard-port", "http-port", "traefik-admin-port"}
-	key := ""
 	for i, folder := range folders {
-		args := []string{"ws", "init", "--dir", folder, "--workstation", fmt.Sprintf("tls-ws-%d", i)}
-		if i == 1 {
-			args = append(args, "--gossip-key", key)
-		}
-		run(args...)
-		data, err := os.ReadFile(filepath.Join(folder, ".env"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, line := range strings.Split(string(data), "\n") {
-			if strings.HasPrefix(line, "YARD_GOSSIP_KEY=") {
-				key = strings.Trim(strings.TrimPrefix(line, "YARD_GOSSIP_KEY="), "\"'")
-			}
-		}
+		run("ws", "init", "--dir", folder, "--workstation", fmt.Sprintf("tls-ws-%d", i))
 		for j, name := range settings {
 			run("ws", "set", "--dir", folder, name, fmt.Sprint(ports[i][j]))
 		}
-		run("ws", "set", "--dir", folder, "bind-address", fmt.Sprintf("127.0.0.%d", i+1))
-		run("ws", "set", "--dir", folder, "peers", fmt.Sprintf("127.0.0.%d:%d", 2-i, ports[1-i][5]))
 		file, err := os.OpenFile(filepath.Join(folder, ".env"), os.O_APPEND|os.O_WRONLY, 0600)
 		if err != nil {
 			t.Fatal(err)
@@ -83,13 +67,21 @@ func TestWorkstationTLSYard(t *testing.T) {
 		fmt.Fprintf(file, "\nYARD_DASHBOARD_IMAGE=%s\n", image)
 		file.Close()
 	}
+	// The CA of the first Workstation is the main CA. ws yard init opens that Workstation, ws yard
+	// share signs the Consul certificate of the second one with the CA, and ws yard join installs it.
+	// Each Workstation signs its own Traefik certificate with its own CA. Both listen on loopback
+	// addresses.
 	run("ws", "tls", "ca", "create", "--dir", folders[0])
+	invitation := filepath.Join(t.TempDir(), "tls-ws-1-yard.zip")
+	run("ws", "yard", "init", "--dir", folders[0], "--address", "127.0.0.1")
+	run("ws", "yard", "share", "tls-ws-1", "--dir", folders[0], "--password", "yard-test-password", "--output", invitation)
+	run("ws", "yard", "join", invitation, "--dir", folders[1], "--address", "127.0.0.2", "--password", "yard-test-password")
 	for i, folder := range folders {
-		name := fmt.Sprintf("tls-ws-%d", i)
-		run("ws", "tls", "ca", "issue", "workstation", name, "--dir", folders[0])
-		for _, role := range []string{"consul", "traefik"} {
-			run("ws", "tls", "import", role, "--dir", folder, "--ca", filepath.Join(folders[0], "ca", "ca.crt"), "--cert", filepath.Join(folders[0], "ca", "certs", name, role+".crt"), "--key", filepath.Join(folders[0], "ca", "certs", name, role+".key"))
+		if i != 0 {
+			run("ws", "tls", "ca", "create", "--dir", folder)
 		}
+		run("ws", "tls", "ca", "issue", "traefik", "--dir", folder)
+		run("ws", "tls", "install", "--dir", folder)
 		run("ws", "set", "--dir", folder, "https-port", fmt.Sprint(ports[i][9]))
 	}
 	for i, folder := range folders {
@@ -159,7 +151,7 @@ func TestWorkstationTLSYard(t *testing.T) {
 	}
 	roots := x509.NewCertPool()
 	if !roots.AppendCertsFromPEM(caPEM) {
-		t.Fatal("invalid Yard CA")
+		t.Fatal("invalid CA")
 	}
 	httpsClient := &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, ServerName: "yard.lvh.me"}}}
 	deadline = time.Now().Add(time.Minute)
@@ -174,7 +166,7 @@ func TestWorkstationTLSYard(t *testing.T) {
 			}
 		}
 		if time.Now().After(deadline) {
-			t.Fatalf("HTTPS Route did not answer with a Yard CA certificate: %v", err)
+			t.Fatalf("HTTPS Route did not answer with a CA certificate: %v", err)
 		}
 		time.Sleep(time.Second)
 	}

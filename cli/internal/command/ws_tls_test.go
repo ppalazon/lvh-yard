@@ -109,7 +109,7 @@ func TestWSTLSCA(t *testing.T) {
 	assertPrivateWorkstation(t, folder)
 }
 
-func TestWSTLSWorkstationCertificates(t *testing.T) {
+func TestWSTLSTraefikCertificate(t *testing.T) {
 	yard := commandtest.New(t)
 	folder := t.TempDir()
 	if r := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "example.test"); r.ExitCode != 0 {
@@ -121,69 +121,37 @@ func TestWSTLSWorkstationCertificates(t *testing.T) {
 	ca := readTLSCertificate(t, filepath.Join(folder, "ca", "ca.crt"))
 	roots := x509.NewCertPool()
 	roots.AddCert(ca)
-	for _, tc := range []struct {
-		name, domain string
-		days         int
-		args         []string
-	}{
-		{"ws-a", "example.test", 365, nil},
-		{"ws-b", "other.test", 42, []string{"ws-b", "--base-domain", "other.test", "--days", "42"}},
-		{"ws-c", "example.test", 365, []string{"ws-c"}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"ws", "tls", "ca", "issue", "workstation", "--dir", folder, "--address", "192.168.1.22", "--address", "extra.example.test"}, tc.args...)
-			if r := yard.Run(args...); r.ExitCode != 0 {
-				t.Fatal(r)
-			}
-			dir := filepath.Join(folder, "ca", "certs", tc.name)
-			load := func(role string) *x509.Certificate {
-				pair, err := tls.LoadX509KeyPair(filepath.Join(dir, role+".crt"), filepath.Join(dir, role+".key"))
-				if err != nil {
-					t.Fatal(err)
-				}
-				if key, ok := pair.PrivateKey.(*ecdsa.PrivateKey); !ok || key.Curve != elliptic.P256() {
-					t.Fatalf("%s must use P-256", role)
-				}
-				return readTLSCertificate(t, filepath.Join(dir, role+".crt"))
-			}
-			verifies := func(cert *x509.Certificate, name string, usage x509.ExtKeyUsage) bool {
-				_, err := cert.Verify(x509.VerifyOptions{Roots: roots, DNSName: name, KeyUsages: []x509.ExtKeyUsage{usage}})
-				return err == nil
-			}
-			consul, traefik := load("consul"), load("traefik")
-			for _, name := range []string{"server." + tc.name + ".consul", "localhost", "127.0.0.1"} {
-				if !verifies(consul, name, x509.ExtKeyUsageServerAuth) {
-					t.Fatalf("the Consul certificate does not verify for %s", name)
-				}
-			}
-			if !verifies(consul, "", x509.ExtKeyUsageClientAuth) || len(consul.ExtKeyUsage) != 2 {
-				t.Fatal("the Consul certificate needs server and client use")
-			}
-			for _, name := range []string{"web." + tc.domain, "localhost", "127.0.0.1", "192.168.1.22", "extra.example.test"} {
-				if !verifies(traefik, name, x509.ExtKeyUsageServerAuth) {
-					t.Fatalf("the Traefik certificate does not verify for %s", name)
-				}
-			}
-			if verifies(traefik, "server."+tc.name+".consul", x509.ExtKeyUsageServerAuth) || verifies(consul, "192.168.1.22", x509.ExtKeyUsageServerAuth) || verifies(consul, "web."+tc.domain, x509.ExtKeyUsageServerAuth) {
-				t.Fatal("a certificate names what only the other one needs")
-			}
-			if len(traefik.ExtKeyUsage) != 1 || traefik.ExtKeyUsage[0] != x509.ExtKeyUsageServerAuth {
-				t.Fatal("the Traefik certificate allows server use only")
-			}
-			if consul.KeyUsage != x509.KeyUsageDigitalSignature || traefik.KeyUsage != x509.KeyUsageDigitalSignature {
-				t.Fatal("wrong key usages")
-			}
-			for _, cert := range []*x509.Certificate{consul, traefik} {
-				if cert.NotAfter.Sub(cert.NotBefore) != time.Duration(tc.days)*24*time.Hour {
-					t.Fatal("wrong leaf validity")
-				}
-			}
-			if readInitFile(t, dir, "consul.key") == readInitFile(t, dir, "traefik.key") {
-				t.Fatal("the two certificates share a key")
-			}
-		})
+	load := func(name, role string) *x509.Certificate {
+		dir := filepath.Join(folder, "ca", "certs", name)
+		pair, err := tls.LoadX509KeyPair(filepath.Join(dir, role+".crt"), filepath.Join(dir, role+".key"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if key, ok := pair.PrivateKey.(*ecdsa.PrivateKey); !ok || key.Curve != elliptic.P256() {
+			t.Fatalf("%s must use P-256", role)
+		}
+		return readTLSCertificate(t, filepath.Join(dir, role+".crt"))
 	}
-	for _, path := range []string{"tls/consul/consul.crt", "tls/traefik/traefik.crt", "consul.d/10-tls.hcl", "traefik/dynamic/10-tls.yaml"} {
+	verifies := func(cert *x509.Certificate, name string, usage x509.ExtKeyUsage) bool {
+		_, err := cert.Verify(x509.VerifyOptions{Roots: roots, DNSName: name, KeyUsages: []x509.ExtKeyUsage{usage}})
+		return err == nil
+	}
+	if r := yard.Run("ws", "tls", "ca", "issue", "traefik", "--dir", folder, "--address", "192.168.1.22", "--address", "extra.example.test", "--days", "42"); r.ExitCode != 0 {
+		t.Fatal(r)
+	}
+	traefik := load("ws-a", "traefik")
+	for _, name := range []string{"web.example.test", "localhost", "127.0.0.1", "192.168.1.22", "extra.example.test"} {
+		if !verifies(traefik, name, x509.ExtKeyUsageServerAuth) {
+			t.Fatalf("the Traefik certificate does not verify for %s", name)
+		}
+	}
+	if len(traefik.ExtKeyUsage) != 1 || traefik.ExtKeyUsage[0] != x509.ExtKeyUsageServerAuth || traefik.KeyUsage != x509.KeyUsageDigitalSignature {
+		t.Fatal("the Traefik certificate allows server use only")
+	}
+	if traefik.NotAfter.Sub(traefik.NotBefore) != 42*24*time.Hour {
+		t.Fatal("wrong leaf validity")
+	}
+	for _, path := range []string{"tls/traefik/traefik.crt", "traefik/dynamic/10-tls.yaml"} {
 		if _, err := os.Stat(filepath.Join(folder, path)); !os.IsNotExist(err) {
 			t.Fatalf("signing unexpectedly installed or enabled TLS: %s", path)
 		}
@@ -194,32 +162,38 @@ func TestWSTLSWorkstationCertificates(t *testing.T) {
 	assertPrivateWorkstation(t, folder)
 }
 
-func TestWSTLSIssueOneRole(t *testing.T) {
+func TestWSTLSIssueIsForThisWorkstationOnly(t *testing.T) {
 	yard := commandtest.New(t)
 	folder := t.TempDir()
 	for _, args := range [][]string{
 		{"ws", "init", "--dir", folder, "--workstation", "ws-a"},
 		{"ws", "tls", "ca", "create", "--dir", folder},
-		{"ws", "tls", "ca", "issue", "consul", "ws-b", "--dir", folder},
 	} {
 		if r := yard.Run(args...); r.ExitCode != 0 {
 			t.Fatal(r)
 		}
 	}
-	if _, err := os.Stat(filepath.Join(folder, "ca/certs/ws-b/consul.crt")); err != nil {
-		t.Fatal(err)
+	// Traefik takes no Workstation name and no other Base Domain. Consul has no command here: ws yard
+	// share signs its certificates.
+	for _, args := range [][]string{
+		{"issue", "traefik", "ws-b"}, {"issue", "traefik", "--base-domain", "other.test"},
+	} {
+		if r := yard.Run(append(append([]string{"ws", "tls", "ca"}, args...), "--dir", folder)...); r.ExitCode == 0 {
+			t.Fatalf("accepted %v", args)
+		}
 	}
-	if _, err := os.Stat(filepath.Join(folder, "ca/certs/ws-b/traefik.crt")); !os.IsNotExist(err) {
-		t.Fatal("issue consul also signed a Traefik certificate")
-	}
-	if r := yard.Run("ws", "tls", "ca", "issue", "consul", "ws-b", "--dir", folder, "--address", "192.168.1.1"); r.ExitCode == 0 {
-		t.Fatal("the Consul certificate took an address that only Traefik uses")
-	}
-	if r := yard.Run("ws", "tls", "ca", "issue", "traefik", "ws-b", "--dir", folder, "--base-domain", "other.test"); r.ExitCode != 0 {
-		t.Fatal(r)
-	}
-	if cert := readTLSCertificate(t, filepath.Join(folder, "ca/certs/ws-b/traefik.crt")); cert.VerifyHostname("app.other.test") != nil {
-		t.Fatal("the Traefik certificate lacks the Base Domain of ws-b")
+	// Nothing signs or packs a whole Workstation at once, and neither a Traefik nor a Consul
+	// certificate is packed to send.
+	for _, group := range []string{"issue", "export"} {
+		help := yard.Run("ws", "tls", "ca", group, "--help").Stdout
+		for _, gone := range []string{"workstation ", "workstation\n", "consul"} {
+			if strings.Contains(help, gone) {
+				t.Fatalf("ca %s still has a command for %q:\n%s", group, gone, help)
+			}
+		}
+		if group == "export" && strings.Contains(help, "traefik") {
+			t.Fatalf("ca export can pack a Traefik certificate:\n%s", help)
+		}
 	}
 }
 
@@ -233,29 +207,23 @@ func TestWSTLSIssueAsksForWhatIsNotGiven(t *testing.T) {
 		t.Fatal(r)
 	}
 	yard.Process.Terminal = true
-	// An name that is wrong is asked again, and an empty answer takes the default.
-	yard.Process.Stdin = "Bad Name\nws-b\n\n192.168.1.22 *.ws-x.example.test\n42\n"
-	r := yard.Run("ws", "tls", "ca", "issue", "workstation", "--dir", folder)
+
+	// The names to add, and the validity.
+	yard.Process.Stdin = "192.168.1.22 *.ws-x.example.test\n42\n"
+	r := yard.Run("ws", "tls", "ca", "issue", "traefik", "--dir", folder)
 	if r.ExitCode != 0 {
 		t.Fatal(r)
 	}
-	if !strings.Contains(r.Stdout, "invalid Workstation name") {
-		t.Fatalf("a bad name was not asked again:\n%s", r.Stdout)
-	}
-	consul := readTLSCertificate(t, filepath.Join(folder, "ca", "certs", "ws-b", "consul.crt"))
-	traefik := readTLSCertificate(t, filepath.Join(folder, "ca", "certs", "ws-b", "traefik.crt"))
-	if traefik.NotAfter.Sub(traefik.NotBefore) != 42*24*time.Hour || consul.NotAfter.Sub(consul.NotBefore) != 42*24*time.Hour {
-		t.Fatal("the validity answer was ignored")
-	}
-	if err := consul.VerifyHostname("server.ws-b.consul"); err != nil {
-		t.Fatal(err)
-	}
+	traefik := readTLSCertificate(t, filepath.Join(folder, "ca", "certs", "ws-a", "traefik.crt"))
 	for _, name := range []string{"app.example.test", "192.168.1.22", "app.ws-x.example.test"} {
 		if err := traefik.VerifyHostname(name); err != nil {
 			t.Fatalf("the Traefik certificate lacks %s: %v", name, err)
 		}
 	}
-	if !strings.Contains(r.Stdout, "ca install 'ws-b'") && !strings.Contains(r.Stdout, "ca install ws-b") {
+	if traefik.NotAfter.Sub(traefik.NotBefore) != 42*24*time.Hour {
+		t.Fatal("the answer for the validity was ignored")
+	}
+	if !strings.Contains(r.Stdout, "tls install") {
 		t.Fatalf("the next step is missing:\n%s", r.Stdout)
 	}
 }
@@ -303,17 +271,17 @@ func TestWSTLSRefusals(t *testing.T) {
 	if r := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a"); r.ExitCode != 0 {
 		t.Fatal(r)
 	}
-	if r := yard.Run("ws", "tls", "ca", "issue", "workstation", "--dir", folder); r.ExitCode == 0 || !strings.Contains(r.Stderr, "Yard CA") {
+	if r := yard.Run("ws", "tls", "ca", "issue", "traefik", "--dir", folder); r.ExitCode == 0 || !strings.Contains(r.Stderr, "no readable CA") {
 		t.Fatalf("missing CA: %+v", r)
 	}
 	if r := yard.Run("ws", "tls", "ca", "create", "--dir", folder); r.ExitCode != 0 {
 		t.Fatal(r)
 	}
 	for _, flags := range [][]string{
-		{"../escape"}, {"--base-domain", "bad/domain"}, {"--address", "not an address"},
-		{"--days", "0"}, {"--days", "-1"}, {"--days", "100001"}, {"--days", "4000"},
+		{"traefik", "--days", "0"}, {"traefik", "--days", "-1"}, {"traefik", "--days", "100001"}, {"traefik", "--days", "4000"},
+		{"traefik", "--address", "not an address"}, {"user", "../escape"},
 	} {
-		if r := yard.Run(append([]string{"ws", "tls", "ca", "issue", "workstation", "--dir", folder}, flags...)...); r.ExitCode == 0 {
+		if r := yard.Run(append([]string{"ws", "tls", "ca", "issue", "--dir", folder}, flags...)...); r.ExitCode == 0 {
 			t.Fatalf("accepted %v", flags)
 		}
 	}
@@ -324,7 +292,7 @@ func TestWSTLSRefusals(t *testing.T) {
 		"*.ws-b.lvh.me.", "*." + strings.Repeat("a", 64) + ".lvh.me",
 	} {
 		t.Run(address, func(t *testing.T) {
-			r := yard.Run("ws", "tls", "ca", "issue", "workstation", "--dir", folder, "--address", address)
+			r := yard.Run("ws", "tls", "ca", "issue", "traefik", "--dir", folder, "--address", address)
 			if r.ExitCode == 0 || !strings.Contains(r.Stderr, "invalid --address") {
 				t.Fatalf("malformed wildcard not refused: %+v", r)
 			}
@@ -333,7 +301,7 @@ func TestWSTLSRefusals(t *testing.T) {
 	if err := os.Remove(filepath.Join(folder, "ca", "ca.key")); err != nil {
 		t.Fatal(err)
 	}
-	if r := yard.Run("ws", "tls", "ca", "issue", "workstation", "--dir", folder); r.ExitCode == 0 || !strings.Contains(r.Stderr, "Yard CA key") {
+	if r := yard.Run("ws", "tls", "ca", "issue", "traefik", "--dir", folder); r.ExitCode == 0 || !strings.Contains(r.Stderr, "CA key") {
 		t.Fatalf("missing key: %+v", r)
 	}
 	if r := yard.Run("ws", "tls", "ca", "create", "--dir", folder); r.ExitCode == 0 {
@@ -352,19 +320,17 @@ func TestWSTLSCAWarnsThatItIsOnlyForTesting(t *testing.T) {
 	for _, args := range [][]string{
 		{"ws", "init", "--dir", folder, "--workstation", "ws-a"},
 		{"ws", "tls", "ca", "create", "--dir", folder},
-		{"ws", "tls", "ca", "issue", "workstation", "--dir", folder},
-		{"ws", "tls", "ca", "issue", "consul", "ws-b", "--dir", folder},
-		{"ws", "tls", "ca", "issue", "traefik", "ws-b", "--dir", folder},
+		{"ws", "tls", "ca", "issue", "traefik", "--dir", folder},
 		{"ws", "tls", "ca", "issue", "user", "alice", "--dir", folder},
-		{"ws", "tls", "ca", "install", "--dir", folder},
-		{"ws", "tls", "ca", "install", "ws-b", "--dir", folder},
+		{"ws", "tls", "install", "--dir", folder},
+		{"ws", "tls", "ca", "export", "ca", "--dir", folder},
 	} {
 		r := yard.Run(args...)
 		if r.ExitCode != 0 {
 			t.Fatalf("%v: %+v", args, r)
 		}
-		warned := strings.Contains(r.Stderr, "for testing") && strings.Contains(r.Stderr, "ws tls import")
-		if (args[1] == "tls") != warned {
+		warned := strings.Contains(r.Stderr, "for testing") && strings.Contains(r.Stderr, "ws tls install")
+		if (len(args) > 2 && args[1] == "tls" && args[2] == "ca") != warned {
 			t.Fatalf("%v: warning on stderr is %t:\n%s", args, warned, r.Stderr)
 		}
 	}
@@ -374,7 +340,7 @@ func TestWSTLSCAWarnsThatItIsOnlyForTesting(t *testing.T) {
 	if r := yard.Run("ws", "tls", "ca", "--help"); !strings.Contains(r.Stdout, "for testing") {
 		t.Fatalf("the help of ca lacks the warning:\n%s", r.Stdout)
 	}
-	if r := yard.Run("ws", "tls", "import", "--help"); strings.Contains(r.Stdout+r.Stderr, "for testing") {
-		t.Fatal("import is for a CA that you bring, so it has no testing warning")
+	if r := yard.Run("ws", "tls", "install", "--help"); strings.Contains(r.Stdout+r.Stderr, "for testing") {
+		t.Fatal("install takes the files of a CA that you bring, so it has no testing warning")
 	}
 }

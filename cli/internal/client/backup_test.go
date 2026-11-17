@@ -114,7 +114,7 @@ func TestImportBackupRejectsNonJSONAnswer(t *testing.T) {
 	}))
 	defer server.Close()
 	_, err := client.New(server.URL).ImportBackup("version: 2\n", "add", false)
-	want := server.URL + "/ is not the LVH Yard dashboard: its answer is not the API's JSON."
+	want := server.URL + "/ is not the LVH Yard dashboard. Check the address in --dashboard."
 	if err == nil || err.Error() != want {
 		t.Fatalf("got %v; want %q", err, want)
 	}

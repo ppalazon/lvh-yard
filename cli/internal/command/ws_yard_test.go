@@ -1,12 +1,9 @@
 package command_test
 
 import (
-	"errors"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -15,105 +12,15 @@ import (
 )
 
 func TestInitKeepsGossipKeyOutOfLocalSetupInstructions(t *testing.T) {
-	const key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-	run := commandtest.New(t).Run("ws", "init", "--dir", t.TempDir(), "--workstation", "ws-a", "--gossip-key", key)
+	folder := t.TempDir()
+	run := commandtest.New(t).Run("ws", "init", "--dir", folder, "--workstation", "ws-a")
 	if run.ExitCode != 0 {
 		t.Fatal(run.Stderr)
 	}
-	if strings.Contains(run.Stdout, key) {
+	_, key, _ := strings.Cut(readInitFile(t, folder, ".env"), "\nYARD_GOSSIP_KEY=")
+	key, _, _ = strings.Cut(key, "\n")
+	if key == "" || strings.Contains(run.Stdout, key) {
 		t.Fatal("local setup instructions exposed the Gossip Key")
-	}
-}
-
-func TestWSYardShareKeepsPrivateMaterialLocal(t *testing.T) {
-	const key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-	for _, tlsEnabled := range []bool{false, true} {
-		t.Run(map[bool]string{false: "plain", true: "TLS"}[tlsEnabled], func(t *testing.T) {
-			folder := t.TempDir()
-			yard := commandtest.New(t)
-			if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--gossip-key", key); run.ExitCode != 0 {
-				t.Fatal(run.Stderr)
-			}
-			files := map[string]string{
-				"ca/ca.key":             "private-ca-material",
-				"tls/consul/consul.key": "private-workstation-material", "tls/traefik/traefik.key": "private-workstation-material",
-			}
-			if tlsEnabled {
-				files["consul.d/10-tls.hcl"] = "TLS enabled"
-				files["tls/consul/ca.crt"] = "public-ca-certificate"
-			}
-			for name, contents := range files {
-				path := filepath.Join(folder, name)
-				if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-					t.Fatal(err)
-				}
-				if err := os.WriteFile(path, []byte(contents), 0600); err != nil {
-					t.Fatal(err)
-				}
-			}
-			before := readInitFile(t, folder, ".env")
-			run := yard.Run("ws", "yard", "share", "--dir", folder, "--address", "192.168.1.10")
-			if run.ExitCode != 0 {
-				t.Fatal(run.Stderr)
-			}
-			if !strings.Contains(run.Stdout, key) {
-				t.Fatal("explicit sharing omitted the joining credential")
-			}
-			for _, secret := range []string{"private-ca-material", "private-workstation-material", filepath.Join(folder, "tls/consul/consul.key"), filepath.Join(folder, "tls/traefik/traefik.key"), filepath.Join(folder, "ca/ca.key")} {
-				if strings.Contains(run.Stdout, secret) {
-					t.Fatal("sharing exposed this Workstation's private material")
-				}
-			}
-			if tlsEnabled && !strings.Contains(run.Stdout, "ca issue consul") {
-				t.Fatal("TLS sharing omitted how to get the Consul certificate")
-			}
-			if !strings.Contains(run.Stdout, "yard peers --sync") {
-				t.Fatal("sharing does not remind to check and sync the Peers")
-			}
-			if strings.Contains(run.Stdout, "Check the joining Workstation's status") {
-				t.Fatal("sharing lists steps that run on the joining Workstation")
-			}
-			if readInitFile(t, folder, ".env") != before {
-				t.Fatal("sharing changed Workstation settings")
-			}
-			for name, contents := range files {
-				if readInitFile(t, folder, name) != contents {
-					t.Fatal("sharing changed certificate material")
-				}
-			}
-		})
-	}
-}
-
-func TestWSYardShareRefusesUnusablePeerAddressesWithoutPrintingCredentials(t *testing.T) {
-	const key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-	folder := t.TempDir()
-	yard := commandtest.New(t)
-	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--gossip-key", key); run.ExitCode != 0 {
-		t.Fatal(run.Stderr)
-	}
-	before := readInitFile(t, folder, ".env")
-	for _, address := range []string{"", "0.0.0.0", "::1", "not-an-address"} {
-		run := yard.Run("ws", "yard", "share", "--dir", folder, "--address", address)
-		if run.ExitCode == 0 || strings.Contains(run.Stdout, key) || readInitFile(t, folder, ".env") != before {
-			t.Fatalf("invalid sharing address %q changed settings or exposed credentials", address)
-		}
-	}
-}
-
-func TestWSYardShareRequiresTheActivePublicCAForTLSInstructions(t *testing.T) {
-	const key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-	folder := t.TempDir()
-	yard := commandtest.New(t)
-	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--gossip-key", key); run.ExitCode != 0 {
-		t.Fatal(run.Stderr)
-	}
-	if err := os.WriteFile(filepath.Join(folder, "consul.d", "10-tls.hcl"), []byte("TLS enabled"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	run := yard.Run("ws", "yard", "share", "--dir", folder)
-	if run.ExitCode == 0 || strings.Contains(run.Stdout, key) {
-		t.Fatal("incomplete TLS setup produced a usable-looking invitation")
 	}
 }
 
@@ -126,55 +33,20 @@ func TestWSYardRejectsUnknownCommands(t *testing.T) {
 	}
 }
 
-func TestWSYardShareSelectsReachablePeer(t *testing.T) {
-	for _, tc := range []struct {
-		name     string
-		bind     string
-		override string
-		detects  string
-		err      error
-		want     string
-	}{
-		{name: "wildcard binding", bind: "0.0.0.0", detects: "192.168.50.20", want: "192.168.50.20:18302"},
-		{name: "configured binding wins", bind: "192.168.50.10", detects: "192.168.50.20", want: "192.168.50.10:18302"},
-		{name: "explicit address wins", bind: "192.168.50.10", override: "10.20.30.40", detects: "192.168.50.20", want: "10.20.30.40:18302"},
-		{name: "detection unavailable", bind: "0.0.0.0", err: errors.New("no route"), want: "<this-workstation-lan-ip>:18302"},
+// A folder with no Workstation says what to do first, and the command changes nothing.
+func TestWSCommandsOnAFolderWithoutAWorkstationSayToRunInit(t *testing.T) {
+	for _, args := range [][]string{
+		{"yard", "join", "invitation.zip"}, {"yard", "share", "ws-b"}, {"yard", "standalone"}, {"yard", "peers"},
+		{"show"}, {"set", "peers", "192.168.1.10"}, {"tls", "ca", "create"}, {"tls", "install"},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			if runtime.GOOS == "windows" && tc.bind == "0.0.0.0" {
-				// Windows never binds to the wildcard. Init keeps the detected address, and share offers it.
-				if tc.err != nil {
-					t.Skip("Windows needs a LAN address to set up, so share never has to guess one")
-				}
-				tc.bind = ""
-			}
-			folder := t.TempDir()
-			yard := commandtest.New(t)
-			yard.Process.LANIP, yard.Process.LANError = tc.detects, tc.err
-			setup := [][]string{
-				{"ws", "init", "--dir", folder, "--workstation", "ws-a"},
-				{"ws", "--dir", folder, "set", "consul-serf-wan-port", "18302"},
-			}
-			if tc.bind != "" {
-				setup = append(setup, []string{"ws", "--dir", folder, "set", "bind-address", tc.bind})
-			}
-			for _, args := range setup {
-				if run := yard.Run(args...); run.ExitCode != 0 {
-					t.Fatal(run.Stderr)
-				}
-			}
-			args := []string{"ws", "--dir", folder, "yard", "share"}
-			if tc.override != "" {
-				args = append(args, "--address", tc.override)
-			}
-			run := yard.Run(args...)
-			if run.ExitCode != 0 {
-				t.Fatal(run.Stderr)
-			}
-			if !strings.Contains(run.Stdout, "--peers '"+tc.want+"'") {
-				t.Fatalf("invitation has the wrong Peer:\n%s", run.Stdout)
-			}
-		})
+		folder := filepath.Join(t.TempDir(), "none")
+		run := commandtest.New(t).Run(append(append([]string{"ws"}, args...), "--dir", folder)...)
+		if run.ExitCode == 0 || !strings.Contains(run.Stderr, "lvh-yard ws init") {
+			t.Fatalf("%v: %+v", args, run)
+		}
+		if exists(folder, "") {
+			t.Fatalf("%v created the folder", args)
+		}
 	}
 }
 

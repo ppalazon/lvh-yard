@@ -50,7 +50,7 @@ func TestStatus(t *testing.T) {
 				args = append(args, "--strict")
 			}
 			result := h.Run(args...)
-			want := tc.want + "\nOpen the dashboard at http://127.0.0.1:7780\n"
+			want := tc.want + "\nDashboard: http://127.0.0.1:7780\n"
 			if result.ExitCode != tc.exit || result.Stdout != want || result.Stderr != "" {
 				t.Fatalf("got %+v; want code %d and output %q", result, tc.exit, want)
 			}

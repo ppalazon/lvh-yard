@@ -86,7 +86,7 @@ func TestContainerOperationErrors(t *testing.T) {
 		status             int
 	}{
 		{"problem", `{"detail":"Docker does not answer."}`, "Docker does not answer.", 503},
-		{"invalid JSON", `<html>not a dashboard</html>`, "not the API's JSON", 200},
+		{"invalid JSON", `<html>not a dashboard</html>`, "is not the LVH Yard dashboard", 200},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

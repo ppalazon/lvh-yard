@@ -61,12 +61,12 @@ func NewRemove(options *Options) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&selection.id, "id", "", "The Instance's ID.")
-	cmd.Flags().IntVar(&selection.port, "port", 0, "The Instance's port or the Binding's Container Port.")
-	cmd.Flags().StringVar(&selection.host, "host", "", "The Instance's address when several share the port.")
-	cmd.Flags().StringVar(&selection.container, "container", "", "Removes this container's Container Binding.")
-	cmd.Flags().StringVar(&selection.project, "compose-project", "", "The project of the Compose service to unbind.")
-	cmd.Flags().StringVar(&selection.composeService, "compose-service", "", "The Compose service to unbind from --compose-project.")
+	cmd.Flags().StringVar(&selection.id, "id", "", "Sets the ID of the Instance.")
+	cmd.Flags().IntVar(&selection.port, "port", 0, "Sets the Instance port or the Container Port of the Binding.")
+	cmd.Flags().StringVar(&selection.host, "host", "", "Sets the Instance address when several share the port.")
+	cmd.Flags().StringVar(&selection.container, "container", "", "Sets the container of the Container Binding to remove.")
+	cmd.Flags().StringVar(&selection.project, "compose-project", "", "Sets the Compose project of the Binding to remove.")
+	cmd.Flags().StringVar(&selection.composeService, "compose-service", "", "Sets the Compose service of the Binding (needs --compose-project).")
 	return cmd
 }
 
@@ -88,7 +88,7 @@ func (s removeSelection) binding() bool {
 func (s removeSelection) check(service string) error {
 	if s.idGiven {
 		if s.binding() || s.portGiven || s.hostGiven {
-			return fmt.Errorf("Give --id alone, or select an Instance or Container Binding with the other options.")
+			return fmt.Errorf("Give --id alone, or use the other options without --id.")
 		}
 		return nil
 	}

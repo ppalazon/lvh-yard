@@ -18,7 +18,7 @@ func isGlobalUnicastIPv4(ip net.IP) bool {
 func checkInstanceHost(value string) error {
 	ip := net.ParseIP(value)
 	if ip != nil && (ip.IsUnspecified() || ip.IsMulticast() || ip.Equal(net.IPv4bcast)) {
-		return fmt.Errorf("invalid instance-host %s: no connection can reach it. Use the LAN IPv4 address of this computer", value)
+		return fmt.Errorf("invalid instance-host %s. No connection can reach it: use the LAN IPv4 address of this computer", value)
 	}
 	return nil
 }
@@ -86,5 +86,5 @@ func chooseLANAddress(candidates []lanCandidate, route net.IP) (string, error) {
 	if len(listed) == 0 {
 		listed = []string{"none"}
 	}
-	return "", fmt.Errorf("choose a LAN IPv4 address with --address: %s; other adapter addresses: %s", reason, strings.Join(listed, ", "))
+	return "", fmt.Errorf("could not choose a LAN IPv4 address: %s; other adapter addresses: %s. Use --address", reason, strings.Join(listed, ", "))
 }

@@ -4,6 +4,8 @@ status: accepted
 
 # One Yard CA, and a Consul and a Traefik certificate for each Workstation
 
+[ADR-0016](0016-each-workstation-has-its-own-ca-and-one-is-the-main-ca.md) replaces the Yard CA and the commands that sign and install for a whole Workstation. The two certificates for each Workstation stay.
+
 A Yard has one CA. It signs a Consul certificate for each Workstation, and it can sign a Traefik certificate and Client Certificates for people. Consul uses its certificate for RPC between Workstations (`verify_incoming` and `verify_outgoing`). Traefik uses its own for HTTPS on its Routes. The two have separate keys. The Consul certificate holds the name `server.<workstation>.consul` and both the server and client key usages. The datacenter of each Workstation is its own name (see [ADR-0001](0001-one-consul-datacenter-per-workstation.md)), and Consul checks that name against the certificate. The Traefik certificate holds `*.<Base Domain>` and the names of remote Routes, and only the server usage, because browsers need no more.
 
 The jobs differ in who must sign and when they change. Consul accepts only the Yard CA, and its certificate never changes when a Workstation joins. The Traefik certificate faces browsers, so a company CA or a public CA can sign it, and it changes with the Routes that it covers. Compose mounts `tls/consul/` only in Consul and `tls/traefik/` only in Traefik, so a process that faces browsers never holds the key that identifies the Workstation to the other Consul servers. Each folder has its own copy of `ca.crt`. Traefik checks Client Certificates with it, so it is always the Yard CA, even when a public CA signed the Traefik certificate.

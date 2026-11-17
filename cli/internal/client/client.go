@@ -55,7 +55,7 @@ func (c *Client) requestStatus(method, path string, body any, out any) (int, err
 		decoder := json.NewDecoder(bytes.NewReader(data))
 		decoder.UseNumber()
 		if err := decoder.Decode(out); err != nil {
-			return status, fmt.Errorf("%s is not the LVH Yard dashboard: its answer is not the API's JSON.", c.address)
+			return status, fmt.Errorf("%s is not the LVH Yard dashboard. Check the address in --dashboard.", c.address)
 		}
 	}
 	return status, nil
@@ -69,7 +69,7 @@ func (c *Client) exchange(method, path, contentType, accept string, body io.Read
 func (c *Client) exchangeStatus(method, path, contentType, accept string, body io.Reader) ([]byte, int, error) {
 	request, err := http.NewRequest(method, c.address+strings.TrimLeft(path, "/"), body)
 	if err != nil {
-		return nil, 0, fmt.Errorf("The dashboard address is not valid: %s", c.address)
+		return nil, 0, fmt.Errorf("The dashboard address is not valid: %s. Use a URL such as http://127.0.0.1:7780.", c.address)
 	}
 	request.Header.Set("Accept", accept)
 	if contentType != "" {
@@ -111,11 +111,11 @@ func (c *Client) connectionError(err error) error {
 	// A dial timeout is also a net timeout, so check the dial first.
 	var operation *net.OpError
 	if errors.As(err, &operation) && operation.Op == "dial" {
-		return fmt.Errorf("The dashboard does not answer at %s. Start it with docker compose up -d in the folder that lvh-yard ws init wrote.", c.address)
+		return fmt.Errorf("The dashboard does not answer at %s. Run \"docker compose up -d\" in the Workstation Folder.", c.address)
 	}
 	var timeout net.Error
 	if errors.As(err, &timeout) && timeout.Timeout() {
-		return fmt.Errorf("The dashboard at %s did not answer within 10 s. Make sure that Consul runs: docker compose up -d in the folder that lvh-yard ws init wrote.", c.address)
+		return fmt.Errorf("The dashboard at %s did not answer within 10 s. Check that Consul runs: \"docker compose up -d\" in the Workstation Folder.", c.address)
 	}
 	return fmt.Errorf("The dashboard at %s cannot be reached: %w", c.address, err)
 }

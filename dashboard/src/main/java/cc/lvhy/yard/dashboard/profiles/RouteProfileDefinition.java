@@ -26,7 +26,7 @@ public record RouteProfileDefinition(String name, Map<String, Map<String, Object
     return middlewares.get(name);
   }
 
-  /** Whether it, or a chain member it reaches, requires a Yard CA Client Certificate. */
+  /** Whether it, or a chain member it reaches, requires a Client Certificate. */
   public boolean requiresClientCertificate() {
     return middlewares.values().stream().anyMatch(value -> value.containsKey("clientCertificate"));
   }

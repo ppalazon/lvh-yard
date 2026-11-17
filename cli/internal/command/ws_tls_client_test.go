@@ -63,7 +63,7 @@ func TestWSTLSClientCertificate(t *testing.T) {
 		}
 		ca := readTLSCertificate(t, filepath.Join(folder, "ca", "ca.crt"))
 		if len(chain) != 1 || !chain[0].Equal(ca) {
-			t.Fatal("bundle does not contain the Yard CA")
+			t.Fatal("bundle does not contain the CA")
 		}
 		roots := x509.NewCertPool()
 		roots.AddCert(ca)
@@ -106,7 +106,7 @@ func TestWSTLSClientRefusals(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := yard.Run("ws", "tls", "ca", "issue", "user", "alice", "--dir", folder)
-	if r.ExitCode == 0 || !strings.Contains(r.Stderr, "Yard CA key") || !strings.Contains(r.Stderr, "Workstation that made the CA") {
+	if r.ExitCode == 0 || !strings.Contains(r.Stderr, "CA key") || !strings.Contains(r.Stderr, "Workstation that made the CA") {
 		t.Fatalf("missing signing key not explained: %+v", r)
 	}
 }

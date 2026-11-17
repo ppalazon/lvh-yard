@@ -11,9 +11,19 @@ import (
 	"time"
 
 	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
+	"github.com/ppalazon/lvh-yard/cli/internal/settings"
 	"github.com/ppalazon/lvh-yard/cli/internal/update"
 	"github.com/spf13/cobra"
 )
+
+const updateHelp = `Installs the latest release, or the one you name, and upgrades this Workstation.
+
+Does:
+  1. Writes a Backup to the Backups folder.
+  2. Replaces this executable.
+  3. Runs "ws compose upgrade".
+  4. Asks to recreate the services, at a terminal.
+Note: --check shows the release and changes nothing.`
 
 // NewUpdate replaces this executable with a release from GitHub, then runs ws compose upgrade with the new executable.
 // The templates are inside the executable, so only the new one can write the files of the new release.
@@ -22,7 +32,8 @@ func NewUpdate(options *Options) *cobra.Command {
 	var dir string
 	cmd := &cobra.Command{
 		Use:   "update [version]",
-		Short: "Installs the latest release, or the given one, and upgrades this Workstation.",
+		Short: "Installs a release and upgrades this Workstation.",
+		Long:  updateHelp,
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			wanted := ""
@@ -36,7 +47,7 @@ func NewUpdate(options *Options) *cobra.Command {
 			return runUpdate(options, cmd, updateRequest{wanted: wanted, check: check, folder: folder, folderGiven: cmd.Flags().Changed("dir")})
 		},
 	}
-	cmd.Flags().BoolVar(&check, "check", false, "Shows the release that would be installed, and changes nothing.")
+	cmd.Flags().BoolVar(&check, "check", false, "Shows the release to install. Changes nothing.")
 	cmd.Flags().StringVar(&dir, "dir", "", "Upgrades this Workstation Folder.")
 	return cmd
 }
@@ -67,15 +78,15 @@ func runUpdate(options *Options, cmd *cobra.Command, request updateRequest) erro
 		return nil
 	}
 	if order, ok := update.Compare(current, release.Version); ok && order > 0 && request.wanted == "" {
-		fmt.Fprintf(out, "lvh-yard %s is newer than the latest release, %s. Nothing to do. To install that release anyway, run: lvh-yard update %s\n", current, release.Version, release.Version)
+		fmt.Fprintf(out, "lvh-yard %s is newer than the latest release, %s. Nothing to do.\nTo install that release anyway:\n  lvh-yard update %s\n", current, release.Version, release.Version)
 		return nil
 	}
 	if request.check {
-		fmt.Fprintf(out, "To install it, run: lvh-yard update %s\n", release.Version)
+		fmt.Fprintf(out, "To install it:\n  lvh-yard update %s\n", release.Version)
 		return nil
 	}
 	if current == "dev" {
-		return errors.New("this is a development build, which has no release to update from. Install a release with the install script")
+		return errors.New("this is a development build and has no release to update from. Use the install script")
 	}
 	path, err := options.Executable()
 	if err != nil {
@@ -92,7 +103,7 @@ func runUpdate(options *Options, cmd *cobra.Command, request updateRequest) erro
 	}
 	backupBeforeUpdate(options, cmd, request.folder)
 	if err := update.Replace(path, executable); err != nil {
-		return fmt.Errorf("could not replace %s: %w. If you cannot write to that folder, run the install script again, with sudo or with LVH_YARD_INSTALL_DIR set to a folder you own", path, err)
+		return fmt.Errorf("could not replace %s: %w. If you cannot write there, run the install script again with sudo, or set LVH_YARD_INSTALL_DIR to a folder you own", path, err)
 	}
 	fmt.Fprintf(out, "Installed %s.\n", path)
 	return upgradeWorkstation(options, cmd, path, request)
@@ -106,7 +117,7 @@ func upgradeWorkstation(options *Options, cmd *cobra.Command, executable string,
 		return err
 	}
 	if _, err := os.Stat(filepath.Join(folder, "compose.yaml")); err != nil {
-		fmt.Fprintf(out, "There is no Workstation Folder at %s, so there is nothing more to upgrade. Make one with: lvh-yard ws init\n", folder)
+		fmt.Fprintf(out, "No Workstation Folder at %s. Nothing more to upgrade.\nTo make one:\n  lvh-yard ws init\n", folder)
 		return nil
 	}
 	args := []string{"ws"}
@@ -117,10 +128,10 @@ func upgradeWorkstation(options *Options, cmd *cobra.Command, executable string,
 	fmt.Fprintln(out)
 	code, err := options.Process.Run(executable, args, folder, out, cmd.ErrOrStderr())
 	if err != nil {
-		return fmt.Errorf("lvh-yard is updated, but %s did not run: %w", strings.Join(args, " "), err)
+		return fmt.Errorf("lvh-yard is updated, but \"lvh-yard %s\" did not run: %w", strings.Join(args, " "), err)
 	}
 	if code != 0 {
-		return fmt.Errorf("lvh-yard is updated, but lvh-yard %s failed with exit code %d. Run it again after you fix the cause", strings.Join(args, " "), code)
+		return fmt.Errorf("lvh-yard is updated, but \"lvh-yard %s\" failed with exit code %d. Fix the cause and run it again", strings.Join(args, " "), code)
 	}
 	prompt := newPrompter(cmd, options)
 	if !prompt.terminal {
@@ -144,7 +155,12 @@ func backupBeforeUpdate(options *Options, cmd *cobra.Command, folder string) {
 	if _, err := os.Stat(filepath.Join(folder, "compose.yaml")); err != nil {
 		return // no Workstation Folder: nothing to back up
 	}
-	env, _ := os.ReadFile(filepath.Join(folder, ".env"))
+	root, err := os.OpenRoot(folder)
+	if err != nil {
+		return
+	}
+	defer func() { _ = root.Close() }()
+	env, _ := root.ReadFile(".env")
 	warn := func(reason error) {
 		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: no Backup was written before the update: %v\n", reason)
 	}
@@ -158,15 +174,20 @@ func backupBeforeUpdate(options *Options, cmd *cobra.Command, folder string) {
 		warn(err)
 		return
 	}
-	stem := envfile.Setting(string(env), "YARD_WORKSTATION", "workstation") + "-" + time.Now().Format("20060102-150405") + "-before-update"
-	path := filepath.Join(backups, stem+".yaml")
+	name := envfile.Setting(string(env), "YARD_WORKSTATION", "workstation")
+	if !settings.ValidWorkstationName(name) {
+		name = "workstation" // .env is a file of the user: never let it put a path in the file name
+	}
+	stem := name + "-" + time.Now().Format("20060102-150405") + "-before-update"
+	file := stem + ".yaml"
 	for n := 2; ; n++ {
-		if _, err := os.Lstat(path); os.IsNotExist(err) {
+		if _, err := root.Lstat(filepath.Join("backups", file)); os.IsNotExist(err) {
 			break
 		}
-		path = filepath.Join(backups, stem+"-"+strconv.Itoa(n)+".yaml")
+		file = stem + "-" + strconv.Itoa(n) + ".yaml"
 	}
-	if err := writeBackup(path, backup); err != nil {
+	path := filepath.Join(backups, file)
+	if err := writePrivateFile(path, []byte(backup)); err != nil {
 		warn(err)
 		return
 	}

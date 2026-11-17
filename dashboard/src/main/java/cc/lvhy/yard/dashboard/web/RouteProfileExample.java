@@ -4,7 +4,7 @@ package cc.lvhy.yard.dashboard.web;
 enum RouteProfileExample {
   CLIENT_CERTIFICATE(
       "Client Certificate",
-      "Require a Yard CA Client Certificate over HTTPS.",
+      "Require a Client Certificate over HTTPS.",
       """
       clientCertificate: {}
       """,

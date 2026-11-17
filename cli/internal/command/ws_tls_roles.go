@@ -10,15 +10,13 @@ import (
 	"github.com/ppalazon/lvh-yard/cli/internal/tlsca"
 )
 
-// A Workstation has one certificate for each job. Consul uses its own with the Yard CA. Traefik
-// uses another for HTTPS, from the Yard CA or from a public or company CA. Each has its own key,
-// and Consul and Traefik mount only their own folder.
+// A Workstation has one certificate for each job. Consul uses its own, from the main CA of the
+// Yard. Traefik uses another for HTTPS, from this Workstation's CA or from a public or company
+// CA. Each has its own key, and Consul and Traefik mount only their own folder.
 const (
 	roleConsul  = "consul"
 	roleTraefik = "traefik"
 )
-
-var tlsRoles = []string{roleConsul, roleTraefik}
 
 func roleSettingName(role string) string {
 	if role == roleConsul {
@@ -60,15 +58,9 @@ func writeRole(root *os.Root, dir, role string, caPEM, certPEM, keyPEM []byte) e
 	return nil
 }
 
-// issuedPath is where the Yard CA keeps what it signed for a Workstation.
+// issuedPath is where this Workstation's CA keeps what it signed for a Workstation.
 func issuedPath(folder, workstation, role, extension string) string {
 	return filepath.Join(folder, "ca", "certs", workstation, role+extension)
-}
-
-// bundleRoot holds the folders to copy to another Workstation: one folder for each role, laid out
-// as its tls/ folder is.
-func bundleRoot(folder, workstation string) string {
-	return filepath.Join(folder, "certificates", workstation)
 }
 
 // checkRoleCertificate refuses a certificate that Consul or Traefik could not use here.
@@ -89,7 +81,7 @@ func checkInstalledRole(folder, role string, env *envfile.File) error {
 	defer func() { _ = root.Close() }()
 	caPEM, certPEM, keyPEM, err := readRole(root, roleDir("", role), role)
 	if err != nil {
-		return fmt.Errorf("this Workstation has no %s certificate in tls/%s: install one with lvh-yard ws tls import %s, or with lvh-yard ws tls ca install on the Workstation with the Yard CA: %w", role, role, role, err)
+		return fmt.Errorf("this Workstation has no %s certificate in tls/%s. Run \"lvh-yard ws tls install\": %w", role, role, err)
 	}
 	if err := checkRoleCertificate(role, env, caPEM, certPEM, keyPEM); err != nil {
 		return fmt.Errorf("the certificate in tls/%s cannot be used: %w", role, err)

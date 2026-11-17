@@ -55,7 +55,7 @@ func TestRegisterMissingServiceSuggestsCreatingIt(t *testing.T) {
 	}))
 	defer server.Close()
 	_, err := client.New(server.URL).Register("web", client.StaticInstanceRequest{Port: 80})
-	want := "This Workstation has no Service web. Create it first: lvh-yard service create web"
+	want := "This Workstation has no Service web. Create it first with \"lvh-yard service create web\""
 	if err == nil || err.Error() != want {
 		t.Fatalf("error=%v, want %q", err, want)
 	}

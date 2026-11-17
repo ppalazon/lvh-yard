@@ -95,17 +95,17 @@ func NewReachability(options *Options) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&workstation, "workstation", "", "The Service's Home Workstation (default: this one).")
+	cmd.Flags().StringVar(&workstation, "workstation", "", "Sets the Home Workstation of the Service (default: this one).")
 	return cmd
 }
 
 func reachabilityRouting(tested client.Reachability) string {
 	routing := tested.Routing
 	if routing.Off {
-		return "The Instance Priority is off, so the Route uses every passing Instance, or every Instance in range if none passes."
+		return "The Instance Priority is off. The Route uses every passing Instance, or every Instance in range if none passes."
 	}
 	if routing.Kind == "" {
-		return "No Instance passes, so the Route uses every Instance in range."
+		return "No Instance passes. The Route uses every Instance in range."
 	}
 	if routing.Kind == "alias" {
 		if tested.Alias == nil {

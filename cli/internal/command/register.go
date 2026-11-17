@@ -13,7 +13,7 @@ import (
 func NewRegister(options *Options) *cobra.Command {
 	group := &cobra.Command{
 		Use:   "register",
-		Short: "Registers a Static Instance or binds a container or Compose service.",
+		Short: "Registers Instances of a Service.",
 		Args:  cobra.NoArgs,
 		RunE:  func(cmd *cobra.Command, args []string) error { return cmd.Help() },
 	}
@@ -28,7 +28,7 @@ func newRegisterStatic(options *Options) *cobra.Command {
 	var tags, metadata []string
 	cmd := &cobra.Command{
 		Use:   "static <service>",
-		Short: "Registers a Static Instance of an existing Service.",
+		Short: "Registers a Static Instance of a Service.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			request := client.StaticInstanceRequest{Port: port}
@@ -63,15 +63,15 @@ func newRegisterStatic(options *Options) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().IntVar(&port, "port", 0, "The port the Instance listens on.")
+	cmd.Flags().IntVar(&port, "port", 0, "Sets the port of the Instance.")
 	_ = cmd.MarkFlagRequired("port")
-	cmd.Flags().StringVar(&host, "host", "", "The Instance's address; defaults to this Workstation's LAN address.")
-	cmd.Flags().StringVar(&check.Type, "check", "", "Checks Health with tcp or http.")
-	cmd.Flags().StringVar(&check.Path, "path", "", "The path an HTTP check gets.")
-	cmd.Flags().StringVar(&check.Interval, "interval", "", "Time between checks, such as 5s or 1m.")
-	cmd.Flags().StringVar(&check.Timeout, "timeout", "", "Time to wait for a check, such as 500ms.")
-	cmd.Flags().StringArrayVar(&tags, "tag", nil, "Labels the Instance; repeat for more.")
-	cmd.Flags().StringArrayVar(&metadata, "meta", nil, "Adds a key=value note; repeat for more.")
+	cmd.Flags().StringVar(&host, "host", "", "Sets the Instance address (default: this Workstation's LAN address).")
+	cmd.Flags().StringVar(&check.Type, "check", "", "Sets the Health check: tcp or http.")
+	cmd.Flags().StringVar(&check.Path, "path", "", "Sets the path of an HTTP check.")
+	cmd.Flags().StringVar(&check.Interval, "interval", "", "Sets the time between checks, such as 5s or 1m.")
+	cmd.Flags().StringVar(&check.Timeout, "timeout", "", "Sets the time limit of a check, such as 500ms.")
+	cmd.Flags().StringArrayVar(&tags, "tag", nil, "Adds a tag to the Instance. Repeat for more.")
+	cmd.Flags().StringArrayVar(&metadata, "meta", nil, "Adds a key=value note. Repeat for more.")
 	return cmd
 }
 

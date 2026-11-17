@@ -62,30 +62,17 @@ func TestWSShowHidesGossipKey(t *testing.T) {
 	}
 }
 
-func TestWSYardJoin(t *testing.T) {
-	const key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-	for _, peers := range []string{"", "10.0.0.2,10.0.0.3:8302"} {
-		t.Run(peers, func(t *testing.T) {
-			folder := t.TempDir()
-			before := "# Kept\nYARD_WORKSTATION=ws-a\nYARD_GOSSIP_KEY=old\nYARD_PEERS=10.0.0.1\n"
-			writeEnv(t, folder, before)
-			yard := commandtest.New(t)
-			bad := yard.Run("ws", "yard", "join", "--dir", folder, "--gossip-key", "bad")
-			if bad.ExitCode != 1 || readInitFile(t, folder, ".env") != before {
-				t.Fatalf("bad key: %+v", bad)
-			}
-			args := []string{"ws", "yard", "join", "--dir", folder, "--gossip-key", key}
-			wantPeers := "10.0.0.1"
-			if peers != "" {
-				args = append(args, "--peers", peers)
-				wantPeers = "10.0.0.2 10.0.0.3:8302"
-			}
-			run := yard.Run(args...)
-			want := "# Kept\nYARD_WORKSTATION=ws-a\nYARD_GOSSIP_KEY=" + key + "\nYARD_PEERS=" + wantPeers + "\n"
-			if run.ExitCode != 0 || readInitFile(t, folder, ".env") != want || strings.Contains(run.Stdout, key) {
-				t.Fatalf("join: %+v", run)
-			}
-		})
+// The Gossip Key and the Peers come only from an invitation. ws yard join has no flag for them.
+func TestWSYardJoinNeedsAnInvitation(t *testing.T) {
+	folder := t.TempDir()
+	const before = "# Kept\nYARD_WORKSTATION=ws-a\nYARD_GOSSIP_KEY=old\nYARD_PEERS=10.0.0.1\n"
+	writeEnv(t, folder, before)
+	yard := commandtest.New(t)
+	for _, args := range [][]string{{}, {"--gossip-key", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}, {"--peers", "10.0.0.2"}} {
+		run := yard.Run(append([]string{"ws", "yard", "join", "--dir", folder}, args...)...)
+		if run.ExitCode != 1 || readInitFile(t, folder, ".env") != before {
+			t.Fatalf("join %v: %+v", args, run)
+		}
 	}
 }
 

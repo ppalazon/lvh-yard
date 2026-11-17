@@ -222,8 +222,8 @@ flowchart LR
   - `settings`: the name of each Workstation setting and what it accepts, with one
     rule for each in a table, in place of one switch.
   - `composefile`: the image values of a `compose.yaml`, and their replacement.
-  - `tlsca`: the Yard CA, the Consul and Traefik certificates, the Client
-    Certificates, and the checks of a certificate.
+  - `tlsca`: the Workstation CA, the Consul and Traefik certificates, the Client
+    Certificates, the password of a CA key, and the checks of a certificate.
 
   Each has its own tests. For `settings` and `composefile`, a temporary test
   compared the new code with the old for many inputs, and the answers were the

@@ -33,10 +33,14 @@ func validateOutputName(name string) error {
 		invalid = invalid || strings.ContainsRune("123456789¹²³", []rune(base)[3])
 	}
 	if invalid {
-		return fmt.Errorf("invalid Windows filename %q: use a name without reserved names, control characters, <>:\"/\\|?*, or a trailing dot or space", name)
+		return fmt.Errorf("invalid Windows filename %q. Use no reserved names, control characters, <>:\"/\\|?*, or trailing dot or space", name)
 	}
 	return nil
 }
+
+// checkPrivateInput accepts any file: Windows access rights are not read here. A file in the user
+// profile is readable by the user and by administrators.
+func checkPrivateInput(string) error { return nil }
 
 func validateOutputPath(path string) error {
 	for _, name := range strings.FieldsFunc(strings.TrimPrefix(path, filepath.VolumeName(path)), func(r rune) bool { return r == '/' || r == '\\' }) {
@@ -60,7 +64,7 @@ func validateWorkstationStorage(folder string) error {
 	}
 	volume := filepath.VolumeName(absolute)
 	if len(volume) != 2 || volume[1] != ':' {
-		return fmt.Errorf("unsupported Workstation Folder: choose local NTFS storage, not a network share or synced folder")
+		return fmt.Errorf("unsupported Workstation Folder. Use local NTFS storage, not a network share or synced folder")
 	}
 	if err := validateLocalNTFS(volume + `\`); err != nil {
 		return err
@@ -68,7 +72,7 @@ func validateWorkstationStorage(folder string) error {
 	current := volume + `\`
 	for name := range strings.SplitSeq(strings.TrimPrefix(absolute, current), `\`) {
 		if isSyncedFolderName(name) {
-			return fmt.Errorf("unsupported synced Workstation Folder: choose local NTFS storage outside cloud-sync folders")
+			return fmt.Errorf("unsupported synced Workstation Folder. Use local NTFS storage outside cloud-sync folders")
 		}
 		current = filepath.Join(current, name)
 		if err := validateNotLinked(current); err != nil {
@@ -85,14 +89,14 @@ func validateLocalNTFS(volumeRoot string) error {
 		return err
 	}
 	if windows.GetDriveType(root) != windows.DRIVE_FIXED {
-		return fmt.Errorf("unsupported Workstation Folder: choose a local fixed NTFS drive, not shared or synced storage")
+		return fmt.Errorf("unsupported Workstation Folder. Use a local fixed NTFS drive, not shared or synced storage")
 	}
 	var filesystem [64]uint16
 	if err := windows.GetVolumeInformation(root, nil, 0, nil, nil, nil, &filesystem[0], uint32(len(filesystem))); err != nil {
 		return fmt.Errorf("could not check Workstation storage: %w", err)
 	}
 	if !strings.EqualFold(windows.UTF16ToString(filesystem[:]), "NTFS") {
-		return fmt.Errorf("unsupported Workstation Folder: choose local NTFS storage")
+		return fmt.Errorf("unsupported Workstation Folder. Use local NTFS storage")
 	}
 	return nil
 }
@@ -116,7 +120,7 @@ func validateNotLinked(path string) error {
 		return fmt.Errorf("could not check Workstation Folder %s: %w", path, err)
 	}
 	if attributes&windows.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
-		return fmt.Errorf("unsupported Workstation Folder %s: use a local NTFS folder that is not a link and not cloud-synced", path)
+		return fmt.Errorf("unsupported Workstation Folder %s. Use a local NTFS folder that is not a link and not cloud-synced", path)
 	}
 	return nil
 }
@@ -125,14 +129,14 @@ func validateNativeListener(name, value string) error {
 	if name == "bind-address" {
 		ip := net.ParseIP(value)
 		if !isGlobalUnicastIPv4(ip) {
-			return fmt.Errorf("invalid Windows bind-address: use the LAN IPv4 address that other Workstations can reach")
+			return fmt.Errorf("invalid Windows bind-address. Use the LAN IPv4 address that other Workstations can reach")
 		}
 	}
 	if name == "instance-host" {
 		return checkInstanceHost(value)
 	}
 	if (name == "dashboard-bind-address" || name == "traefik-bind-address") && value != "127.0.0.1" && value != "0.0.0.0" {
-		return fmt.Errorf("unsupported Windows %s: Docker Desktop supports 127.0.0.1 or 0.0.0.0, not a native interface address", name)
+		return fmt.Errorf("unsupported Windows %s. Docker Desktop accepts only 127.0.0.1 or 0.0.0.0", name)
 	}
 	return nil
 }
@@ -187,7 +191,7 @@ func protectRootEntry(root *os.Root, name string, mode os.FileMode) error {
 		return err
 	}
 	if info.NumberOfLinks > 1 && info.FileAttributes&windows.FILE_ATTRIBUTE_DIRECTORY == 0 {
-		return fmt.Errorf("cannot make the file private: another path links to it, so remove that link from the Workstation Folder")
+		return fmt.Errorf("cannot make the file private. Another path links to it: remove that link from the Workstation Folder")
 	}
 	return protectFile(file, mode)
 }
@@ -205,7 +209,7 @@ func protectNewFolder(folder string) error { return protectWorkstationTree(folde
 
 // linkInFolderError refuses a link or junction: a change of permissions through it could reach outside the folder.
 func linkInFolderError(path string) error {
-	return fmt.Errorf("cannot make %s private: remove the link from the Workstation Folder", path)
+	return fmt.Errorf("cannot make %s private. Remove the link from the Workstation Folder", path)
 }
 
 // fillPlatformEnv does nothing: the Compose file fixes the user and group, so .env needs no identity of this computer.

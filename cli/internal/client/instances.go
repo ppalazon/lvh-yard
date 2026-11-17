@@ -29,7 +29,7 @@ func (c *Client) UnbindContainer(service, id string) error {
 func attachmentError(err error) error {
 	var response *responseError
 	if errors.As(err, &response) && response.status == http.StatusNotFound && response.service != "" {
-		return fmt.Errorf("%w Create it first: lvh-yard service create %s", err, response.service)
+		return fmt.Errorf("%w Create it first with \"lvh-yard service create %s\"", err, response.service)
 	}
 	return err
 }

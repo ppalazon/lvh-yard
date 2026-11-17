@@ -17,7 +17,7 @@ func NewContainers(options *Options) *cobra.Command {
 	state, followed := "running", "no"
 	cmd := &cobra.Command{
 		Use:   "containers",
-		Short: "Lists the running containers that no Service follows, with Compose services grouped.",
+		Short: "Lists the containers that no Service follows.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !slices.Contains(containerStates, state) {
@@ -85,9 +85,9 @@ func NewContainers(options *Options) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&state, "state", state, "Lists only running or stopped containers, or all.")
-	cmd.Flags().StringVar(&followed, "followed", followed, "Lists only containers that no Container Binding follows (no), only those it follows (yes), or all.")
-	cmd.Flags().BoolVar(&details, "details", false, "Shows container names and Docker port mappings.")
+	cmd.Flags().StringVar(&state, "state", state, "Lists running or stopped containers, or all.")
+	cmd.Flags().StringVar(&followed, "followed", followed, "Lists containers by Container Binding: no, yes or all.")
+	cmd.Flags().BoolVar(&details, "details", false, "Shows container names and port mappings.")
 	return cmd
 }
 

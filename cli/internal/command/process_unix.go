@@ -19,7 +19,7 @@ const (
 
 // quoteShell writes a value for the shell of this computer.
 func quoteShell(value string) string {
-	return quotePOSIX(value)
+	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
 }
 
 func (systemProcess) IsTerminal() bool {

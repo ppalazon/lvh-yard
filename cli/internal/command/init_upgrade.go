@@ -37,9 +37,9 @@ func upgradeInit(options *Options, folder, ws string, out io.Writer) error {
 	if err := runMigrations(folder, out); err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "Upgraded %s. Apply the generated options and images:\n  %s compose recreate\n", folder, ws)
+	fmt.Fprintf(out, "Upgraded %s.\nNext:\n  %s compose recreate\n", folder, ws)
 	if strings.Contains(text, "./tls:/consul/tls") || strings.Contains(text, "./tls:/etc/traefik/tls") {
-		fmt.Fprintln(out, "Your compose.yaml still mounts ./tls in Consul and Traefik. Certificates now live in tls/consul and tls/traefik: mount ./tls/consul:/consul/tls:ro in Consul and ./tls/traefik:/etc/traefik/tls:ro in Traefik, and install the certificates again.")
+		fmt.Fprintln(out, "Warning: compose.yaml still mounts ./tls in Consul and Traefik. Certificates now live in tls/consul and tls/traefik.\n  1. Mount ./tls/consul:/consul/tls:ro in Consul.\n  2. Mount ./tls/traefik:/etc/traefik/tls:ro in Traefik.\n  3. Install the certificates again.")
 	}
 	return nil
 }
@@ -50,14 +50,14 @@ func readComposeImages(folder string) (string, []composefile.Image, error) {
 	root, err := os.OpenRoot(folder)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return "", nil, fmt.Errorf("%s does not exist: nothing to upgrade. Write it first with lvh-yard ws init", file)
+			return "", nil, fmt.Errorf("%s does not exist. Nothing to upgrade. Run \"lvh-yard ws init\" first", file)
 		}
 		return "", nil, fmt.Errorf("Could not read %s: %w", file, err)
 	}
 	defer func() { _ = root.Close() }()
 	data, err := root.ReadFile("compose.yaml")
 	if os.IsNotExist(err) {
-		return "", nil, fmt.Errorf("%s does not exist: nothing to upgrade. Write it first with lvh-yard ws init", file)
+		return "", nil, fmt.Errorf("%s does not exist. Nothing to upgrade. Run \"lvh-yard ws init\" first", file)
 	}
 	if err != nil {
 		return "", nil, fmt.Errorf("Could not read %s: %w", file, err)
@@ -71,7 +71,7 @@ func readComposeImages(folder string) (string, []composefile.Image, error) {
 		}
 	}
 	if len(missing) != 0 {
-		return "", nil, fmt.Errorf("%s has no image: line for %s: nothing was changed. Change its images by hand", file, strings.Join(missing, ", "))
+		return "", nil, fmt.Errorf("%s has no image: line for %s. Nothing was changed. Edit the images by hand", file, strings.Join(missing, ", "))
 	}
 	return text, images, nil
 }
@@ -138,7 +138,7 @@ func upgradeImages(folder, text string, images, desired []composefile.Image, out
 			return fmt.Errorf("compose.yaml template has no image: line for %s", service)
 		}
 		if from.Value == to.Value {
-			fmt.Fprintf(out, "%s: %s, already this version's\n", service, to.Value)
+			fmt.Fprintf(out, "%s: %s (already this version)\n", service, to.Value)
 		} else {
 			changed = true
 			fmt.Fprintf(out, "%s: %s -> %s\n", service, from.Value, to.Value)

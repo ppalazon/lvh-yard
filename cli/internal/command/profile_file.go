@@ -11,7 +11,7 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-var errProfileFileShape = errors.New("The file must hold only http.middlewares, with each profile's name and its middleware.")
+var errProfileFileShape = errors.New("The file must hold only http.middlewares, with one entry for each Route Profile.")
 
 type profileFile struct {
 	profiles map[string]any

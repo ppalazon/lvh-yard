@@ -26,7 +26,7 @@ var composeRecreate = []string{"up", "-d", "--force-recreate"}
 func newWSLifecycle(options *Options, folder func() string) []*cobra.Command {
 	compose := &cobra.Command{
 		Use:   "compose",
-		Short: "Starts, stops, removes, upgrades and shows the logs of this Workstation's services.",
+		Short: "Runs the Compose services of this Workstation.",
 		Args:  cobra.NoArgs,
 		RunE:  func(cmd *cobra.Command, args []string) error { return cmd.Help() },
 	}
@@ -35,10 +35,10 @@ func newWSLifecycle(options *Options, folder func() string) []*cobra.Command {
 		short string
 		args  []string
 	}{
-		{"start", "Starts this Workstation's services.", []string{"up", "-d"}},
-		{"stop", "Stops this Workstation's services.", []string{"stop"}},
-		{"restart", "Restarts this Workstation's services.", []string{"restart"}},
-		{"recreate", "Recreates this Workstation's services to apply changed settings.", composeRecreate},
+		{"start", "Starts the Compose services.", []string{"up", "-d"}},
+		{"stop", "Stops the Compose services.", []string{"stop"}},
+		{"restart", "Restarts the Compose services.", []string{"restart"}},
+		{"recreate", "Recreates the services to apply new settings.", composeRecreate},
 	} {
 		compose.AddCommand(&cobra.Command{
 			Use:   action.name,
@@ -52,7 +52,7 @@ func newWSLifecycle(options *Options, folder func() string) []*cobra.Command {
 	var volumes bool
 	down := &cobra.Command{
 		Use:   "down",
-		Short: "Removes this Workstation's containers. Add -v to remove its data volumes too.",
+		Short: "Removes the containers of this Workstation.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			compose := []string{"down"}
@@ -62,11 +62,11 @@ func newWSLifecycle(options *Options, folder func() string) []*cobra.Command {
 			return runWSCompose(options, cmd, folder(), compose)
 		},
 	}
-	down.Flags().BoolVarP(&volumes, "volumes", "v", false, "Also removes the data volumes. Consul loses its Services, Routes and other setup.")
+	down.Flags().BoolVarP(&volumes, "volumes", "v", false, "Removes the data volumes too. Consul loses its data.")
 	compose.AddCommand(down)
 	compose.AddCommand(&cobra.Command{
 		Use:   "upgrade",
-		Short: "Updates the service images in compose.yaml.",
+		Short: "Updates the images in compose.yaml.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return upgradeInit(options, folder(), wsCommandOf(cmd, folder()), cmd.OutOrStdout())
@@ -75,7 +75,7 @@ func newWSLifecycle(options *Options, folder func() string) []*cobra.Command {
 	var follow bool
 	logs := &cobra.Command{
 		Use:       "logs [consul|traefik|dashboard]",
-		Short:     "Shows this Workstation's service logs.",
+		Short:     "Shows the logs of the Compose services.",
 		ValidArgs: []string{"consul", "traefik", "dashboard"},
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
@@ -94,7 +94,7 @@ func newWSLifecycle(options *Options, folder func() string) []*cobra.Command {
 			return runWSCompose(options, cmd, folder(), append(compose, args...))
 		},
 	}
-	logs.Flags().BoolVarP(&follow, "follow", "f", false, "Follows the service logs.")
+	logs.Flags().BoolVarP(&follow, "follow", "f", false, "Follows the logs.")
 	compose.AddCommand(logs)
 	return []*cobra.Command{compose}
 }
@@ -108,7 +108,7 @@ func runWSCompose(options *Options, cmd *cobra.Command, folder string, args []st
 	fmt.Fprintf(cmd.OutOrStdout(), "docker compose --project-directory %s %s\n", quoteShell(dir), strings.Join(args, " "))
 	code, err := options.Process.Run("docker", compose, dir, cmd.OutOrStdout(), cmd.ErrOrStderr())
 	if errors.Is(err, exec.ErrNotFound) {
-		return errors.New("docker is not on the PATH; install Docker with Compose")
+		return errors.New("docker is not on the PATH. Install Docker with Compose")
 	}
 	if err != nil {
 		return err
@@ -117,12 +117,6 @@ func runWSCompose(options *Options, cmd *cobra.Command, folder string, args []st
 		return &processExit{code: code}
 	}
 	return nil
-}
-
-// quotePOSIX writes a value for the Unix shell that ssh runs on another computer. For a command
-// that the user pastes into the shell of this computer, use quoteShell.
-func quotePOSIX(value string) string {
-	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
 }
 
 // wsCommandOf is the ws command to print in an instruction. It names the folder only when the

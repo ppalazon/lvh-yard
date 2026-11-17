@@ -291,6 +291,26 @@ func TestUpdateWritesABackupBeforeItReplacesTheExecutable(t *testing.T) {
 	}
 }
 
+// .env belongs to the user: a Workstation name with a path in it must not decide where the Backup goes.
+func TestUpdateBackupNameNeverHoldsAPath(t *testing.T) {
+	f := newUpdateFixture(t, "1.0.0", "2.0.0")
+	f.writeCompose(t)
+	if err := os.WriteFile(filepath.Join(f.folder, ".env"), []byte("YARD_WORKSTATION=../../escape\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	run := f.yard.Run("update")
+	if run.ExitCode != 0 {
+		t.Fatalf("update: %+v", run)
+	}
+	files, _ := filepath.Glob(filepath.Join(f.folder, "backups", "workstation-*-before-update.yaml"))
+	if len(files) != 1 {
+		t.Fatalf("Backups in the Backups folder: %v", files)
+	}
+	if outside, _ := filepath.Glob(filepath.Join(f.folder, "..", "*escape*")); len(outside) != 0 {
+		t.Fatalf("a Backup was written outside the Workstation Folder: %v", outside)
+	}
+}
+
 func TestUpdateGoesOnWhenTheDashboardCannotGiveABackup(t *testing.T) {
 	f := newUpdateFixture(t, "1.0.0", "2.0.0")
 	f.writeCompose(t)

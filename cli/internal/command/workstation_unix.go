@@ -22,9 +22,22 @@ func defaultWorkstationFolder(process Process) string {
 	return filepath.Join(home, ".config", "lvh-yard")
 }
 
-func validateWorkstationStorage(string) error           { return nil }
-func validateOutputPath(string) error                   { return nil }
-func validateOutputName(string) error                   { return nil }
+func validateWorkstationStorage(string) error { return nil }
+func validateOutputPath(string) error         { return nil }
+func validateOutputName(string) error         { return nil }
+
+// checkPrivateInput refuses a file with a secret that other users can read.
+func checkPrivateInput(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if info.Mode().Perm()&0077 != 0 {
+		return fmt.Errorf("%s can be read by other users. Run chmod 600 on it", path)
+	}
+	return nil
+}
+
 func validateNativeListener(string, string) error       { return nil }
 func protectFile(file *os.File, mode os.FileMode) error { return file.Chmod(mode) }
 func protectRootEntry(root *os.Root, name string, mode os.FileMode) error {
@@ -72,5 +85,5 @@ func dockerGroupWarning(env *envfile.File, dockerSocket string) string {
 	if strings.TrimSpace(env.Get("YARD_DOCKER_GID")) != "" {
 		return ""
 	}
-	return fmt.Sprintf("Warning: no Docker socket at %s, so YARD_DOCKER_GID in .env is empty. Set it to the group of /var/run/docker.sock, or the dashboard will not start.", dockerSocket)
+	return fmt.Sprintf("Warning: no Docker socket at %s, so YARD_DOCKER_GID in .env stays empty. Set it to the group of /var/run/docker.sock, or the dashboard does not start.", dockerSocket)
 }

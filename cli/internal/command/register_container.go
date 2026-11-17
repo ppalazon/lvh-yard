@@ -13,7 +13,7 @@ func newRegisterContainer(options *Options) *cobra.Command {
 	var port int
 	cmd := &cobra.Command{
 		Use:   "container <container>",
-		Short: "Binds a named container to an existing Service.",
+		Short: "Binds a container to a Service.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c := options.connect()
@@ -57,7 +57,7 @@ func newRegisterContainer(options *Options) *cobra.Command {
 				fmt.Fprintf(out, ", published at %s.", registered.Hostname)
 			}
 			if len(registered.Instances) == 0 {
-				fmt.Fprintf(out, " No container of that name runs now: %s gets its Bound Instance once one starts.", registered.Name)
+				fmt.Fprintf(out, " No container of that name runs now. %s gets a Bound Instance when one starts.", registered.Name)
 			}
 			fmt.Fprintln(out)
 			for _, warning := range registered.Warnings {
@@ -66,8 +66,8 @@ func newRegisterContainer(options *Options) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().IntVar(&port, "port", 0, "The Container Port; needed when no single port is known.")
-	cmd.Flags().StringVar(&service, "service", "", "The Service's name; defaults to the cleaned container name.")
+	cmd.Flags().IntVar(&port, "port", 0, "Sets the Container Port (default: the only port of the container).")
+	cmd.Flags().StringVar(&service, "service", "", "Sets the Service name (default: the cleaned container name).")
 	return cmd
 }
 
@@ -91,7 +91,7 @@ func newRegisterCompose(options *Options) *cobra.Command {
 	var port int
 	cmd := &cobra.Command{
 		Use:   "compose <project>/<service>",
-		Short: "Binds a Compose service to an existing Service.",
+		Short: "Binds a Compose service to a Service.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			parts := strings.Split(args[0], "/")
@@ -119,8 +119,8 @@ func newRegisterCompose(options *Options) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().IntVar(&port, "port", 0, "The Container Port in each container.")
+	cmd.Flags().IntVar(&port, "port", 0, "Sets the Container Port in each container.")
 	_ = cmd.MarkFlagRequired("port")
-	cmd.Flags().StringVar(&service, "service", "", "The Service's name; defaults to the cleaned Compose service name.")
+	cmd.Flags().StringVar(&service, "service", "", "Sets the Service name (default: the cleaned Compose service name).")
 	return cmd
 }

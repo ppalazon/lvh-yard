@@ -71,7 +71,7 @@ func runMigrations(folder string, out io.Writer) error {
 		return err
 	}
 	if layout > currentLayout() {
-		fmt.Fprintf(out, "%s was written by a newer lvh-yard, and its migrations are skipped.\n", folder)
+		fmt.Fprintf(out, "%s was written by a newer lvh-yard. Its migrations are skipped.\n", folder)
 		return nil
 	}
 	for ; layout < currentLayout(); layout++ {
@@ -104,7 +104,6 @@ func noteConsulDataFolder(folder string, out io.Writer) error {
 	if !strings.Contains(string(text), "./consul-data:/consul/data") {
 		return nil
 	}
-	fmt.Fprintln(out, "Note: compose.yaml still keeps the Consul data in ./consul-data. New Workstations use the Docker volume consul-data. This folder is not changed, and ws compose down -v does not remove ./consul-data.")
-	fmt.Fprintln(out, "To use the volume, export a Backup, make a new folder with ws init and the same Workstation name and Gossip Key, start it, and import the Backup.")
+	fmt.Fprintln(out, "Note: compose.yaml still keeps the Consul data in ./consul-data.\n  - New Workstations use the Docker volume consul-data.\n  - \"ws compose down -v\" does not remove ./consul-data.\nTo use the volume:\n  1. Export a Backup.\n  2. Run \"ws init\" in a new folder, with the same Workstation name.\n  3. Start the new Workstation.\n  4. Import the Backup.\n  5. Join the Yard again with \"ws yard join\", if this Workstation was in one.")
 	return nil
 }

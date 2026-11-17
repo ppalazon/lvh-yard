@@ -20,7 +20,7 @@ type authority struct {
 
 func newAuthority(t *testing.T, days int) authority {
 	t.Helper()
-	cert, key, err := tlsca.NewCA(days)
+	cert, key, err := tlsca.NewCA("LVH Yard CA - ws-a", days)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,7 +28,7 @@ func newAuthority(t *testing.T, days int) authority {
 	if err != nil {
 		t.Fatal(err)
 	}
-	parsed, signer, err := tlsca.ParseCA(caPEM, keyPEM)
+	parsed, signer, err := tlsca.ParseCA(caPEM, keyPEM, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func TestNewCertificateTakesFrom1To100000Days(t *testing.T) {
 
 func TestTheCAIsACertificateAuthorityThatSignsCertificates(t *testing.T) {
 	ca := newAuthority(t, 3650)
-	if !ca.cert.IsCA || ca.cert.KeyUsage&x509.KeyUsageCertSign == 0 || ca.cert.Subject.CommonName != "LVH Yard CA" {
+	if !ca.cert.IsCA || ca.cert.KeyUsage&x509.KeyUsageCertSign == 0 || ca.cert.Subject.CommonName != "LVH Yard CA - ws-a" {
 		t.Fatalf("CA = %+v", ca.cert)
 	}
 }
@@ -85,12 +85,12 @@ func TestParseCARefusesWhatIsNotACAWithItsKey(t *testing.T) {
 		cert, key []byte
 		want      string
 	}{
-		"no certificate": {[]byte("x"), ca.keyPEM, "invalid Yard CA certificate"},
-		"no key":         {ca.caPEM, []byte("x"), "invalid Yard CA key"},
+		"no certificate": {[]byte("x"), ca.keyPEM, "invalid CA certificate"},
+		"no key":         {ca.caPEM, []byte("x"), "invalid CA key"},
 		"another key":    {ca.caPEM, other.keyPEM, "do not match"},
 		"not a CA":       {leafPEM, leafKeyPEM, "do not match"},
 	} {
-		if _, _, err := tlsca.ParseCA(tc.cert, tc.key); err == nil || !strings.Contains(err.Error(), tc.want) {
+		if _, _, err := tlsca.ParseCA(tc.cert, tc.key, ""); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%s: error = %v; want %q", name, err, tc.want)
 		}
 	}
@@ -223,7 +223,7 @@ func TestClientBundleHoldsAClientCertificateSignedByTheCA(t *testing.T) {
 
 func TestClientBundleRefusesAValidityBeyondTheCA(t *testing.T) {
 	ca := newAuthority(t, 10)
-	if _, err := tlsca.ClientBundle("alice", 11, ca.cert, ca.key, "x"); err == nil || !strings.Contains(err.Error(), "outside the Yard CA validity") {
+	if _, err := tlsca.ClientBundle("alice", 11, ca.cert, ca.key, "x"); err == nil || !strings.Contains(err.Error(), "outside the CA validity") {
 		t.Fatalf("error = %v", err)
 	}
 }

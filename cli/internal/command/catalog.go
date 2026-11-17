@@ -16,7 +16,7 @@ func NewCatalog(options *Options) *cobra.Command {
 	var details bool
 	cmd := &cobra.Command{
 		Use:   "catalog",
-		Short: "Lists the Services of every Workstation, one line each.",
+		Short: "Lists the Services of every Workstation.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if state != "" && !slices.Contains([]string{"unpublished", "unavailable", "unhealthy", "degraded", "healthy"}, state) {
@@ -38,8 +38,8 @@ func NewCatalog(options *Options) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&workstation, "workstation", "", "Lists only the Services of this Workstation.")
-	cmd.Flags().StringVar(&state, "state", "", "Lists only unpublished, unavailable, unhealthy, degraded or healthy Services.")
-	cmd.Flags().BoolVar(&details, "details", false, "Shows Instance addresses, Health, IDs and Service Warnings.")
+	cmd.Flags().StringVar(&state, "state", "", "Lists only Services in this state, such as healthy.")
+	cmd.Flags().BoolVar(&details, "details", false, "Shows Instance addresses, Health, IDs and Warnings.")
 	return cmd
 }
 
@@ -52,7 +52,7 @@ func selectCatalogWorkstations(workstations []client.YardWorkstation, name strin
 			return workstations[i : i+1], nil
 		}
 	}
-	return nil, fmt.Errorf("The Yard has no Workstation %s.", name)
+	return nil, fmt.Errorf("The Yard has no Workstation %s. List them with \"lvh-yard catalog\".", name)
 }
 
 func catalogWidths(workstations []client.YardWorkstation, state string) (nameWidth, stateWidth, hostnameWidth int) {
@@ -103,7 +103,7 @@ func printCatalog(out io.Writer, workstations []client.YardWorkstation, home, st
 		}
 	}
 	if anyUnreachable {
-		fmt.Fprintln(out, "To see why, read the log of this Workstation's Consul:\n    lvh-yard ws compose logs consul")
+		fmt.Fprintln(out, "To see why, run:\n  lvh-yard ws compose logs consul")
 	}
 }
 

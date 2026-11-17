@@ -42,9 +42,10 @@ and run `lvh-yard ws compose recreate`. For this computer, use
 ## A Yard on one computer
 
 Two test Workstations, ws-a and ws-b, can run side by side on loopback.
-`dev:up` builds the CLI and uses `ws init` and `ws set` to make
-`dev/ws-a/` and `dev/ws-b/`. They use the same Gossip Key and join each
-other through their loopback WAN ports. ws-b uses the Base Domain `localhost`.
+`dev:up` builds the CLI and uses `ws init`, `ws set`, `ws tls ca create`,
+`ws yard share` and `ws yard join` to make `dev/ws-a/` and `dev/ws-b/`. ws-a
+shares its Yard with ws-b over loopback, so they join each
+other through their loopback WAN ports and run Consul TLS. ws-b uses the Base Domain `localhost`.
 Later runs keep the folders and their settings, including certificates.
 `ws compose start` starts Consul and Traefik with `COMPOSE_PROFILES=traefik`.
 This explicit profile selection leaves the dashboard for `dev:dashboard`,
@@ -460,9 +461,9 @@ It runs in three places, all with the rules of `.gitleaks.toml`:
 - `mise run secrets` scans the working tree and the whole git history.
 - The `secrets` job of CI runs the same task.
 
-`.gitleaks.toml` allows the throwaway gossip key in `dev/workstations.sh`
-and the CLI tests, including old files in Git history. They only join the
-test Workstations on loopback. Never put a gossip key
+`.gitleaks.toml` allows the throwaway gossip keys in the CLI tests,
+including old files in Git history. They only join the test Workstations on
+loopback. Never put a gossip key
 of a real Yard in a file of this repository. `.env` is ignored by Git for this
 reason. If gitleaks finds a real secret, remove it, rotate it, and do not just
 allow it.

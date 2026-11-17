@@ -33,3 +33,15 @@ Write all text in simple English: CLI help, messages, page text, API docs, docs,
 - CLI and page text says only what a thing does, in one short line.
 - A code comment says only what the code cannot: why, a hidden rule, or a value the type does not show.
 - CLI text and dashboard text may name `docker compose` and `lvh-yard` commands, for example to point at `lvh-yard ws compose logs consul`. Neither names `mise` tasks, because Workstations run LVH Yard without this repo.
+
+### CLI text
+
+Applies to CLI help, output, prompts and errors. Tests guard the command rule: `cli/internal/command/help_commands_test.go`.
+
+- `Short`: one line, at most 50 characters, third person, ends with a period.
+- `Long`: blocks in this order, when they apply: one line of purpose, `Before:`, `Does:`, `Next:`, `Note:`. Each label ends with a colon on its own line. Items are two-space indented lines. Steps are numbered `1.`, facts start with `-`.
+- Flag usage: one clause, at most 70 characters, such as "Sets ...", "Reads ...". Write a default as `(default: ...)` at the end.
+- Output: the success line first, then `label: value` lines or a `Next:` list. Do not repeat what the command just did.
+- Errors: "problem. What to do." Name the exact command or flag.
+- A command that the user runs stands alone on its own indented line, exactly as typed. Inside a sentence, put it in double quotes, for example `Run "lvh-yard ws init" first.`
+- Never change machine-read output: Backups, JSON, list columns, the `ws show` lines.

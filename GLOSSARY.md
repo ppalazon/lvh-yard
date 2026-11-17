@@ -84,16 +84,24 @@ _Avoid_: Cluster, federation list, Yard (the Yard is every Workstation, but the 
 The Yard's shared secret. Every Workstation in the Yard needs the same one to join it.
 _Avoid_: Yard key, encryption key, secret
 
-**Yard CA**:
-The one certificate authority of a Yard. It signs every Workstation Certificate and Client Certificate. LVH Yard can make it, or you bring your own. Its key stays on the Workstation that made it.
-_Avoid_: Private CA, root certificate
+**Invitation**:
+The encrypted zip file that `ws yard share` makes for one joining Workstation. It holds the Gossip Key, the main CA's certificate, the Consul certificate and key of the joining Workstation, and the address of the Workstation that shares. `ws yard join` reads it. Its password travels by another way.
+_Avoid_: Invite, join file, bundle
+
+**Workstation CA**:
+The certificate authority of one Workstation. It signs the Traefik certificate and the Client Certificates of that Workstation, and its key stays there. LVH Yard makes it, or you bring your own certificates with `ws tls install --ca --cert --key`.
+_Avoid_: Yard CA, Private CA, root certificate
+
+**Main CA**:
+The Workstation CA of the Workstation that shares the Yard. It signs the Consul certificate of every Workstation, and every Workstation trusts it for Consul. A Yard has one, and any Workstation CA can be it.
+_Avoid_: Yard CA, root CA
 
 **Workstation Certificate**:
-One of the two certificates of a Workstation, each with its own key: the Consul certificate, which Consul uses between Workstations, and the Traefik certificate, which Traefik uses for HTTPS on that Workstation's Routes. The Yard CA signs the Consul certificate. It can sign the Traefik certificate too, or a company or public CA can.
+One of the two certificates of a Workstation, each with its own key: the Consul certificate, which Consul uses between Workstations, and the Traefik certificate, which Traefik uses for HTTPS on that Workstation's Routes and shows to browsers. The main CA signs the Consul certificate. The Workstation CA signs the Traefik certificate, or a company or public CA does, and its key never leaves the Workstation.
 _Avoid_: Server certificate, TLS cert
 
 **Client Certificate**:
-A certificate that the Yard CA signs for a person. A Route Profile with `clientCertificate: {}` requires it. That Route answers only on HTTPS and has no Route on a Workstation without HTTPS.
+A certificate that a Workstation CA signs for a person, and that the person's browser shows to Traefik. Traefik checks it with the CA of its own Workstation. It is not a Workstation Certificate. A Route Profile with `clientCertificate: {}` requires it. That Route answers only on HTTPS and has no Route on a Workstation without HTTPS.
 _Avoid_: User certificate, mTLS certificate
 
 **Base Domain**:

@@ -31,7 +31,7 @@ type wanMember struct {
 func newWSYardPeers(folder func() string) *cobra.Command {
 	var sync bool
 	cmd := &cobra.Command{
-		Use: "peers", Short: "Lists the Workstations that Consul sees in the Yard.", Args: cobra.NoArgs,
+		Use: "peers", Short: "Lists the Peers that Consul sees.", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			env, err := readWSEnv(folder())
 			if err != nil {
@@ -71,13 +71,13 @@ func newWSYardPeers(folder func() string) *cobra.Command {
 			}
 			if len(skipped) > 0 {
 				sort.Strings(skipped)
-				fmt.Fprintf(out, "Left out, as they do not answer: %s\n", strings.Join(skipped, ", "))
+				fmt.Fprintf(out, "Not answering, left out: %s\n", strings.Join(skipped, ", "))
 			}
 			if !sync {
 				return nil
 			}
 			if len(addresses) == 0 {
-				return fmt.Errorf("no other Workstation answers, so YARD_PEERS stays as it is")
+				return fmt.Errorf("no other Workstation answers. YARD_PEERS does not change")
 			}
 			value, err := settings.Check("peers", strings.Join(addresses, " "))
 			if err != nil {
@@ -93,7 +93,7 @@ func newWSYardPeers(folder func() string) *cobra.Command {
 			return saveWSEnv(cmd, folder(), env)
 		},
 	}
-	cmd.Flags().BoolVar(&sync, "sync", false, "Sets YARD_PEERS to the Workstations that answer.")
+	cmd.Flags().BoolVar(&sync, "sync", false, "Sets YARD_PEERS to the Peers that answer.")
 	return cmd
 }
 
@@ -110,7 +110,7 @@ func readWANMembers(port string) ([]wanMember, error) {
 	address := "http://127.0.0.1:" + port
 	response, err := (&http.Client{Timeout: 5 * time.Second}).Get(address + "/v1/agent/members?wan=1")
 	if err != nil {
-		return nil, fmt.Errorf("cannot reach Consul at %s: start this Workstation with lvh-yard ws compose start", address)
+		return nil, fmt.Errorf("cannot reach Consul at %s. Start this Workstation with \"lvh-yard ws compose start\"", address)
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
@@ -118,7 +118,7 @@ func readWANMembers(port string) ([]wanMember, error) {
 	}
 	var members []wanMember
 	if err := json.NewDecoder(response.Body).Decode(&members); err != nil {
-		return nil, fmt.Errorf("Consul at %s sent an answer that is not a member list: %w", address, err)
+		return nil, fmt.Errorf("Consul at %s sent data that is not a member list: %w", address, err)
 	}
 	return members, nil
 }

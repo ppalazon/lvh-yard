@@ -57,7 +57,7 @@ func NewRoot(options Options, groups ...func(*Options) *cobra.Command) *cobra.Co
 	}
 	root := &cobra.Command{
 		Use:           "lvh-yard",
-		Short:         "Manages Services on this Workstation.",
+		Short:         "Manages the Services of this Workstation.",
 		Version:       options.Version,
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,

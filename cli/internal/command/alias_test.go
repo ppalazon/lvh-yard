@@ -15,10 +15,10 @@ func TestAliasAdd(t *testing.T) {
 		name, service, body, stdout, stderr string
 		status, exitCode                    int
 	}{
-		{"existing Service", "web", `{"id":"ws-b/grafana","workstation":"ws-b","service":"grafana","state":"active","serviceCreated":false,"aliasCreated":true}`, "Added the Alias to grafana on ws-b to the existing Service web.\n", "", 201, 0},
-		{"new Service", "dash", `{"id":"ws-b/grafana","workstation":"ws-b","service":"grafana","state":"active","serviceCreated":true,"aliasCreated":true}`, "Created Service dash with Local Scope and added the Alias to grafana on ws-b.\n", "", 201, 0},
+		{"existing Service", "web", `{"id":"ws-b/grafana","workstation":"ws-b","service":"grafana","state":"active","serviceCreated":false,"aliasCreated":true}`, "Added the Alias to grafana on ws-b to the Service web.\n", "", 201, 0},
+		{"new Service", "dash", `{"id":"ws-b/grafana","workstation":"ws-b","service":"grafana","state":"active","serviceCreated":true,"aliasCreated":true}`, "Created the Service dash with Local Scope. Added the Alias to grafana on ws-b.\n", "", 201, 0},
 		{"already added", "web", `{"id":"ws-b/grafana","workstation":"ws-b","service":"grafana","state":"active","serviceCreated":false,"aliasCreated":false}`, "Service web has the Alias to grafana on ws-b already.\n", "", 200, 0},
-		{"no reachable Instances", "web", `{"id":"ws-b/grafana","workstation":"ws-b","service":"grafana","state":"unavailable","reason":"grafana has no Instance this Workstation can reach.","serviceCreated":false,"aliasCreated":true}`, "Added the Alias to grafana on ws-b to the existing Service web.\n", "Warning: grafana has no Instance this Workstation can reach.\n", 201, 0},
+		{"no reachable Instances", "web", `{"id":"ws-b/grafana","workstation":"ws-b","service":"grafana","state":"unavailable","reason":"grafana has no Instance this Workstation can reach.","serviceCreated":false,"aliasCreated":true}`, "Added the Alias to grafana on ws-b to the Service web.\n", "Warning: grafana has no Instance this Workstation can reach.\n", 201, 0},
 		{"refused", "web", `{"type":"about:blank","title":"Bad Request","status":400,"field":"service","detail":"ws-b has not published grafana. Only a Remote Service with Yard Scope can be the target of an Alias."}`, "", "ws-b has not published grafana. Only a Remote Service with Yard Scope can be the target of an Alias.\n", 400, 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

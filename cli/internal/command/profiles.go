@@ -15,7 +15,7 @@ import (
 func NewProfiles(options *Options) *cobra.Command {
 	profiles := &cobra.Command{
 		Use:   "profiles",
-		Short: "Lists the Route Profiles of this Workstation.",
+		Short: "Lists the Route Profiles.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			profiles, err := options.connect().RouteProfiles()
@@ -42,7 +42,7 @@ func NewProfiles(options *Options) *cobra.Command {
 	}
 	profiles.AddCommand(&cobra.Command{
 		Use:   "show <name>",
-		Short: "Prints a Route Profile in Traefik's file format.",
+		Short: "Prints a Route Profile in Traefik's format.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			profile, err := options.connect().RouteProfile(args[0])
@@ -58,7 +58,7 @@ func NewProfiles(options *Options) *cobra.Command {
 		},
 	}, &cobra.Command{
 		Use:   "set <file>",
-		Short: "Adds or replaces the Route Profiles of a file in Traefik's format.",
+		Short: "Saves the Route Profiles of a Traefik file.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var text []byte
@@ -90,7 +90,8 @@ func NewProfiles(options *Options) *cobra.Command {
 		},
 	}, &cobra.Command{
 		Use:   "edit <name>",
-		Short: "Opens a Route Profile in " + editorVariable + ", else " + defaultEditor + ", and saves it.",
+		Short: "Edits a Route Profile in your editor.",
+		Long:  "Edits a Route Profile in " + editorVariable + " (default: " + defaultEditor + ").\n\nDoes:\n  1. opens the Route Profile in the editor\n  2. saves it when you close the editor",
 		Args:  cobra.ExactArgs(1),
 		RunE:  func(cmd *cobra.Command, args []string) error { return editProfile(cmd, options, args[0]) },
 	}, &cobra.Command{

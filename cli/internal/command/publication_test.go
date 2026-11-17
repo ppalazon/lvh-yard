@@ -21,39 +21,39 @@ func TestPublish(t *testing.T) {
 		{
 			name: "new local publication", args: []string{"web"},
 			answer: `{"workstation":"ws-a","name":"web","state":"unhealthy","hostname":"web.lvh.me","publication":{"scope":"local","accessLog":false}}`,
-			stdout: "Published web at web.lvh.me, with Local Scope. It is unhealthy.\n",
+			stdout: "Published web at web.lvh.me.\n  Scope: Local\n  State: unhealthy\n",
 		},
 		{
 			name: "omitted scope keeps yard", args: []string{"web"},
 			answer: `{"workstation":"ws-a","name":"web","state":"healthy","hostname":"web.lvh.me","publication":{"scope":"yard","accessLog":true}}`,
-			stdout: "Published web at web.lvh.me, with Yard Scope. Other Workstations reach it at web.ws-a.<base-domain>. It is healthy. Access log: on.\n",
+			stdout: "Published web at web.lvh.me.\n  Scope: Yard\n  Other Workstations: web.ws-a.<base-domain>\n  State: healthy\n  Access log: on\n",
 		},
 		{
 			name: "yard scope and warnings", args: []string{"web", "--scope", "yard"}, body: `{"scope":"yard"}`,
 			answer: `{"workstation":"ws-a","name":"web","state":"healthy","hostname":"web.lvh.me","publication":{"scope":"yard","accessLog":false},"warnings":[{"severity":"error","message":"The Route Profile team-login does not exist."},{"severity":"risk","message":"The Instance at 127.0.0.1:8080 is on a loopback address."}]}`,
-			stdout: "Published web at web.lvh.me, with Yard Scope. Other Workstations reach it at web.ws-a.<base-domain>. It is healthy.\n",
+			stdout: "Published web at web.lvh.me.\n  Scope: Yard\n  Other Workstations: web.ws-a.<base-domain>\n  State: healthy\n",
 			stderr: "error: The Route Profile team-login does not exist.\nrisk: The Instance at 127.0.0.1:8080 is on a loopback address.\n",
 		},
 		{
 			name: "profiles keep order", args: []string{"web", "--profile", "basic-auth", "--profile", "cors"}, body: `{"profiles":["basic-auth","cors"]}`,
 			answer: `{"workstation":"ws-a","name":"web","state":"healthy","hostname":"web.lvh.me","publication":{"scope":"local","accessLog":false},"profiles":["basic-auth","cors"],"warnings":[{"severity":"risk","message":"The Route Profile basic-auth asks who the user is only on the hostname."}]}`,
-			stdout: "Published web at web.lvh.me, with Local Scope. It is healthy. Route Profiles: basic-auth, cors.\n",
+			stdout: "Published web at web.lvh.me.\n  Scope: Local\n  State: healthy\n  Route Profiles: basic-auth, cors\n",
 			stderr: "risk: The Route Profile basic-auth asks who the user is only on the hostname.\n",
 		},
 		{
 			name: "remove profiles", args: []string{"web", "--no-profiles"}, body: `{"profiles":[]}`,
 			answer: `{"name":"web","state":"healthy","hostname":"web.lvh.me","publication":{"scope":"local","accessLog":false}}`,
-			stdout: "Published web at web.lvh.me, with Local Scope. It is healthy.\n",
+			stdout: "Published web at web.lvh.me.\n  Scope: Local\n  State: healthy\n",
 		},
 		{
 			name: "access log on", args: []string{"web", "--access-log", "on"}, body: `{"accessLog":true}`,
 			answer: `{"name":"web","state":"healthy","hostname":"web.lvh.me","publication":{"scope":"local","accessLog":true}}`,
-			stdout: "Published web at web.lvh.me, with Local Scope. It is healthy. Access log: on.\n",
+			stdout: "Published web at web.lvh.me.\n  Scope: Local\n  State: healthy\n  Access log: on\n",
 		},
 		{
 			name: "access log off", args: []string{"web", "--scope", "local", "--access-log", "off"}, body: `{"scope":"local","accessLog":false}`,
 			answer: `{"name":"web","state":"healthy","hostname":"web.lvh.me","publication":{"scope":"local","accessLog":false}}`,
-			stdout: "Published web at web.lvh.me, with Local Scope. It is healthy.\n",
+			stdout: "Published web at web.lvh.me.\n  Scope: Local\n  State: healthy\n",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

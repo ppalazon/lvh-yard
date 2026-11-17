@@ -105,7 +105,7 @@ func TestInitUpgradeMissingImageLeavesEveryFileUntouched(t *testing.T) {
 			writeUpgradeFile(t, folder, "compose.yaml", before)
 			writeUpgradeFile(t, folder, ".env", "YARD_WORKSTATION=mine\n")
 			run := commandtest.New(t).Run("ws", "compose", "upgrade", "--dir", folder)
-			if run.ExitCode != 1 || !strings.Contains(run.Stderr, filepath.Join(folder, "compose.yaml")+" has no image: line for "+service) || !strings.Contains(run.Stderr, "nothing was changed") {
+			if run.ExitCode != 1 || !strings.Contains(run.Stderr, filepath.Join(folder, "compose.yaml")+" has no image: line for "+service) || !strings.Contains(run.Stderr, "Nothing was changed") {
 				t.Fatalf("missing image: %+v", run)
 			}
 			if run.Stdout != "" || readInitFile(t, folder, "compose.yaml") != before || readInitFile(t, folder, ".env") != "YARD_WORKSTATION=mine\n" {

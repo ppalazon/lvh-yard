@@ -8,32 +8,41 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/ppalazon/lvh-yard/cli/internal/tlsca"
 	"github.com/spf13/cobra"
 )
 
 func newWSTLS(options *Options, folder func() string) *cobra.Command {
-	tls := &cobra.Command{Use: "tls", Short: "Manages this Workstation's certificates and TLS.", Args: cobra.NoArgs}
-	tls.AddCommand(newWSTLSCA(options, folder), newWSTLSImport(options, folder), newWSTLSEnable(folder), newWSTLSDisable(folder))
+	tls := &cobra.Command{Use: "tls", Short: "Manages the certificates and TLS.", Args: cobra.NoArgs}
+	tls.AddCommand(newWSTLSCA(options, folder), newWSTLSInstall(options, folder), newWSTLSEnable(folder), newWSTLSDisable(folder))
 	return tls
 }
 
-const privateCAWarning = "Warning: LVH Yard makes this Yard CA for testing or development. Its key is a plain file on this computer, and nothing can revoke a certificate it signed.\nFor more than testing, use a more robust CA, such as a company CA or a public CA, and install its certificates with 'lvh-yard ws tls import'."
+const privateCAWarning = "Warning: this CA is for testing and development.\n  - Its key is a file on this computer.\n  - Nothing can revoke a certificate that it signed.\nFor more than testing, use a company CA or a public CA:\n  lvh-yard ws tls install --ca <file> --cert <file> --key <file>"
 
-// newWSTLSCA holds every command that needs the Yard CA key.
+// newWSTLSCA holds every command that needs the key of this Workstation's CA.
 func newWSTLSCA(options *Options, folder func() string) *cobra.Command {
 	ca := &cobra.Command{
-		Use: "ca", Short: "Makes the Yard CA and signs with it.", Long: "Makes the Yard CA and signs with it.\n\n" + privateCAWarning, Args: cobra.NoArgs,
+		Use: "ca", Short: "Makes the Workstation CA and signs with it.", Long: "Makes the Workstation CA and signs with it.\n\n" + privateCAWarning, Args: cobra.NoArgs,
 		// After every command under ca that succeeded.
 		PersistentPostRun: func(cmd *cobra.Command, args []string) {
 			fmt.Fprintln(cmd.ErrOrStderr(), "\n"+privateCAWarning)
 		},
 	}
+	ca.AddCommand(newWSTLSCACreate(options, folder), newWSTLSIssue(options, folder), newWSTLSExport(options, folder))
+	return ca
+}
+
+func newWSTLSCACreate(options *Options, folder func() string) *cobra.Command {
 	var force bool
 	var days int
-	create := &cobra.Command{Use: "create", Short: "Makes a Yard CA without starting TLS.", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
-		if _, err := readWSEnv(folder()); err != nil {
+	var name string
+	create := &cobra.Command{Use: "create", Short: "Makes the Workstation CA.", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
+		env, err := readWSEnv(folder())
+		if err != nil {
 			return err
 		}
 		if err := protectWorkstationFolder(folder()); err != nil {
@@ -44,32 +53,54 @@ func newWSTLSCA(options *Options, folder func() string) *cobra.Command {
 			return err
 		}
 		defer func() { _ = root.Close() }()
-		dir := filepath.Join(folder(), "ca")
-		for _, name := range []string{"ca.crt", "ca.key"} {
-			if _, err := root.Lstat(filepath.Join("ca", name)); err == nil && !force {
-				return fmt.Errorf("a Yard CA exists: use --force to replace it")
-			} else if err != nil && !os.IsNotExist(err) {
-				return err
-			}
+		if err := checkNoCA(root, force); err != nil {
+			return err
 		}
-		days, err := askDays(cmd, newPrompter(cmd, options), days, 3650, "CA validity in days")
+		p := newPrompter(cmd, options)
+		if name, err = askCAName(cmd, p, name, strings.Trim(env.Get("YARD_WORKSTATION"), "\"'")); err != nil {
+			return err
+		}
+		days, err := askDays(cmd, p, days, 3650, "CA validity in days")
 		if err != nil {
 			return err
 		}
-		cert, key, err := tlsca.NewCA(days)
+		password, err := askCAKeyPassword(cmd, p)
 		if err != nil {
 			return err
 		}
-		if err := writeTLSCertificate(root, "ca", "ca", cert, cert, key, key); err != nil {
+		cert, key, err := tlsca.NewCA(name, days)
+		if err != nil {
 			return err
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "Yard CA saved in %s.\nImport ca.crt into your browser's trusted certificate authorities. Never share ca.key.\n", dir)
+		if err := writeTLSCertificate(root, "ca", "ca", cert, cert, key, key, password); err != nil {
+			return err
+		}
+		out := cmd.OutOrStdout()
+		fmt.Fprintf(out, "CA %q saved in %s.\nNext:\n  Import ca.crt into your browser's trusted authorities.\n  Never send ca.key.\n", name, filepath.Join(folder(), "ca"))
+		if password != "" {
+			fmt.Fprintf(out, "ca.key has a password.\n  Commands that sign ask for it, or take --%s or --%s.\n  Nothing can recover it.\n", caKeyPasswordFlag, caKeyPasswordFileFlag)
+		}
 		return nil
 	}}
-	create.Flags().BoolVar(&force, "force", false, "Replaces an existing Yard CA.")
+	create.Flags().BoolVar(&force, "force", false, "Replaces the existing CA.")
 	create.Flags().IntVar(&days, "days", 3650, "Sets the CA validity in days.")
-	ca.AddCommand(create, newWSTLSIssue(options, folder), newWSTLSInstall(options, folder))
-	return ca
+	create.Flags().StringVar(&name, "name", "", "Sets the CA common name (default: LVH Yard CA - <Workstation>).")
+	addCAKeyPasswordFlags(create.Flags(), "Sets the ca.key password (default: none).", "Reads the ca.key password from a file, or - (default: none).")
+	return create
+}
+
+// checkNoCA refuses to replace this Workstation's CA, unless force is set.
+func checkNoCA(root *os.Root, force bool) error {
+	for _, path := range []string{caCertPath, caKeyPath} {
+		_, err := root.Lstat(path)
+		switch {
+		case err == nil && !force:
+			return fmt.Errorf("a CA exists in %s. Use --force to replace it", path)
+		case err != nil && !os.IsNotExist(err):
+			return err
+		}
+	}
+	return nil
 }
 
 // askDays uses the --days flag when it was given, and asks for the validity at a terminal.
@@ -89,10 +120,17 @@ func askDays(cmd *cobra.Command, p *prompter, flag, fallback int, question strin
 	return strconv.Atoi(answer)
 }
 
-func writeTLSCertificate(root *os.Root, dir, name string, cert, parent *x509.Certificate, key, signer *ecdsa.PrivateKey) error {
+// writeTLSCertificate writes name.crt and name.key. A key password encrypts the key; leaf
+// certificates pass none.
+func writeTLSCertificate(root *os.Root, dir, name string, cert, parent *x509.Certificate, key, signer *ecdsa.PrivateKey, keyPassword string) error {
 	certPEM, keyPEM, err := tlsca.Sign(cert, parent, key, signer)
 	if err != nil {
 		return err
+	}
+	if keyPassword != "" {
+		if keyPEM, err = tlsca.EncryptKey(key, keyPassword); err != nil {
+			return err
+		}
 	}
 	if err := root.MkdirAll(dir, 0700); err != nil {
 		return err
@@ -128,23 +166,76 @@ func writeTLSCertificate(root *os.Root, dir, name string, cert, parent *x509.Cer
 	return nil
 }
 
-func readYardCA(folder string) (*x509.Certificate, *ecdsa.PrivateKey, []byte, error) {
+// Where this Workstation's CA keeps its files, relative to the Workstation Folder. What it signed
+// is in ca/certs/<name>/ and ca/clients/.
+const (
+	caCertPath = "ca/ca.crt"
+	caKeyPath  = "ca/ca.key"
+)
+
+// readCAPEM reads the certificate of this Workstation's CA alone, which install and export need.
+// It asks for no password.
+func readCAPEM(folder string) ([]byte, error) {
 	root, err := os.OpenRoot(folder)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 	defer func() { _ = root.Close() }()
-	caPEM, err := root.ReadFile(filepath.Join("ca", "ca.crt"))
+	caPEM, err := root.ReadFile(caCertPath)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("this Workstation has no readable Yard CA: run lvh-yard ws tls ca create on the signing Workstation: %w", err)
+		return nil, fmt.Errorf("this Workstation has no readable CA. Run \"lvh-yard ws tls ca create\": %w", err)
 	}
-	keyPEM, err := root.ReadFile(filepath.Join("ca", "ca.key"))
+	if _, err := tlsca.ParseCACertificate(caPEM); err != nil {
+		return nil, err
+	}
+	return caPEM, nil
+}
+
+// readCA reads this Workstation's CA with its key, to sign. A key with a password is opened with
+// --ca-key-password, or with the answer to a question at a terminal.
+func readCA(cmd *cobra.Command, p *prompter, folder string) (*x509.Certificate, *ecdsa.PrivateKey, error) {
+	caPEM, err := readCAPEM(folder)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("this Workstation has no readable Yard CA key: sign certificates on the Workstation that made the CA: %w", err)
+		return nil, nil, err
 	}
-	ca, signer, err := tlsca.ParseCA(caPEM, keyPEM)
+	root, err := os.OpenRoot(folder)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
-	return ca, signer, caPEM, nil
+	defer func() { _ = root.Close() }()
+	keyPEM, err := root.ReadFile(caKeyPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("this Workstation has no readable CA key. Sign on the Workstation that made the CA: %w", err)
+	}
+	password := ""
+	if tlsca.KeyEncrypted(keyPEM) {
+		if password, err = askCAKeyUnlock(cmd, p); err != nil {
+			return nil, nil, err
+		}
+	}
+	return tlsca.ParseCA(caPEM, keyPEM, password)
+}
+
+// askCAName gives the common name of a new CA certificate: the flag, or the answer to a
+// question that offers the default.
+func askCAName(cmd *cobra.Command, p *prompter, flag, workstation string) (string, error) {
+	name := "LVH Yard CA - " + workstation
+	switch {
+	case cmd.Flags().Changed("name"):
+		name = flag
+	case p.terminal:
+		var err error
+		if name, err = p.text("CA common name", name, checkCAName); err != nil {
+			return "", err
+		}
+	}
+	return name, checkCAName(name)
+}
+
+// checkCAName keeps the name to what a common name holds: 1 to 64 characters, no control characters.
+func checkCAName(name string) error {
+	if strings.TrimSpace(name) == "" || utf8.RuneCountInString(name) > 64 || strings.ContainsFunc(name, unicode.IsControl) {
+		return fmt.Errorf("Use a name of 1 to 64 characters, without control characters.")
+	}
+	return nil
 }

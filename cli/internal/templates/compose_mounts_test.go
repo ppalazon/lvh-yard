@@ -8,7 +8,7 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// Each role mounts only its own certificate folder, read-only. Nothing mounts ca/, which holds the Yard CA key.
+// Each role mounts only its own certificate folder, read-only. Nothing mounts ca/, which holds the CA key.
 func TestComposeMountsKeepCertificateRolesApart(t *testing.T) {
 	want := map[string]string{
 		"consul":    "./tls/consul:/consul/tls:ro",

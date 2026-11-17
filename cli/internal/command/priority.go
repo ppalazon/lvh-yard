@@ -12,11 +12,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const priorityHelp = `Shows or sets the Instance Priority of a Service and the order of its Instance Sources.
+
+Does:
+  - with --on or --off, sets the Instance Priority
+  - with <id> arguments, sets the order of the Instance Sources
+  - prints the Instance Priority and the Instance Sources`
+
 func NewPriority(options *Options) *cobra.Command {
 	var on, off bool
 	cmd := &cobra.Command{
 		Use:   "priority <service> [<id>...]",
-		Short: "Shows or sets the order of a Service's Instance Sources.",
+		Short: "Shows or sets the Instance Priority of a Service.",
+		Long:  priorityHelp,
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c := options.connect()

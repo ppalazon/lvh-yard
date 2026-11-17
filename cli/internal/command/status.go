@@ -7,13 +7,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var errStatusFailed = errors.New("LVH Yard Status fails")
+var errStatusFailed = errors.New("LVH Yard status is not ok")
 
 func NewStatus(options *Options) *cobra.Command {
 	var strict bool
 	cmd := &cobra.Command{
 		Use:   "status",
-		Short: "Shows whether LVH Yard works on this Workstation.",
+		Short: "Checks that LVH Yard works on this Workstation.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			status, err := options.connect().Status()
@@ -39,13 +39,13 @@ func NewStatus(options *Options) *cobra.Command {
 					fmt.Fprintf(out, "          %s: %s%s\n", detail.Name, detail.Value, suffix)
 				}
 			}
-			fmt.Fprintf(out, "\nOpen the dashboard at %s\n", options.DashboardAddress())
+			fmt.Fprintf(out, "\nDashboard: %s\n", options.DashboardAddress())
 			if status.Overall != "ok" && (status.Overall != "warning" || strict) {
 				return errStatusFailed
 			}
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&strict, "strict", false, "Also exit with 1 on a warning.")
+	cmd.Flags().BoolVar(&strict, "strict", false, "Exits with 1 on a warning too.")
 	return cmd
 }

@@ -28,7 +28,7 @@ func (c *Client) ImportBackup(backup, mode string, dryRun bool) (ImportResult, e
 	}
 	var result ImportResult
 	if err := json.Unmarshal(data, &result); err != nil {
-		return ImportResult{}, fmt.Errorf("%s is not the LVH Yard dashboard: its answer is not the API's JSON.", c.address)
+		return ImportResult{}, fmt.Errorf("%s is not the LVH Yard dashboard. Check the address in --dashboard.", c.address)
 	}
 	return result, nil
 }

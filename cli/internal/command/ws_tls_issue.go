@@ -2,11 +2,9 @@ package command
 
 import (
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"unicode"
 
@@ -15,14 +13,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// The Consul certificates are not signed here: ws yard share signs them, for the Workstations that
+// join a Yard.
 func newWSTLSIssue(options *Options, folder func() string) *cobra.Command {
-	issue := &cobra.Command{Use: "issue", Short: "Signs certificates with the Yard CA.", Args: cobra.NoArgs}
-	issue.AddCommand(
-		newWSTLSIssueRoles(options, folder, "workstation [name]", "Signs the Consul and Traefik certificates of a Workstation without starting TLS.", issueWorkstationHelp, tlsRoles),
-		newWSTLSIssueRoles(options, folder, "consul [name]", "Signs the Consul certificate of a Workstation without starting TLS.", issueConsulHelp, []string{roleConsul}),
-		newWSTLSIssueRoles(options, folder, "traefik [name]", "Signs the Traefik certificate of a Workstation without starting TLS.", issueTraefikHelp, []string{roleTraefik}),
-		newWSTLSIssueUser(options, folder),
-	)
+	issue := &cobra.Command{Use: "issue", Short: "Signs certificates with the Workstation CA.", Args: cobra.NoArgs}
+	addCAKeyPasswordFlags(issue.PersistentFlags(), caKeyFlagUsage, caKeyFileFlagUsage)
+	issue.AddCommand(newWSTLSIssueTraefik(options, folder), newWSTLSIssueUser(options, folder))
 	return issue
 }
 
@@ -32,14 +28,14 @@ func checkTLSAddress(address string) error {
 	}
 	dns := strings.TrimPrefix(address, "*.")
 	if !settings.ValidBaseDomain(dns) || net.ParseIP(dns) != nil {
-		return fmt.Errorf("invalid --address %q: use an IP address, DNS name or leftmost-label wildcard such as *.ws-b.lvh.me", address)
+		return fmt.Errorf("invalid --address %q. Use an IP address, a DNS name or a wildcard such as *.ws-b.lvh.me", address)
 	}
 	return nil
 }
 
 func checkWorkstationName(name string) error {
 	if !settings.ValidWorkstationName(name) {
-		return fmt.Errorf("invalid Workstation name: use lowercase letters, digits and -, at most 63, not starting or ending with -")
+		return fmt.Errorf("invalid Workstation name. Use 1 to 63 lowercase letters, digits or -, and no - at the start or end")
 	}
 	return nil
 }
@@ -48,12 +44,12 @@ func splitAddresses(text string) []string {
 	return strings.FieldsFunc(text, func(r rune) bool { return r == ',' || unicode.IsSpace(r) })
 }
 
-func newWSTLSIssueRoles(options *Options, folder func() string, use, short, long string, roles []string) *cobra.Command {
-	var domain string
+// newWSTLSIssueTraefik signs the Traefik certificate of this Workstation. It is for this
+// Workstation only, so its key never leaves it.
+func newWSTLSIssueTraefik(options *Options, folder func() string) *cobra.Command {
 	var addresses []string
 	var days int
-	forTraefik := slices.Contains(roles, roleTraefik)
-	cmd := &cobra.Command{Use: use, Short: short, Long: long, Args: cobra.MaximumNArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+	cmd := &cobra.Command{Use: "traefik", Short: "Signs the Traefik certificate of this Workstation.", Long: issueTraefikHelp, Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		env, err := readWSEnv(folder())
 		if err != nil {
 			return err
@@ -61,99 +57,55 @@ func newWSTLSIssueRoles(options *Options, folder func() string, use, short, long
 		if err := protectWorkstationFolder(folder()); err != nil {
 			return err
 		}
-		ca, signer, _, err := readYardCA(folder())
-		if err != nil {
-			return err
-		}
 		p := newPrompter(cmd, options)
-		self := strings.Trim(env.Get("YARD_WORKSTATION"), "\"'")
-		name, err := askTLSWorkstationName(p, args, self)
+		ca, signer, err := readCA(cmd, p, folder())
 		if err != nil {
 			return err
 		}
+		self := strings.Trim(env.Get("YARD_WORKSTATION"), "\"'")
 		base := env.ValueOrDefault("YARD_BASE_DOMAIN")
-		if forTraefik {
-			base, addresses, err = askTraefikCertificateNames(cmd, p, base, domain, addresses)
-			if err != nil {
-				return err
-			}
+		if addresses, err = askTraefikAddresses(cmd, p, base, addresses); err != nil {
+			return err
 		}
 		days, err := askDays(cmd, p, days, 365, "certificate validity in days")
 		if err != nil {
 			return err
 		}
-		dir := filepath.Dir(issuedPath(folder(), name, roles[0], ".crt"))
+		leaf, key, err := tlsca.NewCertificate(self, days)
+		if err != nil {
+			return err
+		}
+		tlsca.FillTraefik(leaf, base, addresses)
+		if err := tlsca.CheckWithin(leaf, ca); err != nil {
+			return err
+		}
 		root, err := os.OpenRoot(folder())
 		if err != nil {
 			return err
 		}
 		defer func() { _ = root.Close() }()
-		out := cmd.OutOrStdout()
-		for _, role := range roles {
-			leaf, key, err := tlsca.NewCertificate(name, days)
-			if err != nil {
-				return err
-			}
-			if role == roleConsul {
-				tlsca.FillConsul(leaf, name)
-			} else {
-				tlsca.FillTraefik(leaf, base, addresses)
-			}
-			if err := tlsca.CheckWithin(leaf, ca); err != nil {
-				return err
-			}
-			if err := writeTLSCertificate(root, filepath.Dir(issuedPath("", name, role, ".crt")), role, leaf, ca, key, signer); err != nil {
-				return err
-			}
-			fmt.Fprintf(out, "%s certificate for %s saved in %s.\nIt names: %s\n", roleSettingName(role), name, filepath.Join(dir, role+".crt"), strings.Join(tlsca.Names(leaf), ", "))
+		if err := writeTLSCertificate(root, filepath.Dir(issuedPath("", self, roleTraefik, ".crt")), roleTraefik, leaf, ca, key, signer, ""); err != nil {
+			return err
 		}
 		if err := protectWorkstationFolder(folder()); err != nil {
 			return err
 		}
-		printTLSInstallStep(out, wsCommand(folder(), options.WorkstationFolder()), name, self)
+		out := cmd.OutOrStdout()
+		fmt.Fprintf(out, "Traefik certificate for %s saved in %s.\n  Names: %s\n  HTTPS is not started.\n", self, issuedPath(folder(), self, roleTraefik, ".crt"), strings.Join(tlsca.Names(leaf), ", "))
+		fmt.Fprintf(out, "Next:\n  %s tls install\n", wsCommand(folder(), options.WorkstationFolder()))
 		return nil
 	}}
-	if forTraefik {
-		cmd.Flags().StringVar(&domain, "base-domain", "", "Uses this Base Domain for the certificate (default: this Workstation's).")
-		cmd.Flags().StringArrayVar(&addresses, "address", nil, "Adds an IP address, DNS name or wildcard DNS name to the Traefik certificate.")
-	}
+	cmd.Flags().StringArrayVar(&addresses, "address", nil, "Adds an IP address, DNS name or *.<name> wildcard to the certificate.")
 	cmd.Flags().IntVar(&days, "days", 365, "Sets the certificate validity in days.")
 	return cmd
 }
 
-func askTLSWorkstationName(p *prompter, args []string, self string) (string, error) {
-	name := self
-	if len(args) == 1 {
-		name = args[0]
-	} else if p.terminal {
-		var err error
-		name, err = p.text("Workstation name, as it is in the Yard", self, checkWorkstationName)
-		if err != nil {
-			return "", err
-		}
-	}
-	return name, checkWorkstationName(name)
-}
-
-func askTraefikCertificateNames(cmd *cobra.Command, p *prompter, base, domain string, addresses []string) (string, []string, error) {
-	if cmd.Flags().Changed("base-domain") {
-		base = domain
-	} else if p.terminal {
-		var err error
-		base, err = p.text("Base Domain of that Workstation", base, func(text string) error {
-			_, err := settings.Check("base-domain", text)
-			return err
-		})
-		if err != nil {
-			return base, addresses, err
-		}
-	}
-	if _, err := settings.Check("base-domain", base); err != nil {
-		return base, addresses, err
-	}
+// askTraefikAddresses gives the names to add to the Traefik certificate: the flag, or the answer to
+// a question.
+func askTraefikAddresses(cmd *cobra.Command, p *prompter, base string, addresses []string) ([]string, error) {
 	if !cmd.Flags().Changed("address") && p.terminal {
-		fmt.Fprintf(p.out, "The Traefik certificate always names *.%s, localhost and 127.0.0.1.\nAdd more names only for a remote Workstation whose Routes this Workstation serves (*.<workstation>.%s), or an address that people reach it by.\n", base, base)
-		text, err := p.text("More IP addresses, DNS names or wildcards such as *.ws-b.lvh.me, separated by spaces (none)", "", func(text string) error {
+		fmt.Fprintf(p.out, "The Traefik certificate always names *.%s, localhost and 127.0.0.1.\nAdd more names for a remote Workstation (*.<workstation>.%s) or an address that people use.\n", base, base)
+		text, err := p.text("More names: IP addresses, DNS names or wildcards, separated by spaces (none)", "", func(text string) error {
 			for _, address := range splitAddresses(text) {
 				if err := checkTLSAddress(address); err != nil {
 					return err
@@ -162,52 +114,33 @@ func askTraefikCertificateNames(cmd *cobra.Command, p *prompter, base, domain st
 			return nil
 		})
 		if err != nil {
-			return base, addresses, err
+			return addresses, err
 		}
 		addresses = splitAddresses(text)
 	}
 	for _, address := range addresses {
 		if err := checkTLSAddress(address); err != nil {
-			return base, addresses, err
+			return addresses, err
 		}
 	}
-	return base, addresses, nil
+	return addresses, nil
 }
 
-func printTLSInstallStep(out io.Writer, ws, name, self string) {
-	install := ws + " tls ca install"
-	if name != self {
-		install += " " + quoteShell(name)
-	}
-	fmt.Fprintf(out, "TLS is not started. Never share the Yard CA key. To install, run:\n  %s\n", install)
-}
+const issueTraefikHelp = `Signs the Traefik certificate of this Workstation with the Workstation CA.
 
-const issueWorkstationHelp = `Signs the Consul and the Traefik certificate of a Workstation with the Yard CA. It does not copy
-them to tls/ or start TLS. To sign only one, use ws tls ca issue consul or ws tls ca issue traefik.
+Before:
+  - Make the Workstation CA with "ws tls ca create".
 
-The files are ca/certs/<name>/consul.crt|key and ca/certs/<name>/traefik.crt|key. The
-certificates have separate keys, so Traefik never holds the key that identifies this Workstation
-to the other Consul servers.
+Does:
+  1. Writes ca/certs/<this Workstation>/traefik.crt and traefik.key.
+  2. Names *.<Base Domain>, localhost, 127.0.0.1 and each --address.
+  3. Allows server use only.
 
-The Consul certificate names server.<name>.consul, localhost and 127.0.0.1.
-The Traefik certificate names *.<Base Domain>, localhost and 127.0.0.1.
-A wildcard covers one label, so *.lvh.me does not cover app.ws-b.lvh.me.
-Add more names to the Traefik certificate with --address, once for each:
-  *.<workstation>.<Base Domain>   a remote Workstation whose Routes this Workstation serves
-  an IP address or DNS name       an address that people or tools reach this Workstation by`
+Next:
+  1. Install it:
+       ws tls install
 
-const issueConsulHelp = `Signs the Consul certificate of a Workstation with the Yard CA, in ca/certs/<name>/consul.crt|key.
-It does not copy it to tls/ or start TLS.
-
-It names server.<name>.consul, which Consul checks between Workstations, localhost and 127.0.0.1.
-It allows server and client use, because Consul checks both ways.`
-
-const issueTraefikHelp = `Signs the Traefik certificate of a Workstation with the Yard CA, in ca/certs/<name>/traefik.crt|key.
-It does not copy it to tls/ or start TLS. For a public or company certificate, use
-ws tls import traefik instead.
-
-It names *.<Base Domain>, localhost and 127.0.0.1, and it allows server use only.
-A wildcard covers one label, so *.lvh.me does not cover app.ws-b.lvh.me.
-Add more names with --address, once for each:
-  *.<workstation>.<Base Domain>   a remote Workstation whose Routes this Workstation serves
-  an IP address or DNS name       an address that people or tools reach this Workstation by`
+Note:
+  - It does not copy the files to tls/ and does not start HTTPS.
+  - A wildcard covers one label: *.lvh.me does not cover app.ws-b.lvh.me.
+  - For a company or public certificate, use "ws tls install --ca --cert --key".`

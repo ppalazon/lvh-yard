@@ -6,7 +6,7 @@ func NewWS(options *Options) *cobra.Command {
 	var dir string
 	ws := &cobra.Command{
 		Use:   "ws",
-		Short: "Manages this Workstation's files and services.",
+		Short: "Manages this Workstation.",
 		Args:  cobra.NoArgs,
 		RunE:  func(cmd *cobra.Command, args []string) error { return cmd.Help() },
 	}

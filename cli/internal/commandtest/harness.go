@@ -61,11 +61,13 @@ type Process struct {
 	Env      map[string]string
 	Stdin    string
 	Terminal bool
-	LANIP    string
-	LANError error
-	Editor   func(editor, path string) error
-	Identity func(flag string) string
-	Commands []Command
+	// SecretReads counts the lines that were read without being shown.
+	SecretReads int
+	LANIP       string
+	LANError    error
+	Editor      func(editor, path string) error
+	Identity    func(flag string) string
+	Commands    []Command
 	// System is the operating system that the CLI reports. New sets linux, so a test does not
 	// depend on the computer that runs it. Set windows to test the native Windows CLI.
 	System     string
@@ -88,6 +90,12 @@ func (p *Process) Input() io.Reader {
 
 func (p *Process) IsTerminal() bool {
 	return p.Terminal
+}
+
+// ReadSecret reads the next line of Stdin and counts it. A test shows nothing either way.
+func (p *Process) ReadSecret(readLine func() (string, error)) (string, error) {
+	p.SecretReads++
+	return readLine()
 }
 
 func (p *Process) LANAddress() (string, error) {
