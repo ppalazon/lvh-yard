@@ -140,6 +140,8 @@ func printCatalog(out io.Writer, workstations []client.YardWorkstation, filter c
 	}
 }
 
+// catalogInstances counts the passing Instances. When the Route uses one Instance Source, it counts
+// only the Instances of that source, because the others wait.
 func catalogInstances(service *client.Service) string {
 	if service.Empty {
 		return "Empty"
@@ -147,13 +149,37 @@ func catalogInstances(service *client.Service) string {
 	if len(service.Instances) == 0 {
 		return "No Instances"
 	}
+	instances := service.Instances
+	if used := routedSourceInstances(service); used != nil {
+		instances = used
+	}
 	passing := 0
-	for _, instance := range service.Instances {
+	for _, instance := range instances {
 		if instance.Health == "passing" {
 			passing++
 		}
 	}
-	return fmt.Sprintf("%d of %d passing", passing, len(service.Instances))
+	return fmt.Sprintf("%d of %d passing", passing, len(instances))
+}
+
+// routedSourceInstances returns the Instances of the source that the Route uses, or nil when no
+// one source wins or the Service does not list its Instances.
+func routedSourceInstances(service *client.Service) []client.Instance {
+	if service.Routing == nil || service.Routing.Source == "" {
+		return nil
+	}
+	var used []client.Instance
+	for _, source := range service.Sources {
+		if source.ID != service.Routing.Source {
+			continue
+		}
+		for _, instance := range service.Instances {
+			if slices.Contains(source.Instances, instance.ID) {
+				used = append(used, instance)
+			}
+		}
+	}
+	return used
 }
 
 // catalogSources shows the kinds of Instance Source that the Route uses now, such as "[compose]".

@@ -141,12 +141,25 @@ public record Service(
   }
 
   /**
-   * The Instances that its state and its counts use: the ones registered here, and those of its
-   * Aliases. Only its Home Workstation lists its Aliases.
+   * The Instances that its state uses: the ones registered here, and those of its Aliases. Only its
+   * Home Workstation lists its Aliases.
    */
   @JsonIgnore
   public List<Instance> countedInstances() {
     return counted(instances, sources);
+  }
+
+  /**
+   * The Instances that the passing count shows. With the Instance Priority on and a source in use,
+   * only the Instances of that source: the others wait, so their Health does not matter to the
+   * Route. Otherwise every counted Instance.
+   */
+  @JsonIgnore
+  public List<Instance> instancesInUse() {
+    if (routing == null || routing.used() == null) {
+      return countedInstances();
+    }
+    return routing.used().givenInstances();
   }
 
   private static List<Instance> counted(List<Instance> registered, List<InstanceSource> sources) {

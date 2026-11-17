@@ -1329,7 +1329,10 @@ lvh-yard status --strict                    # also exits with 1 on a warning
 ```
 
 `lvh-yard catalog` shows aligned columns for the Service name, state, hostname
-and Instance count. The count says "N of M passing". It says "Empty" for a
+and Instance count. The count says "N of M passing". With the Instance Priority
+on, it counts only the Instances of the Instance Source that the Route uses,
+because the other sources wait. The Service page and the Catalog page of the
+dashboard count the same way. It says "Empty" for a
 Service with no Instances and no Container Bindings, and "No Instances" for a
 Service whose Container Bindings follow no running container.
 A last column names the kind of Instance Source that the Route uses now, in

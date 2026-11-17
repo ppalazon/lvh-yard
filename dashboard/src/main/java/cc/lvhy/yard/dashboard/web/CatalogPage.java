@@ -374,15 +374,13 @@ final class CatalogPage {
           if (service.empty()) {
             cell.span().attrClass("badge").addAttr("data-variant", "outline").text("Empty").__();
           } else {
-            List<Instance> counted = service.countedInstances();
+            List<Instance> inUse = service.instancesInUse();
             cell.text(
-                counted.isEmpty()
+                service.countedInstances().isEmpty()
                     ? "No Instances"
-                    : counted.stream()
-                            .filter(instance -> instance.health() == Health.PASSING)
-                            .count()
+                    : inUse.stream().filter(instance -> instance.health() == Health.PASSING).count()
                         + " of "
-                        + counted.size()
+                        + inUse.size()
                         + " passing");
           }
         })
