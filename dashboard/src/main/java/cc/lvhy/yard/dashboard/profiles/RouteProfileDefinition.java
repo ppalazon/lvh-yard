@@ -85,6 +85,11 @@ public record RouteProfileDefinition(String name, Map<String, Map<String, Object
   public boolean asksWhoTheUserIs() {
     return middlewares.values().stream()
         .flatMap(middleware -> middleware.keySet().stream())
-        .anyMatch(type -> AUTH_TYPES.contains(type) || type.equals("clientCertificate"));
+        .anyMatch(type -> asksWhoTheUserIs(type));
+  }
+
+  /** Whether a middleware type, or the reserved option clientCertificate, asks who the user is. */
+  public static boolean asksWhoTheUserIs(String type) {
+    return AUTH_TYPES.contains(type) || type.equals("clientCertificate");
   }
 }

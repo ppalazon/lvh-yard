@@ -1807,7 +1807,8 @@ keep in mind". Click it to read them. When the page refreshes, the box stays
 open or closed as you left it. If you leave the page, the box is
 closed again on your next visit. A Service without risks has no box.
 
-The Service page starts with its name, state and Test Reachability button.
+The Service page starts with its name, state, and the Route Diagram and Test
+Reachability buttons.
 Under them, the hostname, the passing Instance count, where the Route goes (a
 published Service only) and the Home Workstation are on the left. A Service
 without a Route on this Workstation has no hostname link. The alerts and the
@@ -1952,6 +1953,44 @@ If Traefik has no Route for the hostname, or answers 502, 503 or 504, the
 request through Traefik fails. Any other answer means that the request reached
 the Service. The results are not stored. If a test fails, `lvh-yard test` exits
 with 1.
+
+### Route Diagram
+
+The Route Diagram shows how a request reaches a Service. Click "Route Diagram"
+on the Service page. It draws the setup as this Workstation sees it, from the
+browser down to the Instances, and sends no request. For a Remote Service, the
+Instances are in a box for the Home Workstation. The page refreshes by
+itself when the Yard changes. A phone scrolls the picture sideways.
+
+The picture shows:
+
+- The HTTP and HTTPS listeners of Traefik, with their address and who can
+  connect. HTTPS is shown only when its TLS Part is on. A Route Profile that
+  needs a Client Certificate leaves only HTTPS.
+- The Route and its hostname.
+- The Route Profiles, in the order the Route applies them. A key marks a
+  middleware that asks who the user is.
+- How the Route shares requests: Traefik's round robin over the passing
+  Instances, under the Instance Priority.
+- Each Instance Source with its Instances, their Health and what their address
+  leads to: loopback, a Docker network or a network address. A solid wire and a
+  mark mean the Instance is in the Route. A dashed wire means it waits, or
+  that this Workstation skips it as an Out-of-range Instance.
+- Whether each step uses TLS. A closed lock means TLS. An open lock means plain
+  HTTP. A Route Profile with `mutualTLS: {}` makes the step to the Instances
+  mutual TLS.
+- The Scope. For a Yard Service, the picture names the hostname that other
+  Workstations use, and says how many Instances they skip.
+
+Next to the picture, the facts list the full values. They include the options
+of each Route Profile. A Route Profile can hold a secret, so the page never
+shows the `users` of `basicAuth` or `digestAuth`, `usersFile`, the options of a
+plugin, or the user, password and query of a `forwardAuth` address. Header
+values are shown.
+
+If the Service has no Route on this Workstation, the page says why and draws
+only the Instances. Use Test Reachability to see whether a request really gets
+through.
 
 ### Aliases
 

@@ -34,9 +34,7 @@ final class RouteBuilder {
     Map<String, TraefikConfiguration.Service> backends = new LinkedHashMap<>();
     Map<String, Map<String, Object>> middlewares = new LinkedHashMap<>();
     services.stream()
-        .filter(Service::routed)
-        .filter(service -> (https && clientAuth) || !service.requiresClientCertificate())
-        .filter(service -> mtls || !service.requiresMutualTls())
+        .filter(service -> service.servedWith(https, clientAuth, mtls))
         .forEach(service -> {
           boolean mutual = service.requiresMutualTls();
           String scheme = mutual ? "https://" : "http://";

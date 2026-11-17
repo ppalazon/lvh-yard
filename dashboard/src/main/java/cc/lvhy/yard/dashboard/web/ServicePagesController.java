@@ -1,5 +1,6 @@
 package cc.lvhy.yard.dashboard.web;
 
+import cc.lvhy.yard.dashboard.OutOfRange;
 import cc.lvhy.yard.dashboard.TraefikSettings;
 import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.profiles.RouteProfiles;
@@ -30,19 +31,23 @@ class ServicePagesController {
 
   private final TraefikSettings traefik;
 
+  private final OutOfRange outOfRange;
+
   ServicePagesController(
       Workstation workstation,
       ServicePageAccess access,
       Aliases aliases,
       ReachabilityTester reachability,
       RouteProfiles routeProfiles,
-      TraefikSettings traefik) {
+      TraefikSettings traefik,
+      OutOfRange outOfRange) {
     this.workstation = workstation;
     this.access = access;
     this.aliases = aliases;
     this.reachability = reachability;
     this.routeProfiles = routeProfiles;
     this.traefik = traefik;
+    this.outOfRange = outOfRange;
   }
 
   @GetMapping(path = "/services/{workstation}/{service}", produces = MediaType.TEXT_HTML_VALUE)
@@ -65,5 +70,15 @@ class ServicePagesController {
   String reachability(@PathVariable("workstation") String home, @PathVariable String service) {
     Service found = access.anyService(home, service);
     return ReachabilityPage.render(workstation, found, reachability.test(found));
+  }
+
+  /** The setup of the Route, drawn. No request goes out. */
+  @GetMapping(
+      path = "/services/{workstation}/{service}/diagram",
+      produces = MediaType.TEXT_HTML_VALUE)
+  @ResponseBody
+  String diagram(@PathVariable("workstation") String home, @PathVariable String service) {
+    Service found = access.anyService(home, service);
+    return RouteDiagramPage.render(workstation, found, traefik, outOfRange);
   }
 }

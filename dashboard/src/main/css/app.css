@@ -901,3 +901,158 @@
     }
   }
 }
+
+/* The Route Diagram. Every shape takes its color from the theme, so the dark theme works. The classes are written
+   out in RouteDiagramSvg. */
+@layer components {
+  .route-diagram-page {
+    overflow-wrap: anywhere;
+  }
+
+  .route-diagram-page a:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+
+  /* Below this width the picture scrolls, so its text stays readable. */
+  .route-diagram-figure {
+    overflow-x: auto;
+  }
+
+  .route-diagram-svg {
+    display: block;
+    width: 100%;
+    min-width: 32rem;
+    max-width: 37.5rem;
+    height: auto;
+    margin-inline: auto;
+  }
+
+  .route-diagram-svg text {
+    fill: var(--foreground);
+    font-family: var(--font-sans);
+    font-size: 13px;
+  }
+
+  .route-diagram-svg .rd-b {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .route-diagram-svg .rd-m {
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .route-diagram-svg .rd-s {
+    font-size: 12px;
+  }
+
+  .route-diagram-svg .rd-mute,
+  .route-diagram-svg .rd-dim {
+    fill: var(--muted-foreground);
+  }
+
+  .route-diagram-svg .rd-risk-text {
+    fill: var(--risk);
+  }
+
+  .route-diagram-svg .rd-node,
+  .route-diagram-svg .rd-zone,
+  .route-diagram-svg .rd-band,
+  .route-diagram-svg .rd-chip {
+    stroke-width: 1.25;
+  }
+
+  .route-diagram-svg .rd-node {
+    fill: var(--card);
+    stroke: var(--border);
+  }
+
+  .route-diagram-svg .rd-zone {
+    fill: var(--muted);
+    stroke: var(--border);
+  }
+
+  .route-diagram-svg .rd-band {
+    fill: var(--card);
+    stroke: var(--primary);
+    stroke-width: 1.5;
+  }
+
+  .route-diagram-svg .rd-chip {
+    fill: var(--secondary);
+    stroke: var(--border);
+  }
+
+  .route-diagram-svg .rd-chip-auth {
+    stroke: var(--foreground);
+  }
+
+  .route-diagram-svg .rd-dashed {
+    stroke-dasharray: 5 4;
+  }
+
+  .route-diagram-svg .rd-wire {
+    fill: none;
+    stroke: var(--foreground);
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .route-diagram-svg .rd-plain {
+    stroke: var(--risk);
+  }
+
+  .route-diagram-svg .rd-wire-off {
+    stroke: var(--muted-foreground);
+    stroke-dasharray: 4 4;
+  }
+
+  .route-diagram-svg .rd-icon {
+    fill: none;
+    stroke: var(--foreground);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .route-diagram-svg .rd-icon circle {
+    fill: var(--foreground);
+  }
+
+  .route-diagram-svg .rd-risk-icon {
+    stroke: var(--risk);
+  }
+
+  .route-diagram-svg .rd-in {
+    fill: var(--primary);
+  }
+
+  .route-diagram-svg .rd-ok {
+    @apply fill-green-700;
+  }
+
+  .route-diagram-svg .rd-warn {
+    fill: var(--risk);
+  }
+
+  .route-diagram-svg .rd-bad {
+    fill: var(--destructive);
+  }
+
+  .route-diagram-facts p,
+  .route-diagram-options {
+    font-size: 0.9375rem;
+  }
+
+  .route-diagram-options {
+    margin-left: 1rem;
+    font-size: 0.875rem;
+  }
+
+  .route-diagram-facts code {
+    font-size: 0.875em;
+  }
+}

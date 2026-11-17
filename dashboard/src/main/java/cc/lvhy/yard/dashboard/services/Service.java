@@ -239,6 +239,16 @@ public record Service(
   }
 
   /**
+   * Whether a Traefik with these TLS Parts can serve its Route. A Route Profile may need HTTPS with
+   * Client Certificate authentication, or mutual TLS to the Instances.
+   */
+  public boolean servedWith(boolean https, boolean clientAuth, boolean mtls) {
+    return routed()
+        && (https && clientAuth || !requiresClientCertificate())
+        && (mtls || !requiresMutualTls());
+  }
+
+  /**
    * The sources, in order, that have an Instance in range but are not the source its Route uses
    * now.
    */
