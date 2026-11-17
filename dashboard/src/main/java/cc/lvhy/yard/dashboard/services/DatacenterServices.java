@@ -166,7 +166,9 @@ class DatacenterServices {
             record != null && !record.aliases().isEmpty(),
             workstation.is(home),
             profiles,
-            traefikSettings.enabled() && traefikSettings.httpsPort() != null));
+            traefikSettings.enabled() && traefikSettings.httpsPort() != null,
+            traefikSettings.enabled() && traefikSettings.clientAuth(),
+            traefikSettings.enabled() && traefikSettings.mtls()));
   }
 
   private String hostname(String home, String name, Publication publication) {

@@ -18,21 +18,31 @@ final class RouteBuilder {
   /** The entry point compose.yaml gives Traefik for plain HTTP. */
   private static final String HTTP_ENTRY_POINT = "web";
 
+  /** The ServersTransport that the CLI writes for Traefik. */
+  private static final String MTLS_TRANSPORT = "yard-mtls@file";
+
   private RouteBuilder() {}
 
   /** Unreachable Workstations are not among {@code services}, so their Services get no Route. */
   static TraefikConfiguration build(
-      Workstation workstation, List<Service> services, boolean https) {
+      Workstation workstation,
+      List<Service> services,
+      boolean https,
+      boolean clientAuth,
+      boolean mtls) {
     Map<String, Router> routers = new LinkedHashMap<>();
     Map<String, TraefikConfiguration.Service> backends = new LinkedHashMap<>();
     Map<String, Map<String, Object>> middlewares = new LinkedHashMap<>();
     services.stream()
         .filter(Service::routed)
-        .filter(service -> https || !service.requiresClientCertificate())
+        .filter(service -> (https && clientAuth) || !service.requiresClientCertificate())
+        .filter(service -> mtls || !service.requiresMutualTls())
         .forEach(service -> {
+          boolean mutual = service.requiresMutualTls();
+          String scheme = mutual ? "https://" : "http://";
           List<Server> servers =
               service.routing().routedInstances().stream()
-                  .map(instance -> new Server("http://" + instance.address()))
+                  .map(instance -> new Server(scheme + instance.address()))
                   .toList();
           String name = name(workstation, service);
           List<String> routeProfiles = profiles(service, middlewares);
@@ -53,7 +63,10 @@ final class RouteBuilder {
                     service.publication().accessLog() ? null : new Observability(false),
                     certificate ? Map.of("options", "yard-client-certificate@file") : Map.of()));
           }
-          backends.put(name, new TraefikConfiguration.Service(new LoadBalancer(servers)));
+          backends.put(
+              name,
+              new TraefikConfiguration.Service(
+                  new LoadBalancer(servers, mutual ? MTLS_TRANSPORT : null)));
         });
     return new TraefikConfiguration(new Http(routers, backends, middlewares));
   }

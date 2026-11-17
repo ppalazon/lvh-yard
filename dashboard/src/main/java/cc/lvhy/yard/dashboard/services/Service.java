@@ -84,7 +84,9 @@ public record Service(
       boolean aliased,
       boolean home,
       Map<String, RouteProfileDefinition> stored,
-      boolean https) {
+      boolean https,
+      boolean clientAuth,
+      boolean mtls) {
     this(
         workstation,
         name,
@@ -96,7 +98,15 @@ public record Service(
         instances,
         containerBindings,
         ServiceWarning.of(
-            publication, instances, sources, instancePriority, stored, home && !https),
+            publication,
+            instances,
+            sources,
+            instancePriority,
+            stored,
+            home && !https,
+            home && !clientAuth,
+            home && !mtls,
+            home && https),
         sources,
         instancePriority,
         publication == null ? List.of() : publication.profiles(),
@@ -204,6 +214,10 @@ public record Service(
   /** Whatever the Health of its Instances. */
   public boolean published() {
     return publication != null;
+  }
+
+  public boolean requiresMutualTls() {
+    return profileDefinitions.values().stream().anyMatch(RouteProfileDefinition::requiresMutualTls);
   }
 
   public boolean requiresClientCertificate() {

@@ -24,7 +24,8 @@ class RouteBuilderTest {
     Service second = serviceWithProfile("a-b", "second", "c", "bob");
 
     TraefikConfiguration configuration =
-        RouteBuilder.build(new Workstation("a", "a.lvh.me"), List.of(first, second), false);
+        RouteBuilder.build(
+            new Workstation("a", "a.lvh.me"), List.of(first, second), false, false, false);
 
     var middlewares = configuration.http().middlewares();
     assertThat(middlewares).hasSize(2);
@@ -40,8 +41,8 @@ class RouteBuilderTest {
     Service web = service("a", "web", List.of(), Map.of(), true);
     Workstation workstation = new Workstation("a", "a.lvh.me");
 
-    var plain = RouteBuilder.build(workstation, List.of(web), false).http();
-    var secure = RouteBuilder.build(workstation, List.of(web), true).http();
+    var plain = RouteBuilder.build(workstation, List.of(web), false, false, false).http();
+    var secure = RouteBuilder.build(workstation, List.of(web), true, true, false).http();
 
     assertThat(plain.routers()).containsOnlyKeys("web");
     assertThat(plain.routers().get("web").entryPoints()).containsExactly("web");
@@ -58,7 +59,9 @@ class RouteBuilderTest {
   void theBackendHasOneServerForEachRoutedInstance() {
     Service web = service("a", "web", List.of(), Map.of(), true);
 
-    var http = RouteBuilder.build(new Workstation("a", "a.lvh.me"), List.of(web), false).http();
+    var http =
+        RouteBuilder.build(new Workstation("a", "a.lvh.me"), List.of(web), false, false, false)
+            .http();
 
     assertThat(http.services().get("web").loadBalancer().servers())
         .extracting(TraefikConfiguration.Server::url)
@@ -69,7 +72,9 @@ class RouteBuilderTest {
   void aRemoteServiceIsNamedAfterItsHomeWorkstation() {
     Service web = service("b", "web", List.of(), Map.of(), true);
 
-    var http = RouteBuilder.build(new Workstation("a", "a.lvh.me"), List.of(web), false).http();
+    var http =
+        RouteBuilder.build(new Workstation("a", "a.lvh.me"), List.of(web), false, false, false)
+            .http();
 
     assertThat(http.routers()).containsOnlyKeys("web.b");
     assertThat(http.services()).containsOnlyKeys("web.b");
@@ -81,7 +86,7 @@ class RouteBuilderTest {
     Service logged = service("a", "logged", List.of(), Map.of(), true);
     Service quiet = service("a", "quiet", List.of(), Map.of(), false);
 
-    var http = RouteBuilder.build(workstation, List.of(logged, quiet), true).http();
+    var http = RouteBuilder.build(workstation, List.of(logged, quiet), true, true, false).http();
 
     assertThat(http.routers().get("logged").observability()).isNull();
     assertThat(http.routers().get("logged__https").observability()).isNull();
@@ -96,8 +101,8 @@ class RouteBuilderTest {
     Service secret = service("a", "secret", List.of("login"), clientCertificateProfile(), true);
     Workstation workstation = new Workstation("a", "a.lvh.me");
 
-    var withoutHttps = RouteBuilder.build(workstation, List.of(secret), false).http();
-    var withHttps = RouteBuilder.build(workstation, List.of(secret), true).http();
+    var withoutHttps = RouteBuilder.build(workstation, List.of(secret), false, false, false).http();
+    var withHttps = RouteBuilder.build(workstation, List.of(secret), true, true, false).http();
 
     assertThat(withoutHttps.routers()).isEmpty();
     assertThat(withoutHttps.services()).isEmpty();
@@ -110,10 +115,56 @@ class RouteBuilderTest {
   }
 
   @Test
+  void aClientCertificateServiceNeedsClientAuthenticationToo() {
+    Service secret = service("a", "secret", List.of("login"), clientCertificateProfile(), true);
+
+    var http =
+        RouteBuilder.build(new Workstation("a", "a.lvh.me"), List.of(secret), true, false, false)
+            .http();
+
+    assertThat(http.routers()).isEmpty();
+    assertThat(http.services()).isEmpty();
+  }
+
+  @Test
+  void aMutualTlsServiceUsesHttpsServersAndTheTransportAndNeedsMtls() {
+    Map<String, RouteProfileDefinition> mutual =
+        Map.of(
+            "mtls",
+            new RouteProfileDefinition(
+                "mtls",
+                Map.of(
+                    "mtls", Map.of("chain", Map.of("middlewares", List.of("inner"))),
+                    "inner", Map.of("mutualTLS", Map.of()))));
+    Service secret = service("a", "secret", List.of("mtls"), mutual, true);
+    Service plain = service("a", "plain", List.of(), Map.of(), true);
+    Workstation workstation = new Workstation("a", "a.lvh.me");
+
+    var with = RouteBuilder.build(workstation, List.of(secret, plain), false, false, true).http();
+    var without =
+        RouteBuilder.build(workstation, List.of(secret, plain), false, false, false).http();
+
+    var backend = with.services().get("secret").loadBalancer();
+    assertThat(backend.servers())
+        .containsExactly(new TraefikConfiguration.Server("https://10.1.2.3:8080"));
+    assertThat(backend.serversTransport()).isEqualTo("yard-mtls@file");
+    assertThat(with.services().get("plain").loadBalancer().serversTransport()).isNull();
+    assertThat(with.services().get("plain").loadBalancer().servers())
+        .containsExactly(new TraefikConfiguration.Server("http://10.1.2.3:8080"));
+    // The option is not a Traefik middleware, and its chain stays out too.
+    assertThat(with.middlewares()).isEmpty();
+    assertThat(with.routers().get("secret").middlewares()).isEmpty();
+    assertThat(without.routers()).containsOnlyKeys("plain");
+    assertThat(without.services()).containsOnlyKeys("plain");
+  }
+
+  @Test
   void aProfileThatTheHomeWorkstationDoesNotHoldIsStillListedSoTraefikRefusesTheRoute() {
     Service web = service("a", "web", List.of("gone"), Map.of(), true);
 
-    var http = RouteBuilder.build(new Workstation("a", "a.lvh.me"), List.of(web), false).http();
+    var http =
+        RouteBuilder.build(new Workstation("a", "a.lvh.me"), List.of(web), false, false, false)
+            .http();
 
     assertThat(http.routers().get("web").middlewares()).containsExactly("a_gone");
     assertThat(http.middlewares()).isEmpty();
@@ -133,7 +184,9 @@ class RouteBuilderTest {
             Map.of("team", new RouteProfileDefinition("team", middlewares)),
             true);
 
-    var http = RouteBuilder.build(new Workstation("a", "a.lvh.me"), List.of(web), false).http();
+    var http =
+        RouteBuilder.build(new Workstation("a", "a.lvh.me"), List.of(web), false, false, false)
+            .http();
 
     assertThat(http.routers().get("web").middlewares()).containsExactly("a_team");
     assertThat(http.middlewares()).containsOnlyKeys("a_team", "a_login");

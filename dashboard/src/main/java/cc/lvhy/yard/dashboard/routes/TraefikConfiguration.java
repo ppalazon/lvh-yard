@@ -32,7 +32,8 @@ record TraefikConfiguration(Http http) {
 
   record Service(LoadBalancer loadBalancer) {}
 
-  record LoadBalancer(List<Server> servers) {}
+  record LoadBalancer(
+      List<Server> servers, @JsonInclude(JsonInclude.Include.NON_NULL) String serversTransport) {}
 
   record Server(String url) {}
 }

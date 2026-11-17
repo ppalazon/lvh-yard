@@ -9,6 +9,26 @@ enum RouteProfileExample {
       clientCertificate: {}
       """,
       "https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/tls/tls-options/#client-authentication-mtls"),
+  PASS_TLS_CLIENT_CERT(
+      "Client Certificate user",
+      "Send the user of the Client Certificate to the Service in a header. Chain it after a"
+          + " clientCertificate profile. The Service must trust the header only from Traefik.",
+      """
+      passTLSClientCert:
+        info:
+          subject:
+            commonName: true
+          serialNumber: true
+          notAfter: true
+      """,
+      "https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/passtlsclientcert/"),
+  MUTUAL_TLS(
+      "Mutual TLS",
+      "Connect to the Instances over HTTPS with the certificate of Traefik.",
+      """
+      mutualTLS: {}
+      """,
+      "https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/load-balancing/serverstransport/"),
   BASIC_AUTH(
       "Basic auth",
       "Require a user and password. Replace the placeholder with htpasswd -nB alice output."
@@ -109,6 +129,16 @@ enum RouteProfileExample {
         permanent: false
       """,
       "https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/redirectregex/"),
+  REDIRECT_SCHEME(
+      "HTTPS redirect",
+      "Redirect plain HTTP requests to HTTPS. Add port when the HTTPS port is not 443. Needs HTTPS"
+          + " on this Workstation.",
+      """
+      redirectScheme:
+        scheme: https
+        permanent: false
+      """,
+      "https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/redirectscheme/"),
   CONTENT_TYPE(
       "Content type",
       "Detect a missing response Content-Type. Prefer fixing the Service to send it."

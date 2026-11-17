@@ -10,7 +10,12 @@ import org.springframework.test.context.TestPropertySource;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-@TestPropertySource(properties = "lvh-yard.traefik.https-port=8443")
+@TestPropertySource(
+    properties = {
+      "lvh-yard.traefik.https-port=8443",
+      "lvh-yard.traefik.client-auth=true",
+      "lvh-yard.traefik.mtls=true"
+    })
 class HttpsRoutesComponentTest extends DashboardComponentTest {
   @AfterEach
   void removeProfiles() throws Exception {
@@ -119,6 +124,28 @@ class HttpsRoutesComponentTest extends DashboardComponentTest {
           .contains("href=\"http://" + service + ".lvh.test:")
           .contains("href=\"https://" + service + ".lvh.test:8443\"");
     }
+  }
+
+  @Test
+  void anHttpsPublicationWarnsAboutAnInstanceOffLoopbackThatTraefikCallsOverHttp() {
+    putRouteProfiles(new JsonMapper().readTree("{\"mtls\": {\"mutualTLS\": {}}}"));
+    String lan = newServiceName("lan");
+    register(lan, Map.of("host", "10.1.2.3", "port", 8080));
+    String loopback = newServiceName("loopback");
+    register(loopback, Map.of("host", "127.0.0.1", "port", 8080));
+    String encrypted = newServiceName("encrypted");
+    register(encrypted, Map.of("host", "10.1.2.3", "port", 8443));
+
+    assertThat(put(publicationPath(lan), Map.of()).getBody().get("warnings").toString())
+        .contains("unencrypted-instance", "10.1.2.3:8080");
+    assertThat(put(publicationPath(loopback), Map.of()).getBody().get("warnings").toString())
+        .doesNotContain("unencrypted-instance");
+    assertThat(
+            put(publicationPath(encrypted), Map.of("profiles", List.of("mtls")))
+                .getBody()
+                .get("warnings")
+                .toString())
+        .doesNotContain("unencrypted-instance");
   }
 
   private void assertPublicationLink(String home, String service, String url) {

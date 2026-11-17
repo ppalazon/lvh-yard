@@ -129,6 +129,19 @@ class RouteProfilesComponentTest extends DashboardComponentTest {
   }
 
   @Test
+  void mutualTlsProfileTakesNoSettings() {
+    JsonNode definition = json("{\"mutualTLS\": {}}");
+
+    ResponseEntity<JsonNode> saved = put(ROUTE_PROFILES_PATH + "/mtls", definition);
+
+    assertThat(saved.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(saved.getBody().get("type").asString()).isEqualTo("mutualTLS");
+    assertThat(
+            put(ROUTE_PROFILES_PATH + "/mtls", json("{\"mutualTLS\": {\"x\": 1}}")).getStatusCode())
+        .isEqualTo(HttpStatus.BAD_REQUEST);
+  }
+
+  @Test
   void setIsSavedWholeAndKeepsTheProfilesItDoesNotName() throws Exception {
     putRouteProfiles(json("{\"kept\": {\"compress\": {}}}"));
 

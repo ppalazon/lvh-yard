@@ -266,8 +266,9 @@ paths:
       - route-profiles-controller
     put:
       description: "The body maps each name to its middleware in Traefik's format,\
-        \ or {\"clientCertificate\": {}}. A chain may name either kind. The profiles\
-        \ that the body does not name stay. Answers the whole list."
+        \ or {\"clientCertificate\": {}} or {\"mutualTLS\": {}}. A chain may name\
+        \ either kind. The profiles that the body does not name stay. Answers the\
+        \ whole list."
       operationId: putRouteProfiles
       requestBody:
         content:
@@ -349,8 +350,8 @@ paths:
       tags:
       - route-profiles-controller
     put:
-      description: "The body is its middleware in Traefik's format, or {\"clientCertificate\"\
-        : {}}."
+      description: "The body is its middleware in Traefik's format, {\"clientCertificate\"\
+        : {}} or {\"mutualTLS\": {}}."
       operationId: putRouteProfile
       parameters:
       - in: path
@@ -872,10 +873,11 @@ paths:
         \ With no Scope, a new Publication gets Local Scope and an existing one keeps\
         \ its own. The Route applies the Route Profiles in order. Middleware profiles\
         \ are named <workstation>_<profile>. A clientCertificate profile requires\
-        \ HTTPS and a Client Certificate. With no profiles, a Publication keeps its\
-        \ own. Empty profiles remove them all. With accessLog true, Traefik logs the\
-        \ requests to the Route. With no accessLog, a new Publication does not log\
-        \ them and an existing one keeps its own."
+        \ HTTPS and client authentication. A mutualTLS profile requires mutual TLS\
+        \ to the Instances. With no profiles, a Publication keeps its own. Empty profiles\
+        \ remove them all. With accessLog true, Traefik logs the requests to the Route.\
+        \ With no accessLog, a new Publication does not log them and an existing one\
+        \ keeps its own."
       operationId: publish
       parameters:
       - in: path
@@ -1432,8 +1434,8 @@ components:
             type: string
         type:
           type: string
-          description: Its Traefik middleware type or clientCertificate. Missing when
-            it has more or none.
+          description: "Its Traefik middleware type, clientCertificate or mutualTLS.\
+            \ Missing when it has more or none."
       required:
       - name
       - services
@@ -1444,7 +1446,7 @@ components:
           type: object
           additionalProperties: {}
           description: "The middleware in Traefik's format, or {\"clientCertificate\"\
-            : {}}."
+            : {}} or {\"mutualTLS\": {}}."
         name:
           type: string
         services:
@@ -1454,8 +1456,8 @@ components:
             type: string
         type:
           type: string
-          description: Its Traefik middleware type or clientCertificate. Missing when
-            it has more or none.
+          description: "Its Traefik middleware type, clientCertificate or mutualTLS.\
+            \ Missing when it has more or none."
       required:
       - definition
       - name
@@ -1582,6 +1584,8 @@ components:
           - route-profile-auth
           - unknown-route-profile
           - client-certificate-unavailable
+          - mutual-tls-unavailable
+          - unencrypted-instance
           - foreign-instance
           - alias-above-source
         message:

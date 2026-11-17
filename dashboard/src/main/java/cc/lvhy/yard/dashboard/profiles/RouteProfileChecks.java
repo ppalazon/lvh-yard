@@ -43,6 +43,7 @@ public class RouteProfileChecks {
           "headers",
           "ipAllowList",
           "ipWhiteList",
+          "mutualTLS",
           "passTLSClientCert",
           "redirectRegex",
           "redirectScheme",
@@ -172,8 +173,8 @@ public class RouteProfileChecks {
         return name + " must give its " + type + " settings as a map.";
       }
       return switch (type) {
-        case "clientCertificate" ->
-            settings.isEmpty() ? null : name + " must give clientCertificate no settings.";
+        case "clientCertificate", "mutualTLS" ->
+            settings.isEmpty() ? null : name + " must give " + type + " no settings.";
         case "basicAuth", "digestAuth" ->
             settings.containsKey("usersFile")
                 ? name

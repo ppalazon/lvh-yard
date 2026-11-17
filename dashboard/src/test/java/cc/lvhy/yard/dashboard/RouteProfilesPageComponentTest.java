@@ -185,6 +185,24 @@ class RouteProfilesPageComponentTest extends DashboardComponentTest {
   }
 
   @Test
+  void servicePageSaysThatAClientCertificateLeavesNoHttpRoute() {
+    putRouteProfiles(
+        JSON.readTree(
+            "{\"page-cert\": {\"clientCertificate\": {}}, \"page-plain\": {\"compress\": {}}}"));
+    String secret = newServiceName("secret");
+    register(secret, Map.of("host", "10.1.2.3", "port", 8080));
+    put(publicationPath(secret), Map.of("profiles", List.of("page-cert")));
+    String open = newServiceName("open");
+    register(open, Map.of("host", "10.1.2.3", "port", 8080));
+    put(publicationPath(open), Map.of("profiles", List.of("page-plain")));
+
+    assertThat(getPage("/services/ws-test/" + secret).getBody())
+        .contains("id=\"https-only\"")
+        .contains("this Service has no HTTP Route");
+    assertThat(getPage("/services/ws-test/" + open).getBody()).doesNotContain("id=\"https-only\"");
+  }
+
+  @Test
   void unpublishedServicePageOffersTheProfilesAndAddingOnePublishesTheService() {
     putRouteProfiles(JSON.readTree("{\"page-offered\": {\"compress\": {}}}"));
     String web = newServiceName("web");

@@ -436,6 +436,18 @@ final class ServicePage {
                 .text(message)
                 .__()
                 .__());
+    if (service.requiresClientCertificate()) {
+      content
+          .div()
+          .attrId("https-only")
+          .attrClass("alert")
+          .h3()
+          .text(
+              "A Route Profile requires a Client Certificate, so this Service has no HTTP Route."
+                  + " It answers only on HTTPS.")
+          .__()
+          .__();
+    }
     if (risks.isEmpty()) {
       return;
     }

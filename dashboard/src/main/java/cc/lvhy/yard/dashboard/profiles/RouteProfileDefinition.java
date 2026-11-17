@@ -10,7 +10,7 @@ import java.util.Set;
  * A Route Profile as its Home Workstation's Consul KV holds it, with the chain members it reaches.
  *
  * @param middlewares the profile and its chain members, by their names in Consul KV, with each
- *     middleware or the reserved Client Certificate option
+ *     middleware or a reserved option, clientCertificate or mutualTLS
  */
 public record RouteProfileDefinition(String name, Map<String, Map<String, Object>> middlewares) {
 
@@ -28,18 +28,27 @@ public record RouteProfileDefinition(String name, Map<String, Map<String, Object
 
   /** Whether it, or a chain member it reaches, requires a Client Certificate. */
   public boolean requiresClientCertificate() {
-    return middlewares.values().stream().anyMatch(value -> value.containsKey("clientCertificate"));
+    return reaches("clientCertificate");
   }
 
-  /** Leaves the certificate rule out of Traefik's middleware list, including empty chains. */
+  /** Whether it, or a chain member it reaches, requires mutual TLS to the Instances. */
+  public boolean requiresMutualTls() {
+    return reaches("mutualTLS");
+  }
+
+  private boolean reaches(String option) {
+    return middlewares.values().stream().anyMatch(value -> value.containsKey(option));
+  }
+
+  /** Leaves the reserved options out of Traefik's middleware list, including empty chains. */
   @SuppressWarnings("unchecked")
   public Map<String, Map<String, Object>> traefikMiddlewares() {
-    if (!requiresClientCertificate()) {
+    if (!requiresClientCertificate() && !requiresMutualTls()) {
       return middlewares;
     }
     Set<String> omitted = new HashSet<>();
     middlewares.forEach((profile, value) -> {
-      if (value.containsKey("clientCertificate")) {
+      if (value.containsKey("clientCertificate") || value.containsKey("mutualTLS")) {
         omitted.add(profile);
       }
     });

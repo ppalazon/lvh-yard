@@ -38,7 +38,9 @@ class TraefikController {
         RouteBuilder.build(
             workstation,
             yard.routableYard().services(),
-            settings.enabled() && settings.httpsPort() != null);
+            settings.enabled() && settings.httpsPort() != null,
+            settings.enabled() && settings.clientAuth(),
+            settings.enabled() && settings.mtls());
     fetches.fetched();
     return configuration;
   }
