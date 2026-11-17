@@ -3,6 +3,7 @@ package cc.lvhy.yard.dashboard;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import cc.lvhy.yard.dashboard.docker.FakeDocker;
 import java.time.Duration;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -123,6 +124,39 @@ class CatalogPageComponentTest extends DashboardComponentTest {
 
     assertThat(rowOf(getPage("/").getBody(), web))
         .contains("Unavailable", badge("outline", "Empty"));
+  }
+
+  @Test
+  void showsTheKindOfSourceTheRouteUses() {
+    String fixed = newServiceName("fixed");
+    register(fixed, Map.of("host", "10.1.2.3", "port", 8080));
+    publish(fixed);
+    String box = newServiceName("box");
+    String name = newContainerName();
+    start(FakeDocker.container(name).publishedOn(lanAddress(), 80));
+    bind(box, name, 80);
+    publish(box);
+    String stack = newServiceName("stack");
+    String project = newComposeProject();
+    start(
+        FakeDocker.container(newContainerName())
+            .compose(project, "web")
+            .publishedOn(lanAddress(), 80));
+    bindCompose(stack, project, "web", 80);
+    publish(stack);
+    String quiet = newServiceName("quiet");
+    register(quiet, Map.of("host", "10.1.2.3", "port", 8081));
+
+    await()
+        .atMost(Duration.ofSeconds(30))
+        .untilAsserted(() -> {
+          String page = getPage("/").getBody();
+          assertThat(page).contains("<th>Instances</th><th>Source</th>");
+          assertThat(rowOf(page, fixed)).contains(badge("secondary", "Static"));
+          assertThat(rowOf(page, box)).contains(badge("secondary", "Docker"));
+          assertThat(rowOf(page, stack)).contains(badge("secondary", "Compose"));
+        });
+    assertThat(rowOf(getPage("/").getBody(), quiet)).doesNotContain("Static");
   }
 
   @Test

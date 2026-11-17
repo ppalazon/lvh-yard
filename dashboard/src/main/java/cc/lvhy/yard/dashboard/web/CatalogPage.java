@@ -335,6 +335,9 @@ final class CatalogPage {
         .th()
         .text("Instances")
         .__()
+        .th()
+        .text("Source")
+        .__()
         .of(head -> head.th().span().attrClass("sr-only").text("Actions").__().__())
         .__()
         .__()
@@ -383,6 +386,9 @@ final class CatalogPage {
                         + " passing");
           }
         })
+        .__()
+        .td()
+        .of(cell -> ServiceViews.routedSources(cell, service))
         .__()
         .td()
         .of(cell -> {

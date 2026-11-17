@@ -38,6 +38,7 @@ func TestShellCompletesFixedValues(t *testing.T) {
 		want []string
 	}{
 		{[]string{"catalog", "--state", ""}, []string{"unpublished", "unavailable", "unhealthy", "degraded", "healthy"}},
+		{[]string{"catalog", "--scope", ""}, []string{"in-range", "every", "local", "yard"}},
 		{[]string{"publish", "web", "--scope", ""}, []string{"local", "yard"}},
 		{[]string{"publish", "web", "--access-log", ""}, []string{"on", "off"}},
 		{[]string{"register", "static", "web", "--check", ""}, []string{"tcp", "http"}},

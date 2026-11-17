@@ -56,7 +56,7 @@ lvh-yard publish mailpit
 ```
 
 Then `http://front.lvh.me` and `http://mailpit.lvh.me` work in your browser.
-`lvh-yard catalog` shows every Service in the Yard, grouped by Workstation:
+`lvh-yard catalog` shows the Services of the Yard that this Workstation reaches, grouped by Workstation:
 
 ```text
 ws-a (this Workstation)

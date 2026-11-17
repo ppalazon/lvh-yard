@@ -1,8 +1,10 @@
 package cc.lvhy.yard.dashboard.web;
 
 import cc.lvhy.yard.dashboard.TraefikSettings;
+import cc.lvhy.yard.dashboard.services.InstanceSource;
 import cc.lvhy.yard.dashboard.services.Service;
 import cc.lvhy.yard.dashboard.services.ServiceState;
+import java.util.List;
 import org.xmlet.htmlapifaster.PhrasingContent;
 
 final class ServiceViews {
@@ -28,6 +30,38 @@ final class ServiceViews {
       case UNHEALTHY -> "Unhealthy";
       case UNAVAILABLE -> "Unavailable";
       case UNPUBLISHED -> "Unpublished";
+    };
+  }
+
+  /**
+   * A badge for each kind of source that its Route uses now: Static, Docker, Compose, Alias or
+   * Foreign. A Service with no Route shows none. The spaces keep the badges apart.
+   */
+  static void routedSources(PhrasingContent<?, ?> parent, Service service) {
+    List<String> types =
+        service.routedSources().stream()
+            .map(source -> sourceType(service, source))
+            .distinct()
+            .toList();
+    for (int i = 0; i < types.size(); i++) {
+      if (i > 0) {
+        parent.text(" ");
+      }
+      parent.span().attrClass("badge").addAttr("data-variant", "secondary").text(types.get(i)).__();
+    }
+  }
+
+  private static String sourceType(Service service, InstanceSource source) {
+    return switch (source.kind()) {
+      case STATIC -> "Static";
+      case FOREIGN -> "Foreign";
+      case ALIAS -> "Alias";
+      case BOUND ->
+          service.containerBindings().stream()
+              .filter(binding -> binding.id().equals(source.id()))
+              .findFirst()
+              .map(binding -> binding.container() != null ? "Docker" : "Compose")
+              .orElse("Binding");
     };
   }
 

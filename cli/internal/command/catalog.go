@@ -5,6 +5,7 @@ import (
 	"io"
 	"slices"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/ppalazon/lvh-yard/cli/internal/client"
@@ -12,7 +13,7 @@ import (
 )
 
 func NewCatalog(options *Options) *cobra.Command {
-	var workstation, state string
+	var workstation, state, scope string
 	var details bool
 	cmd := &cobra.Command{
 		Use:   "catalog",
@@ -21,6 +22,9 @@ func NewCatalog(options *Options) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if state != "" && !slices.Contains([]string{"unpublished", "unavailable", "unhealthy", "degraded", "healthy"}, state) {
 				return fmt.Errorf("unknown Service state %q: use unpublished, unavailable, unhealthy, degraded or healthy", state)
+			}
+			if scope != "" && !slices.Contains(catalogScopes, scope) {
+				return fmt.Errorf("unknown Scope %q. Use in-range, every, local or yard.", scope)
 			}
 			yard, err := options.connect().Yard()
 			if err != nil {
@@ -33,12 +37,13 @@ func NewCatalog(options *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			printCatalog(cmd.OutOrStdout(), workstations, yard.Home.Name, state, details)
+			printCatalog(cmd.OutOrStdout(), workstations, catalogFilter{home: yard.Home.Name, state: state, scope: scope}, details)
 			return nil
 		},
 	}
 	cmd.Flags().StringVar(&workstation, "workstation", "", "Lists only the Services of this Workstation.")
 	cmd.Flags().StringVar(&state, "state", "", "Lists only Services in this state, such as healthy.")
+	cmd.Flags().StringVar(&scope, "scope", "", "Filters by Scope: in-range, every, local or yard (default: in-range).")
 	cmd.Flags().BoolVar(&details, "details", false, "Shows Instance addresses, Health, IDs and Warnings.")
 	return cmd
 }
@@ -55,11 +60,35 @@ func selectCatalogWorkstations(workstations []client.YardWorkstation, name strin
 	return nil, fmt.Errorf("The Yard has no Workstation %s. List them with \"lvh-yard catalog\".", name)
 }
 
-func catalogWidths(workstations []client.YardWorkstation, state string) (nameWidth, stateWidth, hostnameWidth int) {
+var catalogScopes = []string{"in-range", "every", "local", "yard"}
+
+// catalogFilter is the filter of the dashboard's Catalog page.
+type catalogFilter struct {
+	home, state, scope string
+}
+
+// shows follows the Scope selector of the dashboard. A Service of the home Workstation is always in
+// range. A Remote Service is in range when it has a Route here. Local and yard hide a Service
+// that is not published.
+func (f catalogFilter) shows(workstation string, service *client.Service) bool {
+	if f.state != "" && service.State != f.state {
+		return false
+	}
+	switch f.scope {
+	case "every":
+		return true
+	case "local", "yard":
+		return service.Publication != nil && service.Publication.Scope == f.scope
+	default:
+		return workstation == f.home || service.Routing != nil
+	}
+}
+
+func catalogWidths(workstations []client.YardWorkstation, filter catalogFilter) (nameWidth, stateWidth, hostnameWidth int) {
 	nameWidth, stateWidth, hostnameWidth = 1, 1, 1
 	for _, ws := range workstations {
 		for _, service := range ws.Services {
-			if state != "" && service.State != state {
+			if !filter.shows(ws.Name, &service) {
 				continue
 			}
 			nameWidth = max(nameWidth, utf8.RuneCountInString(service.Name))
@@ -70,8 +99,8 @@ func catalogWidths(workstations []client.YardWorkstation, state string) (nameWid
 	return nameWidth, stateWidth, hostnameWidth
 }
 
-func printCatalog(out io.Writer, workstations []client.YardWorkstation, home, state string, details bool) {
-	nameWidth, stateWidth, hostnameWidth := catalogWidths(workstations, state)
+func printCatalog(out io.Writer, workstations []client.YardWorkstation, filter catalogFilter, details bool) {
+	nameWidth, stateWidth, hostnameWidth := catalogWidths(workstations, filter)
 	anyUnreachable := false
 	for _, ws := range workstations {
 		if ws.Unreachable {
@@ -80,12 +109,12 @@ func printCatalog(out io.Writer, workstations []client.YardWorkstation, home, st
 			continue
 		}
 		heading := ws.Name
-		if ws.Name == home {
+		if ws.Name == filter.home {
 			heading += " (this Workstation)"
 		}
 		printed := false
 		for _, service := range ws.Services {
-			if state != "" && service.State != state {
+			if !filter.shows(ws.Name, &service) {
 				continue
 			}
 			if !printed {
@@ -96,7 +125,11 @@ func printCatalog(out io.Writer, workstations []client.YardWorkstation, home, st
 				printCatalogDetails(out, &service)
 				continue
 			}
-			fmt.Fprintf(out, "  %-*s  %-*s  %-*s  %s\n", nameWidth, service.Name, stateWidth, service.State, hostnameWidth, service.Hostname, catalogInstances(&service))
+			line := fmt.Sprintf("  %-*s  %-*s  %-*s  %s", nameWidth, service.Name, stateWidth, service.State, hostnameWidth, service.Hostname, catalogInstances(&service))
+			if badges := catalogSources(&service); badges != "" {
+				line += "  " + badges
+			}
+			fmt.Fprintln(out, line)
 		}
 		if !printed {
 			fmt.Fprintln(out, heading+": no Services")
@@ -121,6 +154,46 @@ func catalogInstances(service *client.Service) string {
 		}
 	}
 	return fmt.Sprintf("%d of %d passing", passing, len(service.Instances))
+}
+
+// catalogSources shows the kinds of Instance Source that the Route uses now, such as "[compose]".
+// Without a Route, it shows none.
+func catalogSources(service *client.Service) string {
+	routing := service.Routing
+	if routing == nil {
+		return ""
+	}
+	var badges []string
+	for _, source := range service.Sources {
+		if routing.Source != "" {
+			if source.ID != routing.Source {
+				continue
+			}
+		} else if !slices.ContainsFunc(source.Instances, func(id string) bool { return slices.Contains(routing.Instances, id) }) {
+			continue
+		}
+		badge := "[" + catalogSourceType(service, source) + "]"
+		if !slices.Contains(badges, badge) {
+			badges = append(badges, badge)
+		}
+	}
+	return strings.Join(badges, " ")
+}
+
+func catalogSourceType(service *client.Service, source client.InstanceSource) string {
+	if source.Kind != "bound" {
+		// A newer dashboard can add another Instance Source kind.
+		return source.Kind
+	}
+	for _, binding := range service.ContainerBindings {
+		if binding.ID == source.ID {
+			if binding.Container != "" {
+				return "docker"
+			}
+			return "compose"
+		}
+	}
+	return "binding"
 }
 
 func printCatalogDetails(out io.Writer, service *client.Service) {

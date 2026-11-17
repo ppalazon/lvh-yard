@@ -218,4 +218,23 @@ public record Service(
   public List<InstanceSource> waitingSources() {
     return routing == null ? List.of() : routing.waitingSources();
   }
+
+  /**
+   * The sources that give the Instances its Route uses now: the source in use, or, when no one
+   * source wins, each source that gives a routed Instance. Empty without a Route.
+   */
+  @JsonIgnore
+  public List<InstanceSource> routedSources() {
+    if (routing == null) {
+      return List.of();
+    }
+    if (routing.used() != null) {
+      return List.of(routing.used());
+    }
+    List<String> routed = routing.instances();
+    return sources.stream()
+        .filter(source ->
+            source.givenInstances().stream().anyMatch(given -> routed.contains(given.id())))
+        .toList();
+  }
 }

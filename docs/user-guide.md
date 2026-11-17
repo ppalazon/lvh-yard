@@ -1168,6 +1168,8 @@ It shows the whole Yard, but it changes only the Services of this Workstation:
 lvh-yard catalog                            # one line per Service, by Workstation
 lvh-yard catalog --workstation ws-b          # one Workstation
 lvh-yard catalog --state degraded            # one Service state
+lvh-yard catalog --scope every              # also the Remote Services with no Route here
+lvh-yard catalog --scope yard               # only Services with Yard Scope
 lvh-yard catalog --details                  # Instance addresses, Health, IDs and Service Warnings
 lvh-yard catalog --details --workstation ws-b --state degraded
 lvh-yard service create web                 # an empty, Unpublished Service, unless it exists
@@ -1219,12 +1221,22 @@ lvh-yard status --strict                    # also exits with 1 on a warning
 and Instance count. The count says "N of M passing". It says "Empty" for a
 Service with no Instances and no Container Bindings, and "No Instances" for a
 Service whose Container Bindings follow no running container.
+A last column names the kind of Instance Source that the Route uses now, in
+brackets: `[static]`, `[docker]`, `[compose]`, `[alias]` or `[foreign]`. While
+the Instance Priority is off, or when no source has a passing Instance, it
+names every kind that gives the Route an Instance. A Service with no Route has
+no kind. The Catalog page of the dashboard shows the same kinds in its Source
+column, as badges.
 Unpublished Services show the count too, but have no hostname. By default,
 the command prints no Instance IDs or Service Warnings. Add `--details` to
 show each Instance's address, Health and ID, followed by the Service Warnings.
-Both views support `--workstation` and `--state`. You can combine the filters.
+Both views support `--workstation`, `--state` and `--scope`. You can combine the filters.
 The states are `unpublished`,
-`unavailable`, `unhealthy`, `degraded` and `healthy`. An unreachable Workstation
+`unavailable`, `unhealthy`, `degraded` and `healthy`. The Scope filter works as
+on the Catalog page. By default (`in-range`), it hides the Remote Services that
+this Workstation has no Route to. `every` shows all Services. `local` and `yard`
+show only the Services with that Scope, and hide unpublished ones. An
+unreachable Workstation
 shows `Workstation unreachable` instead of its Services, and the output ends with
 the command that shows this Workstation's Consul log: `lvh-yard ws compose logs consul`.
 

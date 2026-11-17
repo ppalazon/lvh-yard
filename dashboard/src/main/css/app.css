@@ -80,7 +80,9 @@
     white-space: normal;
   }
 
-  /* Every Workstation has its own table. Fixed columns keep them aligned with each other. */
+  /* Every Workstation has its own table. Fixed columns keep them aligned with each other.
+     The rules match columns by position, so a new column needs new widths and a new place in the
+     phone layout below. */
   @media (width >= 48rem) {
     .catalog-table {
       table-layout: fixed;
@@ -100,6 +102,10 @@
     }
 
     .catalog-table th:nth-child(5) {
+      width: 8rem;
+    }
+
+    .catalog-table th:nth-child(6) {
       width: 6rem;
     }
   }
@@ -126,7 +132,7 @@
 
     .catalog-table tbody tr {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) auto auto;
       align-items: center;
       gap: 0.5rem 0.75rem;
       padding: 1rem 0;
@@ -138,6 +144,7 @@
     }
 
     .catalog-table td:nth-child(2) {
+      grid-column: 2 / -1;
       justify-self: end;
     }
 
@@ -150,7 +157,7 @@
       color: var(--muted-foreground);
     }
 
-    .catalog-table td:nth-child(5) {
+    .catalog-table td:nth-child(6) {
       justify-self: end;
     }
   }

@@ -25,7 +25,7 @@ var commands = map[string][]string{
 	"ws yard init":       {"address", "days", "ca-key-password", "ca-key-password-file"},
 	"ws yard share":      {"days", "output", "password", "ca-key-password", "ca-key-password-file"},
 	"ws yard join":       {"address", "password", "workstation"},
-	"catalog":            {"workstation", "state", "details"},
+	"catalog":            {"workstation", "state", "scope", "details"},
 	"service":            nil,
 	"service create":     nil,
 	"service delete":     nil,
