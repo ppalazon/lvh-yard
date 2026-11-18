@@ -60,10 +60,10 @@ Then `http://front.lvh.me` and `http://mailpit.lvh.me` work in your browser.
 
 ```text
 ws-a (this Workstation)
-  front          healthy    front.lvh.me          1 of 1 passing
-  mailpit        healthy    mailpit.lvh.me        1 of 1 passing
+  front    healthy  local  front.lvh.me          1/1
+  mailpit  healthy  local  mailpit.lvh.me        1/1
 ws-b
-  grafana        healthy    grafana.ws-b.lvh.me   1 of 1 passing
+  grafana  healthy  yard   grafana.ws-b.lvh.me   1/1
 ```
 
 `grafana` runs on `ws-b`, and `ws-a` reaches it at `grafana.ws-b.lvh.me`.

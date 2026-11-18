@@ -33,7 +33,7 @@ func TestCatalogCountsOnlyTheSourceInUse(t *testing.T) {
 	}))
 	defer server.Close()
 	result := commandtest.New(t).Run("--dashboard", server.URL, "catalog")
-	if result.ExitCode != 0 || !strings.Contains(result.Stdout, "1 of 1 passing") {
+	if result.ExitCode != 0 || !strings.Contains(result.Stdout, "1/1") {
 		t.Fatalf("catalog counted the waiting source: %+v", result)
 	}
 }

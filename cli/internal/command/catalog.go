@@ -84,8 +84,16 @@ func (f catalogFilter) shows(workstation string, service *client.Service) bool {
 	}
 }
 
-func catalogWidths(workstations []client.YardWorkstation, filter catalogFilter) (nameWidth, stateWidth, hostnameWidth int) {
-	nameWidth, stateWidth, hostnameWidth = 1, 1, 1
+// catalogScope is the Scope of the Publication, or empty for a Service that is not published.
+func catalogScope(service *client.Service) string {
+	if service.Publication == nil {
+		return ""
+	}
+	return service.Publication.Scope
+}
+
+func catalogWidths(workstations []client.YardWorkstation, filter catalogFilter) (nameWidth, stateWidth, scopeWidth, hostnameWidth int) {
+	nameWidth, stateWidth, scopeWidth, hostnameWidth = 1, 1, 1, 1
 	for _, ws := range workstations {
 		for _, service := range ws.Services {
 			if !filter.shows(ws.Name, &service) {
@@ -93,14 +101,15 @@ func catalogWidths(workstations []client.YardWorkstation, filter catalogFilter) 
 			}
 			nameWidth = max(nameWidth, utf8.RuneCountInString(service.Name))
 			stateWidth = max(stateWidth, utf8.RuneCountInString(service.State))
+			scopeWidth = max(scopeWidth, utf8.RuneCountInString(catalogScope(&service)))
 			hostnameWidth = max(hostnameWidth, utf8.RuneCountInString(service.Hostname))
 		}
 	}
-	return nameWidth, stateWidth, hostnameWidth
+	return nameWidth, stateWidth, scopeWidth, hostnameWidth
 }
 
 func printCatalog(out io.Writer, workstations []client.YardWorkstation, filter catalogFilter, details bool) {
-	nameWidth, stateWidth, hostnameWidth := catalogWidths(workstations, filter)
+	nameWidth, stateWidth, scopeWidth, hostnameWidth := catalogWidths(workstations, filter)
 	anyUnreachable := false
 	for _, ws := range workstations {
 		if ws.Unreachable {
@@ -125,7 +134,7 @@ func printCatalog(out io.Writer, workstations []client.YardWorkstation, filter c
 				printCatalogDetails(out, &service)
 				continue
 			}
-			line := fmt.Sprintf("  %-*s  %-*s  %-*s  %s", nameWidth, service.Name, stateWidth, service.State, hostnameWidth, service.Hostname, catalogInstances(&service))
+			line := fmt.Sprintf("  %-*s  %-*s  %-*s  %-*s  %s", nameWidth, service.Name, stateWidth, service.State, scopeWidth, catalogScope(&service), hostnameWidth, service.Hostname, catalogInstances(&service))
 			if badges := catalogSources(&service); badges != "" {
 				line += "  " + badges
 			}
@@ -159,7 +168,7 @@ func catalogInstances(service *client.Service) string {
 			passing++
 		}
 	}
-	return fmt.Sprintf("%d of %d passing", passing, len(instances))
+	return fmt.Sprintf("%d/%d", passing, len(instances))
 }
 
 // routedSourceInstances returns the Instances of the source that the Route uses, or nil when no
