@@ -70,8 +70,37 @@
     text-underline-offset: 3px;
   }
 
-  .catalog-service-link:hover {
+  .catalog-service-link:hover,
+  .catalog-table tbody tr:hover .catalog-service-link {
     text-decoration: underline;
+  }
+
+  /* The name link covers its whole row, so a click anywhere in the row opens the Service. Links in
+     other cells, such as the hostname and Alias, sit above the cover and keep their own click. */
+  .catalog-table tbody tr {
+    position: relative;
+    cursor: pointer;
+  }
+
+  .catalog-service-link::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+
+  .catalog-table td a:not(.catalog-service-link) {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* The ring goes round the row, because the link covers it. */
+  .catalog-table .catalog-service-link:focus-visible {
+    outline: none;
+  }
+
+  .catalog-table tbody tr:has(.catalog-service-link:focus-visible) {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
   }
 
   .catalog-table td {
@@ -80,7 +109,8 @@
     white-space: normal;
   }
 
-  /* Every Workstation has its own table. Fixed columns keep them aligned with each other.
+  /* Every Workstation has its own table. Fixed columns keep them aligned with each other. A cell
+     stays on one line, and a long value ends in an ellipsis.
      The rules match columns by position, so a new column needs new widths and a new place in the
      phone layout below. */
   @media (width >= 48rem) {
@@ -89,24 +119,26 @@
       width: 100%;
     }
 
+    .catalog-table td {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     .catalog-table th:nth-child(1) {
-      width: 20%;
+      width: 18%;
     }
 
     .catalog-table th:nth-child(2) {
       width: 8rem;
     }
 
-    .catalog-table th:nth-child(4) {
-      width: 10rem;
+    .catalog-table th:nth-child(3) {
+      width: 6rem;
     }
 
     .catalog-table th:nth-child(5) {
-      width: 8rem;
-    }
-
-    .catalog-table th:nth-child(6) {
-      width: 6rem;
+      width: 16rem;
     }
   }
 
@@ -144,21 +176,27 @@
     }
 
     .catalog-table td:nth-child(2) {
-      grid-column: 2 / -1;
+      grid-column: 2;
       justify-self: end;
+    }
+
+    /* An unpublished Service has no Scope badge, so the State takes its place. */
+    .catalog-table td:nth-child(2):has(+ .catalog-spare) {
+      grid-column: 2 / -1;
     }
 
     .catalog-table td:nth-child(3) {
-      grid-column: 1 / -1;
+      grid-column: 3;
+      justify-self: end;
     }
 
     .catalog-table td:nth-child(4) {
-      font-size: 0.875rem;
-      color: var(--muted-foreground);
+      grid-column: 1 / -1;
     }
 
-    .catalog-table td:nth-child(6) {
-      justify-self: end;
+    .catalog-table td:nth-child(5) {
+      font-size: 0.875rem;
+      color: var(--muted-foreground);
     }
   }
 }

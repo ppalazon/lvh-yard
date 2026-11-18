@@ -22,4 +22,11 @@ public interface ConsulFederation {
 
   /** The members of the agent's WAN pool: one server for each federated datacenter. */
   List<WanMember> wanMembers();
+
+  /**
+   * Whether the agent's server port needs a certificate from every server and checks its name, as
+   * {@code ws yard init} and {@code ws yard join} set it. False when only some of the three
+   * settings are on.
+   */
+  boolean tls();
 }

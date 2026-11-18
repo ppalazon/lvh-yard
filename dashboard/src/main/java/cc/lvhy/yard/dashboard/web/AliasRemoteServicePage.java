@@ -8,8 +8,8 @@ import org.xmlet.htmlapifaster.Element;
 import org.xmlet.htmlapifaster.EnumTypeInputType;
 
 /**
- * The form that adds an Alias to a Remote Service, from its row in the catalog. Unlike {@link
- * AddAliasPage}, you choose the Service of this Workstation, and a new name creates it.
+ * The form that adds an Alias to a Remote Service, from the button on its Service page. Unlike
+ * {@link AddAliasPage}, you choose the Service of this Workstation, and a new name creates it.
  */
 final class AliasRemoteServicePage {
 

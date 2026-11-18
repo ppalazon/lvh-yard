@@ -34,6 +34,22 @@ final class ServiceViews {
   }
 
   /**
+   * An outline badge with the Scope of the Publication, Local or Yard. A Service that is not
+   * published has none.
+   */
+  static void scope(PhrasingContent<?, ?> parent, Service service) {
+    if (!service.published()) {
+      return;
+    }
+    parent
+        .span()
+        .attrClass("badge")
+        .addAttr("data-variant", "outline")
+        .text(service.sharedWithYard() ? "Yard" : "Local")
+        .__();
+  }
+
+  /**
    * A badge for each kind of source that its Route uses now: Static, Docker, Compose, Alias or
    * Foreign. A Service with no Route shows none. The spaces keep the badges apart.
    */

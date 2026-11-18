@@ -51,8 +51,9 @@ class CatalogPageComponentTest extends DashboardComponentTest {
           assertThat(page)
               .containsOnlyOnce(
                   "class=\"catalog-service-link\" href=\"/services/ws-test/" + grafana + "\"")
-              .contains("<th>Service</th><th>State</th><th>Hostname</th><th>Instances</th>")
-              .doesNotContain("<th>Instance</th>", "<th>Health</th>")
+              .contains(
+                  "<th>Service</th><th>State</th><th>Scope</th><th>Hostname</th><th>Instances</th>")
+              .doesNotContain("<th>Instance</th>", "<th>Health</th>", ">View<")
               .doesNotContain("10.1.2.3:3001");
           assertThat(rowOf(page, grafana)).contains("Unpublished", "1 of 2 passing");
         });
@@ -151,12 +152,31 @@ class CatalogPageComponentTest extends DashboardComponentTest {
         .atMost(Duration.ofSeconds(30))
         .untilAsserted(() -> {
           String page = getPage("/").getBody();
-          assertThat(page).contains("<th>Instances</th><th>Source</th>");
+          assertThat(page).contains("<th>Scope</th><th>Hostname</th><th>Instances</th>");
           assertThat(rowOf(page, fixed)).contains(badge("secondary", "Static"));
           assertThat(rowOf(page, box)).contains(badge("secondary", "Docker"));
           assertThat(rowOf(page, stack)).contains(badge("secondary", "Compose"));
         });
     assertThat(rowOf(getPage("/").getBody(), quiet)).doesNotContain("Static");
+  }
+
+  @Test
+  void showsTheScopeOfAPublishedServiceInItsOwnColumn() {
+    String local = newServiceName("web");
+    String shared = newServiceName("api");
+    String unpublished = newServiceName("db");
+    register(local, Map.of("host", "10.1.2.3", "port", 8080));
+    register(shared, Map.of("host", "10.1.2.3", "port", 9090));
+    register(unpublished, Map.of("host", "10.1.2.3", "port", 5432));
+    publish(local);
+    put(publicationPath(shared), Map.of("scope", "yard"));
+
+    String page = getPage("/").getBody();
+
+    assertThat(page).doesNotContain("<th>Source</th>");
+    assertThat(rowOf(page, local)).contains(badge("outline", "Local")).doesNotContain(">Yard<");
+    assertThat(rowOf(page, shared)).contains(badge("outline", "Yard")).doesNotContain(">Local<");
+    assertThat(rowOf(page, unpublished)).doesNotContain(">Local<", ">Yard<");
   }
 
   @Test

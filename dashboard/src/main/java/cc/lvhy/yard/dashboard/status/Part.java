@@ -5,16 +5,21 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import java.util.Objects;
 
-/** {@code reason} is a short sentence, ready to show. */
+/**
+ * {@code reason} is a short sentence, ready to show. {@code tls} names the TLS that the part uses,
+ * such as HTTPS, and is empty when it has none.
+ */
 @Schema(name = "StatusPart")
 public record Part(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) PartState state,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String reason,
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<Detail> details) {
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<Detail> details,
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<String> tls) {
 
   public Part {
     details = List.copyOf(details);
+    tls = tls == null ? List.of() : List.copyOf(tls);
   }
 
   /** As bad as the worst of its {@code details}, or ok when none has a state. */
@@ -23,11 +28,16 @@ public record Part(
         name,
         PartState.worst(details.stream().map(Detail::state).filter(Objects::nonNull).toList()),
         reason,
-        details);
+        details,
+        List.of());
   }
 
   public static Part failing(String name, String reason) {
-    return new Part(name, PartState.FAILING, reason, List.of());
+    return new Part(name, PartState.FAILING, reason, List.of(), List.of());
+  }
+
+  public Part withTls(List<String> tls) {
+    return new Part(name, state, reason, details, tls);
   }
 
   /** {@code state} is null for a plain fact, such as a version. */

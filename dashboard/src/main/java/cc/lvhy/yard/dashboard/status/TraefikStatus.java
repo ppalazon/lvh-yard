@@ -9,6 +9,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -69,7 +70,23 @@ class TraefikStatus implements PartReader {
             "last fetch",
             age == null ? "none since the dashboard started" : age.toSeconds() + " s ago",
             fresh ? PartState.OK : PartState.WARNING);
-    return Part.of(NAME, reason(ping, pingFault, age, fresh), List.of(pingDetail, fetchDetail));
+    return Part.of(NAME, reason(ping, pingFault, age, fresh), List.of(pingDetail, fetchDetail))
+        .withTls(tls());
+  }
+
+  /** The TLS Parts that this Workstation has on. */
+  private List<String> tls() {
+    List<String> on = new ArrayList<>();
+    if (settings.httpsPort() != null) {
+      on.add("HTTPS");
+    }
+    if (settings.clientAuth()) {
+      on.add("Client Certificate");
+    }
+    if (settings.mtls()) {
+      on.add("Mutual TLS");
+    }
+    return on;
   }
 
   private static String reason(URI ping, Optional<String> pingFault, Duration age, boolean fresh) {

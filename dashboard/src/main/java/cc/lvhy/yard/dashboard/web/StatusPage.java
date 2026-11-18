@@ -19,7 +19,6 @@ final class StatusPage {
     return Layout.page(
         "Status",
         workstation.name(),
-        Layout.Section.STATUS,
         main ->
             Layout.refreshed(
                 main,
@@ -63,9 +62,28 @@ final class StatusPage {
         .text(part.reason())
         .__()
         .of(card -> {
+          if (!part.tls().isEmpty()) {
+            tls(card, part);
+          }
+        })
+        .of(card -> {
           if (!part.details().isEmpty()) {
             details(card, part);
           }
+        })
+        .__();
+  }
+
+  /** The lock and one badge for each TLS that the part uses. */
+  private static void tls(Div<?> card, Part part) {
+    card.div()
+        .attrClass("mt-3 flex flex-wrap items-center gap-2")
+        .of(row -> {
+          Layout.lockIcon(row.svg(), "size-4 text-muted-foreground");
+          row.span().attrClass("sr-only").text("Uses TLS:").__();
+          part.tls()
+              .forEach(name ->
+                  row.span().attrClass("badge").addAttr("data-variant", "outline").text(name).__());
         })
         .__();
   }

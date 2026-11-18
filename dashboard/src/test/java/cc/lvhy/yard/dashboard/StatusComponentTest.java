@@ -224,4 +224,27 @@ class StatusComponentTest extends DashboardComponentTest {
         },
         "--lvh-yard.docker.host=unix:///nowhere/docker.sock");
   }
+
+  @Test
+  void traefikPartNamesEachTlsPartThatIsOn() {
+    remote.whileDashboardRunsWith(
+        () -> {
+          JsonNode traefik = part(remote.get("/api/status").getBody(), "Traefik");
+          assertThat(traefik.get("tls").valueStream().map(JsonNode::asString))
+              .containsExactly("HTTPS", "Client Certificate", "Mutual TLS");
+          assertThat(div(remote.page("/status"), "id=\"part-traefik\""))
+              .contains("HTTPS", "Client Certificate", "Mutual TLS");
+        },
+        "--lvh-yard.traefik.https-port=8443",
+        "--lvh-yard.traefik.client-auth=true",
+        "--lvh-yard.traefik.mtls=true");
+  }
+
+  @Test
+  void partsWithoutTlsHaveAnEmptyTlsList() {
+    JsonNode status = get("/api/status").getBody();
+
+    assertThat(part(status, "Consul").get("tls")).isEmpty();
+    assertThat(part(status, "Docker").get("tls")).isEmpty();
+  }
 }

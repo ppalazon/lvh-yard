@@ -14,9 +14,10 @@ Each Workstation runs three things:
   ([ADR-0002](adr/0002-traefik-reads-routes-from-lvh-yard.md))
 
 Each page of the dashboard has a navigation bar at the top. It links to the
-Catalog, Containers, Route Profiles, Backups and Status pages, and it highlights the
+Catalog, Containers, Route Profiles and Backups pages, and it highlights the
 current page. The header names Consul, Traefik and Docker with their Status.
-On a phone, it shows their worst Status. Open the summary to see the details.
+A part that is OK and uses TLS shows a lock in place of the tick. Open the
+summary to see the Status page. On a phone, the header shows their worst Status.
 
 Every page works with the keyboard. The first Tab on a page shows a "Skip to the
 main content" link, which moves past the header. Each control shows a ring when
@@ -25,15 +26,23 @@ an entry, Enter picks it, and Escape closes the list. The pages keep a contrast
 of at least 4.5 to 1 for text in both themes.
 
 The Status page shows one box for each of Consul, Traefik (when on) and Docker. Each box
-gives the state and the reason. Its Technical details list the facts behind the
+gives the state and the reason. A part that uses TLS also names it, next to a lock:
+Consul shows "TLS" when it checks the certificate of every Workstation, and
+Traefik shows "HTTPS", "Client Certificate" and "Mutual TLS" for each TLS Part
+that is on. Its Technical details list the facts behind the
 state. When a part is not OK, its details start open. When a part is OK, they
 start closed. The page refreshes by itself and keeps the details that you open
 or close. On a phone, each detail stacks its name, state and value.
 
 The Catalog shows one row for each Service, grouped by Workstation. Its columns
-are Service, State, Hostname and Instances. On a phone, each row stacks these
-facts without sideways scrolling. The Instances count says "2 of 3 passing",
-for example, or "No Instances". Unpublished Services show the count too.
+are Service, State, Scope, Hostname and Instances. On a phone, each row stacks these
+facts without sideways scrolling. The Scope column says Local or Yard for a
+published Service. The Instances column starts with the count,
+such as "2 of 3 passing", or "No Instances". After it come a badge for each kind
+of Instance Source that the Route uses. Each cell stays on one line on a wide
+screen, and a long value ends in "...". Unpublished Services show the count too. Click
+anywhere in a row to open the Service. Links in the row, such as the hostname,
+keep their own click.
 Instance addresses are on the Service page. You can filter by Workstation,
 state and Scope. The Scope filter starts on "In range". It hides the Remote
 Services that this Workstation has no Route to: those with Local Scope or no
@@ -1342,8 +1351,10 @@ lvh-yard status                             # whether LVH Yard works
 lvh-yard status --strict                    # also exits with 1 on a warning
 ```
 
-`lvh-yard catalog` shows aligned columns for the Service name, state, hostname
-and Instance count. The count says "N of M passing". With the Instance Priority
+`lvh-yard catalog` shows aligned columns for the Service name, state, Scope,
+hostname and Instance count. The Scope is `local` or `yard`, and empty for a
+Service that is not published. The count says "N/M": the passing Instances
+over all Instances. With the Instance Priority
 on, it counts only the Instances of the Instance Source that the Route uses,
 because the other sources wait. The Service page and the Catalog page of the
 dashboard count the same way. It says "Empty" for a
@@ -1353,8 +1364,8 @@ A last column names the kind of Instance Source that the Route uses now, in
 brackets: `[static]`, `[docker]`, `[compose]`, `[alias]` or `[foreign]`. While
 the Instance Priority is off, or when no source has a passing Instance, it
 names every kind that gives the Route an Instance. A Service with no Route has
-no kind. The Catalog page of the dashboard shows the same kinds in its Source
-column, as badges.
+no kind. The Catalog page of the dashboard shows the same kinds as badges in its
+Instances column, next to the count.
 Unpublished Services show the count too, but have no hostname. By default,
 the command prints no Instance IDs or Service Warnings. Add `--details` to
 show each Instance's address, Health and ID, followed by the Service Warnings.
@@ -2038,8 +2049,8 @@ Put them in order: while the first one has no passing Instance, the Route uses
 the next one. A new Alias goes to the end of the order. The Aliases are in the
 record of the Service, in the Consul KV of this Workstation.
 
-To add an Alias from the catalog, click "Alias" on the row of a Remote Service.
-Only Remote Services with Yard Scope have this button. The form opens on its
+To add an Alias from the dashboard, open the page of a Remote Service from the
+catalog, and click "Alias". Only Remote Services with Yard Scope have this button. The form opens on its
 own page. Choose one of your Services, or type a new name. The default is the
 name of the Remote Service. Then click "Add":
 

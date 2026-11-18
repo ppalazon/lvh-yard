@@ -31,6 +31,9 @@ class ConsulStatusTest {
   /** The datacenters whose leader the stand-in cannot read, as Consul answers one with no path. */
   private String unreadable = "";
 
+  /** What the stand-in answers for the agent itself. Consul without TLS has no TLS settings on. */
+  private String selfJson = selfJson(false, false, false);
+
   @AfterEach
   void stop() {
     if (server != null) {
@@ -64,6 +67,26 @@ class ConsulStatusTest {
               .startsWith("alive at 10.0.0.2:8302, but Consul cannot read from it")
               .contains("Remote DC has no server currently reachable");
         });
+  }
+
+  @Test
+  void consulThatChecksEveryServerCertificateUsesTls() throws IOException {
+    selfJson = selfJson(true, true, true);
+
+    assertThat(read(consulAnswering("\"10.0.0.1:8300\"", WS_B), "").tls())
+        .containsExactly(ConsulStatus.TLS);
+  }
+
+  @Test
+  void consulWithOnlySomeTlsSettingsOnDoesNotUseTls() throws IOException {
+    selfJson = selfJson(true, true, false);
+
+    assertThat(read(consulAnswering("\"10.0.0.1:8300\"", WS_B), "").tls()).isEmpty();
+  }
+
+  @Test
+  void consulWithNoTlsHasNoTlsToShow() throws IOException {
+    assertThat(read(consulAnswering("\"10.0.0.1:8300\"", WS_B), "").tls()).isEmpty();
   }
 
   @Test
@@ -129,7 +152,9 @@ class ConsulStatusTest {
             "/v1/status/leader",
             leaderJson,
             "/v1/agent/members",
-            "[" + String.join(",", members) + "]");
+            "[" + String.join(",", members) + "]",
+            "/v1/agent/self",
+            selfJson);
     server.createContext(
         "/",
         exchange -> {
@@ -165,5 +190,15 @@ class ConsulStatusTest {
     {"Name":"%s.%s","Addr":"%s","Port":%d,"Status":1,"Tags":{"dc":"%s"}}\
     """
         .formatted(datacenter, datacenter, address, port, datacenter);
+  }
+
+  /** The part of {@code /v1/agent/self} that tells how the server port treats certificates. */
+  private static String selfJson(boolean incoming, boolean outgoing, boolean hostname) {
+    return """
+    {"Member":{"Addr":"10.0.0.1"},
+     "DebugConfig":{"TLS":{"InternalRPC":{"VerifyIncoming":%b,"VerifyOutgoing":%b,
+                                          "VerifyServerHostname":%b}}}}\
+    """
+        .formatted(incoming, outgoing, hostname);
   }
 }

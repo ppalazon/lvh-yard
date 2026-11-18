@@ -174,6 +174,11 @@ public final class FakeConsul implements Consul {
   }
 
   @Override
+  public boolean tls() {
+    return false;
+  }
+
+  @Override
   public void register(Registration registration) {
     synchronized (federation) {
       own().register(registration);

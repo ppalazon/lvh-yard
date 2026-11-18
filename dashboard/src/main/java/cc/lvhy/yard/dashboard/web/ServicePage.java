@@ -541,6 +541,11 @@ final class ServicePage {
         .of(heading -> ServiceViews.state(heading, service.state()))
         .div()
         .attrClass("ml-auto flex flex-wrap gap-2")
+        .of(actions -> {
+          if (!own && service.sharedWithYard()) {
+            AliasRemoteServicePage.button(actions, service);
+          }
+        })
         .a()
         .attrHref(Layout.attr(RouteDiagramPage.path(service)))
         .attrClass("btn")

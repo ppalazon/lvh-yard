@@ -35,6 +35,9 @@ class ConsulStatus implements PartReader {
 
   static final String NAME = "Consul";
 
+  /** What the part names when Consul checks the certificates of the servers. */
+  static final String TLS = "TLS";
+
   /**
    * How long looking up the addresses of all Peers given by name may take. Past it, each Peer not
    * yet looked up is a warning of its own, and the part still answers within the status's deadline.
@@ -86,9 +89,11 @@ class ConsulStatus implements PartReader {
   public Part read() {
     String leader;
     List<WanMember> members;
+    boolean encrypted;
     try {
       leader = consul.leader();
       members = consul.wanMembers();
+      encrypted = consul.tls();
     } catch (ConsulException e) {
       return Part.failing(
           NAME, "Consul does not answer at " + settings.url() + ": " + e.getMessage());
@@ -115,14 +120,20 @@ class ConsulStatus implements PartReader {
     Map<String, String> missing = missingPeers(members);
     missing.forEach(
         (peer, why) -> details.add(new Part.Detail("peer " + peer, why, PartState.WARNING)));
+    List<String> tls = encrypted ? List.of(TLS) : List.of();
     if (leader.isEmpty()) {
       return new Part(
-          NAME, PartState.FAILING, "Consul has no leader, so it cannot accept changes.", details);
+          NAME,
+          PartState.FAILING,
+          "Consul has no leader, so it cannot accept changes.",
+          details,
+          tls);
     }
     return Part.of(
-        NAME,
-        reason(members, List.copyOf(missing.keySet()), List.copyOf(unread.keySet())),
-        details);
+            NAME,
+            reason(members, List.copyOf(missing.keySet()), List.copyOf(unread.keySet())),
+            details)
+        .withTls(tls);
   }
 
   private static String reason(List<WanMember> members, List<String> missing, List<String> unread) {

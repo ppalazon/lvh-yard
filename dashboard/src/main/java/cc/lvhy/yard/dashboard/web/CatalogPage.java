@@ -19,6 +19,7 @@ import java.util.stream.Stream;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.Tbody;
+import org.xmlet.htmlapifaster.Td;
 
 /** The Services refresh themselves, with the filters. */
 final class CatalogPage {
@@ -295,7 +296,7 @@ final class CatalogPage {
   }
 
   /**
-   * @param remote whether the Services are of another Workstation, so a row can offer an Alias
+   * @param remote whether the Services are of another Workstation
    */
   private static void services(
       Div<?> region, List<Service> all, Filters filters, boolean remote, TraefikSettings traefik) {
@@ -330,25 +331,28 @@ final class CatalogPage {
         .text("State")
         .__()
         .th()
+        .text("Scope")
+        .__()
+        .th()
         .text("Hostname")
         .__()
         .th()
         .text("Instances")
         .__()
-        .th()
-        .text("Source")
-        .__()
-        .of(head -> head.th().span().attrClass("sr-only").text("Actions").__().__())
         .__()
         .__()
         .tbody()
-        .of(body -> services.forEach(service -> row(body, service, remote, traefik)))
+        .of(body -> services.forEach(service -> row(body, service, traefik)))
         .__()
         .__()
         .__();
   }
 
-  private static void row(Tbody<?> body, Service service, boolean remote, TraefikSettings traefik) {
+  /**
+   * The Service name is the only link to the Service page. The stylesheet stretches it over the
+   * whole row, so a click anywhere in the row opens the page. Other links of the row stay above it.
+   */
+  private static void row(Tbody<?> body, Service service, TraefikSettings traefik) {
     body.tr()
         .td()
         .a()
@@ -362,6 +366,15 @@ final class CatalogPage {
         .__()
         .td()
         .of(cell -> {
+          if (service.published()) {
+            ServiceViews.scope(cell, service);
+          } else {
+            cell.attrClass("catalog-spare");
+          }
+        })
+        .__()
+        .td()
+        .of(cell -> {
           if (service.hostname() == null) {
             cell.span().attrClass("text-muted-foreground").text("No hostname").__();
           } else {
@@ -370,40 +383,35 @@ final class CatalogPage {
         })
         .__()
         .td()
-        .of(cell -> {
+        .of(cell -> instances(cell, service))
+        .__()
+        .__();
+  }
+
+  /** The count of passing Instances, then the kinds of source that the Route uses. One line. */
+  private static void instances(Td<?> cell, Service service) {
+    cell.div()
+        .attrClass("flex items-center gap-x-2")
+        .of(box -> {
           if (service.empty()) {
-            cell.span().attrClass("badge").addAttr("data-variant", "outline").text("Empty").__();
+            box.span().attrClass("badge").addAttr("data-variant", "outline").text("Empty").__();
           } else {
             List<Instance> inUse = service.instancesInUse();
-            cell.text(
-                service.countedInstances().isEmpty()
-                    ? "No Instances"
-                    : inUse.stream().filter(instance -> instance.health() == Health.PASSING).count()
-                        + " of "
-                        + inUse.size()
-                        + " passing");
-          }
-        })
-        .__()
-        .td()
-        .of(cell -> ServiceViews.routedSources(cell, service))
-        .__()
-        .td()
-        .of(cell -> {
-          if (!remote) {
-            cell.a()
-                .attrClass("btn")
-                .addAttr("data-variant", "outline")
-                .attrHref(Layout.attr(ServicePage.path(service)))
-                .text("View")
+            box.span()
+                .attrClass("whitespace-nowrap")
+                .text(
+                    service.countedInstances().isEmpty()
+                        ? "No Instances"
+                        : inUse.stream()
+                                .filter(instance -> instance.health() == Health.PASSING)
+                                .count()
+                            + " of "
+                            + inUse.size()
+                            + " passing")
                 .__();
-          } else if (service.sharedWithYard()) {
-            AliasRemoteServicePage.button(cell, service);
-          } else {
-            cell.attrClass("catalog-spare");
           }
+          ServiceViews.routedSources(box, service);
         })
-        .__()
         .__();
   }
 }

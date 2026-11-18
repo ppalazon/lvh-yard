@@ -135,11 +135,28 @@ public class ConsulAgent implements Consul {
   /** compose.yaml sets it to the Workstation's LAN address. */
   @Override
   public String agentAddress() {
+    return self().member().address();
+  }
+
+  /**
+   * The agent's own settings, as it runs. {@code /v1/agent/self} also lists them as DebugConfig.
+   */
+  @Override
+  public boolean tls() {
+    DebugConfig debug = self().debugConfig();
+    if (debug == null || debug.tls() == null || debug.tls().internalRpc() == null) {
+      return false;
+    }
+    TlsPort rpc = debug.tls().internalRpc();
+    return rpc.verifyIncoming() && rpc.verifyOutgoing() && rpc.verifyServerHostname();
+  }
+
+  private AgentSelf self() {
     AgentSelf self = call(() -> http.get().uri("/v1/agent/self").retrieve().body(AgentSelf.class));
     if (self == null) {
       throw new IllegalStateException("Consul answered /v1/agent/self without a body.");
     }
-    return self.member().address();
+    return self;
   }
 
   /** Replaces the registration with the same ID. */
@@ -329,9 +346,20 @@ public class ConsulAgent implements Consul {
     }
   }
 
-  record AgentSelf(@JsonProperty("Member") Member member) {}
+  record AgentSelf(
+      @JsonProperty("Member") Member member,
+      @JsonProperty("DebugConfig") DebugConfig debugConfig) {}
 
   record Member(@JsonProperty("Addr") String address) {}
+
+  record DebugConfig(@JsonProperty("TLS") Tls tls) {}
+
+  record Tls(@JsonProperty("InternalRPC") TlsPort internalRpc) {}
+
+  record TlsPort(
+      @JsonProperty("VerifyIncoming") boolean verifyIncoming,
+      @JsonProperty("VerifyOutgoing") boolean verifyOutgoing,
+      @JsonProperty("VerifyServerHostname") boolean verifyServerHostname) {}
 
   // The JSON of Consul's HTTP API, with its field names. Nothing outside this class sees it.
 

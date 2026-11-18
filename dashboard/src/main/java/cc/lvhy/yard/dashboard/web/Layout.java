@@ -35,8 +35,7 @@ public final class Layout {
     CATALOG("Catalog", "/"),
     CONTAINERS("Containers", ContainersPage.PATH),
     ROUTE_PROFILES("Route Profiles", RouteProfilesPage.PATH),
-    BACKUPS("Backups", BackupsPage.PATH),
-    STATUS("Status", StatusPage.PATH);
+    BACKUPS("Backups", BackupsPage.PATH);
 
     final String label;
     final String path;
@@ -243,6 +242,11 @@ public final class Layout {
   private static final String LOCK_SHACKLE = "M7 11V7a5 5 0 0 1 10 0v4";
   private static final String LOCK_BODY =
       "M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z";
+
+  /** Lucide's lock icon, for something that uses TLS. */
+  static void lockIcon(Svg<?> svg, String classes) {
+    icon(svg, classes, LOCK_SHACKLE, LOCK_BODY);
+  }
 
   private static void link(
       PhrasingContent<?, ?> parent, String hostname, String url, String... iconPaths) {

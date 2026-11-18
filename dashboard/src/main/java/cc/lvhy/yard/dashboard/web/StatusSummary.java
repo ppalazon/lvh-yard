@@ -1,6 +1,7 @@
 package cc.lvhy.yard.dashboard.web;
 
 import cc.lvhy.yard.dashboard.status.Part;
+import cc.lvhy.yard.dashboard.status.PartState;
 import cc.lvhy.yard.dashboard.status.Status;
 import htmlflow.HtmlFlow;
 import org.xmlet.htmlapifaster.PhrasingContent;
@@ -49,9 +50,20 @@ final class StatusSummary {
     return out.toString();
   }
 
+  /**
+   * A part that is OK and uses TLS shows a lock in place of the tick. A part that is not OK keeps
+   * its warning or failing symbol, because that matters more.
+   */
   private static void dot(PhrasingContent<?, ?> link, Part part) {
     StatusViews.Look look = StatusViews.look(part.state());
-    String label = part.name() + ": " + look.label() + ". " + part.reason();
+    boolean locked = part.state() == PartState.OK && !part.tls().isEmpty();
+    String label =
+        part.name()
+            + ": "
+            + look.label()
+            + ". "
+            + (part.tls().isEmpty() ? "" : "Uses " + String.join(", ", part.tls()) + ". ")
+            + part.reason();
     link.span()
         .attrId("dot-" + StatusViews.slug(part.name()))
         .attrClass(
@@ -60,7 +72,13 @@ final class StatusSummary {
         .addAttr("role", "img")
         .addAttr("aria-label", Layout.attr(label))
         .addAttr("title", Layout.attr(label))
-        .text(look.symbol())
+        .of(dot -> {
+          if (locked) {
+            Layout.lockIcon(dot.svg(), "size-3");
+          } else {
+            dot.text(look.symbol());
+          }
+        })
         .__();
   }
 }

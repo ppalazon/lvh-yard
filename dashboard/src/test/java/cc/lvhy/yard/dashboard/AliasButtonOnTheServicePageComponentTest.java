@@ -9,8 +9,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import tools.jackson.databind.JsonNode;
 
-/** The Alias button on a Remote Service row of the catalog, and the form it opens. */
-class AliasButtonInTheCatalogComponentTest extends DashboardComponentTest {
+/** The Alias button on the page of a Remote Service, and the form it opens. */
+class AliasButtonOnTheServicePageComponentTest extends DashboardComponentTest {
 
   private static String remotePage(String remoteService) {
     return "/services/" + RemoteWorkstation.NAME + "/" + remoteService;
@@ -39,20 +39,29 @@ class AliasButtonInTheCatalogComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void remoteServiceWithYardScopeHasAnAliasButtonAndOneWithLocalScopeHasNone() {
+  void remoteServiceWithYardScopeHasAnAliasButtonOnItsPageAndOneWithLocalScopeHasNone() {
     String shared = remoteService("grafana", "yard");
     String local = remoteService("grafana", "local");
     String own = newServiceName("own");
     register(own, Map.of("host", "10.1.2.3", "port", 8080));
     put(publicationPath(own), Map.of("scope", "yard"));
 
-    String catalog = getPage("/?scope=every").getBody();
-
-    assertThat(rowOf(catalog, remotePage(shared)))
+    assertThat(getPage(remotePage(shared)).getBody())
         .contains("href=\"" + formPath(shared) + "\"")
         .contains(">Alias</a>");
-    assertThat(rowOf(catalog, remotePage(local))).doesNotContain("/alias/new");
-    assertThat(rowOf(catalog, "/services/" + WORKSTATION + "/" + own)).doesNotContain("/alias/new");
+    assertThat(getPage(remotePage(local)).getBody()).doesNotContain("/alias/new");
+    assertThat(getPage("/services/" + WORKSTATION + "/" + own).getBody())
+        .doesNotContain("/alias/new");
+  }
+
+  @Test
+  void catalogRowsHaveNoAliasButton() {
+    String shared = remoteService("grafana", "yard");
+
+    String catalog = getPage("/?scope=every").getBody();
+
+    assertThat(rowOf(catalog, remotePage(shared))).doesNotContain("/alias/new");
+    assertThat(catalog).doesNotContain("Actions");
   }
 
   @Test
