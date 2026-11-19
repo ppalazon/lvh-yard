@@ -3,10 +3,12 @@
          xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
-    <description>The PMD rules that fail the build. Each one reports nothing on the code today, and each hit is dead code.</description>
+    <description>The PMD rules that fail the build. Each one reports nothing on the code today. A hit is dead code, a null check that a literal-first comparison removes, or a case conversion that depends on the user's locale.</description>
 
     <rule ref="category/java/bestpractices.xml/UnusedPrivateMethod"/>
     <rule ref="category/java/bestpractices.xml/UnusedPrivateField"/>
     <rule ref="category/java/bestpractices.xml/UnusedLocalVariable"/>
     <rule ref="category/java/bestpractices.xml/UnusedFormalParameter"/>
+    <rule ref="category/java/bestpractices.xml/LiteralsFirstInComparisons"/>
+    <rule ref="category/java/errorprone.xml/UseLocaleWithCaseConversions"/>
 </ruleset>

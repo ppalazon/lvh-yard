@@ -4,6 +4,7 @@ import cc.lvhy.yard.dashboard.services.SourceKind;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonValue;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.Locale;
 
 /**
  * What an import does with one entry of a Backup.
@@ -64,7 +65,7 @@ public record PlanEntry(
     /** Such as {@code static-instance}. */
     @JsonValue
     public String value() {
-      return name().toLowerCase().replace('_', '-');
+      return name().toLowerCase(Locale.ROOT).replace('_', '-');
     }
   }
 
@@ -75,7 +76,7 @@ public record PlanEntry(
 
     @JsonValue
     public String value() {
-      return name().toLowerCase();
+      return name().toLowerCase(Locale.ROOT);
     }
   }
 }

@@ -2,6 +2,7 @@ package cc.lvhy.yard.dashboard.services;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.Collection;
+import java.util.Locale;
 
 /** From best to worst. An Instance's Health is its worst check's. */
 public enum Health {
@@ -25,6 +26,6 @@ public enum Health {
 
   @JsonValue
   public String value() {
-    return name().toLowerCase();
+    return name().toLowerCase(Locale.ROOT);
   }
 }

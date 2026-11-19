@@ -30,7 +30,7 @@ public record OutOfRange(List<String> ranges) {
     } catch (IllegalArgumentException notAnAddress) {
       String name = host.toLowerCase(Locale.ROOT);
       name = name.endsWith(".") ? name.substring(0, name.length() - 1) : name;
-      if (!name.equals("localhost") && !name.endsWith(".localhost")) {
+      if (!"localhost".equals(name) && !name.endsWith(".localhost")) {
         return false;
       }
       addresses = List.of(InetAddress.ofLiteral("127.0.0.1"), InetAddress.ofLiteral("::1"));

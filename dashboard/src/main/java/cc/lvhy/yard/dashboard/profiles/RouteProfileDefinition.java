@@ -95,6 +95,6 @@ public record RouteProfileDefinition(String name, Map<String, Map<String, Object
 
   /** Whether a middleware type, or the reserved option clientCertificate, asks who the user is. */
   public static boolean asksWhoTheUserIs(String type) {
-    return AUTH_TYPES.contains(type) || type.equals("clientCertificate");
+    return AUTH_TYPES.contains(type) || "clientCertificate".equals(type);
   }
 }

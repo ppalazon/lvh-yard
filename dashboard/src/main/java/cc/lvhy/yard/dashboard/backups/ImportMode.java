@@ -2,6 +2,7 @@ package cc.lvhy.yard.dashboard.backups;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.Arrays;
+import java.util.Locale;
 
 /** What an import does with an entry that matches one on this Workstation. */
 public enum ImportMode {
@@ -24,6 +25,6 @@ public enum ImportMode {
 
   @JsonValue
   public String value() {
-    return name().toLowerCase();
+    return name().toLowerCase(Locale.ROOT);
   }
 }

@@ -103,7 +103,7 @@ public final class InstanceRules {
               + " is not a single DNS label: use 1 to 63 lowercase letters, digits and -, not"
               + " starting or ending with -.");
     }
-    if (name.equals(CONSUL)) {
+    if (CONSUL.equals(name)) {
       throw new InvalidRegistrationException("name", CONSUL_REFUSAL);
     }
   }
@@ -240,16 +240,16 @@ public final class InstanceRules {
         check.type() != null
             ? check.type()
             : check.path() != null ? HealthCheck.HTTP : HealthCheck.TCP;
-    if (type.equals("script")) {
+    if ("script".equals(type)) {
       throw new InvalidRegistrationException(
           "check", "Script checks are not offered: use an http or a tcp" + " check.");
     }
-    if (!type.equals(HealthCheck.HTTP) && !type.equals(HealthCheck.TCP)) {
+    if (!HealthCheck.HTTP.equals(type) && !HealthCheck.TCP.equals(type)) {
       throw new InvalidRegistrationException(
           "check", "The check " + type + " is not one LVH Yard offers:" + " use http or tcp.");
     }
     String path = null;
-    if (type.equals(HealthCheck.HTTP)) {
+    if (HealthCheck.HTTP.equals(type)) {
       path = check.path() == null || check.path().isBlank() ? "/" : check.path();
       if (!PATH.matcher(path).matches()) {
         throw new InvalidRegistrationException(

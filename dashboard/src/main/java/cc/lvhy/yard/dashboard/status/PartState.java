@@ -2,6 +2,7 @@ package cc.lvhy.yard.dashboard.status;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.Collection;
+import java.util.Locale;
 
 /** From best to worst. */
 public enum PartState {
@@ -23,6 +24,6 @@ public enum PartState {
 
   @JsonValue
   public String value() {
-    return name().toLowerCase();
+    return name().toLowerCase(Locale.ROOT);
   }
 }

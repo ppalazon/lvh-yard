@@ -110,7 +110,7 @@ public class RouteProfileChecks {
     }
     return map.keySet().stream()
         .map(String::valueOf)
-        .filter(type -> !type.equals("plugin") && !TYPES.contains(type))
+        .filter(type -> !"plugin".equals(type) && !TYPES.contains(type))
         .findFirst()
         .orElse(null);
   }
@@ -164,7 +164,7 @@ public class RouteProfileChecks {
       if (type == null) {
         return name + " must have exactly one middleware type, such as headers or basicAuth.";
       }
-      if (type.equals("plugin")) {
+      if ("plugin".equals(type)) {
         return name + " uses a plugin. Another Workstation's Traefik may not have it.";
       }
       Object options = ((Map<?, ?>) middlewares.get(name)).get(type);
@@ -198,7 +198,7 @@ public class RouteProfileChecks {
       }
       host = host.startsWith("[") ? host.substring(1, host.length() - 1) : host;
       String lower = host.toLowerCase(Locale.ROOT);
-      if (lower.equals("localhost") || lower.endsWith(".localhost") || outOfRange.contains(host)) {
+      if ("localhost".equals(lower) || lower.endsWith(".localhost") || outOfRange.contains(host)) {
         return name
             + " sends forwardAuth to "
             + host

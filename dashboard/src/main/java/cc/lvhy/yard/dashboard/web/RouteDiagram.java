@@ -125,7 +125,7 @@ record RouteDiagram(
   private static Listener listener(TraefikSettings traefik, int port) {
     String bind = traefik.bindAddress();
     boolean thisComputer =
-        bind.equals("127.0.0.1") || bind.equals("::1") || bind.equals("localhost");
+        "127.0.0.1".equals(bind) || "::1".equals(bind) || "localhost".equals(bind);
     return new Listener(
         bind + ":" + port, thisComputer ? "this computer only" : "other computers can connect");
   }

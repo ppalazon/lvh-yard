@@ -455,7 +455,7 @@ final class RouteDiagramSvg {
           case OFF -> "rd-s rd-mute";
         };
     int textWidth = (int) (label.length() * 6.4);
-    boolean end = anchor.equals("end");
+    boolean end = "end".equals(anchor);
     int iconX = kind == HopKind.OFF ? -100 : end ? x - textWidth - 20 : x;
     int textX = kind == HopKind.OFF || end ? x : x + 20;
     if (kind != HopKind.OFF) {
@@ -528,7 +528,7 @@ final class RouteDiagramSvg {
 
   private static Node text(int x, int y, String text, String cls, String anchor) {
     Node node = new Node("text", text).attr("x", x).attr("y", y).attr("class", cls);
-    if (!anchor.equals("start")) {
+    if (!"start".equals(anchor)) {
       node.attr("text-anchor", anchor);
     }
     return node;
