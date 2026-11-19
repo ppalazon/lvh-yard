@@ -49,6 +49,20 @@ func newWSLifecycle(options *Options, folder func() string) []*cobra.Command {
 			},
 		})
 	}
+	compose.AddCommand(newWSComposeDown(options, folder))
+	compose.AddCommand(&cobra.Command{
+		Use:   "upgrade",
+		Short: "Updates the images in compose.yaml.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return upgradeInit(options, folder(), wsCommandOf(cmd, folder()), cmd.OutOrStdout())
+		},
+	})
+	compose.AddCommand(newWSComposeLogs(options, folder))
+	return []*cobra.Command{compose}
+}
+
+func newWSComposeDown(options *Options, folder func() string) *cobra.Command {
 	var volumes bool
 	down := &cobra.Command{
 		Use:   "down",
@@ -63,15 +77,10 @@ func newWSLifecycle(options *Options, folder func() string) []*cobra.Command {
 		},
 	}
 	down.Flags().BoolVarP(&volumes, "volumes", "v", false, "Removes the data volumes too. Consul loses its data.")
-	compose.AddCommand(down)
-	compose.AddCommand(&cobra.Command{
-		Use:   "upgrade",
-		Short: "Updates the images in compose.yaml.",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return upgradeInit(options, folder(), wsCommandOf(cmd, folder()), cmd.OutOrStdout())
-		},
-	})
+	return down
+}
+
+func newWSComposeLogs(options *Options, folder func() string) *cobra.Command {
 	var follow bool
 	logs := &cobra.Command{
 		Use:       "logs [consul|traefik|dashboard]",
@@ -95,8 +104,7 @@ func newWSLifecycle(options *Options, folder func() string) []*cobra.Command {
 		},
 	}
 	logs.Flags().BoolVarP(&follow, "follow", "f", false, "Follows the logs.")
-	compose.AddCommand(logs)
-	return []*cobra.Command{compose}
+	return logs
 }
 
 func runWSCompose(options *Options, cmd *cobra.Command, folder string, args []string) error {

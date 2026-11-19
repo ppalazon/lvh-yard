@@ -2,6 +2,7 @@ package cc.lvhy.yard.dashboard.services;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Optional;
 
 public enum Scope {
@@ -25,6 +26,6 @@ public enum Scope {
   /** Also its value in Consul KV. */
   @JsonValue
   public String value() {
-    return name().toLowerCase();
+    return name().toLowerCase(Locale.ROOT);
   }
 }

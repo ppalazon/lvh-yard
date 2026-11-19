@@ -1,6 +1,7 @@
 package cc.lvhy.yard.dashboard.status;
 
 import jakarta.annotation.PreDestroy;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -33,6 +34,8 @@ public class StatusReader {
 
   private final Duration kept;
 
+  private final Clock clock;
+
   /** Reads run on their own threads, so one that never answers is simply left behind. */
   private final ExecutorService readers = Executors.newVirtualThreadPerTaskExecutor();
 
@@ -41,13 +44,14 @@ public class StatusReader {
   private final AtomicBoolean rereading = new AtomicBoolean();
 
   @Autowired
-  StatusReader(List<PartReader> parts) {
-    this(parts, KEPT);
+  StatusReader(List<PartReader> parts, Clock clock) {
+    this(parts, KEPT, clock);
   }
 
-  StatusReader(List<PartReader> parts, Duration kept) {
+  StatusReader(List<PartReader> parts, Duration kept, Clock clock) {
     this.parts = List.copyOf(parts);
     this.kept = kept;
+    this.clock = clock;
   }
 
   @PreDestroy
@@ -60,10 +64,10 @@ public class StatusReader {
     if (read == null) {
       return first();
     }
-    if (!Instant.now().isBefore(read.at().plus(kept)) && rereading.compareAndSet(false, true)) {
+    if (!clock.instant().isBefore(read.at().plus(kept)) && rereading.compareAndSet(false, true)) {
       readers.execute(() -> {
         try {
-          last = new Read(readNow(), Instant.now());
+          last = new Read(readNow(), clock.instant());
         } finally {
           rereading.set(false);
         }
@@ -74,7 +78,7 @@ public class StatusReader {
 
   private synchronized Status first() {
     if (last == null) {
-      last = new Read(readNow(), Instant.now());
+      last = new Read(readNow(), clock.instant());
     }
     return last.status();
   }

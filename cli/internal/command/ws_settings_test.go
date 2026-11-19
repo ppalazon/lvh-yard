@@ -77,7 +77,7 @@ func TestWSYardJoinNeedsAnInvitation(t *testing.T) {
 }
 
 func TestWSRefusesRename(t *testing.T) {
-	for _, args := range [][]string{{"set", "workstation", "new"}, {"yard", "join", "--workstation", "new"}} {
+	for _, args := range [][]string{{"set", "workstation", "new"}, {"set", "workstation-name", "new"}, {"set", "YARD_WORKSTATION", "new"}, {"yard", "join", "--workstation", "new"}} {
 		run := commandtest.New(t).Run(append([]string{"ws"}, args...)...)
 		if run.ExitCode != 1 || !strings.Contains(run.Stderr, "export a Backup") || !strings.Contains(run.Stderr, "ws init") || !strings.Contains(run.Stderr, "import") {
 			t.Fatalf("rename: %+v", run)
@@ -181,5 +181,44 @@ func TestWSSetTraefikDoesNotWriteHalfAChange(t *testing.T) {
 	run := commandtest.New(t).Run("ws", "set", "--dir", folder, "traefik", "off")
 	if run.ExitCode != 1 || readInitFile(t, folder, ".env") != before {
 		t.Fatalf("partial Traefik toggle: %+v", run)
+	}
+}
+
+func TestWSSetSaysWhatToRunNext(t *testing.T) {
+	folder := t.TempDir()
+	writeEnv(t, folder, "YARD_HTTP_PORT=80\nYARD_TRAEFIK_ENABLED=true\nCOMPOSE_PROFILES=traefik\n")
+	yard := commandtest.New(t)
+	port := yard.Run("ws", "set", "--dir", folder, "http-port", "8080")
+	if port.ExitCode != 0 || !strings.Contains(port.Stdout, "Saved .env.") || !strings.Contains(port.Stdout, "compose recreate") {
+		t.Fatalf("http-port: %+v", port)
+	}
+	if strings.Contains(port.Stdout, "stop traefik") || strings.Contains(port.Stdout, "traefik-admin") {
+		t.Fatalf("a port change talks about Traefik: %s", port.Stdout)
+	}
+	off := yard.Run("ws", "set", "--dir", folder, "traefik", "off")
+	if !strings.Contains(off.Stdout, "--profile traefik stop traefik") || !strings.Contains(off.Stdout, "compose recreate") {
+		t.Fatalf("traefik off must say how to stop it: %+v", off)
+	}
+	on := yard.Run("ws", "set", "--dir", folder, "traefik", "on")
+	if on.ExitCode != 0 || strings.Contains(on.Stdout, "stop traefik") || strings.Contains(on.Stdout, "traefik-admin") {
+		t.Fatalf("traefik on: %+v", on)
+	}
+}
+
+func TestWSSetWithoutAWorkstationSaysToRunInit(t *testing.T) {
+	for name, folder := range map[string]string{"no folder": filepath.Join(t.TempDir(), "missing"), "no .env": t.TempDir()} {
+		run := commandtest.New(t).Run("ws", "set", "--dir", folder, "http-port", "8080")
+		if run.ExitCode != 1 || !strings.Contains(run.Stderr, "no Workstation in") || !strings.Contains(run.Stderr, "ws init") {
+			t.Fatalf("%s: %+v", name, run)
+		}
+	}
+}
+
+func TestWSSetFalseOnAnotherSettingDoesNotTalkAboutTraefik(t *testing.T) {
+	folder := t.TempDir()
+	writeEnv(t, folder, "YARD_STACK_TRACES=true\n")
+	run := commandtest.New(t).Run("ws", "set", "--dir", folder, "stack-traces", "false")
+	if run.ExitCode != 0 || strings.Contains(run.Stdout, "traefik-admin") {
+		t.Fatalf("stack-traces false: %+v", run)
 	}
 }

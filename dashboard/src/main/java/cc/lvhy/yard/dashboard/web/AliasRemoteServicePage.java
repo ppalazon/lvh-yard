@@ -102,7 +102,7 @@ final class AliasRemoteServicePage {
                       .addAttr("list", NAME + "-options")
                       .attrValue(Layout.attr(name))
                       .of(input -> {
-                        if (error != null && error.field().equals(NAME)) {
+                        if (error != null && NAME.equals(error.field())) {
                           input
                               .addAttr("aria-invalid", "true")
                               .addAttr("aria-describedby", NAME + "-error");

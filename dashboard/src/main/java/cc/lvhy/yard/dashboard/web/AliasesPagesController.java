@@ -118,7 +118,7 @@ class AliasesPagesController {
       return seeOther(created ? page : page + "#" + InstanceSourcesCard.ID);
     } catch (InvalidRegistrationException e) {
       error =
-          e.field().equals("name")
+          "name".equals(e.field())
               ? e
               : new InvalidRegistrationException(AliasRemoteServicePage.TARGET, e.getMessage());
     }

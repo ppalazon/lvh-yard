@@ -11,42 +11,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.yaml.snakeyaml.LoaderOptions;
-import org.yaml.snakeyaml.Yaml;
-import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /** An export: the Backup of this Workstation's setup, as one YAML file. */
-class BackupExportComponentTest extends DashboardComponentTest {
-
-  static final String BACKUP_PATH = "/api/workstation/backup";
-
-  private Map<String, Object> exported() {
-    return yaml(getYaml(BACKUP_PATH).getBody());
-  }
+class BackupExportComponentTest extends BackupComponentTest {
 
   static final MediaType YAML = MediaType.parseMediaType("application/yaml");
 
-  @SuppressWarnings("unchecked")
-  static Map<String, Object> yaml(String text) {
-    return (Map<String, Object>) new Yaml(new SafeConstructor(new LoaderOptions())).load(text);
-  }
-
-  @SuppressWarnings("unchecked")
-  static Map<String, Object> map(Object value) {
-    return (Map<String, Object>) value;
-  }
-
-  /** The entries of the sources of {@code service}, each without its kind. */
-  @SuppressWarnings("unchecked")
-  static List<Object> sources(Map<String, Object> backup, String service, String kind) {
-    List<Map<String, Object>> sources =
-        (List<Map<String, Object>>) map(map(backup.get("services")).get(service)).get("sources");
-    return sources == null
-        ? List.of()
-        : sources.stream()
-            .filter(source -> source.containsKey(kind))
-            .map(source -> source.get(kind))
-            .toList();
+  private Map<String, Object> exported() {
+    return yaml(getYaml(BACKUP_PATH).getBody());
   }
 
   @Test
@@ -180,8 +152,21 @@ class BackupExportComponentTest extends DashboardComponentTest {
 
   @Test
   void lvhYardsOwnServicesAreHeldLikeOthers() {
-    assertThat(map(exported().get("services"))).containsKeys("yard", "consul-ui", "traefik-admin");
-    assertThat(map(exported().get("services"))).doesNotContainKey("consul");
+    Map<String, Object> services = map(exported().get("services"));
+
+    assertThat(services).containsKeys("yard", "consul-ui", "traefik-admin");
+    assertThat(services).doesNotContainKey("consul");
+    assertThat(map(services.get("yard")).get("publication")).isEqualTo(Map.of("scope", "local"));
+  }
+
+  @Test
+  void accessLogOfAPublicationIsExported() {
+    String grafana = newServiceName("grafana");
+    register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
+    put(publicationPath(grafana), Map.of("scope", "yard", "accessLog", true));
+
+    assertThat(map(map(exported().get("services")).get(grafana)).get("publication"))
+        .isEqualTo(Map.of("scope", "yard", "access-log", true));
   }
 
   @Test

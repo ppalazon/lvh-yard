@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.http.MediaType;
 
 /** Browsing containers and creating a Service from one container or Compose service. */
 class ContainersPageComponentTest extends DashboardComponentTest {
@@ -40,7 +41,6 @@ class ContainersPageComponentTest extends DashboardComponentTest {
         .contains(createPath(project + "/web"));
     assertThat(page.substring(stoppedSection)).contains(createPath(project + "/web"));
     assertThat(page).doesNotContain(createPath(running)).doesNotContain(createPath(stopped));
-    assertThat(page).doesNotContain("type=\"checkbox\"");
   }
 
   @Test
@@ -171,13 +171,22 @@ class ContainersPageComponentTest extends DashboardComponentTest {
     assertThat(page).contains(">" + free + "<", ">" + freeStopped + "<");
     assertThat(page)
         .doesNotContain(">" + bound + "<", ">" + composeRunning + "<", ">" + composeStopped + "<");
-    assertThat(page).contains("hx-get=\"/containers?state=all\"");
   }
 
   @Test
   void unknownFilterValuesAreRefused() {
     assertThat(getPage("/containers?state=up").getStatusCode().value()).isEqualTo(400);
     assertThat(getPage("/containers?followed=maybe").getStatusCode().value()).isEqualTo(400);
+  }
+
+  @Test
+  void aBrowserIsToldWhichFilterValueIsUnknown() {
+    var state = getAccepting("/containers?state=up", MediaType.TEXT_HTML);
+    assertThat(state.getStatusCode().value()).isEqualTo(400);
+    assertThat(state.getBody()).contains("<html").contains("The state up is unknown");
+    var followed = getAccepting("/containers?followed=maybe", MediaType.TEXT_HTML);
+    assertThat(followed.getStatusCode().value()).isEqualTo(400);
+    assertThat(followed.getBody()).contains("The value maybe is unknown");
   }
 
   @Test
@@ -201,7 +210,6 @@ class ContainersPageComponentTest extends DashboardComponentTest {
 
     String page = getPage(createPath(project + "/web")).getBody();
 
-    assertThat(openingTag(page, "name=\"containerPort\"")).contains("role=\"combobox\"");
     assertThat(page).contains("data-value=\"80\"", "data-value=\"8080\"", "data-value=\"9000\"");
     assertThat(page.split("data-value=\"80\"", -1)).hasSize(2);
   }
@@ -272,7 +280,14 @@ class ContainersPageComponentTest extends DashboardComponentTest {
   }
 
   @ParameterizedTest
-  @CsvSource({"true,local,true", "true,yard,false", "false,local,true", "false,yard,false"})
+  @CsvSource({
+    "true,local,true",
+    "true,yard,true",
+    "true,local,false",
+    "true,yard,false",
+    "false,local,true",
+    "false,local,false"
+  })
   void createsExactlyOneBindingForTheTarget(boolean publish, String scope, boolean compose)
       throws Exception {
     String project = newComposeProject();

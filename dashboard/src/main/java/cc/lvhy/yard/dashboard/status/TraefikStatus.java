@@ -7,6 +7,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -40,11 +41,14 @@ class TraefikStatus implements PartReader {
 
   private final TraefikFetches fetches;
 
+  private final Clock clock;
+
   private final HttpClient http = HttpClient.newBuilder().connectTimeout(PING_TIMEOUT).build();
 
-  TraefikStatus(TraefikSettings settings, TraefikFetches fetches) {
+  TraefikStatus(TraefikSettings settings, TraefikFetches fetches, Clock clock) {
     this.settings = settings;
     this.fetches = fetches;
+    this.clock = clock;
   }
 
   @Override
@@ -57,7 +61,7 @@ class TraefikStatus implements PartReader {
     URI ping = settings.adminUrl().resolve("/ping");
     Optional<String> pingFault = pingFault(ping);
     Optional<Instant> last = fetches.last();
-    Duration age = last.map(when -> Duration.between(when, Instant.now())).orElse(null);
+    Duration age = last.map(when -> Duration.between(when, clock.instant())).orElse(null);
     boolean fresh = age != null && age.compareTo(STALE) <= 0;
 
     Part.Detail pingDetail =

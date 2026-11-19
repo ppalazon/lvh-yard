@@ -3,15 +3,19 @@ package update_test
 import (
 	"archive/tar"
 	"archive/zip"
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -151,6 +155,89 @@ func TestReplaceSwapsTheExecutableAndLeavesNoStagingFile(t *testing.T) {
 	if len(entries) != 1 {
 		t.Fatalf("files left in %s: %v", dir, entries)
 	}
+}
+
+// runsAsASleeper is the environment variable that makes a copy of the test binary wait for its standard input.
+const runsAsASleeper = "LVHY_TEST_RUNS_AS_A_SLEEPER"
+
+func TestMain(m *testing.M) {
+	if os.Getenv(runsAsASleeper) == "1" {
+		fmt.Println("running")
+		_, _ = io.Copy(io.Discard, os.Stdin)
+		return
+	}
+	os.Exit(m.Run())
+}
+
+// Windows cannot overwrite a running executable, but it can rename it. This is the case of lvh-yard update, which
+// replaces the executable that runs it.
+func TestReplaceSwapsAnExecutableThatIsRunning(t *testing.T) {
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(self)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	path := filepath.Join(dir, update.Executable(platformOfThisComputer(t)))
+	if err := os.WriteFile(path, data, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	sleeper := exec.Command(path)
+	sleeper.Env = append(os.Environ(), runsAsASleeper+"=1")
+	stdin, err := sleeper.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout, err := sleeper.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sleeper.Start(); err != nil {
+		t.Fatal(err)
+	}
+	stopped := false
+	stop := func() {
+		if !stopped {
+			stopped = true
+			_ = stdin.Close()
+			_ = sleeper.Wait()
+		}
+	}
+	t.Cleanup(stop)
+	if line, _ := bufio.NewReader(stdout).ReadString('\n'); strings.TrimSpace(line) != "running" {
+		t.Fatalf("the copy did not start: %q", line)
+	}
+
+	if err := update.Replace(path, []byte("new")); err != nil {
+		t.Fatalf("Replace of a running executable: %v", err)
+	}
+	if got, _ := os.ReadFile(path); string(got) != "new" {
+		t.Fatalf("executable = %q", got)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".lvh-yard.new")); !os.IsNotExist(err) {
+		t.Fatalf("the staging file is still there: %v", err)
+	}
+
+	// Once the old process has ended, the next update removes the old file that Windows kept.
+	stop()
+	if err := update.Replace(path, []byte("newer")); err != nil {
+		t.Fatal(err)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 1 {
+		t.Fatalf("files left in %s: %v", dir, entries)
+	}
+}
+
+func platformOfThisComputer(t *testing.T) string {
+	t.Helper()
+	platform, err := update.Platform(runtime.GOOS, runtime.GOARCH)
+	if err != nil {
+		t.Skip("no release for this computer")
+	}
+	return platform
 }
 
 func TestReplaceKeepsTheOldExecutableWhenItCannotWrite(t *testing.T) {

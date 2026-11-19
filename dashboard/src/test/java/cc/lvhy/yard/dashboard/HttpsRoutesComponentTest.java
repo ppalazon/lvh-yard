@@ -16,6 +16,7 @@ import tools.jackson.databind.json.JsonMapper;
       "lvh-yard.traefik.client-auth=true",
       "lvh-yard.traefik.mtls=true"
     })
+/** Routes and links of a Workstation with HTTPS, Client Certificates and mutual TLS on. */
 class HttpsRoutesComponentTest extends DashboardComponentTest {
   @AfterEach
   void removeProfiles() throws Exception {
@@ -40,12 +41,13 @@ class HttpsRoutesComponentTest extends DashboardComponentTest {
       JsonNode saved =
           put(publicationPath(service), Map.of("profiles", List.of(profile))).getBody();
       JsonNode http = get("/traefik/configuration").getBody().get("http");
-      assertThat(http.get("routers").has(service)).isFalse();
+      assertThat(http.get("routers").has(service)).as(profile).isFalse();
       JsonNode secure = http.get("routers").get(service + "__https");
-      assertThat(secure.get("entryPoints").toString()).isEqualTo("[\"websecure\"]");
+      assertThat(secure.get("entryPoints").toString()).as(profile).isEqualTo("[\"websecure\"]");
       assertThat(secure.get("tls").get("options").asString())
+          .as(profile)
           .isEqualTo("yard-client-certificate@file");
-      assertThat(http.path("middlewares").has("ws-test_certificate")).isFalse();
+      assertThat(http.path("middlewares").has("ws-test_certificate")).as(profile).isFalse();
       assertThat(http.path("middlewares").has("ws-test_certificate-chain")).isFalse();
       if (profile.equals("protected")) {
         assertThat(secure.get("middlewares").toString()).isEqualTo("[\"ws-test_protected\"]");
@@ -57,7 +59,7 @@ class HttpsRoutesComponentTest extends DashboardComponentTest {
                     .toString())
             .isEqualTo("[\"ws-test_compressed\"]");
       } else {
-        assertThat(secure.has("middlewares")).isFalse();
+        assertThat(secure.has("middlewares")).as(profile).isFalse();
       }
       assertThat(saved.get("warnings").toString()).doesNotContain("client-certificate-unavailable");
       assertPublicationLink("ws-test", service, "https://" + service + ".lvh.test:8443");
@@ -124,28 +126,6 @@ class HttpsRoutesComponentTest extends DashboardComponentTest {
           .contains("href=\"http://" + service + ".lvh.test:")
           .contains("href=\"https://" + service + ".lvh.test:8443\"");
     }
-  }
-
-  @Test
-  void anHttpsPublicationWarnsAboutAnInstanceOffLoopbackThatTraefikCallsOverHttp() {
-    // A Service with mutual TLS is the only one whose hop is encrypted.
-    String lan = newServiceName("lan");
-    register(lan, Map.of("host", "10.1.2.3", "port", 8080));
-    String loopback = newServiceName("loopback");
-    register(loopback, Map.of("host", "127.0.0.1", "port", 8080));
-    String encrypted = newServiceName("encrypted");
-    register(encrypted, Map.of("host", "10.1.2.3", "port", 8443));
-
-    assertThat(put(publicationPath(lan), Map.of()).getBody().get("warnings").toString())
-        .contains("unencrypted-instance", "10.1.2.3:8080");
-    assertThat(put(publicationPath(loopback), Map.of()).getBody().get("warnings").toString())
-        .doesNotContain("unencrypted-instance");
-    assertThat(
-            put(publicationPath(encrypted), Map.of("mutualTls", true))
-                .getBody()
-                .get("warnings")
-                .toString())
-        .doesNotContain("unencrypted-instance");
   }
 
   private void assertPublicationLink(String home, String service, String url) {

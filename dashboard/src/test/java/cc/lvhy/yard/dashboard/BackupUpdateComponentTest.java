@@ -1,7 +1,5 @@
 package cc.lvhy.yard.dashboard;
 
-import static cc.lvhy.yard.dashboard.BackupImportComponentTest.entries;
-import static cc.lvhy.yard.dashboard.BackupImportComponentTest.problems;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
@@ -12,9 +10,9 @@ import org.springframework.http.ResponseEntity;
 import tools.jackson.databind.JsonNode;
 
 /** An import in update mode: it also overwrites what exists with the values of the file. */
-class BackupUpdateComponentTest extends DashboardComponentTest {
+class BackupUpdateComponentTest extends BackupComponentTest {
 
-  static final String UPDATE_PATH = BackupExportComponentTest.BACKUP_PATH + "?mode=update";
+  static final String UPDATE_PATH = BACKUP_PATH + "?mode=update";
 
   ResponseEntity<JsonNode> update(String backup) {
     return postYaml(UPDATE_PATH, backup);
@@ -45,7 +43,12 @@ class BackupUpdateComponentTest extends DashboardComponentTest {
             """
                 .formatted(web));
 
-    assertThat(entries(response)).contains("update instance-priority " + web);
+    assertThat(entries(response))
+        .containsExactly(
+            "skip service " + web + ": It exists already.",
+            "skip static-instance 10.1.2.4:3000 of " + web + ": It is the same already.",
+            "skip static-instance 10.1.2.3:3000 of " + web + ": It is the same already.",
+            "update instance-priority " + web);
     JsonNode service = get(servicePath(web)).getBody();
     assertThat(service.get("instancePriority").asBoolean()).isFalse();
     assertThat(service.get("sources").valueStream().map(source -> source.get("id").asString()))
@@ -76,7 +79,40 @@ class BackupUpdateComponentTest extends DashboardComponentTest {
                 .formatted(web));
 
     assertThat(entries(response))
-        .contains("skip instance-priority " + web + ": It is the same already.");
+        .containsExactly(
+            "skip service " + web + ": It exists already.",
+            "skip static-instance 10.1.2.3:3000 of " + web + ": It is the same already.",
+            "skip static-instance 10.1.2.4:3000 of " + web + ": It is the same already.",
+            "skip instance-priority " + web + ": It is the same already.");
+  }
+
+  @Test
+  void aFileThatNamesTheSourcesInAnotherOrderUpdatesTheOrderAndKeepsTheToggle() {
+    String web = newServiceName("web");
+    String first = register(web, Map.of("host", "10.1.2.3", "port", 3000)).get("id").asString();
+    String second = register(web, Map.of("host", "10.1.2.4", "port", 3000)).get("id").asString();
+
+    ResponseEntity<JsonNode> response =
+        update(
+            """
+            version: 2
+            services:
+              %s:
+                sources:
+                  - static-instance:
+                      host: 10.1.2.4
+                      port: 3000
+                  - static-instance:
+                      host: 10.1.2.3
+                      port: 3000
+            """
+                .formatted(web));
+
+    assertThat(entries(response)).last().isEqualTo("update instance-priority " + web);
+    JsonNode service = get(servicePath(web)).getBody();
+    assertThat(service.get("instancePriority").asBoolean()).isTrue();
+    assertThat(service.get("sources").valueStream().map(source -> source.get("id").asString()))
+        .containsExactly(second, first);
   }
 
   @Test
@@ -279,68 +315,5 @@ class BackupUpdateComponentTest extends DashboardComponentTest {
     assertThat(problems(response)).containsExactly("route-profiles." + auth);
     assertThat(get(ROUTE_PROFILES_PATH + "/" + auth).getBody().at("/type").asString())
         .isEqualTo("compress");
-  }
-
-  @Test
-  void containerBindingMatchIsASkip() {
-    String web = newServiceName("web");
-    bindCompose(web, "shop", web, 8080);
-
-    ResponseEntity<JsonNode> response =
-        update(
-            """
-            version: 2
-            services:
-              %s:
-                sources:
-                  - container-binding:
-                      compose: {project: shop, service: %s}
-                      port: 8080
-            """
-                .formatted(web, web));
-
-    assertThat(entries(response))
-        .containsExactly(
-            "skip service " + web + ": It exists already.",
-            "skip container-binding compose:shop:"
-                + web
-                + ":8080 of "
-                + web
-                + ": It is the same already.");
-  }
-
-  @Test
-  void aliasOfTheFileJoinsTheAliasesThereAndKeepsThem() {
-    String grafana = newServiceName("grafana");
-    String loki = newServiceName("loki");
-    for (String service : List.of(grafana, loki)) {
-      remote.register(service, Map.of("host", "10.9.8.7", "port", 3000));
-      remote.publish(service, "yard");
-    }
-    String dash = newServiceName("dash");
-    create(dash);
-    post(
-        AliasesComponentTest.aliasesPath(dash),
-        Map.of("workstation", RemoteWorkstation.NAME, "service", grafana));
-
-    ResponseEntity<JsonNode> response =
-        update(
-            """
-            version: 2
-            services:
-              %s:
-                sources:
-                  - alias:
-                      workstation: %s
-                      service: %s
-            """
-                .formatted(dash, RemoteWorkstation.NAME, loki));
-
-    assertThat(entries(response))
-        .containsExactly(
-            "skip service " + dash + ": It exists already.",
-            "add alias " + RemoteWorkstation.NAME + "/" + loki + " of " + dash);
-    assertThat(get(AliasesComponentTest.aliasesPath(dash)).getBody().findValuesAsString("service"))
-        .containsExactly(grafana, loki);
   }
 }

@@ -1,21 +1,21 @@
 ---
 title: "A failed dashboard request logs one line, and YARD_STACK_TRACES turns on the stack trace"
 author: Pablo
-date: 2026-11-10
-branch: main
-cost: { minutes: 10, tokens: 43679 }
-id: l-588419a5
+date: 2026-11-19
+branch: quality-review
+cost: { minutes: 1 }
+id: l-74644f9e
 scope: repo
 status: active
-replaces: l-b0777abc
+replaces: l-588419a5
 src: agent
 touches:
   - config/.env.example
   - config/compose.yaml
-  - dashboard/src/main/java/cc/lvhy/yard/dashboard/Problems.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/web/Problems.java
   - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ApiProblems.java
   - dashboard/src/main/resources/application.yaml
-  - dashboard/src/test/java/cc/lvhy/yard/dashboard/ProblemsTest.java
+  - dashboard/src/test/java/cc/lvhy/yard/dashboard/web/ProblemsTest.java
   - docs/user-guide.md
 ---
 
@@ -28,4 +28,4 @@ touches:
 - Exceptions that already carry a status, and a client that went away, are thrown again from the handler, so Spring handles them and logs no warning.
 - Only Consul uses a RestClient, so ResourceAccessException always means that Consul did not answer. If another RestClient is added, the 503 text must change.
 
-In the code: Problems.java, services/ApiProblems.java, application.yaml lvh-yard.stack-traces, ProblemsTest.java.
+In the code: web/Problems.java, services/ApiProblems.java, application.yaml lvh-yard.stack-traces, web/ProblemsTest.java.

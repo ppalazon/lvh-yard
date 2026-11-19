@@ -1,6 +1,7 @@
 package cc.lvhy.yard.dashboard.services;
 
 import com.fasterxml.jackson.annotation.JsonValue;
+import java.util.Locale;
 
 /** What kind of thing an Instance Source is. The order of Instance Sources never depends on it. */
 public enum SourceKind {
@@ -31,6 +32,6 @@ public enum SourceKind {
 
   @JsonValue
   public String value() {
-    return name().toLowerCase();
+    return name().toLowerCase(Locale.ROOT);
   }
 }

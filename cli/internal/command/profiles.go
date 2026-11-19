@@ -40,7 +40,12 @@ func NewProfiles(options *Options) *cobra.Command {
 			return nil
 		},
 	}
-	profiles.AddCommand(&cobra.Command{
+	profiles.AddCommand(newProfilesShow(options), newProfilesSet(options), newProfilesEdit(options), newProfilesRemove(options))
+	return profiles
+}
+
+func newProfilesShow(options *Options) *cobra.Command {
+	return &cobra.Command{
 		Use:   "show <name>",
 		Short: "Prints a Route Profile in Traefik's format.",
 		Args:  cobra.ExactArgs(1),
@@ -56,23 +61,18 @@ func NewProfiles(options *Options) *cobra.Command {
 			_, err = cmd.OutOrStdout().Write(text)
 			return err
 		},
-	}, &cobra.Command{
+	}
+}
+
+func newProfilesSet(options *Options) *cobra.Command {
+	return &cobra.Command{
 		Use:   "set <file>",
 		Short: "Saves the Route Profiles of a Traefik file.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var text []byte
-			var err error
-			if args[0] == "-" {
-				text, err = io.ReadAll(options.Process.Input())
-				if err != nil {
-					return fmt.Errorf("Cannot read the standard input: %w", err)
-				}
-			} else {
-				text, err = os.ReadFile(args[0])
-				if err != nil {
-					return fmt.Errorf("Cannot read %s: %w", args[0], err)
-				}
+			text, err := readFileOrInput(options, args[0])
+			if err != nil {
+				return err
 			}
 			set, err := readProfileFile(text)
 			if err != nil {
@@ -88,13 +88,21 @@ func NewProfiles(options *Options) *cobra.Command {
 			fmt.Fprintln(cmd.OutOrStdout(), label+strings.Join(set.names, ", ")+".")
 			return nil
 		},
-	}, &cobra.Command{
+	}
+}
+
+func newProfilesEdit(options *Options) *cobra.Command {
+	return &cobra.Command{
 		Use:   "edit <name>",
 		Short: "Edits a Route Profile in your editor.",
 		Long:  "Edits a Route Profile in " + editorVariable + " (default: " + defaultEditor + ").\n\nDoes:\n  1. opens the Route Profile in the editor\n  2. saves it when you close the editor",
 		Args:  cobra.ExactArgs(1),
 		RunE:  func(cmd *cobra.Command, args []string) error { return editProfile(cmd, options, args[0]) },
-	}, &cobra.Command{
+	}
+}
+
+func newProfilesRemove(options *Options) *cobra.Command {
+	return &cobra.Command{
 		Use:   "remove <name>",
 		Short: "Removes a Route Profile.",
 		Args:  cobra.ExactArgs(1),
@@ -105,8 +113,7 @@ func NewProfiles(options *Options) *cobra.Command {
 			fmt.Fprintln(cmd.OutOrStdout(), "Removed the Route Profile "+args[0]+".")
 			return nil
 		},
-	})
-	return profiles
+	}
 }
 
 func editProfile(cmd *cobra.Command, options *Options, name string) error {
@@ -162,27 +169,41 @@ func editUntilSaved(cmd *cobra.Command, options *Options, dashboard Dashboard, n
 			fmt.Fprintln(cmd.OutOrStdout(), "No change to the Route Profile "+name+".")
 			return true, nil
 		}
-		set, err := readProfileFile(text)
-		if err == nil && (len(set.names) != 1 || set.names[0] != name) {
-			err = fmt.Errorf("The file must hold only the Route Profile %s. It holds %s.", name, strings.Join(set.names, ", "))
-		}
-		if err == nil {
-			_, err = dashboard.PutRouteProfile(name, set.profiles[name])
-		}
+		err = saveEditedProfile(dashboard, name, text)
 		if err == nil {
 			fmt.Fprintln(cmd.OutOrStdout(), "Saved the Route Profile "+name+".")
 			return true, nil
 		}
-		fmt.Fprintln(cmd.ErrOrStderr(), err)
-		fmt.Fprint(cmd.ErrOrStderr(), "Edit again? [Y/n] ")
-		answer, readErr := answers.ReadString('\n')
-		if readErr != nil && len(answer) == 0 {
-			fmt.Fprintln(cmd.ErrOrStderr())
-			return false, nil
-		}
-		answer = strings.ToLower(strings.TrimSpace(answer))
-		if readErr != nil && !errors.Is(readErr, io.EOF) || answer != "" && answer != "y" && answer != "yes" {
+		if !askEditAgain(cmd, answers, err) {
 			return false, nil
 		}
 	}
+}
+
+func saveEditedProfile(dashboard Dashboard, name string, text []byte) error {
+	set, err := readProfileFile(text)
+	if err != nil {
+		return err
+	}
+	if len(set.names) != 1 || set.names[0] != name {
+		return fmt.Errorf("The file must hold only the Route Profile %s. It holds %s.", name, strings.Join(set.names, ", "))
+	}
+	_, err = dashboard.PutRouteProfile(name, set.profiles[name])
+	return err
+}
+
+// askEditAgain prints the error and reports true when the user wants to edit again.
+func askEditAgain(cmd *cobra.Command, answers *bufio.Reader, cause error) bool {
+	fmt.Fprintln(cmd.ErrOrStderr(), cause)
+	fmt.Fprint(cmd.ErrOrStderr(), "Edit again? [Y/n] ")
+	answer, readErr := answers.ReadString('\n')
+	if readErr != nil && len(answer) == 0 {
+		fmt.Fprintln(cmd.ErrOrStderr())
+		return false
+	}
+	answer = strings.ToLower(strings.TrimSpace(answer))
+	if readErr != nil && !errors.Is(readErr, io.EOF) || answer != "" && answer != "y" && answer != "yes" {
+		return false
+	}
+	return true
 }

@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"strings"
 
+	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
 	"github.com/ppalazon/lvh-yard/cli/internal/settings"
 	"github.com/spf13/cobra"
 )
@@ -56,14 +57,7 @@ func runYardInit(cmd *cobra.Command, options *Options, folder, address string, d
 	if err := checkOwnYard(folder, caPEM); err != nil {
 		return err
 	}
-	peer, err := yardSharePeer(cmd, options, env, address)
-	if err != nil {
-		return err
-	}
-	if peer == unknownLANAddress {
-		return fmt.Errorf("no LAN address found for this Workstation. Set it with --address, for example --address 192.168.1.10")
-	}
-	bind, err := settings.Check("bind-address", peer)
+	bind, err := yardInitBind(cmd, options, env, address)
 	if err != nil {
 		return err
 	}
@@ -80,23 +74,7 @@ func runYardInit(cmd *cobra.Command, options *Options, folder, address string, d
 		return err
 	}
 	if !enabled {
-		p := newPrompter(cmd, options)
-		ca, signer, err := readCA(cmd, p, folder)
-		if err != nil {
-			return err
-		}
-		if days, err = askDays(cmd, p, days, 365, "certificate validity in days"); err != nil {
-			return err
-		}
-		self := strings.Trim(env.Get("YARD_WORKSTATION"), "\"'")
-		if err := signConsul(folder, ca, signer, self, days); err != nil {
-			return err
-		}
-		certPEM, keyPEM, err := readSignedTLSRole(folder, self, roleConsul)
-		if err != nil {
-			return err
-		}
-		if err := installConsul(cmd, folder, env, caPEM, certPEM, keyPEM); err != nil {
+		if err := installOwnConsul(cmd, options, folder, env, caPEM, days); err != nil {
 			return err
 		}
 	}
@@ -109,4 +87,34 @@ func runYardInit(cmd *cobra.Command, options *Options, folder, address string, d
 	}
 	fmt.Fprintf(out, "Then, for each Workstation that joins:\n  %s yard share <workstation>\n", ws)
 	return nil
+}
+
+// yardInitBind is the checked address that Consul listens on after ws yard init.
+func yardInitBind(cmd *cobra.Command, options *Options, env *envfile.File, address string) (string, error) {
+	peer, err := yardSharePeer(cmd, options, env, address)
+	if err != nil {
+		return "", err
+	}
+	if peer == unknownLANAddress {
+		return "", fmt.Errorf("no LAN address found for this Workstation. Set it with --address, for example --address 192.168.1.10")
+	}
+	return settings.Check("bind-address", peer)
+}
+
+// installOwnConsul signs the Consul certificate of this Workstation and installs it.
+func installOwnConsul(cmd *cobra.Command, options *Options, folder string, env *envfile.File, caPEM []byte, days int) error {
+	p := newPrompter(cmd, options)
+	ca, signer, err := readCA(cmd, p, folder)
+	if err != nil {
+		return err
+	}
+	if days, err = askDays(cmd, p, days, 365, "certificate validity in days"); err != nil {
+		return err
+	}
+	self := strings.Trim(env.Get("YARD_WORKSTATION"), "\"'")
+	certPEM, keyPEM, err := signedConsul(folder, ca, signer, self, days)
+	if err != nil {
+		return err
+	}
+	return installConsul(cmd, folder, env, caPEM, certPEM, keyPEM)
 }

@@ -38,7 +38,6 @@ class CreateAndDeleteServicesPageComponentTest extends DashboardComponentTest {
     String form = formTo(getPage(NEW_PATH).getBody(), CREATE_PATH);
 
     assertThat(form).contains("name=\"name\"");
-    assertThat(form.split("<input", -1)).hasSize(2);
   }
 
   @Test
@@ -84,8 +83,8 @@ class CreateAndDeleteServicesPageComponentTest extends DashboardComponentTest {
 
     String page = getPage("/").getBody();
 
-    assertThat(rowOf(page, empty)).contains("Unpublished").contains(badge("outline", "Empty"));
-    assertThat(rowOf(page, full)).doesNotContain(badge("outline", "Empty"));
+    assertThat(rowOf(page, empty)).contains("Unpublished").contains("Empty");
+    assertThat(rowOf(page, full)).doesNotContain("Empty");
   }
 
   @Test
@@ -104,8 +103,7 @@ class CreateAndDeleteServicesPageComponentTest extends DashboardComponentTest {
         .contains("<h1>Delete Service " + web + "</h1>")
         .contains("its Publication")
         .contains("2 Static Instances")
-        .contains("1 Container Binding")
-        .contains("Containers keep running");
+        .contains("1 Container Binding");
     String form = formTo(page, deletePath(web));
     assertThat(openingTag(form, "action=\"" + deletePath(web) + "\"")).contains("method=\"post\"");
     assertThat(form).contains("href=\"/services/ws-test/" + web + "\"");

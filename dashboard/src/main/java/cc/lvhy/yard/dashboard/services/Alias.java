@@ -3,6 +3,7 @@ package cc.lvhy.yard.dashboard.services;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonValue;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.Locale;
 
 /**
  * An Alias of a Service. {@code reason} is left out of the JSON while it is active.
@@ -37,7 +38,7 @@ public record Alias(
 
     @JsonValue
     public String value() {
-      return name().toLowerCase().replace('_', '-');
+      return name().toLowerCase(Locale.ROOT).replace('_', '-');
     }
   }
 

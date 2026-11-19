@@ -4,6 +4,7 @@ import cc.lvhy.yard.dashboard.profiles.RouteProfileDefinition;
 import com.fasterxml.jackson.annotation.JsonValue;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -32,7 +33,7 @@ public record ServiceWarning(
 
     @JsonValue
     public String value() {
-      return name().toLowerCase();
+      return name().toLowerCase(Locale.ROOT);
     }
   }
 
@@ -95,7 +96,7 @@ public record ServiceWarning(
 
     @JsonValue
     public String value() {
-      return name().toLowerCase().replace('_', '-');
+      return name().toLowerCase(Locale.ROOT).replace('_', '-');
     }
   }
 

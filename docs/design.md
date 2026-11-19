@@ -46,13 +46,13 @@ Every arrow points to the core, or goes out through a port that the core owns.
 
 ## SOLID, with this repo
 
-| Principle             | Rule                                                      | Example here                                                                                                                | Fix                                                                                                                                               |
-| --------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Single responsibility | A class has one reason to change.                         | `Registrations` (587 lines) checked input, parsed text and wrote to Consul.                                                 | Done: `InstanceRules` has the checks and no Spring. `Registrations` (309 lines) keeps the Consul writes.                                          |
-| Open/closed           | A new kind needs a new class, not an edit in many places. | `SourceKind` is a `switch` key in `InstanceSourcesCard` (lines 178, 201, 268, 286, 461) and `BackupExport:79`.              | Put the behavior on the kind.                                                                                                                     |
-| Liskov substitution   | A subtype works wherever its parent works.                | Not checked. No tool covers it.                                                                                             | None.                                                                                                                                             |
-| Interface segregation | A class depends only on the methods it uses.              | `Consul` has 15 methods, and nine classes used it whole.                                                                    | Done: five roles, `ConsulKv`, `ConsulCatalog`, `ConsulFederation`, `ConsulRegistrations` and `ConsulWatching`. Each class holds the role it uses. |
-| Dependency inversion  | The core owns the interface. The adapter follows it.      | `YardReader` imported `org.springframework.web.client.HttpServerErrorException`. `Consul` holds `@JsonProperty` wire types. | `ConsulAgent` now throws `ConsulException`, so no class outside `consul` imports the Spring web client. The wire types are next.                  |
+| Principle             | Rule                                                      | Example here                                                                                                                | Fix                                                                                                                                                                 |
+| --------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Single responsibility | A class has one reason to change.                         | `Registrations` (587 lines) checked input, parsed text and wrote to Consul.                                                 | Done: `InstanceRules` has the checks and no Spring. `Registrations` (309 lines) keeps the Consul writes.                                                            |
+| Open/closed           | A new kind needs a new class, not an edit in many places. | `SourceKind` is a `switch` key in `InstanceSourcesCard` and `BackupExport`.                                                 | Done where the answer is the same for every kind: `SourceKind.describe`. The other `switch` statements draw different data for each kind, so they stay in the view. |
+| Liskov substitution   | A subtype works wherever its parent works.                | Not checked. No tool covers it.                                                                                             | None.                                                                                                                                                               |
+| Interface segregation | A class depends only on the methods it uses.              | `Consul` has 15 methods, and nine classes used it whole.                                                                    | Done: five roles, `ConsulKv`, `ConsulCatalog`, `ConsulFederation`, `ConsulRegistrations` and `ConsulWatching`. Each class holds the role it uses.                   |
+| Dependency inversion  | The core owns the interface. The adapter follows it.      | `YardReader` imported `org.springframework.web.client.HttpServerErrorException`. `Consul` holds `@JsonProperty` wire types. | `ConsulAgent` now throws `ConsulException`, so no class outside `consul` imports the Spring web client. The wire types are next.                                    |
 
 ## Dashboard (Java)
 
@@ -108,21 +108,29 @@ The package graph had three cycles at first: `services`↔`profiles`,
   ([ADR 0008](adr/0008-unit-component-and-integration-tests.md)). `events` is
   also a leaf.
 - No port exists for Traefik (`TraefikStatus` and `ReachabilityTester` open
-  their own connections), for files (`BackupsFolder` uses `Files.*`) or for the
-  clock (`Instant.now()` in nine classes).
-- No use-case layer exists. The HTML and REST controllers call `Registrations`,
-  `Publications`, `Aliases` and `YardReader` and catch their exceptions.
+  their own connections) or for files (`BackupsFolder` uses `Files.*`). Neither
+  has a second implementation or a fake, so a port would be a layer and no
+  seam. They stay as they are.
+- Time comes from a `java.time.Clock` bean, which six classes receive:
+  `BackupsFolder`, `ContainerWatcher`, `FirstSetup`, `StatusReader`,
+  `TraefikFetches` and `TraefikStatus`. A test sets it.
+- No use-case layer exists, on purpose. The HTML and REST controllers call
+  `Registrations`, `Publications`, `Aliases` and `YardReader` and catch their
+  exceptions. These classes are the use cases, and a layer on top of them would
+  only forward calls.
+- `services` stays one package. `ArchitectureTest` already fails on a cycle, so
+  the size of the package cannot hide a dependency.
 
 ### Findings
 
-| Class                                              | Size                        | PMD                                                 | Problem                                                                                                                                                                               |
-| -------------------------------------------------- | --------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Registrations`                                    | 587 lines at first, 309 now | God class, total cyclomatic complexity 105 at first | Split: `InstanceRules` (301 lines, no Spring) has the input rules. The Consul writes stay.                                                                                            |
-| `YardReader`                                       | 431 lines at first, 169 now | God class, coupling 47 (limit 20) at first          | Split into `DatacenterReads` (the circuit breaker), `DatacenterServices` (a datacenter's Services and the hostname rule) and `InstanceMapping` (Consul entry to Instance, no Spring). |
-| `ImportPlanner`                                    | 505 lines                   | God class, coupling 34                              | Ten constructor dependencies.                                                                                                                                                         |
-| `ContainerBindings`                                | 390 lines                   | God class, coupling 25                              | Checks, Consul writes and Docker sync together.                                                                                                                                       |
-| `PagesController` and the Service page controllers | 3-6 dependencies each       | Handlers grouped by responsibility                  | The Catalog, Service detail, Service lifecycle, Static Instances, routing controls and Aliases have separate controllers. `ServicePageAccess` shares lookup and edit checks.          |
-| `BackupsPage`                                      | 636 lines                   | God class                                           | One view class with 48 branches.                                                                                                                                                      |
+| Class                                              | Size                        | PMD                                                 | Problem                                                                                                                                                                                     |
+| -------------------------------------------------- | --------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Registrations`                                    | 587 lines at first, 309 now | God class, total cyclomatic complexity 105 at first | Split: `InstanceRules` (301 lines, no Spring) has the input rules. The Consul writes stay.                                                                                                  |
+| `YardReader`                                       | 431 lines at first, 169 now | God class, coupling 47 (limit 20) at first          | Split into `DatacenterReads` (the circuit breaker), `DatacenterServices` (a datacenter's Services and the hostname rule) and `InstanceMapping` (Consul entry to Instance, no Spring).       |
+| `ImportPlanner`                                    | 505 lines at first, 81 now  | God class, coupling 34 at first                     | Split by Backup section: `ProfileImport`, `SourceImport` and `PublicationImport` plan their parts into a `PlanDraft`. `ImportPlanner` plans the Services and has six dependencies, not ten. |
+| `ContainerBindings`                                | 390 lines at first, 159 now | God class, coupling 25 at first                     | Split: `ContainerBindingRules` (no Spring, no Consul) has the input rules, `ContainerSync` brings the Bound Instances in step with Docker, and `ContainerBindings` keeps the Consul writes. |
+| `PagesController` and the Service page controllers | 3-6 dependencies each       | Handlers grouped by responsibility                  | The Catalog, Service detail, Service lifecycle, Static Instances, routing controls and Aliases have separate controllers. `ServicePageAccess` shares lookup and edit checks.                |
+| `BackupsPage`                                      | 636 lines                   | God class                                           | One view class with 48 branches.                                                                                                                                                            |
 
 SpotBugs found 80 problems and PMD found 150 when I first ran them. Most are
 noise or style:
@@ -132,6 +140,8 @@ noise or style:
 | SpotBugs `EI_EXPOSE_REP` and `EI_EXPOSE_REP2`     | 75    | A record or class holds a list or map that the caller can change. Nothing changes them after the dashboard builds them, so `spotbugs-exclude.xml` skips both patterns.                     |
 | SpotBugs `NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE` | 3     | Fixed in `ConsulAgent` and `BackupsPagesController`. `BackupsFolder:93` is a false alarm: a child path always has a file name. `spotbugs-exclude.xml` lists it.                            |
 | SpotBugs and PMD, unused private method           | 3     | `Registrations.notATcpPort` and `PagesController.notCreated` are deleted. `mise run check` fails on a new one.                                                                             |
+| PMD `LiteralsFirstInComparisons`                  | 29    | `name.equals("x")` throws on a null name. Now `"x".equals(name)`. In the gate.                                                                                                             |
+| PMD `UseLocaleWithCaseConversions`                | 13    | `toLowerCase()` follows the user's locale, so a Turkish computer turns `INSTANCE` into `ınstance`. Now `toLowerCase(Locale.ROOT)`. In the gate.                                            |
 | PMD `PreserveStackTrace`                          | 6     | Not a fault. Each one turns a low-level error into a domain exception whose message already holds the cause text, or unwraps `ExecutionException` on purpose. The rule is not in the gate. |
 | PMD `CompareObjectsWithEquals`                    | 9     | Not a fault. Each `==` compares a thread or an object by identity on purpose. The rule is not in the gate.                                                                                 |
 | PMD `TooManyMethods`                              | 22    | Follows from the god classes.                                                                                                                                                              |
@@ -158,6 +168,35 @@ in this table in `dashboard/target/pit-reports/mutations.xml`. Every mutant has
 test coverage. `Routing` has no survivors. The remaining survivors change
 validation diagnostics or return values that callers cannot distinguish.
 No mutant is excluded to raise the score.
+
+On 2026-11-19, PIT also ran once over the component tests, which the gate does
+not do, on the classes that the HTTP paths of Services, Publications, Aliases,
+Container Bindings and the Backup import go through. It took nine minutes with
+one thread, so it is a check to run by hand, and no `mise` task runs it.
+
+| Class                   | Mutants | Killed now |
+| ----------------------- | ------- | ---------- |
+| `Aliases`               | 49      | 39         |
+| `ContainerBindingRules` | 40      | 33         |
+| `ContainerBindings`     | 31      | 24         |
+| `ContainerSync`         | 36      | 36         |
+| `ImportPlanner`         | 11      | 9          |
+| `PlanDraft`             | 8       | 8          |
+| `ProfileImport`         | 13      | 11         |
+| `PublicationImport`     | 17      | 17         |
+| `Publications`          | 40      | 37         |
+| `Services`              | 21      | 14         |
+| `SourceImport`          | 53      | 47         |
+| All                     | 319     | 275 (86%)  |
+
+26 of the 44 survivors and mutants without coverage remove a `checkHome`,
+`checkName`, `checkTarget`, `checkRemote` or `checkPort` call. No test over
+HTTP depends on those calls. They stay as the second check of public classes,
+and `GuardsTest` now tests them on the classes: 24 of the 25 such mutants die
+in the unit tests alone.
+Two more gaps were real, and tests now cover them: `sameTarget` of the
+Container Binding rules had no test, and no Backup import checked that the same
+sources in another order give an Instance Priority update.
 
 ### Target
 
@@ -238,8 +277,9 @@ flowchart LR
   it, and `client.Client` is the default. `commandtest.Harness.Dashboard` sets a
   fake. `TestStatus` uses one. The other command tests still use `httptest`,
   which also checks the JSON, and they can move one at a time.
-- Leaks: `ws_yard_peers.go:readWANMembers` makes its own HTTP client to Consul.
-  `dashboard.go` reads `.env` with `os.ReadFile`.
+- `ws yard peers` reads Consul with `Options.ConsulHTTP`, so a test gives it a
+  fake client. `dashboard.go` still reads `.env` with `os.ReadFile`, which a
+  test reads from a temporary folder.
 
 ### Findings
 
@@ -262,10 +302,12 @@ turns off ST1005 and the revive rule for them. It also skips unchecked
 small findings are fixed, and `mise run check` fails on a new one. It also turns
 off three revive rules that say nothing for a command (doc comments on exported
 names, package comments and unused parameters), and `gosec` in the tests.
-`mise run quality:go` lists the remaining complexity and function length
-findings. Test functions still have complexity and length checks. `gosec` runs
-in the normal gate, with local exceptions for intentional file access and
-subprocesses. [development.md](development.md#code-quality) explains the policy.
+`mise run quality:go` lists the findings of the linters that are not in the
+gate. `gocyclo` and `funlen` are in the gate for the code, and are off in
+`_test.go` files: a table of cases makes a test long and branchy without making
+it hard to read. `gosec` runs in the normal gate, with local exceptions for
+intentional file access and subprocesses.
+[development.md](development.md#code-quality) explains the policy.
 
 ### Target
 
@@ -282,17 +324,24 @@ subprocesses. [development.md](development.md#code-quality) explains the policy.
   `newWSYardShare`, `NewCatalog`, `newWSTLSIssueUser` and `newWSTLSInstall`
   also have complexity at most 15. Their helpers separate prompts, validation,
   catalog rendering and certificate installation without changing their order.
+  The last 17 (`NewAlias`, `NewProfiles`, `editUntilSaved`, `readProfileFile`,
+  `NewContainers`, `NewImport`, `splitTraefikTLS`, `NewPublish`,
+  `NewReachability`, `newWSLifecycle`, `newWSTLSIssueUser`,
+  `newWSTLSIssueService`, `newWSSet`, `runYardInit`, `newWSYardPeers`,
+  `runYardShare` and `readEncryptedKey`) are split too, and the Windows
+  `validateOutputName` with them. No function of the code is over 15 or over 60
+  lines.
 
 ## Quality tools
 
 `mise run quality` runs all of them. `docs/development.md` has the details.
 
-| Tool          | Checks             | Runs in `mise run check`                                             |
-| ------------- | ------------------ | -------------------------------------------------------------------- |
-| golangci-lint | Go code            | Yes, the linters with no finding today. The rest are in `quality:go` |
-| SpotBugs, PMD | Java code          | Yes, SpotBugs with a skip list, and PMD for unused code              |
-| PIT           | Java unit tests    | No                                                                   |
-| ArchUnit      | Java package rules | Yes, as `ArchitectureTest`                                           |
+| Tool          | Checks             | Runs in `mise run check`                                                                                              |
+| ------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| golangci-lint | Go code            | Yes, the linters with no finding today, `gocyclo` and `funlen` among them. The rest are in `quality:go`               |
+| SpotBugs, PMD | Java code          | Yes, SpotBugs with a skip list, and PMD for unused code, null-unsafe comparisons and locale-dependent case conversion |
+| PIT           | Java unit tests    | No                                                                                                                    |
+| ArchUnit      | Java package rules | Yes, as `ArchitectureTest`                                                                                            |
 
 ### Mutation tests of the CLI
 
@@ -311,3 +360,30 @@ community tools were tried on `internal/command`:
   hour, so run it on one file at a time:
   `go install github.com/avito-tech/go-mutesting/cmd/go-mutesting@latest`, then
   `go-mutesting --exec-timeout=60 internal/command/<file>.go` from `cli/`.
+
+On 2026-11-19, go-mutesting ran on the three files where a wrong answer costs
+the most: the CA key code, the certificate checks, and `ws set`. The score is
+the share of mutants that a test kills.
+
+| File             | Mutants | Score at first | Score now |
+| ---------------- | ------- | -------------- | --------- |
+| `tlsca/key.go`   | 143     | 0.39           | 0.81      |
+| `tlsca/tlsca.go` | 159     | 0.76           | 0.84      |
+| `ws_settings.go` | 50      | 0.66           | 0.78      |
+
+`ws_settings.go` is the file before `newWSSet` was split. The tests that raised
+the scores:
+
+- A CA key that OpenSSL encrypted opens with its password. A round trip through
+  our own constants cannot tell that an algorithm ID is wrong: 57 of the
+  surviving mutants of `key.go` changed an ID.
+- `EncryptKey` writes the 600000 rounds that the comment names.
+- A certificate that is not valid yet, or that has the CA flag without the
+  signing usage, is refused. The expiry tests did not cover the start of the
+  validity.
+- `ws set` refuses the other names of `workstation`, and prints what to run next.
+
+What survives is equal in effect or cannot happen. An error from `crypto/rand`
+or from `asn1.Marshal` cannot be made to happen in a test, and the checks of the
+padding byte in `decryptKey` give the same answer as the parse that follows
+them: a wrong password fails there either way.

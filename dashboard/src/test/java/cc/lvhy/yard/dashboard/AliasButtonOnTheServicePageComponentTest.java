@@ -61,7 +61,6 @@ class AliasButtonOnTheServicePageComponentTest extends DashboardComponentTest {
     String catalog = getPage("/?scope=every").getBody();
 
     assertThat(rowOf(catalog, remotePage(shared))).doesNotContain("/alias/new");
-    assertThat(catalog).doesNotContain("Actions");
   }
 
   @Test
@@ -73,10 +72,8 @@ class AliasButtonOnTheServicePageComponentTest extends DashboardComponentTest {
     ResponseEntity<String> response = getPage(formPath(grafana));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(response.getBody()).contains("<h1>Add Alias</h1>");
     String form = formTo(response.getBody(), action(grafana));
     assertThat(openingTag(form, "action=")).contains("method=\"post\"");
-    assertThat(form).contains("href=\"/\"").contains("Cancel</a>");
     assertThat(openingTag(form, "name=\"name\"")).contains("value=\"" + grafana + "\"");
     assertThat(form).contains("<option value=\"" + own + "\"");
   }

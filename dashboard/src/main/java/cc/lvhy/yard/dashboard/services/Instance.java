@@ -55,7 +55,7 @@ public record Instance(
     } catch (IllegalArgumentException notAnAddress) {
       String name = host.toLowerCase(Locale.ROOT);
       name = name.endsWith(".") ? name.substring(0, name.length() - 1) : name;
-      return name.equals("localhost") || name.endsWith(".localhost");
+      return "localhost".equals(name) || name.endsWith(".localhost");
     }
   }
 

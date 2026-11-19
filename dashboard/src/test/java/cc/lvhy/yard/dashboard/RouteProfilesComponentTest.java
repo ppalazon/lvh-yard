@@ -99,9 +99,14 @@ class RouteProfilesComponentTest extends DashboardComponentTest {
                 """));
 
     assertThat(added.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(get(ROUTE_PROFILES_PATH).getBody())
-        .isEqualTo(
-            json("[{\"name\": \"added-headers\", \"type\": \"headers\", \"services\": []}]"));
+    // Other test classes in this JVM add Route Profiles of their own.
+    assertThat(
+            get(ROUTE_PROFILES_PATH)
+                .getBody()
+                .valueStream()
+                .filter(profile -> profile.get("name").asString().equals("added-headers")))
+        .containsExactly(
+            json("{\"name\": \"added-headers\", \"type\": \"headers\", \"services\": []}"));
     assertThat(JSON.readTree(kv("added-headers")))
         .isEqualTo(
             json(
@@ -111,7 +116,7 @@ class RouteProfilesComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void clientCertificateProfileIsSavedAndReadWithoutATraefikMiddleware() {
+  void clientCertificateProfileIsSavedAndReadBack() {
     JsonNode definition = json("{\"clientCertificate\": {}}");
     ResponseEntity<JsonNode> saved = put(ROUTE_PROFILES_PATH + "/certificate", definition);
 
@@ -120,12 +125,6 @@ class RouteProfilesComponentTest extends DashboardComponentTest {
     assertThat(get(ROUTE_PROFILES_PATH + "/certificate").getBody().get("definition"))
         .isEqualTo(definition);
     assertThat(json(kv("certificate"))).isEqualTo(definition);
-    assertThat(
-            put(
-                    ROUTE_PROFILES_PATH + "/certificate",
-                    json("{\"clientCertificate\": {\"required\": false}}"))
-                .getStatusCode())
-        .isEqualTo(HttpStatus.BAD_REQUEST);
   }
 
   @Test
@@ -181,7 +180,8 @@ class RouteProfilesComponentTest extends DashboardComponentTest {
 
     assertThat(refused.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(refused.getBody().get("detail").asString()).contains("rewriteEverything");
-    assertThat(kv("good")).contains("X-Old");
+    assertThat(json(kv("good")))
+        .isEqualTo(json("{\"headers\": {\"customRequestHeaders\": {\"X-Old\": \"1\"}}}"));
   }
 
   @Test
@@ -195,6 +195,7 @@ class RouteProfilesComponentTest extends DashboardComponentTest {
       {"with-plugin", "{\"plugin\": {\"my-plugin\": {\"option\": 1}}}", "plugin"},
       {"outside-chain", "{\"chain\": {\"middlewares\": [\"other@file\"]}}", "other@file"},
       {"two-types", "{\"headers\": {}, \"compress\": {}}", "one middleware type"},
+      {"cert-settings", "{\"clientCertificate\": {\"required\": false}}", "clientCertificate"},
       {"limited", "{\"rateLimit\": {\"average\": 100}}", "rateLimit"},
       {"bad@name", "{\"compress\": {}}", "not a valid name"},
       {"to-nowhere", "{\"chain\": {\"middlewares\": [\"missing\"]}}", "missing"},
@@ -228,7 +229,8 @@ class RouteProfilesComponentTest extends DashboardComponentTest {
     assertThat(modifyIndex("protected")).isEqualTo(chainWritten);
     assertThat(JSON.readTree(kv("protected")))
         .isEqualTo(json("{\"chain\": {\"middlewares\": [\"stored\"]}}"));
-    assertThat(kv("stored")).contains("\"2\"");
+    assertThat(json(kv("stored")))
+        .isEqualTo(json("{\"headers\": {\"customRequestHeaders\": {\"X-V\": \"2\"}}}"));
   }
 
   @Test
@@ -275,7 +277,8 @@ class RouteProfilesComponentTest extends DashboardComponentTest {
     ResponseEntity<JsonNode> saved = put(ROUTE_PROFILES_PATH, set);
 
     assertThat(saved.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(kv("base")).contains("\"2\"");
+    assertThat(json(kv("base")))
+        .isEqualTo(json("{\"headers\": {\"customRequestHeaders\": {\"X-V\": \"2\"}}}"));
   }
 
   @Test

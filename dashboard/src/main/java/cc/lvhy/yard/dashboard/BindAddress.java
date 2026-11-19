@@ -13,6 +13,6 @@ public final class BindAddress {
    * it is.
    */
   public static String host(String bindAddress) {
-    return bindAddress.equals("0.0.0.0") ? "127.0.0.1" : bindAddress;
+    return "0.0.0.0".equals(bindAddress) ? "127.0.0.1" : bindAddress;
   }
 }

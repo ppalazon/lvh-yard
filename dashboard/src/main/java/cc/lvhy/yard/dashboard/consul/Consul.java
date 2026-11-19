@@ -1,6 +1,7 @@
 package cc.lvhy.yard.dashboard.consul;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -19,7 +20,7 @@ public interface Consul
   String CONSUL_SERVICE = "consul";
 
   static boolean isServerItself(AgentService registration) {
-    return registration.name().equals(CONSUL_SERVICE) && registration.id().equals(CONSUL_SERVICE);
+    return CONSUL_SERVICE.equals(registration.name()) && CONSUL_SERVICE.equals(registration.id());
   }
 
   /** {@code status} is alive, leaving, left or failed. The {@code dc} tag is its datacenter. */
@@ -56,7 +57,7 @@ public interface Consul
 
     @Override
     public String toString() {
-      return name().toLowerCase();
+      return name().toLowerCase(Locale.ROOT);
     }
   }
 

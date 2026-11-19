@@ -125,8 +125,7 @@ class InstancePriorityComponentTest extends DashboardComponentTest {
     String bindingId = bind(web, newContainerName(), 80).get("id").asString();
     boundInstance(web);
 
-    assertThat(sourceIds(web)).startsWith(staticId).contains(bindingId);
-    assertThat(sourceIds(web).indexOf(bindingId)).isGreaterThan(0);
+    assertThat(sourceIds(web)).hasSize(3).startsWith(staticId, bindingId);
     awaitRoutedTo(web, terminal);
   }
 
@@ -216,6 +215,7 @@ class InstancePriorityComponentTest extends DashboardComponentTest {
   void orderThatNamesAnUnknownOrRepeatedSourceIsRefused() {
     String web = newServiceName("web");
     String id = register(web, Map.of("host", "10.1.2.3", "port", 8080)).get("id").asString();
+    String second = register(web, Map.of("host", "10.1.2.3", "port", 8081)).get("id").asString();
 
     assertThat(put(instancePriorityPath(web), Map.of("order", List.of("nothing"))).getStatusCode())
         .isEqualTo(HttpStatus.BAD_REQUEST);
@@ -225,6 +225,7 @@ class InstancePriorityComponentTest extends DashboardComponentTest {
             put(instancePriorityPath(newServiceName("missing")), Map.of("on", false))
                 .getStatusCode())
         .isEqualTo(HttpStatus.NOT_FOUND);
+    assertThat(sourceIds(web)).containsExactly(id, second);
   }
 
   @Test

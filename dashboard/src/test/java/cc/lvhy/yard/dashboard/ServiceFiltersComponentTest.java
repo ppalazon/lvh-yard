@@ -32,6 +32,20 @@ class ServiceFiltersComponentTest extends DashboardComponentTest {
   }
 
   @Test
+  void filtersByTheUnavailableState() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+    String api = newServiceName("api");
+    String id = register(api, Map.of("host", "10.1.2.3", "port", 9090)).get("id").asString();
+    publish(api);
+    delete(instancesPath(api) + "/" + id);
+
+    List<String> unavailable = names(get("/api/services?state=unavailable"));
+
+    assertThat(unavailable).contains(api).doesNotContain(web);
+  }
+
+  @Test
   void refusesAnUnknownState() {
     ResponseEntity<JsonNode> response = get("/api/services?state=sleepy");
 

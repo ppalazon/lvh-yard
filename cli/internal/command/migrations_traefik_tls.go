@@ -55,22 +55,31 @@ func splitTraefikTLS(folder string, out io.Writer) error {
 	if err := clientPart.writeGenerated(folder); err != nil {
 		return err
 	}
-	text, err := root.ReadFile(".env")
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	env := envfile.Parse(string(text))
-	clientPart.setOn(env, true)
-	if err := root.WriteFile(".env", []byte(env.Text()), 0600); err != nil {
+	keptOn, err := keepClientCheckOn(root)
+	if err != nil || !keptOn {
 		return err
 	}
 	if moved {
 		fmt.Fprintln(out, "Note: Traefik TLS now has three parts: https, client and mtls.\n  - The files in tls/traefik have new names: https.crt, https.key and client-ca.crt.\n  - The check of Client Certificates stays on, because HTTPS was on.\nNext:\n  Run \"lvh-yard ws compose recreate\" to apply it.")
 	}
 	return nil
+}
+
+// keepClientCheckOn turns the check of Client Certificates on in .env. It reports false when there is no .env.
+func keepClientCheckOn(root *os.Root) (bool, error) {
+	text, err := root.ReadFile(".env")
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	env := envfile.Parse(string(text))
+	clientPart.setOn(env, true)
+	if err := root.WriteFile(".env", []byte(env.Text()), 0600); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // moveIfFree renames a file, unless it is missing or the new name is taken.

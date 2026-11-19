@@ -1,19 +1,19 @@
 ---
 title: "The container watcher syncs first, then asks Docker for events since just before, because Docker answers the events request only once an event happens"
 author: Pablo
-date: 2026-11-10
-branch: main
-cost: { minutes: 19, tokens: 194834 }
-id: l-519bce7c
+date: 2026-11-19
+branch: quality-review
+cost: { minutes: 1 }
+id: l-125ac9ca
 scope: repo
 status: active
-replaces: l-7093947e
+replaces: l-519bce7c
 src: agent
 touches:
   - dashboard/src/test/java/cc/lvhy/yard/dashboard/ContainerBindingsComponentTest.java
   - dashboard/src/main/java/cc/lvhy/yard/dashboard/docker/DockerSettings.java
   - dashboard/src/main/java/cc/lvhy/yard/dashboard/docker/Docker.java
-  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ContainerBindings.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ContainerSync.java
   - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ContainerWatcher.java
 ---
 
@@ -28,4 +28,4 @@ touches:
 - Testcontainers' withCommand(String) splits on spaces, so sh -c "<line>" must go in the entrypoint as one argument.
 - Start the watcher thread only after storing it, because the thread checks that it is still the watcher, and a thread started first can see the old value and quit.
 
-In the code: services/ContainerWatcher.java (watch, CLOCK_MARGIN), docker/DockerEngine.java.
+In the code: services/ContainerWatcher.java (watch, CLOCK_MARGIN), services/ContainerSync.java (sync), docker/DockerEngine.java.

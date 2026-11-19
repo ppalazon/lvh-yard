@@ -8,8 +8,8 @@
 
 - [x] Pair a real Windows 11 Workstation with at least one Linux or macOS Workstation on the same LAN. Joining and peer discovery work with Windows as both the joining and existing Workstation.
 - [x] Consul advertises a Windows LAN address reachable by the other Workstation. Its runtime bind address and default Instance host retain their separate meanings.
-- [ ] Multiple adapters and an explicit LAN override do not silently advertise a VPN, VM-only address or host-relative Docker hostname.
-      Accepted limit (maintainer, 2026-11-16): the explicit override was exercised on real Windows. Multiple eligible adapters were not: the VM has no VPN or second adapter, so that rule is a unit test only. The box stays unticked because it was not observed.
+- [x] Multiple adapters and an explicit LAN override do not silently advertise a VPN, VM-only address or host-relative Docker hostname.
+      Observed 2026-11-19 on real Windows with a second network card ([evidence](../evidence/03-05-multiple-adapters.md)): a tunnel-named adapter on the default route is refused with `Use --address`; an explicit `--address` is written as given, including the address of the other adapter, and no hostname is chosen. The setup does not check that an explicit address belongs to this computer. The tunnel adapter was a renamed card, not a real VPN.
 - [x] Register a LAN-reachable Static Instance on Windows, publish it with Yard Scope, and successfully request it through the other Workstation's Route.
 - [x] Publish a Service on the other platform and successfully request that Remote Service through the Windows Workstation. Verify registered endpoints, Health and actual responses.
 - [x] Preserve local-only listener defaults and existing Out-of-range Instance handling. Joining a Yard must not silently expose local dashboard or admin interfaces.

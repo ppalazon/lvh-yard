@@ -17,6 +17,9 @@ Nothing below is done. Each item is a decision or an action that belongs to the 
 - [x] Gaps: you chose no extra runs (2026-11-16). They stay recorded as limits:
   - The second LAN computer is a Linux host. No Windows or macOS peer was used.
   - No real second eligible adapter (VPN, VirtualBox, VMware) was produced. The ambiguity rule is a unit test only.
+    Closed 2026-11-19: a second card was attached to the VM live, and the rule ran on real Windows with two eligible
+    adapters and with a tunnel-named adapter on the default route
+    ([03-05-multiple-adapters.md](03-05-multiple-adapters.md)). The tunnel adapter was a renamed card, not a real VPN.
   - Only Docker Desktop 4.99.0 was tested. The guide says so. It no longer asks for 4.34 or later, because no
     evidence shows that version.
   - The Windows build is `10.0.26300.9974` (display version 26H2, branch `ge_release`). You do not know whether it is

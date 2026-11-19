@@ -80,24 +80,14 @@ func runYardShare(cmd *cobra.Command, options *Options, folder string, args []st
 	if err := checkInitGossipKey(key); err != nil {
 		return err
 	}
-	ca, signer, err := readCA(cmd, p, folder)
+	ca, signer, caPEM, err := readOwnCA(cmd, p, folder)
 	if err != nil {
-		return err
-	}
-	caPEM, err := readCAPEM(folder)
-	if err != nil {
-		return err
-	}
-	if err := checkOwnYard(folder, caPEM); err != nil {
 		return err
 	}
 	if days, err = askDays(cmd, p, days, 365, "certificate validity in days"); err != nil {
 		return err
 	}
-	if err := signConsul(folder, ca, signer, name, days); err != nil {
-		return err
-	}
-	certPEM, keyPEM, err := readSignedTLSRole(folder, name, roleConsul)
+	certPEM, keyPEM, err := signedConsul(folder, ca, signer, name, days)
 	if err != nil {
 		return err
 	}
@@ -120,6 +110,30 @@ func runYardShare(cmd *cobra.Command, options *Options, folder string, args []st
 	}
 	printYardShare(cmd, ws, path, name, secret, given)
 	return nil
+}
+
+// readOwnCA reads the Workstation CA and checks that it is the CA of this Yard.
+func readOwnCA(cmd *cobra.Command, p *prompter, folder string) (*x509.Certificate, *ecdsa.PrivateKey, []byte, error) {
+	ca, signer, err := readCA(cmd, p, folder)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	caPEM, err := readCAPEM(folder)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if err := checkOwnYard(folder, caPEM); err != nil {
+		return nil, nil, nil, err
+	}
+	return ca, signer, caPEM, nil
+}
+
+// signedConsul signs the Consul certificate of a Workstation and gives its PEM and its key.
+func signedConsul(folder string, ca *x509.Certificate, signer *ecdsa.PrivateKey, name string, days int) (certPEM, keyPEM []byte, err error) {
+	if err := signConsul(folder, ca, signer, name, days); err != nil {
+		return nil, nil, err
+	}
+	return readSignedTLSRole(folder, name, roleConsul)
 }
 
 // yardOpenAddress is the address that Consul listens on after ws yard init. A Workstation that

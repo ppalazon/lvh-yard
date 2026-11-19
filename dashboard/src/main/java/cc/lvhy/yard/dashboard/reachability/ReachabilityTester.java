@@ -259,13 +259,13 @@ public class ReachabilityTester {
     if (status < 0) {
       return failed(check, null, entry + " is not Traefik: its answer is not HTTP.");
     }
-    if (status == 404 && body(answer).strip().equals(NO_ROUTE_BODY)) {
+    if (status == 404 && NO_ROUTE_BODY.equals(body(answer).strip())) {
       return failed(
           check,
           status,
           "Traefik has no Route for " + hostname + " yet, or no Instance is in range.");
     }
-    if (status == 500 && body(answer).strip().equals(TRAEFIK_ERROR_BODY)) {
+    if (status == 500 && TRAEFIK_ERROR_BODY.equals(body(answer).strip())) {
       return failed(
           check,
           status,

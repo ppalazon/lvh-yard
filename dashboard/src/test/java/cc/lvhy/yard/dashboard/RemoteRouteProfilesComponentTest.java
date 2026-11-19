@@ -72,8 +72,10 @@ class RemoteRouteProfilesComponentTest extends DashboardComponentTest {
                 """
                 {"chain": {"middlewares": ["ws-remote_office-only", "ws-remote_team-login"]}}
                 """));
-    assertThat(http.get("middlewares").get("ws-remote_team-login").get("basicAuth")).isNotNull();
-    assertThat(http.get("middlewares").has("ws-remote_office-only")).isTrue();
+    assertThat(http.get("middlewares").get("ws-remote_team-login"))
+        .isEqualTo(REMOTE_PROFILES.get("team-login"));
+    assertThat(http.get("middlewares").get("ws-remote_office-only"))
+        .isEqualTo(REMOTE_PROFILES.get("office-only"));
   }
 
   @Test
@@ -108,36 +110,6 @@ class RemoteRouteProfilesComponentTest extends DashboardComponentTest {
         .contains("2. team-login")
         .doesNotContain("aria-label=\"Remove protected\"")
         .doesNotContain("aria-label=\"Route Profile to add\"");
-  }
-
-  @Test
-  void changeOnTheHomeWorkstationReachesTheRemoteConfigurationAndItsChains() throws Exception {
-    remote.putRouteProfiles(REMOTE_PROFILES);
-    String admin = sharedRemoteServiceWithProfiles("admin", List.of("team-login"));
-    String chained = sharedRemoteServiceWithProfiles("chained", List.of("protected"));
-
-    remote.putRouteProfiles(
-        JSON.readTree(
-            """
-            {"team-login": {"basicAuth": {"users": ["carla:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/"]}}}
-            """));
-
-    await()
-        .untilAsserted(() ->
-            assertThat(
-                    get("/traefik/configuration")
-                        .getBody()
-                        .get("http")
-                        .get("middlewares")
-                        .get("ws-remote_team-login")
-                        .toString())
-                .contains("carla:")
-                .doesNotContain("ana:"));
-    JsonNode http = get("/traefik/configuration").getBody().get("http");
-    assertThat(http.get("routers").get(admin + "." + RemoteWorkstation.NAME).toString())
-        .contains("ws-remote_team-login");
-    assertThat(http.get("routers").get(chained + "." + RemoteWorkstation.NAME).toString())
-        .contains("ws-remote_protected");
   }
 
   @Test

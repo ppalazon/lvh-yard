@@ -22,19 +22,33 @@ func defaultWorkstationFolder(process Process) string {
 }
 
 func validateOutputName(name string) error {
-	invalid := name == "" || strings.HasSuffix(name, ".") || strings.HasSuffix(name, " ")
-	for _, r := range name {
-		invalid = invalid || r < 32 || strings.ContainsRune(`<>:"/\|?*`, r)
-	}
-	base := strings.ToUpper(strings.SplitN(name, ".", 2)[0])
-	invalid = invalid || base == "CON" || base == "PRN" || base == "AUX" || base == "NUL" || base == "CONIN$" || base == "CONOUT$"
-	if len([]rune(base)) == 4 && (strings.HasPrefix(base, "COM") || strings.HasPrefix(base, "LPT")) {
-		invalid = invalid || strings.ContainsRune("123456789¹²³", []rune(base)[3])
-	}
-	if invalid {
+	if name == "" || strings.HasSuffix(name, ".") || strings.HasSuffix(name, " ") ||
+		hasInvalidFilenameRune(name) || isReservedDeviceName(strings.SplitN(name, ".", 2)[0]) {
 		return fmt.Errorf("invalid Windows filename %q. Use no reserved names, control characters, <>:\"/\\|?*, or trailing dot or space", name)
 	}
 	return nil
+}
+
+func hasInvalidFilenameRune(name string) bool {
+	for _, r := range name {
+		if r < 32 || strings.ContainsRune(`<>:"/\|?*`, r) {
+			return true
+		}
+	}
+	return false
+}
+
+// isReservedDeviceName tells whether the part of a filename before its first dot is a DOS device,
+// such as CON, COM1 or LPT¹. Windows treats the name with any extension as the device.
+func isReservedDeviceName(stem string) bool {
+	base := strings.ToUpper(stem)
+	switch base {
+	case "CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$":
+		return true
+	}
+	runes := []rune(base)
+	return len(runes) == 4 && (strings.HasPrefix(base, "COM") || strings.HasPrefix(base, "LPT")) &&
+		strings.ContainsRune("123456789¹²³", runes[3])
 }
 
 // checkPrivateInput accepts any file: Windows access rights are not read here. A file in the user

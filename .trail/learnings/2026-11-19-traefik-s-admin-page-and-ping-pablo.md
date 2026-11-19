@@ -1,17 +1,17 @@
 ---
 title: "Traefik's admin page and ping are on the entry point named traefik, on loopback"
 author: Pablo
-date: 2026-11-10
-branch: main
-cost: { minutes: 7, tokens: 28973 }
-id: l-a62354ae
+date: 2026-11-19
+branch: quality-review
+cost: { minutes: 1 }
+id: l-ae698b53
 scope: repo
 status: active
-replaces: l-7aee7b36
+replaces: l-a62354ae
 src: agent
 touches:
   - config/compose.yaml
-  - dashboard/src/main/java/cc/lvhy/yard/dashboard/reachability/TraefikSettings.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/TraefikSettings.java
   - dashboard/src/test/java/cc/lvhy/yard/dashboard/TraefikAdminIT.java
 ---
 
@@ -24,4 +24,4 @@ touches:
 - Traefik adds its ping and API routers a moment after it logs "Starting provider *http.Provider". So the test waits until the admin port stops answering 404.
 - Free ports taken one by one can come back the same. Take several together.
 
-In the code: config/compose.yaml (traefik command), TraefikAdminIT.java.
+In the code: config/compose.yaml (traefik command), TraefikSettings.java (the admin URL), TraefikAdminIT.java.

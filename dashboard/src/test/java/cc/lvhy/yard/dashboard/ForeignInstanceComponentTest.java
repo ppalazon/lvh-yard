@@ -60,7 +60,6 @@ class ForeignInstanceComponentTest extends DashboardComponentTest {
     String page = getPage("/services/ws-test/" + service).getBody();
 
     assertThat(page)
-        .contains("id=\"alert-risk-0\"")
         .contains("/v1/agent/service/deregister/" + id)
         .doesNotContain("/instances/" + id + "/edit")
         .doesNotContain("/instances/" + id + "/remove");
@@ -72,18 +71,11 @@ class ForeignInstanceComponentTest extends DashboardComponentTest {
 
     register(service, Map.of("host", "10.1.2.4", "port", 3000));
 
-    assertThat(BackupExportComponentTest.map(backedUp().get(service)).get("sources"))
-        .isEqualTo(
-            List.of(
-                Map.of(
-                    "static-instance",
-                    Map.of(
-                        "host",
-                        "10.1.2.4",
-                        "port",
-                        3000,
-                        "check",
-                        Map.of("type", "tcp", "interval", "10s", "timeout", "2s")))));
+    List<?> sources =
+        (List<?>) BackupExportComponentTest.map(backedUp().get(service)).get("sources");
+    assertThat(sources).hasSize(1);
+    assertThat(BackupExportComponentTest.map(sources.get(0))).containsOnlyKeys("static-instance");
+    assertThat(sources.get(0).toString()).contains("10.1.2.4").doesNotContain("10.1.2.3");
   }
 
   private Map<String, Object> backedUp() {

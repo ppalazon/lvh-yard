@@ -1,7 +1,7 @@
 version: "2"
 
 run:
-  # Test files follow the same rules as the code.
+  # Test files follow the same rules as the code, except the two size linters below.
   tests: true
 
 linters:
@@ -45,6 +45,9 @@ linters:
         text: "^(exported|package-comments|unused-parameter):"
       # Tests read and write files of t.TempDir() by a variable path.
       - linters: [gosec]
+        path: _test\.go
+      # A table of cases makes a test long and branchy without making it hard to read.
+      - linters: [gocyclo, funlen]
         path: _test\.go
 
 issues:

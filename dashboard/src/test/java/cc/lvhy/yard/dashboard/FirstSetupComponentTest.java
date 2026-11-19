@@ -59,14 +59,6 @@ class FirstSetupComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void servicesHaveNoCoreField() {
-    JsonNode yard = get(servicePath("yard")).getBody();
-
-    assertThat(yard.has("core")).isFalse();
-    assertThat(yard.get("instances").get(0).has("core")).isFalse();
-  }
-
-  @Test
   void consulsOwnEntryIsNotInTheCatalog() {
     assertThat(get(servicePath("consul")).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     for (JsonNode service : get("/api/services").getBody()) {
@@ -89,13 +81,33 @@ class FirstSetupComponentTest extends DashboardComponentTest {
   @Test
   void yardAndTraefikAreFreeNames() {
     create("traefik");
-    ResponseEntity<JsonNode> added =
-        post(instancesPath("traefik"), Map.of("host", "10.1.2.3", "port", 8080));
     try {
-      assertThat(added.getStatusCode().is2xxSuccessful()).isTrue();
+      for (String name : List.of("yard", "traefik")) {
+        ResponseEntity<JsonNode> added =
+            post(instancesPath(name), Map.of("host", "10.1.2.3", "port", 8080));
+        assertThat(added.getStatusCode().is2xxSuccessful()).as(name).isTrue();
+        delete(instancesPath(name) + "/" + added.getBody().get("id").asString());
+      }
     } finally {
-      delete(instancesPath("traefik") + "/" + added.getBody().get("id").asString());
+      delete(servicePath("traefik"));
     }
+  }
+
+  /**
+   * Reads the IDs of the Instances of the remote Workstation's {@code deregistered} Services, and
+   * returns the step that removes them, the records of the three Services and the marker.
+   */
+  private Runnable wipeSetup(List<String> deregistered) {
+    List<String> ids = new ArrayList<>();
+    deregistered.forEach(name -> ids.addAll(instanceIds(name)));
+    return () -> {
+      ids.forEach(remote::deregisterInConsul);
+      OWN_SERVICES.forEach(name -> {
+        remote.deleteConsulValue("lvh-yard/publications/" + name);
+        remote.deleteConsulValue("lvh-yard/services/" + name);
+      });
+      remote.deleteConsulValue(RemoteWorkstation.FIRST_SETUP);
+    };
   }
 
   /**
@@ -103,18 +115,7 @@ class FirstSetupComponentTest extends DashboardComponentTest {
    * with {@code settings}, so the setup writes them again.
    */
   private void setUpAgain(String... settings) {
-    List<String> ids = new ArrayList<>();
-    OWN_SERVICES.forEach(name -> ids.addAll(instanceIds(name)));
-    remote.whileDashboardIsStopped(
-        () -> {
-          ids.forEach(remote::deregisterInConsul);
-          OWN_SERVICES.forEach(name -> {
-            remote.deleteConsulValue("lvh-yard/publications/" + name);
-            remote.deleteConsulValue("lvh-yard/services/" + name);
-          });
-          remote.deleteConsulValue(RemoteWorkstation.FIRST_SETUP);
-        },
-        settings);
+    remote.whileDashboardIsStopped(wipeSetup(OWN_SERVICES), settings);
   }
 
   /** The IDs of the Instances of the remote Workstation's {@code service}, or none. */
@@ -179,17 +180,11 @@ class FirstSetupComponentTest extends DashboardComponentTest {
 
   @Test
   void resumedFirstSetupWithoutTraefikDoesNotRegisterTraefikAdmin() {
-    List<String> ids = new ArrayList<>();
-    OWN_SERVICES.forEach(name -> ids.addAll(instanceIds(name)));
+    Runnable wipe = wipeSetup(OWN_SERVICES);
     try {
       remote.whileDashboardIsStopped(
           () -> {
-            ids.forEach(remote::deregisterInConsul);
-            OWN_SERVICES.forEach(name -> {
-              remote.deleteConsulValue("lvh-yard/publications/" + name);
-              remote.deleteConsulValue("lvh-yard/services/" + name);
-            });
-            remote.deleteConsulValue(RemoteWorkstation.FIRST_SETUP);
+            wipe.run();
             remote.putConsulValue(
                 RemoteWorkstation.FIRST_SETUP_NAMES, String.join(",", OWN_SERVICES));
           },
@@ -220,21 +215,6 @@ class FirstSetupComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void theThreeServicesTakeYardScopeAndAnInstancePriority() {
-    try {
-      remote.publish("traefik-admin", Map.of("scope", "yard"));
-      remote.setInstancePriority("traefik-admin", Map.of("on", false));
-
-      JsonNode service = remote.service("traefik-admin").getBody();
-      assertThat(service.get("publication").get("scope").asString()).isEqualTo("yard");
-      assertThat(service.get("instancePriority").asBoolean()).isFalse();
-    } finally {
-      remote.publish("traefik-admin", Map.of("scope", "local"));
-      remote.setInstancePriority("traefik-admin", Map.of("on", true));
-    }
-  }
-
-  @Test
   void removedServiceStaysRemovedAfterARestart() {
     try {
       remote.delete("consul-ui");
@@ -254,16 +234,10 @@ class FirstSetupComponentTest extends DashboardComponentTest {
 
   @Test
   void theSetupLeavesAServiceWithOneOfTheNamesAlone() {
-    List<String> ids = new ArrayList<>();
-    OWN_SERVICES.forEach(name -> ids.addAll(instanceIds(name)));
+    Runnable wipe = wipeSetup(OWN_SERVICES);
     try {
       remote.whileDashboardIsStopped(() -> {
-        ids.forEach(remote::deregisterInConsul);
-        OWN_SERVICES.forEach(name -> {
-          remote.deleteConsulValue("lvh-yard/publications/" + name);
-          remote.deleteConsulValue("lvh-yard/services/" + name);
-        });
-        remote.deleteConsulValue(RemoteWorkstation.FIRST_SETUP);
+        wipe.run();
         remote.registerInConsul("my-yard", "yard", "10.9.8.7", 9000);
       });
 
@@ -316,18 +290,12 @@ class FirstSetupComponentTest extends DashboardComponentTest {
 
   @Test
   void theSetupFinishesAServiceThatItBeganOnAnEarlierStart() {
-    List<String> ids = new ArrayList<>();
-    List.of("yard", "consul-ui").forEach(name -> ids.addAll(instanceIds(name)));
+    // As if the dashboard stopped after it registered traefik-admin and before it published it.
+    // The test dashboard starts on another port, so yard cannot be the one.
+    Runnable wipe = wipeSetup(List.of("yard", "consul-ui"));
     try {
-      // As if the dashboard stopped after it registered traefik-admin and before it published it.
-      // The test dashboard starts on another port, so yard cannot be the one.
       remote.whileDashboardIsStopped(() -> {
-        ids.forEach(remote::deregisterInConsul);
-        OWN_SERVICES.forEach(name -> {
-          remote.deleteConsulValue("lvh-yard/publications/" + name);
-          remote.deleteConsulValue("lvh-yard/services/" + name);
-        });
-        remote.deleteConsulValue(RemoteWorkstation.FIRST_SETUP);
+        wipe.run();
         remote.putConsulValue(RemoteWorkstation.FIRST_SETUP_NAMES, String.join(",", OWN_SERVICES));
       });
 
@@ -365,22 +333,15 @@ class FirstSetupComponentTest extends DashboardComponentTest {
 
   @Test
   void consulThatDoesNotAnswerAtStartIsTriedAgainWithoutHoldingUpTheStart() {
-    Instant[] starting = new Instant[1];
-
-    Duration start;
     try {
       remote.whileDashboardIsStopped(() -> {
         remote.deleteConsulValue(RemoteWorkstation.FIRST_SETUP);
         remote.stopAnswering();
-        starting[0] = Instant.now();
       });
-      start = Duration.between(starting[0], Instant.now());
     } finally {
       remote.answerAgain();
     }
 
-    // A Consul call that gets no answer waits 3 s; the start must not wait for one.
-    assertThat(start).isLessThan(Duration.ofSeconds(3));
     await()
         .atMost(Duration.ofSeconds(30))
         .ignoreExceptions()

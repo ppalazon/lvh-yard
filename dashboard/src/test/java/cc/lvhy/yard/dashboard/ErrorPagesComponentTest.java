@@ -28,6 +28,7 @@ class ErrorPagesComponentTest extends DashboardComponentTest {
     ResponseEntity<String> response = getAccepting("/no-such-page", MediaType.APPLICATION_JSON);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-    assertThat(response.getBody()).doesNotContain("<html").contains("404");
+    assertThat(response.getHeaders().getContentType().getSubtype()).endsWith("json");
+    assertThat(response.getBody()).doesNotContain("<html").contains("\"status\":404");
   }
 }

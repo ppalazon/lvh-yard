@@ -27,67 +27,76 @@ func newWSTLSIssueUser(options *Options, folder func() string) *cobra.Command {
 	var password string
 	var days int
 	create := &cobra.Command{Use: "user [username-or-email]", Short: "Signs a Client Certificate for a user.", Long: issueUserHelp, Args: cobra.MaximumNArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
-		if _, err := readWSEnv(folder()); err != nil {
-			return err
-		}
-		if err := protectWorkstationFolder(folder()); err != nil {
-			return err
-		}
-		p := newPrompter(cmd, options)
-		ca, signer, err := readCA(cmd, p, folder())
-		if err != nil {
-			return err
-		}
-		name, err := askTLSClientName(p, args)
-		if err != nil {
-			return err
-		}
-		var given bool
-		password, given, err = askTLSClientPassword(cmd, p, password, "Password of the PKCS#12 file (empty for a random one)")
-		if err != nil {
-			return err
-		}
-		days, err := askDays(cmd, p, days, 365, "certificate validity in days")
-		if err != nil {
-			return err
-		}
-		secret := password
-		generated := !given
-		if generated {
-			if secret, err = tlsca.RandomPassword(); err != nil {
-				return err
-			}
-		}
-		data, err := tlsca.ClientBundle(name, days, ca, signer, secret)
-		if err != nil {
-			return err
-		}
-		dir := filepath.Join(folder(), "ca", clientDir)
-		root, err := os.OpenRoot(folder())
-		if err != nil {
-			return err
-		}
-		defer func() { _ = root.Close() }()
-		if err := root.MkdirAll(filepath.Join("ca", clientDir), 0700); err != nil {
-			return err
-		}
-		path := filepath.Join(dir, name+".p12")
-		if err := root.WriteFile(filepath.Join("ca", clientDir, name+".p12"), data, 0600); err != nil {
-			return err
-		}
-		if err := protectWorkstationFolder(folder()); err != nil {
-			return err
-		}
-		fmt.Fprintf(cmd.OutOrStdout(), "Client Certificate saved in %s.\n", path)
-		if generated {
-			fmt.Fprintf(cmd.OutOrStdout(), "Password: %s\n  Save it now. It is not shown again.\n", secret)
-		}
-		fmt.Fprintln(cmd.OutOrStdout(), "Next:\n  Import the .p12 file into your browser's personal certificates.")
-		return nil
+		return runTLSIssueUser(cmd, args, options, folder(), password, days)
 	}}
 	create.Flags().StringVar(&password, "password", "", "Sets the .p12 file password (default: ask, or make a random one).")
 	create.Flags().IntVar(&days, "days", 365, "Sets the certificate validity in days.")
 	return create
+}
+
+func runTLSIssueUser(cmd *cobra.Command, args []string, options *Options, folder, password string, days int) error {
+	if _, err := readWSEnv(folder); err != nil {
+		return err
+	}
+	if err := protectWorkstationFolder(folder); err != nil {
+		return err
+	}
+	p := newPrompter(cmd, options)
+	ca, signer, err := readCA(cmd, p, folder)
+	if err != nil {
+		return err
+	}
+	name, err := askTLSClientName(p, args)
+	if err != nil {
+		return err
+	}
+	password, given, err := askTLSClientPassword(cmd, p, password, "Password of the PKCS#12 file (empty for a random one)")
+	if err != nil {
+		return err
+	}
+	days, err = askDays(cmd, p, days, 365, "certificate validity in days")
+	if err != nil {
+		return err
+	}
+	secret := password
+	generated := !given
+	if generated {
+		if secret, err = tlsca.RandomPassword(); err != nil {
+			return err
+		}
+	}
+	data, err := tlsca.ClientBundle(name, days, ca, signer, secret)
+	if err != nil {
+		return err
+	}
+	path, err := saveClientBundle(folder, name, data)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "Client Certificate saved in %s.\n", path)
+	if generated {
+		fmt.Fprintf(cmd.OutOrStdout(), "Password: %s\n  Save it now. It is not shown again.\n", secret)
+	}
+	fmt.Fprintln(cmd.OutOrStdout(), "Next:\n  Import the .p12 file into your browser's personal certificates.")
+	return nil
+}
+
+// saveClientBundle writes the .p12 file in ca/client and gives its path.
+func saveClientBundle(folder, name string, data []byte) (string, error) {
+	dir := filepath.Join(folder, "ca", clientDir)
+	root, err := os.OpenRoot(folder)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = root.Close() }()
+	if err := root.MkdirAll(filepath.Join("ca", clientDir), 0700); err != nil {
+		return "", err
+	}
+	path := filepath.Join(dir, name+".p12")
+	if err := root.WriteFile(filepath.Join("ca", clientDir, name+".p12"), data, 0600); err != nil {
+		return "", err
+	}
+	return path, protectWorkstationFolder(folder)
 }
 
 func askTLSClientName(p *prompter, args []string) (string, error) {

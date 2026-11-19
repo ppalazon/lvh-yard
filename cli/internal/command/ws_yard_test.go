@@ -1,6 +1,7 @@
 package command_test
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -113,5 +114,58 @@ func TestWSYardPeersNamesAConsulThatIsOff(t *testing.T) {
 	run := yard.Run("ws", "--dir", folder, "yard", "peers")
 	if run.ExitCode == 0 || !strings.Contains(run.Stderr, "cannot reach Consul") {
 		t.Fatalf("exit %d, stderr %q", run.ExitCode, run.Stderr)
+	}
+}
+
+// consulAnswering is a Consul client that answers every request with the given status and body,
+// and that records the address that was asked.
+type consulAnswering struct {
+	status int
+	body   string
+	asked  string
+}
+
+func (c *consulAnswering) RoundTrip(request *http.Request) (*http.Response, error) {
+	c.asked = request.URL.String()
+	return &http.Response{
+		StatusCode: c.status,
+		Body:       io.NopCloser(strings.NewReader(c.body)),
+		Header:     http.Header{},
+		Request:    request,
+	}, nil
+}
+
+func TestWSYardPeersSaysWhatIsWrongWithTheAnswerOfConsul(t *testing.T) {
+	for name, test := range map[string]struct {
+		status int
+		body   string
+		want   string
+	}{
+		"an error status":   {http.StatusInternalServerError, "", "answered with HTTP status 500"},
+		"not a member list": {http.StatusOK, `{"members":[]}`, "sent data that is not a member list"},
+		"no member at all":  {http.StatusOK, `[]`, ""},
+	} {
+		t.Run(name, func(t *testing.T) {
+			folder := t.TempDir()
+			yard := commandtest.New(t)
+			if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"); run.ExitCode != 0 {
+				t.Fatal(run.Stderr)
+			}
+			consul := &consulAnswering{status: test.status, body: test.body}
+			yard.ConsulHTTP = &http.Client{Transport: consul}
+			run := yard.Run("ws", "--dir", folder, "yard", "peers")
+			if !strings.Contains(consul.asked, "/v1/agent/members?wan=1") {
+				t.Errorf("Consul was asked %q", consul.asked)
+			}
+			if test.want == "" {
+				if run.ExitCode != 0 || !strings.Contains(run.Stdout, "WORKSTATION") {
+					t.Fatalf("an empty list: %+v", run)
+				}
+				return
+			}
+			if run.ExitCode != 1 || !strings.Contains(run.Stderr, test.want) {
+				t.Fatalf("exit %d, stderr %q, want %q", run.ExitCode, run.Stderr, test.want)
+			}
+		})
 	}
 }

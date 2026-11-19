@@ -3,6 +3,7 @@ package cc.lvhy.yard.dashboard.services;
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 public enum ServiceState {
 
@@ -45,6 +46,6 @@ public enum ServiceState {
 
   @JsonValue
   public String value() {
-    return name().toLowerCase();
+    return name().toLowerCase(Locale.ROOT);
   }
 }

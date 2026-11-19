@@ -12,7 +12,7 @@ func newWSYard(options *Options, folder func() string) *cobra.Command {
 		Use: "yard", Short: "Manages the Yard of this Workstation.", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error { return cmd.Help() },
 	}
-	yard.AddCommand(newWSYardInit(options, folder), newWSYardShare(options, folder), newWSJoin(options, folder), newWSYardStandalone(options, folder), newWSYardPeers(folder))
+	yard.AddCommand(newWSYardInit(options, folder), newWSYardShare(options, folder), newWSJoin(options, folder), newWSYardStandalone(options, folder), newWSYardPeers(options, folder))
 	return yard
 }
 

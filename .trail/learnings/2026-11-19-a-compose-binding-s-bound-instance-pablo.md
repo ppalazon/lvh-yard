@@ -1,17 +1,18 @@
 ---
 title: "A Compose Binding's Bound Instance ID names the Binding, so one container bound two ways gets two Instances"
 author: Pablo
-date: 2026-11-11
-branch: go-cli
-id: l-370c8cae
+date: 2026-11-19
+branch: quality-review
+cost: { minutes: 1 }
+id: l-9b695d62
 scope: repo
 status: active
-replaces: l-2f6c98cd
+replaces: l-370c8cae
 src: agent
 touches:
   - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ContainerBindingRequest.java
   - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ContainerBinding.java
-  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ContainerBindings.java
+  - dashboard/src/main/java/cc/lvhy/yard/dashboard/services/ContainerSync.java
   - dashboard/src/test/java/cc/lvhy/yard/dashboard/DashboardClient.java
 ---
 
@@ -23,4 +24,4 @@ touches:
 ## Tried and ruled out
 - Tests that name containers `<project>-<service>-<n>`, as Compose does: they would still pass if the code matched by name prefix. The tests give Compose's labels to containers with unrelated names instead, and do not run `docker compose`.
 
-In the code: dashboard/.../services/Registrations.java (BoundInstance.id), dashboard/.../services/ContainerBinding.java (id), dashboard/.../docker/Docker.java (Container.isOfComposeService), dashboard/src/test/.../DashboardClient.java (startComposeContainer).
+In the code: dashboard/.../services/Registrations.java (BoundInstance.id), ContainerBinding.java (id), ContainerSync.java (where the Bound Instances are built), docker/Docker.java (Container.isOfComposeService), dashboard/src/test/.../DashboardClient.java (startComposeContainer).

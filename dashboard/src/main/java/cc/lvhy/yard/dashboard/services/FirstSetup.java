@@ -5,6 +5,7 @@ import cc.lvhy.yard.dashboard.TraefikSettings;
 import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.consul.ConsulKv;
 import cc.lvhy.yard.dashboard.consul.ConsulSettings;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -62,6 +63,8 @@ public class FirstSetup implements SmartLifecycle {
 
   private final Environment environment;
 
+  private final Clock clock;
+
   private volatile boolean running;
 
   private volatile Thread settingUpThread;
@@ -74,7 +77,8 @@ public class FirstSetup implements SmartLifecycle {
       ServiceRecords records,
       ConsulSettings consulSettings,
       TraefikSettings traefik,
-      Environment environment) {
+      Environment environment,
+      Clock clock) {
     this.workstation = workstation;
     this.consul = consul;
     this.registrations = registrations;
@@ -83,6 +87,7 @@ public class FirstSetup implements SmartLifecycle {
     this.consulSettings = consulSettings;
     this.traefik = traefik;
     this.environment = environment;
+    this.clock = clock;
   }
 
   @Override
@@ -118,9 +123,9 @@ public class FirstSetup implements SmartLifecycle {
             LOG.info("Consul answers: the first setup was done before");
           }
         } else {
-          List<String> written = setUp(Instant.now().plus(TRY_LIMIT), values.get(NAMES));
+          List<String> written = setUp(clock.instant().plus(TRY_LIMIT), values.get(NAMES));
           consul.deleteValue(NAMES);
-          consul.putValue(MARKER, Instant.now().toString());
+          consul.putValue(MARKER, clock.instant().toString());
           LOG.info(
               "The first setup is done. It wrote these Services: {}",
               written.isEmpty() ? "none" : String.join(", ", written));
@@ -192,8 +197,8 @@ public class FirstSetup implements SmartLifecycle {
     return written;
   }
 
-  private static void failIfPast(Instant deadline) {
-    if (Instant.now().isAfter(deadline)) {
+  private void failIfPast(Instant deadline) {
+    if (clock.instant().isAfter(deadline)) {
       throw new IllegalStateException(
           "Consul took longer than " + TRY_LIMIT.toSeconds() + " s to answer");
     }

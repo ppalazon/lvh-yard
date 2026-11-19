@@ -84,64 +84,73 @@ func newWSTLSIssueService(options *Options, folder func() string) *cobra.Command
 	var days int
 	var password string
 	cmd := &cobra.Command{Use: "service [name]", Short: "Signs a certificate for a Service.", Long: issueServiceHelp, Args: cobra.MaximumNArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
-		if _, err := readWSEnv(folder()); err != nil {
-			return err
-		}
-		if err := protectWorkstationFolder(folder()); err != nil {
-			return err
-		}
-		p := newPrompter(cmd, options)
-		ca, signer, err := readCA(cmd, p, folder())
-		if err != nil {
-			return err
-		}
-		name, err := askServiceName(p, args)
-		if err != nil {
-			return err
-		}
-		intro := fmt.Sprintf("The certificate always names %s, localhost and 127.0.0.1. Traefik checks only the name of the Service.\nAdd the DNS names or IP addresses that other programs use to reach the Instances.\n", name)
-		if addresses, err = askAddresses(cmd, p, intro, addresses); err != nil {
-			return err
-		}
-		days, err := askDays(cmd, p, days, 365, "certificate validity in days")
-		if err != nil {
-			return err
-		}
-		secret, given, err := newZipPassword(cmd, p, password)
-		if err != nil {
-			return err
-		}
-		certPEM, keyPEM, leaf, err := issueFromCA(folder(), ca, signer, name, "service", name, days, func(leaf *x509.Certificate) { tlsca.FillService(leaf, name, addresses) })
-		if err != nil {
-			return err
-		}
-		chain, caPEM, err := writeFullChain(folder(), name, "service", certPEM)
-		if err != nil {
-			return err
-		}
-		data, err := certzip.Build([]certzip.File{
-			{Name: "service.crt", Data: certPEM}, {Name: "service.key", Data: keyPEM}, {Name: "service-fullchain.crt", Data: chain},
-			{Name: "ca.crt", Data: caPEM}, {Name: "README.txt", Data: []byte(fmt.Sprintf(serviceReadme, name))},
-		}, secret)
-		if err != nil {
-			return err
-		}
-		zipPath, err := writeExport(cmd, folder(), "", name+"-service.zip", data)
-		if err != nil {
-			return err
-		}
-		out := cmd.OutOrStdout()
-		fmt.Fprintf(out, "Service certificate for %s saved in %s.\n  Names: %s\n  Files: service.crt, service.key and service-fullchain.crt (the certificate, then the CA)\nZip file saved in %s, encrypted with AES-256.\n", name, filepath.Dir(issuedPath(folder(), name, "service", ".crt")), strings.Join(tlsca.Names(leaf), ", "), zipPath)
-		if !given {
-			fmt.Fprintf(out, "Password: %s\n  Save it now. It is not shown again.\n  Send it by another way than the zip file.\n", secret)
-		}
-		fmt.Fprintf(out, "Next:\n  1. Give the Service the zip file, or service.key and service-fullchain.crt.\n  2. Make Traefik trust the Workstation CA for Services:\n       %s tls mtls create\n", wsCommand(folder(), options.WorkstationFolder()))
-		return nil
+		return runTLSIssueService(cmd, args, options, folder(), addresses, days, password)
 	}}
 	cmd.Flags().StringArrayVar(&addresses, "address", nil, "Adds an IP address or DNS name to the certificate.")
 	cmd.Flags().IntVar(&days, "days", 365, "Sets the certificate validity in days.")
 	cmd.Flags().StringVar(&password, "password", "", "Sets the zip file password (default: ask, or make a random one).")
 	return cmd
+}
+
+func runTLSIssueService(cmd *cobra.Command, args []string, options *Options, folder string, addresses []string, days int, password string) error {
+	if _, err := readWSEnv(folder); err != nil {
+		return err
+	}
+	if err := protectWorkstationFolder(folder); err != nil {
+		return err
+	}
+	p := newPrompter(cmd, options)
+	ca, signer, err := readCA(cmd, p, folder)
+	if err != nil {
+		return err
+	}
+	name, err := askServiceName(p, args)
+	if err != nil {
+		return err
+	}
+	intro := fmt.Sprintf("The certificate always names %s, localhost and 127.0.0.1. Traefik checks only the name of the Service.\nAdd the DNS names or IP addresses that other programs use to reach the Instances.\n", name)
+	if addresses, err = askAddresses(cmd, p, intro, addresses); err != nil {
+		return err
+	}
+	days, err = askDays(cmd, p, days, 365, "certificate validity in days")
+	if err != nil {
+		return err
+	}
+	secret, given, err := newZipPassword(cmd, p, password)
+	if err != nil {
+		return err
+	}
+	certPEM, keyPEM, leaf, err := issueFromCA(folder, ca, signer, name, "service", name, days, func(leaf *x509.Certificate) { tlsca.FillService(leaf, name, addresses) })
+	if err != nil {
+		return err
+	}
+	zipPath, err := writeServiceZip(cmd, folder, name, certPEM, keyPEM, secret)
+	if err != nil {
+		return err
+	}
+	out := cmd.OutOrStdout()
+	fmt.Fprintf(out, "Service certificate for %s saved in %s.\n  Names: %s\n  Files: service.crt, service.key and service-fullchain.crt (the certificate, then the CA)\nZip file saved in %s, encrypted with AES-256.\n", name, filepath.Dir(issuedPath(folder, name, "service", ".crt")), strings.Join(tlsca.Names(leaf), ", "), zipPath)
+	if !given {
+		fmt.Fprintf(out, "Password: %s\n  Save it now. It is not shown again.\n  Send it by another way than the zip file.\n", secret)
+	}
+	fmt.Fprintf(out, "Next:\n  1. Give the Service the zip file, or service.key and service-fullchain.crt.\n  2. Make Traefik trust the Workstation CA for Services:\n       %s tls mtls create\n", wsCommand(folder, options.WorkstationFolder()))
+	return nil
+}
+
+// writeServiceZip writes the full chain and the encrypted zip file of a Service, and gives the zip path.
+func writeServiceZip(cmd *cobra.Command, folder, name string, certPEM, keyPEM []byte, secret string) (string, error) {
+	chain, caPEM, err := writeFullChain(folder, name, "service", certPEM)
+	if err != nil {
+		return "", err
+	}
+	data, err := certzip.Build([]certzip.File{
+		{Name: "service.crt", Data: certPEM}, {Name: "service.key", Data: keyPEM}, {Name: "service-fullchain.crt", Data: chain},
+		{Name: "ca.crt", Data: caPEM}, {Name: "README.txt", Data: []byte(fmt.Sprintf(serviceReadme, name))},
+	}, secret)
+	if err != nil {
+		return "", err
+	}
+	return writeExport(cmd, folder, "", name+"-service.zip", data)
 }
 
 // writeFullChain keeps the certificate followed by the certificate of the Workstation CA in

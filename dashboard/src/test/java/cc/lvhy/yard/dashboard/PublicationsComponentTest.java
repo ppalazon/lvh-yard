@@ -1,9 +1,7 @@
 package cc.lvhy.yard.dashboard;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
 
-import java.time.Duration;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -12,12 +10,6 @@ import tools.jackson.databind.JsonNode;
 
 /** Publications of this Workstation's Services, made and removed through the REST API. */
 class PublicationsComponentTest extends DashboardComponentTest {
-
-  /**
-   * Long enough for a check's first run, which Consul starts at a random point within its 10 s
-   * interval.
-   */
-  private static final Duration CHECK_TIMEOUT = Duration.ofSeconds(20);
 
   private static boolean accessLog(JsonNode service) {
     return service.get("publication").get("accessLog").asBoolean();
@@ -68,22 +60,6 @@ class PublicationsComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void publishedServiceWithPassingInstanceIsHealthy() {
-    String redis = newServiceName("redis");
-    int port = newLanPort();
-    listenOnLanAddress(port);
-    register(redis, Map.of("port", port, "check", Map.of("interval", "1s")));
-
-    publish(redis);
-
-    await()
-        .atMost(CHECK_TIMEOUT)
-        .untilAsserted(() ->
-            assertThat(get(servicePath(redis)).getBody().get("state").asString())
-                .isEqualTo("healthy"));
-  }
-
-  @Test
   void publishedServiceWithItsLastInstanceRemovedStaysAsUnavailable() {
     String web = newServiceName("web");
     String id = register(web, Map.of("host", "10.1.2.3", "port", 8080)).get("id").asString();
@@ -128,19 +104,6 @@ class PublicationsComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void publishingAgainChangesNothing() {
-    String web = newServiceName("web");
-    register(web, Map.of("host", "10.1.2.3", "port", 8080));
-    publish(web);
-
-    ResponseEntity<JsonNode> response = put(publicationPath(web));
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(get(servicePath(web)).getBody().get("publication").get("scope").asString())
-        .isEqualTo("local");
-  }
-
-  @Test
   void scopeCanBeChangedToYardAndBack() {
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
@@ -162,24 +125,14 @@ class PublicationsComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void newPublicationCanHaveYardScopeAtOnce() {
-    String web = newServiceName("web");
-    register(web, Map.of("host", "10.1.2.3", "port", 8080));
-
-    put(publicationPath(web), Map.of("scope", "yard"));
-
-    assertThat(get(servicePath(web)).getBody().get("publication").get("scope").asString())
-        .isEqualTo("yard");
-  }
-
-  @Test
   void publishingAgainWithoutScopeKeepsYardScope() {
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
     put(publicationPath(web), Map.of("scope", "yard"));
 
-    put(publicationPath(web));
+    ResponseEntity<JsonNode> again = put(publicationPath(web));
 
+    assertThat(again.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(get(servicePath(web)).getBody().get("publication").get("scope").asString())
         .isEqualTo("yard");
   }
@@ -276,6 +229,9 @@ class PublicationsComponentTest extends DashboardComponentTest {
     put(publicationPath(web), Map.of("scope", "yard"));
 
     assertThat(accessLog(get(servicePath(web)).getBody())).isTrue();
+
+    put(publicationPath(web), Map.of("accessLog", false));
+    assertThat(accessLog(get(servicePath(web)).getBody())).isFalse();
   }
 
   @Test

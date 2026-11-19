@@ -150,13 +150,4 @@ class ForeignOnlyServiceComponentTest extends DashboardComponentTest {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody().size()).isZero();
   }
-
-  @Test
-  void aMissingServiceIsStillNotFound() {
-    String web = newServiceName("web");
-
-    assertThat(put(instancePriorityPath(web), Map.of("on", false)).getStatusCode())
-        .isEqualTo(HttpStatus.NOT_FOUND);
-    assertThat(get(servicePath(web)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-  }
 }

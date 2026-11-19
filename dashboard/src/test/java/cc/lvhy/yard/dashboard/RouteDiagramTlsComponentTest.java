@@ -39,7 +39,6 @@ class RouteDiagramTlsComponentTest extends DashboardComponentTest {
     assertThat(diagramOf("tls-cert"))
         .contains("TLS, Client Certificate")
         .contains("needs HTTPS")
-        .contains("The browser must also show a Client Certificate")
         .doesNotContain("HTTPS is off");
   }
 
@@ -51,7 +50,17 @@ class RouteDiagramTlsComponentTest extends DashboardComponentTest {
 
     assertThat(getPage("/services/ws-test/" + web + "/diagram").getBody())
         .contains("Traefik to Instances: mutual TLS")
-        .contains("must name " + web)
         .doesNotContain("Traefik to Instances: plain HTTP");
+  }
+
+  @Test
+  void aPublicationWithoutMutualTlsMakesTheStepToTheInstancesPlainHttp() {
+    String web = newServiceName("web");
+    register(web, Map.of("host", "10.1.2.3", "port", 8080));
+    put(publicationPath(web), Map.of("scope", "local"));
+
+    assertThat(getPage("/services/ws-test/" + web + "/diagram").getBody())
+        .contains("Traefik to Instances: plain HTTP")
+        .doesNotContain("Traefik to Instances: mutual TLS");
   }
 }

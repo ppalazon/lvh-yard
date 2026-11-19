@@ -38,52 +38,60 @@ func newWSSet(folder func() string) *cobra.Command {
 	return &cobra.Command{
 		Use: "set <name> <value>", Short: "Changes one setting of this Workstation.", Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			name, value := args[0], args[1]
-			if name == "workstation" || name == "workstation-name" || name == "YARD_WORKSTATION" {
-				return fmt.Errorf("%s", renameWorkstationHint)
-			}
-			key, ok := settings.EnvKey(name)
-			if !ok {
-				return fmt.Errorf("unknown setting %q. Use base-domain, peers, bind-address, instance-host (Windows only), traefik-bind-address, dashboard-bind-address, http-port, https-port, traefik-admin-port, dashboard-port, consul-http-port, consul-dns-port, consul-grpc-tls-port, consul-server-port, consul-serf-lan-port, consul-serf-wan-port, out-of-range, stack-traces or traefik", name)
-			}
-			checked, err := settings.Check(name, value)
-			if err != nil {
-				return err
-			}
-			if err := validateNativeListener(name, checked); err != nil {
-				return err
-			}
-			env, err := readWSEnv(folder())
-			if err != nil {
-				return err
-			}
-			if err := env.Set(key, checked); err != nil {
-				return err
-			}
-			if name == "traefik" {
-				profiles := strings.FieldsFunc(strings.Trim(env.Get("COMPOSE_PROFILES"), "\"'"), func(r rune) bool { return r == ',' || unicode.IsSpace(r) })
-				kept := make([]string, 0, len(profiles)+1)
-				for _, profile := range profiles {
-					if profile != "traefik" {
-						kept = append(kept, profile)
-					}
-				}
-				if checked == "true" {
-					kept = append(kept, "traefik")
-				}
-				if err := env.Set("COMPOSE_PROFILES", strings.Join(kept, ",")); err != nil {
-					return err
-				}
-			}
-			if err := saveWSEnv(cmd, folder(), env); err != nil {
-				return err
-			}
-			if name == "traefik" && checked == "false" {
-				fmt.Fprintln(cmd.OutOrStdout(), "If this Workstation has traefik-admin, remove it:\n  lvh-yard remove traefik-admin")
-			}
-			return nil
+			return runWSSet(cmd, folder(), args[0], args[1])
 		},
 	}
+}
+
+func runWSSet(cmd *cobra.Command, folder, name, value string) error {
+	if name == "workstation" || name == "workstation-name" || name == "YARD_WORKSTATION" {
+		return fmt.Errorf("%s", renameWorkstationHint)
+	}
+	key, ok := settings.EnvKey(name)
+	if !ok {
+		return fmt.Errorf("unknown setting %q. Use base-domain, peers, bind-address, instance-host (Windows only), traefik-bind-address, dashboard-bind-address, http-port, https-port, traefik-admin-port, dashboard-port, consul-http-port, consul-dns-port, consul-grpc-tls-port, consul-server-port, consul-serf-lan-port, consul-serf-wan-port, out-of-range, stack-traces or traefik", name)
+	}
+	checked, err := settings.Check(name, value)
+	if err != nil {
+		return err
+	}
+	if err := validateNativeListener(name, checked); err != nil {
+		return err
+	}
+	env, err := readWSEnv(folder)
+	if err != nil {
+		return err
+	}
+	if err := env.Set(key, checked); err != nil {
+		return err
+	}
+	if name == "traefik" {
+		if err := setComposeProfiles(env, checked == "true"); err != nil {
+			return err
+		}
+	}
+	if err := saveWSEnv(cmd, folder, env); err != nil {
+		return err
+	}
+	if name == "traefik" && checked == "false" {
+		fmt.Fprintln(cmd.OutOrStdout(), "If this Workstation has traefik-admin, remove it:\n  lvh-yard remove traefik-admin")
+	}
+	return nil
+}
+
+// setComposeProfiles adds or removes the traefik profile in COMPOSE_PROFILES.
+func setComposeProfiles(env *envfile.File, traefik bool) error {
+	profiles := strings.FieldsFunc(strings.Trim(env.Get("COMPOSE_PROFILES"), "\"'"), func(r rune) bool { return r == ',' || unicode.IsSpace(r) })
+	kept := make([]string, 0, len(profiles)+1)
+	for _, profile := range profiles {
+		if profile != "traefik" {
+			kept = append(kept, profile)
+		}
+	}
+	if traefik {
+		kept = append(kept, "traefik")
+	}
+	return env.Set("COMPOSE_PROFILES", strings.Join(kept, ","))
 }
 
 // readWSEnv reads .env of a Workstation Folder. A folder without .env has no Workstation yet.

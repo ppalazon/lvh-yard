@@ -40,48 +40,7 @@ func NewContainers(options *Options) *cobra.Command {
 				fmt.Fprintln(out, "No containers match. Use --state all and --followed all to list every container.")
 				return nil
 			}
-			projects := make(map[string]map[string][]client.ListedContainer)
-			var others []client.ListedContainer
-			for _, container := range containers {
-				if container.ComposeProject == "" || container.ComposeService == "" {
-					others = append(others, container)
-					continue
-				}
-				if projects[container.ComposeProject] == nil {
-					projects[container.ComposeProject] = make(map[string][]client.ListedContainer)
-				}
-				services := projects[container.ComposeProject]
-				services[container.ComposeService] = append(services[container.ComposeService], container)
-			}
-			projectNames := make([]string, 0, len(projects))
-			for project := range projects {
-				projectNames = append(projectNames, project)
-			}
-			sort.Strings(projectNames)
-			for _, project := range projectNames {
-				fmt.Fprintln(out, "Compose project "+project)
-				services := projects[project]
-				serviceNames := make([]string, 0, len(services))
-				for service := range services {
-					serviceNames = append(serviceNames, service)
-				}
-				sort.Strings(serviceNames)
-				for _, service := range serviceNames {
-					printContainerService(out, service, services[service], details)
-				}
-			}
-			if len(others) != 0 {
-				fmt.Fprintln(out, "Other containers")
-				sort.Slice(others, func(i, j int) bool {
-					if others[i].Service != others[j].Service {
-						return others[i].Service < others[j].Service
-					}
-					return others[i].Name < others[j].Name
-				})
-				for _, container := range others {
-					printContainerService(out, container.Service, []client.ListedContainer{container}, details)
-				}
-			}
+			printContainerGroups(out, containers, details)
 			return nil
 		},
 	}
@@ -89,6 +48,52 @@ func NewContainers(options *Options) *cobra.Command {
 	cmd.Flags().StringVar(&followed, "followed", followed, "Lists containers by Container Binding: no, yes or all.")
 	cmd.Flags().BoolVar(&details, "details", false, "Shows container names and port mappings.")
 	return cmd
+}
+
+// printContainerGroups prints Compose projects first, then the other containers.
+func printContainerGroups(out io.Writer, containers []client.ListedContainer, details bool) {
+	projects := make(map[string]map[string][]client.ListedContainer)
+	var others []client.ListedContainer
+	for _, container := range containers {
+		if container.ComposeProject == "" || container.ComposeService == "" {
+			others = append(others, container)
+			continue
+		}
+		if projects[container.ComposeProject] == nil {
+			projects[container.ComposeProject] = make(map[string][]client.ListedContainer)
+		}
+		services := projects[container.ComposeProject]
+		services[container.ComposeService] = append(services[container.ComposeService], container)
+	}
+	projectNames := make([]string, 0, len(projects))
+	for project := range projects {
+		projectNames = append(projectNames, project)
+	}
+	sort.Strings(projectNames)
+	for _, project := range projectNames {
+		fmt.Fprintln(out, "Compose project "+project)
+		services := projects[project]
+		serviceNames := make([]string, 0, len(services))
+		for service := range services {
+			serviceNames = append(serviceNames, service)
+		}
+		sort.Strings(serviceNames)
+		for _, service := range serviceNames {
+			printContainerService(out, service, services[service], details)
+		}
+	}
+	if len(others) != 0 {
+		fmt.Fprintln(out, "Other containers")
+		sort.Slice(others, func(i, j int) bool {
+			if others[i].Service != others[j].Service {
+				return others[i].Service < others[j].Service
+			}
+			return others[i].Name < others[j].Name
+		})
+		for _, container := range others {
+			printContainerService(out, container.Service, []client.ListedContainer{container}, details)
+		}
+	}
 }
 
 var (

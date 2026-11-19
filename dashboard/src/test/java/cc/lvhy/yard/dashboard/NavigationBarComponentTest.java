@@ -31,7 +31,6 @@ class NavigationBarComponentTest extends DashboardComponentTest {
     assertThat(currentLinkOf("/containers")).isEqualTo("/containers");
     assertThat(currentLinkOf("/route-profiles")).isEqualTo("/route-profiles");
     assertThat(currentLinkOf("/backups")).isEqualTo("/backups");
-    assertThat(navOf(getPage("/status").getBody())).doesNotContain("aria-current");
   }
 
   @Test
@@ -39,6 +38,7 @@ class NavigationBarComponentTest extends DashboardComponentTest {
     String web = newServiceName("web");
     String id = register(web, Map.of("host", "10.1.2.3", "port", 8080)).get("id").asString();
 
+    assertThat(navOf(getPage("/status").getBody())).doesNotContain("aria-current");
     assertThat(navOf(getPage("/services/ws-test/" + web).getBody())).doesNotContain("aria-current");
     assertThat(navOf(getPage("/services/ws-test/" + web + "/instances/" + id + "/edit").getBody()))
         .doesNotContain("aria-current");

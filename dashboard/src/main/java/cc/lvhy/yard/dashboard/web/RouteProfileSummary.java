@@ -71,7 +71,7 @@ record RouteProfileSummary(String name, boolean missing, List<Middleware> middle
     Map.Entry<String, Object> only = middleware.entrySet().iterator().next();
     String type = only.getKey();
     Object options = only.getValue();
-    if (type.equals("chain")) {
+    if ("chain".equals(type)) {
       if (options instanceof Map<?, ?> chain
           && chain.get("middlewares") instanceof List<?> members) {
         members.stream()
@@ -81,7 +81,7 @@ record RouteProfileSummary(String name, boolean missing, List<Middleware> middle
       return;
     }
     List<Option> shown = new ArrayList<>();
-    if (type.equals("plugin") && options instanceof Map<?, ?> plugins) {
+    if ("plugin".equals(type) && options instanceof Map<?, ?> plugins) {
       // Plugin options are free-form, so no one can tell which of them is secret.
       plugins.keySet().forEach(plugin -> shown.add(new Option(String.valueOf(plugin), null)));
     } else {
@@ -118,7 +118,7 @@ record RouteProfileSummary(String name, boolean missing, List<Middleware> middle
       }
       case null -> {}
       default -> {
-        if (type.equals("forwardAuth") && key.equals("address")) {
+        if ("forwardAuth".equals(type) && "address".equals(key)) {
           options.add(new Option(key, withoutCredentials(String.valueOf(value))));
         } else {
           options.add(new Option(key, String.valueOf(value)));

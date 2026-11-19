@@ -3,6 +3,7 @@ package cc.lvhy.yard.dashboard.web;
 import cc.lvhy.yard.dashboard.status.Part;
 import cc.lvhy.yard.dashboard.status.PartState;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import org.xmlet.htmlapifaster.PhrasingContent;
 
@@ -71,7 +72,7 @@ final class StatusViews {
   }
 
   static String slug(String name) {
-    return name.toLowerCase().replace(' ', '-');
+    return name.toLowerCase(Locale.ROOT).replace(' ', '-');
   }
 
   static String partId(String name) {
