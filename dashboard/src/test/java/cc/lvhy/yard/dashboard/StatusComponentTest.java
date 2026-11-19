@@ -91,9 +91,7 @@ class StatusComponentTest extends DashboardComponentTest {
         .contains("Traefik")
         .contains("ping")
         .contains("last fetch");
-    assertThat(response.getBody())
-        .contains("Whether LVH Yard works on " + WORKSTATION + ".")
-        .doesNotContain("Core Services");
+    assertThat(response.getBody()).doesNotContain("Core Services");
   }
 
   @Test

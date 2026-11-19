@@ -1612,10 +1612,13 @@ components:
           enum:
           - error
           - risk
+        topic:
+          type: string
       required:
       - kind
       - message
       - severity
+      - topic
     StaticInstanceRequest:
       type: object
       properties:
@@ -1685,11 +1688,16 @@ components:
           - ok
           - warning
           - failing
+        tls:
+          type: array
+          items:
+            type: string
       required:
       - details
       - name
       - reason
       - state
+      - tls
     Yard:
       type: object
       properties:

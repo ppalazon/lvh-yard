@@ -77,6 +77,14 @@ class RouteProfilesPageComponentTest extends DashboardComponentTest {
   }
 
   @Test
+  void exampleShowsItsCommandAsCode() {
+    assertThat(getPage("/route-profiles/new").getBody())
+        .contains(
+            "<code class=\"rounded bg-muted px-1.5 py-0.5 font-mono\">htpasswd -nB alice</code>")
+        .doesNotContain("`");
+  }
+
+  @Test
   void refusedSaveShowsTheReasonAndKeepsTheText() {
     String text = "basicAuth:\n  usersFile: /etc/users\n";
 
@@ -198,7 +206,8 @@ class RouteProfilesPageComponentTest extends DashboardComponentTest {
 
     assertThat(getPage("/services/ws-test/" + secret).getBody())
         .contains("id=\"https-only\"")
-        .contains("this Service has no HTTP Route");
+        .contains("<h2>HTTPS only</h2>")
+        .contains("This Service has no HTTP Route");
     assertThat(getPage("/services/ws-test/" + open).getBody()).doesNotContain("id=\"https-only\"");
   }
 

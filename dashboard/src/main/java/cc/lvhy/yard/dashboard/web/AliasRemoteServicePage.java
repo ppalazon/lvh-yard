@@ -33,11 +33,12 @@ final class AliasRemoteServicePage {
     return new FormPage.Spec(
         Layout.Section.CATALOG,
         "Add Alias",
-        "The Alias gives a Service of this Workstation the Instances of "
+        "Adds the Instances of "
             + remote.name()
             + " on "
             + remote.workstation()
-            + ". A new name creates the Service and publishes it with Local Scope.",
+            + " to a Service of this Workstation. A new name creates the Service and publishes it"
+            + " with Local Scope.",
         path(remote),
         action(remote),
         "Add");
@@ -89,7 +90,7 @@ final class AliasRemoteServicePage {
               section,
               NAME,
               "Service of this Workstation",
-              "Choose one of your Services, or type a new name.",
+              "Pick a Service, or type a new name.",
               error,
               field ->
                   field

@@ -131,7 +131,7 @@ final class BindContainerPage {
         new FormPage.Spec(
             null,
             "Bind a container to " + service.name(),
-            "The container does not need to run. Each container that matches gives an Instance.",
+            "The container need not run. Each matching container gives an Instance.",
             path(service),
             action(service),
             "Bind");
@@ -154,7 +154,7 @@ final class BindContainerPage {
         new FormPage.Spec(
             null,
             "Edit a Container Binding of " + service.name(),
-            "Now bound to " + binding.follows() + ", port " + binding.port() + ".",
+            null,
             editPath(service, binding),
             editPath(service, binding),
             "Save");
@@ -192,14 +192,14 @@ final class BindContainerPage {
               section,
               TARGET,
               "Container",
-              "A container name, or a Compose project and service as project/service.",
+              "A container name, or a Compose project/service.",
               error,
               field -> targetControl(field, targets, bind.target(), error));
           InstanceForm.field(
               section,
               PORT,
               "Container Port",
-              "The port inside the container. Pick one of its open ports, or type one.",
+              "The port inside the container. Pick an open port or type one.",
               error,
               field -> portControl(field, bind.containerPort(), error));
           section.script().attrSrc("/bind.js").attrDefer(true).__();

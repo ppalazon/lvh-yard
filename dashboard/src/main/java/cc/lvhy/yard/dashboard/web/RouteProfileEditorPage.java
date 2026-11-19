@@ -5,6 +5,7 @@ import java.util.List;
 import org.xmlet.htmlapifaster.EnumTypeButtonType;
 import org.xmlet.htmlapifaster.EnumTypeInputType;
 import org.xmlet.htmlapifaster.FlowContent;
+import org.xmlet.htmlapifaster.P;
 
 final class RouteProfileEditorPage {
 
@@ -42,10 +43,6 @@ final class RouteProfileEditorPage {
                 .attrClass("flex flex-col gap-2")
                 .h1()
                 .text(title)
-                .__()
-                .p()
-                .attrClass("text-muted-foreground")
-                .text("Define Route options for Publications on " + workstation.name() + ".")
                 .__()
                 .__()
                 .div()
@@ -102,7 +99,7 @@ final class RouteProfileEditorPage {
         .p()
         .attrId("profile-name-help")
         .attrClass("text-muted-foreground text-sm")
-        .text("Start with a letter or digit. Use letters, digits, - and _.")
+        .text("Letters, digits, - and _. Start with a letter or digit.")
         .__()
         .__()
         .p()
@@ -164,7 +161,7 @@ final class RouteProfileEditorPage {
         .__()
         .p()
         .attrClass("text-muted-foreground mb-4 mt-2 text-sm")
-        .text("Copy the YAML you need into Route options, then adapt its values.")
+        .text("Copy an example into Route options, then change its values.")
         .__()
         .of(aside -> {
           for (RouteProfileExample example : RouteProfileExample.values()) {
@@ -178,7 +175,7 @@ final class RouteProfileEditorPage {
                 .attrClass("flex min-w-0 flex-col gap-3 pb-4")
                 .p()
                 .attrClass("text-muted-foreground text-sm")
-                .text(example.description)
+                .of(p -> withCode(p, example.description))
                 .__()
                 .pre()
                 .code()
@@ -196,5 +193,17 @@ final class RouteProfileEditorPage {
         })
         .__()
         .__();
+  }
+
+  /** Writes the text, with each part between backticks as inline code. */
+  private static void withCode(P<?> paragraph, String text) {
+    String[] parts = text.split("`", -1);
+    for (int i = 0; i < parts.length; i++) {
+      if (i % 2 != 0) {
+        paragraph.code().attrClass("rounded bg-muted px-1.5 py-0.5 font-mono").text(parts[i]).__();
+      } else if (!parts[i].isEmpty()) {
+        paragraph.text(parts[i]);
+      }
+    }
   }
 }

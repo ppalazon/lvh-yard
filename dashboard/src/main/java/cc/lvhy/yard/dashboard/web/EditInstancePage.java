@@ -28,11 +28,7 @@ final class EditInstancePage {
         new FormPage.Spec(
             null,
             "Edit an Instance of " + service.name(),
-            "Instance "
-                + instance.id()
-                + ", now at "
-                + instance.address()
-                + ". It stays the same Instance, with the same ID.",
+            "Instance " + instance.id() + " at " + instance.address() + ". Saving keeps the ID.",
             path(service, instance),
             path(service, instance),
             "Save");

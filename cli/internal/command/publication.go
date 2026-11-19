@@ -67,7 +67,7 @@ func NewPublish(options *Options) *cobra.Command {
 				fmt.Fprintln(out, "  Mutual TLS: on")
 			}
 			for _, warning := range published.Warnings {
-				fmt.Fprintf(cmd.ErrOrStderr(), "%s: %s\n", warning.Severity, warning.Message)
+				fmt.Fprintln(cmd.ErrOrStderr(), warningLine(warning))
 			}
 			return nil
 		},

@@ -120,12 +120,7 @@ final class CatalogPage {
                 .of(content -> FormPage.openLink(content, NewServicePage.SPEC))
                 .p()
                 .attrClass("col-span-2 text-sm text-muted-foreground")
-                .text(
-                    "Workstation "
-                        + workstation.name()
-                        + ", base domain "
-                        + workstation.baseDomain()
-                        + ".")
+                .text("Base domain: " + workstation.baseDomain())
                 .__()
                 .__()
                 .of(content -> filterForm(content, yard, filters))
@@ -263,9 +258,7 @@ final class CatalogPage {
             heading(group, remote.name(), "destructive", "Workstation unreachable");
             group
                 .p()
-                .text(
-                    "Its Consul does not answer. Its Services show again when it does."
-                        + " To see why, run ")
+                .text("Its Consul does not answer, so its Services are hidden. To see why, run ")
                 .code()
                 .attrClass("rounded bg-muted px-2 py-1 font-mono")
                 .text("lvh-yard ws compose logs consul")
@@ -307,7 +300,7 @@ final class CatalogPage {
             region,
             "No Services yet.",
             remote
-                ? "Only the Workstation of a Service can add it."
+                ? "A Service is added on its own Workstation."
                 : "Click New Service to add one.");
       } else {
         EmptyState.render(

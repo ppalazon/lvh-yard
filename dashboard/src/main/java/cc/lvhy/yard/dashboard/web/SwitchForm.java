@@ -32,7 +32,7 @@ final class SwitchForm {
 
   /**
    * @param command a command that follows the hint on a line of its own, shown as code, or {@code
-   *     null}. The hint then leads into it, such as {@code To see the log, run this command:}.
+   *     null}. The hint then leads into it, such as {@code To see the log, run:}.
    */
   static void render(
       FlowContent<?, ?> parent,

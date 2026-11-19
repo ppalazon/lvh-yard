@@ -30,15 +30,15 @@ func TestPublish(t *testing.T) {
 		},
 		{
 			name: "yard scope and warnings", args: []string{"web", "--scope", "yard"}, body: `{"scope":"yard"}`,
-			answer: `{"workstation":"ws-a","name":"web","state":"healthy","hostname":"web.lvh.me","publication":{"scope":"yard","accessLog":false},"warnings":[{"severity":"error","message":"The Route Profile team-login does not exist."},{"severity":"risk","message":"The Instance at 127.0.0.1:8080 is on a loopback address."}]}`,
+			answer: `{"workstation":"ws-a","name":"web","state":"healthy","hostname":"web.lvh.me","publication":{"scope":"yard","accessLog":false},"warnings":[{"severity":"error","topic":"Unknown profile","message":"The Route Profile team-login does not exist."},{"severity":"risk","topic":"Loopback","message":"The Instance at 127.0.0.1:8080 is on a loopback address."}]}`,
 			stdout: "Published web at web.lvh.me.\n  Scope: Yard\n  Other Workstations: web.ws-a.<base-domain>\n  State: healthy\n",
-			stderr: "error: The Route Profile team-login does not exist.\nrisk: The Instance at 127.0.0.1:8080 is on a loopback address.\n",
+			stderr: "error: [Unknown profile] The Route Profile team-login does not exist.\nrisk: [Loopback] The Instance at 127.0.0.1:8080 is on a loopback address.\n",
 		},
 		{
 			name: "profiles keep order", args: []string{"web", "--profile", "basic-auth", "--profile", "cors"}, body: `{"profiles":["basic-auth","cors"]}`,
-			answer: `{"workstation":"ws-a","name":"web","state":"healthy","hostname":"web.lvh.me","publication":{"scope":"local","accessLog":false},"profiles":["basic-auth","cors"],"warnings":[{"severity":"risk","message":"The Route Profile basic-auth asks who the user is only on the hostname."}]}`,
+			answer: `{"workstation":"ws-a","name":"web","state":"healthy","hostname":"web.lvh.me","publication":{"scope":"local","accessLog":false},"profiles":["basic-auth","cors"],"warnings":[{"severity":"risk","topic":"Authentication","message":"The Route Profile basic-auth asks who the user is only on the hostname."}]}`,
 			stdout: "Published web at web.lvh.me.\n  Scope: Local\n  State: healthy\n  Route Profiles: basic-auth, cors\n",
-			stderr: "risk: The Route Profile basic-auth asks who the user is only on the hostname.\n",
+			stderr: "risk: [Authentication] The Route Profile basic-auth asks who the user is only on the hostname.\n",
 		},
 		{
 			name: "remove profiles", args: []string{"web", "--no-profiles"}, body: `{"profiles":[]}`,

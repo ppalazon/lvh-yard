@@ -26,14 +26,14 @@ class DashboardConfigComponentTest {
     Files.writeString(
         config,
         "# lvh-yard:\n#   workstation:\n#     base-domain: ${YARD_BASE_DOMAIN:example.test}\n");
-    assertThat(catalog(config, env)).contains("base domain lvh.me.");
+    assertThat(catalog(config, env)).contains("Base domain: lvh.me<");
 
     Files.writeString(
         config, "lvh-yard:\n  workstation:\n    base-domain: ${YARD_BASE_DOMAIN:example.test}\n");
-    assertThat(catalog(config, env)).contains("base domain example.test.");
+    assertThat(catalog(config, env)).contains("Base domain: example.test<");
 
     Files.writeString(env, "YARD_BASE_DOMAIN=env.test\n");
-    assertThat(catalog(config, env)).contains("base domain env.test.");
+    assertThat(catalog(config, env)).contains("Base domain: env.test<");
   }
 
   private String catalog(Path config, Path env) {

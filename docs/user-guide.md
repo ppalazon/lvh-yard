@@ -1813,34 +1813,36 @@ curl -X PUT http://127.0.0.1:8500/v1/agent/service/deregister/<instance-id>
 An unpublished Service also shows this risk.
 
 The API sends each Service Warning in `warnings`, with its `kind`, its
-`severity` (`error` or `risk`) and its `message`. The Service state is not a
+`severity` (`error` or `risk`), its `topic` and its `message`. The Service state is not a
 Service Warning, so an Unavailable or Unhealthy Service has no Service Warning
 for its state.
 
 `lvh-yard catalog --details`, `lvh-yard publish` and
-`lvh-yard register container` print the level before each message:
+`lvh-yard register container` print the level and the topic before each message:
 
 ```text
-    error: The Route Profile team-login does not exist on the Home Workstation, ...
-    risk: The Instance at 127.0.0.1:8080 is on loopback, so other Workstations cannot reach it. ...
+    error: [Unknown profile] The Route Profile team-login does not exist on the Home Workstation. ...
+    risk: [Loopback Instances] 127.0.0.1:8080 is on loopback. Other Workstations cannot reach it. ...
 ```
 
-The Service page shows what stops the hostname from working as red alerts to the
-right of the hostname, one alert for each problem. Each error is one alert. An Unavailable
-Service also shows "No Instances are registered", and an Unhealthy Service
-shows "No Instance passes its checks".
+The Service page shows one alert for each problem, to the right of the hostname.
+Each alert has an icon, the topic as its title, and a text that ends with what
+to do. Click the title to close or open the text.
 
-Under the red alerts, one closed box holds the risks, for example "2 risks to
-keep in mind". Click it to read them. When the page refreshes, the box stays
-open or closed as you left it. If you leave the page, the box is
-closed again on your next visit. A Service without risks has no box.
+- A red alert shows what stops the hostname from working. It starts open. An
+  Unavailable Service shows the alert "Unavailable", and an Unhealthy Service
+  shows the alert "Unhealthy".
+- A risk alert starts closed, so only its title shows.
+
+When the page refreshes, each alert stays open or closed as you left it. If you
+leave the page, each alert starts as described above on your next visit.
 
 The Service page starts with its name, state, and the Route Diagram and Test
 Reachability buttons.
 Under them, the hostname, the passing Instance count, where the Route goes (a
 published Service only) and the Home Workstation are on the left. A Service
-without a Route on this Workstation has no hostname link. The alerts and the
-risks box are on the right on a wide screen, and
+without a Route on this Workstation has no hostname link. The alerts are on the
+right on a wide screen, and
 below the facts on a phone.
 
 The Publication card has a switch for each setting: Published, Share with the

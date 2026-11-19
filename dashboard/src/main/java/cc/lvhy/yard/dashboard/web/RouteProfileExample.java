@@ -11,7 +11,7 @@ enum RouteProfileExample {
       "https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/tls/tls-options/#client-authentication-mtls"),
   PASS_TLS_CLIENT_CERT(
       "Client Certificate user",
-      "Send the user of the Client Certificate to the Service in a header. Chain it after a"
+      "Send the Client Certificate user to the Service in a header. Chain it after a"
           + " clientCertificate profile. The Service must trust the header only from Traefik.",
       """
       passTLSClientCert:
@@ -24,8 +24,8 @@ enum RouteProfileExample {
       "https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/passtlsclientcert/"),
   BASIC_AUTH(
       "Basic auth",
-      "Require a user and password. Replace the placeholder with htpasswd -nB alice output."
-          + " HTTP does not encrypt credentials; use a trusted network or HTTPS.",
+      "Require a user and password. Replace the placeholder with the output of `htpasswd -nB"
+          + " alice`. HTTP does not encrypt credentials. Use HTTPS or a trusted network.",
       """
       basicAuth:
         users:
@@ -36,8 +36,8 @@ enum RouteProfileExample {
       "https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/basicauth/"),
   IP_ALLOW_LIST(
       "IP allow list",
-      "Allow only selected client IPs. Replace the documentation range with your network."
-          + " This checks the direct peer address, not X-Forwarded-For.",
+      "Allow only the listed client IPs. Replace the example range with your network."
+          + " It checks the direct peer address, not X-Forwarded-For.",
       """
       ipAllowList:
         sourceRange:
@@ -46,8 +46,8 @@ enum RouteProfileExample {
       "https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/ipallowlist/"),
   REQUEST_HEADERS(
       "Request headers",
-      "Tell the Service the original request used HTTPS. Use only when a trusted HTTPS proxy"
-          + " handles all incoming traffic. This does not enable HTTPS; Yard uses HTTP by default.",
+      "Tell the Service that the original request used HTTPS. Use it only when a trusted HTTPS"
+          + " proxy handles all traffic. It does not enable HTTPS.",
       """
       headers:
         customRequestHeaders:
@@ -57,7 +57,7 @@ enum RouteProfileExample {
   SECURITY_HEADERS(
       "Response security headers",
       "Block framing and MIME sniffing. The Service must send correct Content-Type headers"
-          + " and must not need to appear in an iframe.",
+          + " and must not appear in an iframe.",
       """
       headers:
         frameDeny: true
@@ -66,7 +66,7 @@ enum RouteProfileExample {
       "https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/headers/#configuration-options"),
   CORS(
       "CORS",
-      "Allow browser calls from one origin. Replace the origin, including its port if needed."
+      "Allow browser calls from one origin. Replace the origin, with its port if needed."
           + " Traefik answers preflight requests. CORS is not authentication.",
       """
       headers:
@@ -79,8 +79,8 @@ enum RouteProfileExample {
       "https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/headers/#cors-headers"),
   FORWARD_AUTH(
       "Forward auth",
-      "Ask an auth service before forwarding requests. Replace the endpoint with one every"
-          + " Workstation can reach. It must return 2xx only for allowed requests.",
+      "Ask an auth service before Traefik forwards a request. Replace the address with one that"
+          + " every Workstation can reach. It must return 2xx only for allowed requests.",
       """
       forwardAuth:
         address: "https://auth.example.com/verify"
@@ -91,8 +91,7 @@ enum RouteProfileExample {
       "https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/forwardauth/"),
   CHAIN(
       "Chain",
-      "Apply office-only, then team-login. Both must already exist as Route Profiles"
-          + " on this Workstation.",
+      "Apply office-only, then team-login. Both must exist as Route Profiles on this Workstation.",
       """
       chain:
         middlewares:
@@ -113,8 +112,8 @@ enum RouteProfileExample {
       "https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/compress/"),
   REDIRECT_REGEX(
       "URL redirect",
-      "Redirect browsers to another host. Replace both hosts; the target needs its own Route."
-          + " This does not rewrite backend paths.",
+      "Redirect browsers to another host. Replace both hosts. The target needs its own Route."
+          + " It does not rewrite backend paths.",
       """
       redirectRegex:
         regex: '^http://old[.]example[.]com/(.*)$'
@@ -124,7 +123,7 @@ enum RouteProfileExample {
       "https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/redirectregex/"),
   REDIRECT_SCHEME(
       "HTTPS redirect",
-      "Redirect plain HTTP requests to HTTPS. Add port when the HTTPS port is not 443. Needs HTTPS"
+      "Redirect HTTP requests to HTTPS. Add a port if the HTTPS port is not 443. Needs HTTPS"
           + " on this Workstation.",
       """
       redirectScheme:
@@ -134,16 +133,16 @@ enum RouteProfileExample {
       "https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/redirectscheme/"),
   CONTENT_TYPE(
       "Content type",
-      "Detect a missing response Content-Type. Prefer fixing the Service to send it."
-          + " This has no effect if another middleware sets the header.",
+      "Detect a missing response Content-Type. Better: fix the Service to send it."
+          + " It has no effect if another middleware sets the header.",
       """
       contentType: {}
       """,
       "https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/contenttype/"),
   BUFFERING(
       "Buffering",
-      "Buffer bodies up to 10 MiB, using disk above 1 MiB. Larger requests get 413;"
-          + " larger responses get 500. These limits are not suitable for streaming.",
+      "Buffer bodies up to 10 MiB, and use disk above 1 MiB. Larger requests get 413. Larger"
+          + " responses get 500. Not suitable for streaming.",
       """
       buffering:
         maxRequestBodyBytes: 10485760
@@ -155,7 +154,7 @@ enum RouteProfileExample {
   CIRCUIT_BREAKER(
       "Circuit breaker",
       "Return 503 when over 25% of responses are 5xx. Tune the threshold for the Service."
-          + " Each Route has its own state; middleware order affects what it sees.",
+          + " Each Route has its own state. Middleware order changes what it sees.",
       """
       circuitBreaker:
         expression: "ResponseCodeRatio(500, 600, 0, 600) > 0.25"
@@ -163,7 +162,7 @@ enum RouteProfileExample {
       "https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/circuitbreaker/"),
   RETRY(
       "Retry",
-      "Retry network failures with a short delay. Use only when repeating a request is safe;"
+      "Retry network failures after a short delay. Use it only if a repeated request is safe:"
           + " retries can duplicate writes.",
       """
       retry:

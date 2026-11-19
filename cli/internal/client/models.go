@@ -227,6 +227,7 @@ type ServiceWarning struct {
 	Kind     string `json:"kind"`
 	Message  string `json:"message"`
 	Severity string `json:"severity"`
+	Topic    string `json:"topic"`
 }
 
 type StaticInstanceRequest struct {

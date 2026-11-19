@@ -51,8 +51,8 @@ final class DeleteServicePage {
                         .p()
                         .attrClass("text-muted-foreground text-sm")
                         .text(
-                            "Foreign Instances stay, because another tool registered them. The"
-                                + " Service stays while they do.")
+                            "Foreign Instances stay: another tool registered them. The Service"
+                                + " stays while they do.")
                         .__();
                   }
                 })

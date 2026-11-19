@@ -21,12 +21,7 @@ final class AddStaticInstancePage {
   /** No link of the navigation bar is current, as on the Service page. */
   private static FormPage.Spec spec(Service service) {
     return new FormPage.Spec(
-        null,
-        "Add Static Instance",
-        "The Instance joins " + service.name() + ", at a fixed host and port.",
-        path(service),
-        action(service),
-        "Add");
+        null, "Add Static Instance", null, path(service), action(service), "Add");
   }
 
   static void openLink(Element<?, ?> parent, Service service) {

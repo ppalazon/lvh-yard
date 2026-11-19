@@ -283,7 +283,7 @@ class RemoteServicesComponentTest extends DashboardComponentTest {
         .contains("critical")
         .contains("Unhealthy")
         .contains("Local Scope: only " + RemoteWorkstation.NAME + " routes it")
-        .contains("It can be changed only on " + RemoteWorkstation.NAME);
+        .contains("Home Workstation: " + RemoteWorkstation.NAME + ". Change it only there.");
     String content = response.getBody().substring(response.getBody().indexOf("<main"));
     assertThat(content).doesNotContain("method=\"post\"").doesNotContain("/edit\"");
   }

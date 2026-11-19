@@ -97,7 +97,7 @@ final class InstanceForm {
               row,
               "check",
               "Health check",
-              "TCP connects to the port. HTTP passes on a 2xx answer.",
+              "TCP: the port accepts a connection. HTTP: the answer is 2xx.",
               error,
               field ->
                   field
@@ -126,7 +126,7 @@ final class InstanceForm {
                       "HTTP path",
                       fields.path(),
                       "/",
-                      "Only for an HTTP check. Empty: /.",
+                      "HTTP check only. Empty: /.",
                       error))
               .__();
           text(
@@ -135,7 +135,7 @@ final class InstanceForm {
               "Interval",
               fields.interval(),
               "10s",
-              "Such as 5s or 1m, at least 1s. Empty: 10s.",
+              "Example: 5s, 1m. Minimum 1s. Empty: 10s.",
               error);
           text(
               row,
@@ -143,7 +143,7 @@ final class InstanceForm {
               "Timeout",
               fields.timeout(),
               "2s",
-              "Such as 500ms or 2s. Empty: 2s.",
+              "Example: 500ms, 2s. Empty: 2s.",
               error);
         });
     text(parent, "tags", "Tags", fields.tags(), "backend, v2", "Separated by commas.", error);

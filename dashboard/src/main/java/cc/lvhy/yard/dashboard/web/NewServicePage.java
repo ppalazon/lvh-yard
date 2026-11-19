@@ -14,7 +14,7 @@ final class NewServicePage {
       new FormPage.Spec(
           Layout.Section.CATALOG,
           "New Service",
-          "The Service starts empty and Unpublished.",
+          "Starts empty and Unpublished.",
           PATH,
           ACTION,
           "Create");

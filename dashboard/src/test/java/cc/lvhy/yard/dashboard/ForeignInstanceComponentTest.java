@@ -60,7 +60,7 @@ class ForeignInstanceComponentTest extends DashboardComponentTest {
     String page = getPage("/services/ws-test/" + service).getBody();
 
     assertThat(page)
-        .contains("id=\"risks\"")
+        .contains("id=\"alert-risk-0\"")
         .contains("/v1/agent/service/deregister/" + id)
         .doesNotContain("/instances/" + id + "/edit")
         .doesNotContain("/instances/" + id + "/remove");

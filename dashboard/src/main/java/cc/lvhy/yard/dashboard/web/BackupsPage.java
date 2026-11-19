@@ -29,7 +29,7 @@ final class BackupsPage {
       new FormPage.Spec(
           Layout.Section.BACKUPS,
           "Upload a Backup",
-          "The file joins the Backups folder. Nothing is imported yet.",
+          "Adds the file to the Backups folder. Imports nothing.",
           UPLOAD_PATH,
           UPLOAD_PATH,
           "Upload");
@@ -79,11 +79,7 @@ final class BackupsPage {
                 .__()
                 .p()
                 .attrClass("text-muted-foreground")
-                .text(
-                    "Copies of the setup of "
-                        + workstation.name()
-                        + ", in the Backups folder of its Workstation Folder. They hold basic-auth"
-                        + " hashes, so keep them private.")
+                .text("A Backup holds basic-auth hashes. Keep it private.")
                 .__()
                 .of(content -> list(content, backups))
                 .__());
@@ -133,10 +129,7 @@ final class BackupsPage {
         workstation.name(),
         Layout.Section.BACKUPS,
         main -> {
-          header(
-              main,
-              "Delete a Backup",
-              "This removes the file from the Backups folder. You cannot undo this.");
+          header(main, "Delete a Backup", "You cannot undo this.");
           main.form()
               .attrClass("card flex max-w-xl flex-col gap-6 p-6")
               .addAttr("method", "post")
@@ -216,9 +209,7 @@ final class BackupsPage {
         plan,
         fingerprint,
         "Not imported",
-        List.of(
-            "The plan changed after you saw it, so nothing changed. Check the new plan, then"
-                + " import again."));
+        List.of("The plan changed. Nothing was imported. Check the new plan, then import again."));
   }
 
   private static String importPage(
@@ -234,10 +225,7 @@ final class BackupsPage {
         workstation.name(),
         Layout.Section.BACKUPS,
         main -> {
-          header(
-              main,
-              "Plan a Backup importation",
-              "Plan the import of " + backup + " into " + workstation.name() + ".");
+          header(main, "Plan a Backup importation", null);
           alert(main, alertTitle, alert);
           modeForm(main, backup, mode == null ? ImportMode.ADD : mode, plan == null);
           if (plan != null) {
@@ -273,14 +261,11 @@ final class BackupsPage {
           header(main, "Import of " + backup + " stopped", null);
           alert(main, "Import stopped", List.of(failed.getMessage()));
           main.p()
-              .text(
-                  "Before the import, the dashboard saved the setup in "
-                      + failed.safetyBackup()
-                      + ". To go back, import that Backup.")
+              .text("Safety Backup: " + failed.safetyBackup() + ". To go back, import it.")
               .__();
           main.h2().text("What the import applied").__();
           if (failed.applied().isEmpty()) {
-            main.p().text("Nothing: it stopped at the first change.").__();
+            main.p().text("Nothing. The import stopped at the first change.").__();
           } else {
             entries(main, failed.applied());
           }
@@ -303,10 +288,8 @@ final class BackupsPage {
               main,
               "Imported " + backup,
               result.safetyBackup() == null
-                  ? "Nothing changed, so the dashboard wrote no safety Backup."
-                  : "Before the import, the dashboard saved the setup in "
-                      + result.safetyBackup()
-                      + ". To go back, import that Backup.");
+                  ? "No changes, so no safety Backup."
+                  : "Safety Backup: " + result.safetyBackup() + ". To go back, import it.");
           main.h2().text("What the import did").__();
           entryPanels(main, result);
           backLink(main);
@@ -323,13 +306,13 @@ final class BackupsPage {
         .addAttr("role", "radiogroup")
         .addAttr("aria-label", "Mode")
         .of(group ->
-            mode(group, ImportMode.ADD, "Add", "Add what is new and skip what exists.", chosen))
+            mode(group, ImportMode.ADD, "Add", "Adds what is new. Skips what exists.", chosen))
         .of(group ->
             mode(
                 group,
                 ImportMode.UPDATE,
                 "Update",
-                "Add what is new and overwrite what exists with the file.",
+                "Adds what is new. Overwrites what exists.",
                 chosen))
         .__()
         .button()
@@ -492,8 +475,8 @@ final class BackupsPage {
       EmptyState.render(
           main,
           "No Backups yet.",
-          "Click New Backup to save the setup of this Workstation now. To add a file from"
-              + " another place, click Upload a Backup.");
+          "Click New Backup to save this Workstation's setup. Click Upload a Backup to add a"
+              + " file.");
       return;
     }
     main.table()

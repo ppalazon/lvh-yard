@@ -14,12 +14,7 @@ final class CreateContainerServicePage {
 
   private static final FormPage.Spec SPEC =
       new FormPage.Spec(
-          Layout.Section.CONTAINERS,
-          "Create Service",
-          "Follow a container or Compose service and choose who gets a hostname.",
-          PATH,
-          ACTION,
-          "Create Service");
+          Layout.Section.CONTAINERS, "Create Service", null, PATH, ACTION, "Create Service");
 
   record Port(int number, List<Integer> hostPorts) {
     String label() {
@@ -64,7 +59,7 @@ final class CreateContainerServicePage {
               "Service name",
               fields.name(),
               "grafana",
-              "Use a new name with lowercase letters, digits and -.",
+              "Lowercase letters, digits and -.",
               error);
           target(section, fields.target(), error);
           section
@@ -80,16 +75,12 @@ final class CreateContainerServicePage {
               .__()
               .text("Publish")
               .__()
-              .p()
-              .attrClass("text-muted-foreground text-sm")
-              .text("Give the Service a hostname without starting or stopping containers.")
-              .__()
               .__();
           InstanceForm.field(
               section,
               "scope",
               "Scope",
-              "Local gives a hostname only on this Workstation.",
+              "Local: this Workstation. Yard: every Workstation.",
               error,
               field ->
                   field
@@ -140,8 +131,8 @@ final class CreateContainerServicePage {
                 field,
                 "Container Port",
                 target.ports().isEmpty()
-                    ? "No ports are known. Type the port inside the container."
-                    : "Choose an open port, or type another port inside the container.",
+                    ? "No open ports known. Type the Container Port."
+                    : "Pick an open port, or type another.",
                 error,
                 control -> {
                   control
@@ -217,11 +208,7 @@ final class CreateContainerServicePage {
               .text(result.failure())
               .__()
               .__();
-          main.p()
-              .text(
-                  "Saved changes stay. Nothing was rolled back. Check the Service before trying"
-                      + " again.")
-              .__();
+          main.p().text("Saved changes stay. Check the Service before you try again.").__();
           main.ul()
               .attrClass("list-disc pl-6")
               .of(list -> result.completed().forEach(step -> list.li().text(step).__()))

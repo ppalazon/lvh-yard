@@ -131,8 +131,8 @@ final class ServicePage {
         .p()
         .addAttr("data-foreign-only", "")
         .text(
-            "Only Foreign Instances give this Service, so it stays while they are registered,"
-                + " also after a delete.")
+            "Only Foreign Instances give this Service. It stays while they are registered, also"
+                + " after a delete.")
         .__();
   }
 
@@ -166,9 +166,7 @@ final class ServicePage {
               null,
               service.published(),
               "Published",
-              service.published()
-                  ? "The hostname routes requests to its Instances."
-                  : "Not published, so it has no hostname.");
+              null);
           if (service.published()) {
             boolean yard = service.publication().scope() == Scope.YARD;
             SwitchForm.render(
@@ -191,9 +189,7 @@ final class ServicePage {
                 String.valueOf(!logged),
                 logged,
                 "Show in the access log",
-                logged
-                    ? "Traefik logs each request to the Route. To see the log, run this command:"
-                    : "Traefik does not log requests to the Route.",
+                logged ? "Traefik logs each request. To see the log, run:" : null,
                 logged ? "lvh-yard ws compose logs traefik" : null);
             boolean mutual = service.publication().mutualTls();
             SwitchForm.render(
@@ -247,7 +243,7 @@ final class ServicePage {
             !service.published()
                 ? "Not published. Adding one publishes the Service with Local Scope."
                 : chosen.isEmpty()
-                    ? "None: the Route sends requests as they come."
+                    ? "None. The Route sends requests unchanged."
                     : "The Route applies them in this order.")
         .__()
         .ol()
@@ -426,73 +422,62 @@ final class ServicePage {
         .__();
   }
 
+  /** What an alert says: its topic as the title, and its message. */
+  private record Problem(String topic, String message) {
+    static Problem of(ServiceWarning warning) {
+      return new Problem(warning.kind().topic(), warning.message());
+    }
+  }
+
   /**
-   * Red alerts for what stops the hostname from working, then one closed box for the risks. The box
-   * has a key so that disclosures.js can open it again after each refresh.
+   * An alert for each problem: errors and state alerts open, risks closed. Each alert has a key
+   * from its place in the list, so that disclosures.js can restore it after each refresh.
    */
   private static void alerts(Div<?> content, Service service) {
-    Map<ServiceWarning.Severity, List<String>> bySeverity =
+    Map<ServiceWarning.Severity, List<Problem>> bySeverity =
         service.warnings().stream()
             .collect(
                 Collectors.groupingBy(
                     ServiceWarning::severity,
-                    Collectors.mapping(ServiceWarning::message, Collectors.toList())));
-    List<String> errors = bySeverity.getOrDefault(ServiceWarning.Severity.ERROR, List.of());
-    List<String> risks = bySeverity.getOrDefault(ServiceWarning.Severity.RISK, List.of());
-    Stream.concat(stateAlert(service.state()).stream(), errors.stream())
-        .forEach(message ->
-            content
-                .div()
-                .attrClass("alert")
-                .addAttr("data-variant", "destructive")
-                .addAttr("role", "alert")
-                .h3()
-                .text(message)
-                .__()
-                .__());
+                    Collectors.mapping(Problem::of, Collectors.toList())));
+    List<Problem> errors =
+        Stream.concat(
+                stateAlert(service.state()).stream(),
+                bySeverity.getOrDefault(ServiceWarning.Severity.ERROR, List.of()).stream())
+            .toList();
+    List<Problem> risks = bySeverity.getOrDefault(ServiceWarning.Severity.RISK, List.of());
+    for (int i = 0; i < errors.size(); i++) {
+      Problem error = errors.get(i);
+      Alerts.render(
+          content, Alerts.Level.ERROR, "alert-error-" + i, error.topic(), error.message());
+    }
     if (service.requiresClientCertificate()) {
-      content
-          .div()
-          .attrId("https-only")
-          .attrClass("alert")
-          .h3()
-          .text(
-              "A Route Profile requires a Client Certificate, so this Service has no HTTP Route."
-                  + " It answers only on HTTPS.")
-          .__()
-          .__();
+      Alerts.render(
+          content,
+          Alerts.Level.NOTE,
+          "https-only",
+          "HTTPS only",
+          "A Route Profile requires a Client Certificate. This Service has no HTTP Route.");
     }
-    if (risks.isEmpty()) {
-      return;
+    for (int i = 0; i < risks.size(); i++) {
+      Problem risk = risks.get(i);
+      Alerts.render(content, Alerts.Level.RISK, "alert-risk-" + i, risk.topic(), risk.message());
     }
-    // custom: HtmlFlow's details gives its summary no attributes and its section no children.
-    content
-        .custom("details")
-        .attrId("risks")
-        .addAttr("data-preserve-open", "risks")
-        .attrClass("alert")
-        .addAttr("data-variant", "risk")
-        .custom("summary")
-        .attrClass("cursor-pointer font-medium")
-        .text(
-            risks.size() == 1 ? "1 risk to keep in mind" : risks.size() + " risks to keep in mind")
-        .__()
-        .section()
-        .attrClass("mt-2")
-        .ul()
-        .of(list -> risks.forEach(risk -> list.li().text(risk).__()))
-        .__()
-        .__()
-        .__();
   }
 
   /**
    * The state is not a Service Warning, so the API does not list it, but it breaks the hostname.
    */
-  private static Optional<String> stateAlert(ServiceState state) {
+  private static Optional<Problem> stateAlert(ServiceState state) {
     return switch (state) {
-      case UNAVAILABLE -> Optional.of("No Instances are registered");
-      case UNHEALTHY -> Optional.of("No Instance passes its checks");
+      case UNAVAILABLE ->
+          Optional.of(
+              new Problem("Unavailable", "No Instances are registered. Add an Instance Source."));
+      case UNHEALTHY ->
+          Optional.of(
+              new Problem(
+                  "Unhealthy",
+                  "No Instance passes its checks. Read the check output of each Instance."));
       case UNPUBLISHED, DEGRADED, HEALTHY -> Optional.empty();
     };
   }
@@ -585,11 +570,7 @@ final class ServicePage {
         })
         .p()
         .attrClass("text-sm text-muted-foreground")
-        .text(
-            "On Workstation "
-                + service.workstation()
-                + "."
-                + (own ? "" : " It can be changed only on " + service.workstation() + "."))
+        .text("Home Workstation: " + service.workstation() + (own ? "" : ". Change it only there."))
         .__()
         .__()
         .div()

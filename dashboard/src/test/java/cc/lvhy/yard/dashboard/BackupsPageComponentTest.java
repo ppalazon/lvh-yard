@@ -347,7 +347,7 @@ class BackupsPageComponentTest extends DashboardComponentTest {
     ResponseEntity<String> response = confirm(name, "add");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(response.getBody()).contains("Nothing changed");
+    assertThat(response.getBody()).contains("No changes, so no safety Backup.");
     assertThat(names()).isEqualTo(before);
   }
 

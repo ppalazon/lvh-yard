@@ -88,14 +88,13 @@ public class ErrorPage implements ErrorViewResolver {
                 .__()
                 .of(content -> {
                   if (generic) {
-                    content
-                        .p()
-                        .attrClass("text-muted-foreground")
-                        .text(
-                            path == null
-                                ? "There is nothing at this address."
-                                : "There is nothing at " + path + ".")
-                        .__();
+                    if (path != null) {
+                      content
+                          .p()
+                          .attrClass("text-muted-foreground")
+                          .text("There is nothing at " + path + ".")
+                          .__();
+                    }
                   } else if (message != null && consulUrl == null) {
                     // The Consul steps name the address, so they replace the message.
                     content
@@ -115,8 +114,8 @@ public class ErrorPage implements ErrorViewResolver {
                         .p()
                         .attrClass("text-muted-foreground")
                         .text(
-                            "The Status page shows which part of LVH Yard does not work. If the"
-                                + " problem stays, read the dashboard log.")
+                            "Open the Status page to see which part fails. If the problem stays,"
+                                + " read the dashboard log.")
                         .__();
                   }
                   actions(content, status, path);
@@ -150,10 +149,9 @@ public class ErrorPage implements ErrorViewResolver {
         .p()
         .attrClass("text-muted-foreground")
         .text(
-            "The dashboard reads and writes the Services, Publications and Aliases through the"
-                + " HTTP API of the Consul of this Workstation, at "
+            "Consul does not answer at "
                 + consulUrl
-                + ". That address does not answer, so the dashboard cannot show or change them.")
+                + ". The dashboard cannot show or change Services.")
         .__();
     parent
         .div()
@@ -163,23 +161,22 @@ public class ErrorPage implements ErrorViewResolver {
         .__()
         .ol()
         .attrClass("list-decimal space-y-3 pl-5")
-        .of(list -> step(list, "Make sure that Consul runs on this Workstation.", null))
+        .of(list -> step(list, "Check that Consul runs on this Workstation.", null))
         .of(list ->
             step(
                 list,
-                "Make sure that its HTTP API answers. This request returns the address of the"
-                    + " leader:",
+                "Check that its HTTP API answers. This request returns the leader address:",
                 "curl " + consulUrl + "/v1/status/leader"))
         .of(list ->
             step(
                 list,
                 "If Consul listens on another port, set YARD_CONSUL_HTTP_PORT for the dashboard"
-                    + " and start the dashboard again.",
+                    + " and restart the dashboard.",
                 null))
         .__()
         .p()
         .attrClass("text-muted-foreground text-sm")
-        .text("After a start, Consul needs a few seconds to elect itself leader.")
+        .text("After a start, Consul needs a few seconds to elect a leader.")
         .__()
         .__();
   }

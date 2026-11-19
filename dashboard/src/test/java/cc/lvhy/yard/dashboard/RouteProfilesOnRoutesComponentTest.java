@@ -159,7 +159,7 @@ class RouteProfilesOnRoutesComponentTest extends DashboardComponentTest {
     assertThat(warning(withLogin, "route-profile-auth"))
         .contains("team-login")
         .contains("10.1.2.3:8080")
-        .contains("check its users itself");
+        .contains("Make the Service check its users");
     assertThat(severity(withLogin, "route-profile-auth")).isEqualTo("risk");
     assertThat(warning(withChain, "route-profile-auth")).contains("protected");
     assertThat(warning(withHeaders, "route-profile-auth")).isNull();

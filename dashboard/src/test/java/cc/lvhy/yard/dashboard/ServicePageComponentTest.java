@@ -6,6 +6,8 @@ import static org.awaitility.Awaitility.await;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,13 +16,20 @@ import tools.jackson.databind.JsonNode;
 /** A Service's detail page, where its Instances are seen and removed. */
 class ServicePageComponentTest extends DashboardComponentTest {
 
-  /** The risks box, up to its own closing tag. */
+  /** The risk alerts, each up to its own closing tags. */
   private static String risks(String page) {
-    int start = page.lastIndexOf("<details", page.indexOf("id=\"risks\""));
-    if (start < 0) {
-      throw new AssertionError("No risks box");
+    Matcher found =
+        Pattern.compile(
+                "<div class=\"alert\" id=\"alert-risk-\\d+\".*?</details></div>", Pattern.DOTALL)
+            .matcher(page);
+    StringBuilder risks = new StringBuilder();
+    while (found.find()) {
+      risks.append(found.group());
     }
-    return page.substring(start, page.indexOf("</details>", start) + "</details>".length());
+    if (risks.isEmpty()) {
+      throw new AssertionError("No risk alert");
+    }
+    return risks.toString();
   }
 
   @Test
@@ -153,7 +162,7 @@ class ServicePageComponentTest extends DashboardComponentTest {
     assertThat(getPage(page).getBody())
         .contains("name=\"accessLog\" value=\"false\"")
         .contains(
-            "Traefik logs each request to the Route. To see the log, run this command:"
+            "Traefik logs each request. To see the log, run:"
                 + "<code class=\"mt-1 block w-fit max-w-full break-all rounded bg-muted px-2 py-1"
                 + " font-mono\">lvh-yard ws compose logs traefik</code>");
 
@@ -320,13 +329,14 @@ class ServicePageComponentTest extends DashboardComponentTest {
 
     String body = getPage(page).getBody();
     assertThat(risks(body))
-        .contains("1 risk to keep in mind")
-        .contains("127.0.0.1:8080 is on loopback");
+        .contains("<h2>Loopback Instances</h2>")
+        .contains("127.0.0.1:8080 is on loopback")
+        .doesNotContain("open=\"\"");
     assertThat(body).as("its Home Workstation reaches it").doesNotContain("Out of range");
   }
 
   @Test
-  void risksAreCountedAndAreNotARedAlert() {
+  void eachRiskIsItsOwnClosedAlertAndNotARedAlert() {
     String web = newServiceName("web");
     register(web, Map.of("host", "127.0.0.1", "port", 8080));
     register(web, Map.of("host", "127.0.0.1", "port", 8081));
@@ -334,8 +344,8 @@ class ServicePageComponentTest extends DashboardComponentTest {
 
     String body = getPage("/services/ws-test/" + web).getBody();
 
+    assertThat(risks(body).split("<h2>Loopback Instances</h2>", -1)).hasSize(3);
     assertThat(risks(body))
-        .contains("2 risks to keep in mind")
         .contains("127.0.0.1:8080 is on loopback")
         .contains("127.0.0.1:8081 is on loopback");
     assertThat(div(body, "role=\"alert\""))

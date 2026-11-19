@@ -10,14 +10,16 @@ import java.util.stream.Stream;
 
 /**
  * @param kind for a script to tell warnings apart
+ * @param topic a few words that name the problem, the same for each warning of a kind
  */
 public record ServiceWarning(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Kind kind,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Severity severity,
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String topic,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String message) {
 
   ServiceWarning(Kind kind, String message) {
-    this(kind, kind.severity(), message);
+    this(kind, kind.severity(), kind.topic(), message);
   }
 
   public enum Severity {
@@ -37,47 +39,54 @@ public record ServiceWarning(
   public enum Kind {
 
     /** Only its own Workstation can connect to a loopback address. */
-    LOOPBACK_INSTANCE(Severity.RISK),
+    LOOPBACK_INSTANCE(Severity.RISK, "Loopback Instances"),
 
-    UNPUBLISHED_CONTAINER_PORT(Severity.RISK),
+    UNPUBLISHED_CONTAINER_PORT(Severity.RISK, "Container port"),
 
     /**
      * A Route Profile asks who the user is, but only Traefik applies it, so a connection straight
      * to an Instance skips it.
      */
-    ROUTE_PROFILE_AUTH(Severity.RISK),
+    ROUTE_PROFILE_AUTH(Severity.RISK, "Authenticated Route"),
 
     /** Its Home Workstation does not hold the Route Profile, so Traefik refuses the Route. */
-    UNKNOWN_ROUTE_PROFILE(Severity.ERROR),
+    UNKNOWN_ROUTE_PROFILE(Severity.ERROR, "Unknown profile"),
 
     /**
      * This Workstation has no HTTPS or no client authentication for a Publication that requires a
      * Client Certificate.
      */
-    CLIENT_CERTIFICATE_UNAVAILABLE(Severity.ERROR),
+    CLIENT_CERTIFICATE_UNAVAILABLE(Severity.ERROR, "Client Certificate"),
 
     /** This Workstation has no mutual TLS for a Publication that requires it. */
-    MUTUAL_TLS_UNAVAILABLE(Severity.ERROR),
+    MUTUAL_TLS_UNAVAILABLE(Severity.ERROR, "Mutual TLS"),
 
     /**
      * Traefik answers on HTTPS, but calls an Instance over plain HTTP on the network, so anyone on
      * that network can read the traffic.
      */
-    UNENCRYPTED_INSTANCE(Severity.RISK),
+    UNENCRYPTED_INSTANCE(Severity.RISK, "Plain HTTP (Traefik -> Instances)"),
 
     /** Another tool registered it in Consul, so LVH Yard cannot change or remove it. */
-    FOREIGN_INSTANCE(Severity.RISK),
+    FOREIGN_INSTANCE(Severity.RISK, "Foreign Instance"),
 
     /**
      * Other Workstations skip Alias sources, so an Alias above another source can send their
      * requests to a different copy than this Workstation's.
      */
-    ALIAS_ABOVE_SOURCE(Severity.RISK);
+    ALIAS_ABOVE_SOURCE(Severity.RISK, "Alias order");
 
     private final Severity severity;
+    private final String topic;
 
-    Kind(Severity severity) {
+    Kind(Severity severity, String topic) {
       this.severity = severity;
+      this.topic = topic;
+    }
+
+    /** The short name of the problem. The dashboard shows it as the title of the alert. */
+    public String topic() {
+      return topic;
     }
 
     public Severity severity() {
@@ -128,15 +137,14 @@ public record ServiceWarning(
         .map(instance ->
             new ServiceWarning(
                 Kind.FOREIGN_INSTANCE,
-                "Another tool registered the Instance "
+                "The Instance "
                     + instance.id()
                     + " at "
                     + instance.address()
-                    + " in Consul, so LVH Yard cannot change or remove it. To remove it,"
-                    + " deregister it from the Consul agent of its Home Workstation, for example"
-                    + " with the HTTP API: PUT /v1/agent/service/deregister/"
+                    + " is registered by another tool. LVH Yard cannot change it. To remove it,"
+                    + " send PUT /v1/agent/service/deregister/"
                     + instance.id()
-                    + "."));
+                    + " to the Consul agent of its Home Workstation."));
   }
 
   /**
@@ -154,21 +162,19 @@ public record ServiceWarning(
             .map(instance ->
                 new ServiceWarning(
                     Kind.LOOPBACK_INSTANCE,
-                    "The Instance at "
-                        + instance.address()
-                        + " is on loopback, so other Workstations cannot reach it. Register it"
-                        + " at the LAN address instead.")),
+                    instance.address()
+                        + " is on loopback. Other Workstations cannot reach it. Register it at the"
+                        + " LAN address.")),
         instances.stream()
             .filter(Instance::unpublishedContainerPort)
             .map(instance ->
                 new ServiceWarning(
                     Kind.UNPUBLISHED_CONTAINER_PORT,
-                    "The Bound Instance at "
+                    "The container port of "
                         + instance.address()
-                        + " is on a container port that is not published, so other Workstations"
-                        + " cannot reach it. Publish port "
+                        + " is not published. Other Workstations cannot reach it. Publish port "
                         + instance.port()
-                        + " with docker run -p or a ports: entry, and restart the container.")));
+                        + " with docker run -p or a ports: entry. Restart the container.")));
   }
 
   /**
@@ -191,9 +197,8 @@ public record ServiceWarning(
                 Kind.ALIAS_ABOVE_SOURCE,
                 "The Alias to "
                     + source.id()
-                    + " is above another Instance Source. Other Workstations skip Aliases, so"
-                    + " their Route can use another copy than this Workstation's. To avoid this,"
-                    + " move the Alias below the other sources."));
+                    + " is above another Instance Source. Other Workstations skip Aliases. Move it"
+                    + " below the other sources."));
   }
 
   private static Stream<ServiceWarning> unknown(
@@ -205,9 +210,8 @@ public record ServiceWarning(
                 Kind.UNKNOWN_ROUTE_PROFILE,
                 "The Route Profile "
                     + name
-                    + " does not exist on the Home Workstation, so Traefik refuses the Route and"
-                    + " the hostname does not answer. Add the profile again on the Home"
-                    + " Workstation, or remove it from the Publication."));
+                    + " does not exist on the Home Workstation. The hostname does not answer. Add"
+                    + " it there, or remove it from the Publication."));
   }
 
   private static Stream<ServiceWarning> clientCertificate(
@@ -223,9 +227,11 @@ public record ServiceWarning(
     return Stream.of(
         new ServiceWarning(
             Kind.CLIENT_CERTIFICATE_UNAVAILABLE,
-            "This Workstation has no "
+            "No "
                 + missing
-                + " for this Publication's required Client Certificate."));
+                + " on this Workstation. The Route requires a Client Certificate. Turn on "
+                + missing
+                + ", or remove the Route Profile."));
   }
 
   private static Stream<ServiceWarning> mutualTls(Publication publication, boolean noMtlsAtHome) {
@@ -235,7 +241,7 @@ public record ServiceWarning(
     return Stream.of(
         new ServiceWarning(
             Kind.MUTUAL_TLS_UNAVAILABLE,
-            "This Workstation has no mutual TLS, which this Publication needs."));
+            "No mutual TLS on this Workstation. Turn it on, or turn it off for this Service."));
   }
 
   /**
@@ -258,10 +264,10 @@ public record ServiceWarning(
     return Stream.of(
         new ServiceWarning(
             Kind.UNENCRYPTED_INSTANCE,
-            "Traefik answers on HTTPS, but it calls "
+            "Traefik calls "
                 + String.join(", ", exposed)
-                + " over plain HTTP, so anyone on that network can read the traffic. To encrypt"
-                + " it, serve HTTPS from the Instance and turn on mutual TLS for this Service."));
+                + " over plain HTTP. Others on that network can read the traffic. Serve HTTPS from"
+                + " the Instance. Turn on mutual TLS for this Service."));
   }
 
   private static boolean requires(
@@ -289,8 +295,8 @@ public record ServiceWarning(
                 Kind.ROUTE_PROFILE_AUTH,
                 "The Route Profile "
                     + name
-                    + " asks who the user is only on the hostname. A connection straight to "
+                    + " asks who the user is only on the hostname. A direct connection to "
                     + addresses
-                    + " skips it, so the Service must check its users itself."));
+                    + " skips it. Make the Service check its users."));
   }
 }

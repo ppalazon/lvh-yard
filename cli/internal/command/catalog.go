@@ -256,6 +256,6 @@ func printCatalogDetails(out io.Writer, service *client.Service) {
 		fmt.Fprintf(out, "    %-13s  %-8s  %s%s\n", instance.Host+":"+strconv.Itoa(instance.Port), instance.Health, instance.ID, marks)
 	}
 	for _, warning := range service.Warnings {
-		fmt.Fprintf(out, "    %s: %s\n", warning.Severity, warning.Message)
+		fmt.Fprintf(out, "    %s\n", warningLine(warning))
 	}
 }

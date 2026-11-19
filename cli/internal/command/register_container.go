@@ -61,7 +61,7 @@ func newRegisterContainer(options *Options) *cobra.Command {
 			}
 			fmt.Fprintln(out)
 			for _, warning := range registered.Warnings {
-				fmt.Fprintf(cmd.ErrOrStderr(), "%s: %s\n", warning.Severity, warning.Message)
+				fmt.Fprintln(cmd.ErrOrStderr(), warningLine(warning))
 			}
 			return nil
 		},

@@ -36,9 +36,9 @@ final class AddAliasPage {
     return new FormPage.Spec(
         null,
         "Add Alias",
-        "The Alias gives "
+        "Adds the Instances of a Remote Service to "
             + service.name()
-            + " the Instances of a Remote Service. Only this Workstation's Route uses them.",
+            + ". Only the Route on this Workstation uses them.",
         path(service),
         action(service),
         "Add");
@@ -90,9 +90,8 @@ final class AddAliasPage {
                 .attrClass("text-muted-foreground")
                 .text(
                     shared.isEmpty()
-                        ? "No Remote Service has Yard Scope now. An Alias needs one."
-                        : "Every Remote Service with Yard Scope is an Alias of this Service"
-                            + " already.")
+                        ? "No Remote Service has Yard Scope."
+                        : "Every Remote Service with Yard Scope is already an Alias.")
                 .__();
             if (error != null) {
               section

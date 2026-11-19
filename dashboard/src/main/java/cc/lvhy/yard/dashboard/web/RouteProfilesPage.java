@@ -53,11 +53,7 @@ final class RouteProfilesPage {
                 .__()
                 .__()
                 .p()
-                .text(
-                    "Reusable Route options, such as authentication or added headers, that the"
-                        + " Publications of "
-                        + workstation.name()
-                        + " can name.")
+                .text("Reusable Route options. A Publication names the ones it uses.")
                 .__()
                 .of(content -> {
                   if (removeError != null) {
@@ -86,8 +82,7 @@ final class RouteProfilesPage {
       EmptyState.render(
           main,
           "No Route Profiles yet.",
-          "A Route Profile holds Route options, such as authentication. Click New Route Profile"
-              + " to add one. Then name it when you publish a Service.");
+          "Click New Route Profile to add one. Name it when you publish a Service.");
       return;
     }
     main.table()

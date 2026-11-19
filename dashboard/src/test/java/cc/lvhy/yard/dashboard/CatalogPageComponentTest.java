@@ -25,7 +25,7 @@ class CatalogPageComponentTest extends DashboardComponentTest {
     ResponseEntity<String> response = getPage("/");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(response.getBody()).contains("LVH Yard · ws-test").contains("base domain lvh.test");
+    assertThat(response.getBody()).contains("LVH Yard · ws-test").contains("Base domain: lvh.test");
   }
 
   @Test

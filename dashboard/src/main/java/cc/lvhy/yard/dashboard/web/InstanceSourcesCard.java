@@ -215,7 +215,7 @@ final class InstanceSourcesCard {
   private static void foreignSource(Li<?> item, Service service, InstanceSource source) {
     item.p()
         .attrClass("text-muted-foreground text-sm")
-        .text("Another tool registered it in Consul, so LVH Yard cannot change it.")
+        .text("Registered in Consul by another tool. LVH Yard cannot change it.")
         .__();
     instances(item, service, source);
   }

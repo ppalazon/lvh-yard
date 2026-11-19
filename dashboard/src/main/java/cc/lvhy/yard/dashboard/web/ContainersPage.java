@@ -142,9 +142,6 @@ final class ContainersPage {
                 .h1()
                 .text("Containers")
                 .__()
-                .p()
-                .text("Create a Service from a container or Compose service on this Workstation.")
-                .__()
                 .__()
                 .of(page -> filterForm(page, filters))
                 .of(page ->
@@ -241,7 +238,7 @@ final class ContainersPage {
           .text(dockerProblem)
           .__()
           .p()
-          .text("The list refreshes when Docker is available again.")
+          .text("The list refreshes when Docker answers.")
           .__()
           .__();
       return;
@@ -359,10 +356,6 @@ final class ContainersPage {
                             createLink(heading, target);
                           }
                         })
-                        .__()
-                        .p()
-                        .attrClass("container-target-hint")
-                        .text("Follows every container of " + target + ".")
                         .__()
                         .of(targetGroup -> followers(targetGroup, workstation, followedBy))
                         .custom("details")
