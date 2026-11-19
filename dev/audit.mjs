@@ -84,7 +84,7 @@ const code = tracked
     (path) => !path.startsWith(".trail/") && !path.startsWith(".scratch/"),
   )
   .filter((path) =>
-    /\.(java|js|mjs|yaml|yml|toml|xml|json|md|css|env|example)$|Dockerfile$/.test(
+    /\.(java|go|js|mjs|yaml|yml|toml|xml|json|md|css|env|example)$|Dockerfile$/.test(
       path,
     ),
   )
