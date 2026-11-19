@@ -2,6 +2,7 @@ package command_test
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
@@ -31,19 +32,29 @@ type updateFixture struct {
 	dashboardStatus atomic.Int32
 }
 
-// newUpdateFixture serves release version for the platform of the test computer. The executable that it holds says
-// "new executable".
-func newUpdateFixture(t *testing.T, installed, version string) *updateFixture {
+// releaseArchive packs an executable that says "new executable", as a release does for goos: a ZIP for windows and a
+// tar.gz for the others. It gives the file extension of the archive too.
+func releaseArchive(t *testing.T, goos, executableName string) (data []byte, extension string) {
 	t.Helper()
-	platform, err := update.Platform(runtime.GOOS, runtime.GOARCH)
-	if err != nil || runtime.GOOS == "windows" {
-		t.Skip("no tar.gz release for this computer")
-	}
+	body := "new executable"
 	var archive bytes.Buffer
+	if goos == "windows" {
+		writer := zip.NewWriter(&archive)
+		file, err := writer.Create(executableName)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := file.Write([]byte(body)); err != nil {
+			t.Fatal(err)
+		}
+		if err := writer.Close(); err != nil {
+			t.Fatal(err)
+		}
+		return archive.Bytes(), ".zip"
+	}
 	zipper := gzip.NewWriter(&archive)
 	tarball := tar.NewWriter(zipper)
-	body := "new executable"
-	if err := tarball.WriteHeader(&tar.Header{Name: "lvh-yard", Mode: 0o755, Size: int64(len(body)), Typeflag: tar.TypeReg}); err != nil {
+	if err := tarball.WriteHeader(&tar.Header{Name: executableName, Mode: 0o755, Size: int64(len(body)), Typeflag: tar.TypeReg}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := tarball.Write([]byte(body)); err != nil {
@@ -55,23 +66,44 @@ func newUpdateFixture(t *testing.T, installed, version string) *updateFixture {
 	if err := zipper.Close(); err != nil {
 		t.Fatal(err)
 	}
-	sum := sha256.Sum256(archive.Bytes())
-	name := "lvh-yard-" + version + "-" + platform + ".tar.gz"
+	return archive.Bytes(), ".tar.gz"
+}
+
+// newUpdateFixture serves release version for linux, which is the system that the test harness reports on every
+// computer. The executable that it holds says "new executable".
+func newUpdateFixture(t *testing.T, installed, version string) *updateFixture {
+	t.Helper()
+	return newUpdateFixtureFor(t, "linux", installed, version)
+}
+
+// newUpdateFixtureFor serves release version for the platform of goos, and makes the harness report goos. The archive
+// code reads the platform that the command reports, so a test runs the same on every computer.
+func newUpdateFixtureFor(t *testing.T, goos, installed, version string) *updateFixture {
+	t.Helper()
+	platform, err := update.Platform(goos, runtime.GOARCH)
+	if err != nil {
+		t.Skip("no release of " + goos + " for " + runtime.GOARCH)
+	}
+	executableName := update.Executable(platform)
+	archive, extension := releaseArchive(t, goos, executableName)
+	sum := sha256.Sum256(archive)
+	name := "lvh-yard-" + version + "-" + platform + extension
 	sums := hex.EncodeToString(sum[:]) + "  " + name + "\n"
 	mux := http.NewServeMux()
 	for _, base := range []string{"/latest/download/", "/download/v" + version + "/"} {
 		mux.HandleFunc(base+"SHA256SUMS", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, sums) })
-		mux.HandleFunc(base+name, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(archive.Bytes()) })
+		mux.HandleFunc(base+name, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(archive) })
 	}
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 
-	executable := filepath.Join(t.TempDir(), "lvh-yard")
+	executable := filepath.Join(t.TempDir(), executableName)
 	if err := os.WriteFile(executable, []byte("old executable"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	folder := filepath.Join(t.TempDir(), "workstation")
 	yard := commandtest.New(t)
+	yard.Process.System = goos
 	yard.Version = installed
 	yard.Releases = server.URL
 	yard.Executable = executable
@@ -122,6 +154,29 @@ func TestUpdateReplacesTheExecutableThenTheNewOneUpgradesTheWorkstation(t *testi
 	want := []commandtest.Command{{Name: f.executable, Args: []string{"ws", "compose", "upgrade"}, Dir: f.folder}}
 	if !reflect.DeepEqual(f.yard.Process.Commands, want) {
 		t.Fatalf("commands = %+v, want %+v", f.yard.Process.Commands, want)
+	}
+	if !strings.Contains(run.Stdout, "Updating lvh-yard 1.0.0 to 2.0.0") {
+		t.Fatalf("output: %q", run.Stdout)
+	}
+}
+
+// A Windows release is a ZIP that holds lvh-yard.exe. The command reads the platform from the system that it reports, so
+// this runs on every computer, and a Windows computer runs it natively too.
+func TestUpdateInstallsTheZipOfAWindowsRelease(t *testing.T) {
+	f := newUpdateFixtureFor(t, "windows", "1.0.0", "2.0.0")
+	f.writeCompose(t)
+	if filepath.Base(f.executable) != "lvh-yard.exe" {
+		t.Fatalf("the installed executable is %s", f.executable)
+	}
+	run := f.yard.Run("update")
+	if run.ExitCode != 0 || run.Stderr != "" {
+		t.Fatalf("update: %+v", run)
+	}
+	if f.installed(t) != "new executable" {
+		t.Fatal("the executable was not replaced")
+	}
+	if leftovers, _ := filepath.Glob(filepath.Join(filepath.Dir(f.executable), ".lvh-yard.*")); len(leftovers) != 0 {
+		t.Fatalf("the update left %v", leftovers)
 	}
 	if !strings.Contains(run.Stdout, "Updating lvh-yard 1.0.0 to 2.0.0") {
 		t.Fatalf("output: %q", run.Stdout)
