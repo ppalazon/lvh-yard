@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/ppalazon/lvh-yard/cli/internal/update"
 	"github.com/spf13/cobra"
@@ -25,6 +26,8 @@ type Options struct {
 	Executable func() (string, error)
 	// HTTP is the client that update downloads with.
 	HTTP *http.Client
+	// ConsulHTTP is the client that ws yard peers asks Consul with. The default has a 5 s timeout.
+	ConsulHTTP *http.Client
 
 	dashboard string
 }
@@ -54,6 +57,9 @@ func NewRoot(options Options, groups ...func(*Options) *cobra.Command) *cobra.Co
 	}
 	if options.HTTP == nil {
 		options.HTTP = update.Client
+	}
+	if options.ConsulHTTP == nil {
+		options.ConsulHTTP = &http.Client{Timeout: 5 * time.Second}
 	}
 	root := &cobra.Command{
 		Use:           "lvh-yard",

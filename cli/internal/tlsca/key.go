@@ -116,19 +116,41 @@ func readEncryptedKey(der []byte) (kdf pbkdf2Params, iv, data []byte, err error)
 	if rest, err := asn1.Unmarshal(der, &info); err != nil || len(rest) != 0 || !info.Algorithm.Algorithm.Equal(oidPBES2) {
 		return kdf, nil, nil, fmt.Errorf("invalid CA key: not a PKCS#8 key with a password")
 	}
-	var params pbes2Params
-	if _, err := asn1.Unmarshal(info.Algorithm.Parameters.FullBytes, &params); err != nil || !params.KDF.Algorithm.Equal(oidPBKDF2) || !params.Scheme.Algorithm.Equal(oidAES256CBC) {
-		return kdf, nil, nil, fmt.Errorf("invalid CA key: only PBKDF2 with AES-256-CBC is supported")
+	params, err := readPBES2Params(info)
+	if err != nil {
+		return kdf, nil, nil, err
 	}
-	if _, err := asn1.Unmarshal(params.KDF.Parameters.FullBytes, &kdf); err != nil || !kdf.PRF.Algorithm.Equal(oidHMACSHA256) ||
-		kdf.Iterations < 1 || kdf.Iterations > maxKeyRounds || (kdf.KeyLength != 0 && kdf.KeyLength != 32) {
-		return kdf, nil, nil, fmt.Errorf("invalid CA key: only PBKDF2 with HMAC-SHA256 is supported")
+	if kdf, err = readKDFParams(params); err != nil {
+		return kdf, nil, nil, err
 	}
-	if _, err := asn1.Unmarshal(params.Scheme.Parameters.FullBytes, &iv); err != nil || len(iv) != aes.BlockSize ||
-		len(info.Data) == 0 || len(info.Data)%aes.BlockSize != 0 {
-		return kdf, nil, nil, fmt.Errorf("invalid CA key")
+	if iv, err = readIV(params, info); err != nil {
+		return kdf, nil, nil, err
 	}
 	return kdf, iv, info.Data, nil
+}
+
+func readPBES2Params(info encryptedKeyInfo) (pbes2Params, error) {
+	var params pbes2Params
+	if _, err := asn1.Unmarshal(info.Algorithm.Parameters.FullBytes, &params); err != nil || !params.KDF.Algorithm.Equal(oidPBKDF2) || !params.Scheme.Algorithm.Equal(oidAES256CBC) {
+		return params, fmt.Errorf("invalid CA key: only PBKDF2 with AES-256-CBC is supported")
+	}
+	return params, nil
+}
+
+func readKDFParams(params pbes2Params) (kdf pbkdf2Params, err error) {
+	if _, err := asn1.Unmarshal(params.KDF.Parameters.FullBytes, &kdf); err != nil || !kdf.PRF.Algorithm.Equal(oidHMACSHA256) ||
+		kdf.Iterations < 1 || kdf.Iterations > maxKeyRounds || (kdf.KeyLength != 0 && kdf.KeyLength != 32) {
+		return kdf, fmt.Errorf("invalid CA key: only PBKDF2 with HMAC-SHA256 is supported")
+	}
+	return kdf, nil
+}
+
+func readIV(params pbes2Params, info encryptedKeyInfo) (iv []byte, err error) {
+	if _, err := asn1.Unmarshal(params.Scheme.Parameters.FullBytes, &iv); err != nil || len(iv) != aes.BlockSize ||
+		len(info.Data) == 0 || len(info.Data)%aes.BlockSize != 0 {
+		return nil, fmt.Errorf("invalid CA key")
+	}
+	return iv, nil
 }
 
 // decryptKey reads a key that EncryptKey made.

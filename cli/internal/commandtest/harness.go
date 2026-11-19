@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -27,6 +28,8 @@ type Harness struct {
 	Releases string
 	// Executable is the file that update replaces.
 	Executable string
+	// ConsulHTTP is the client that ws yard peers asks Consul with. With none, it uses the real one.
+	ConsulHTTP *http.Client
 }
 
 func New(t testing.TB) *Harness {
@@ -49,6 +52,7 @@ func (h *Harness) Run(args ...string) Result {
 		options.Dashboard = func(string) command.Dashboard { return h.Dashboard }
 	}
 	options.Releases = h.Releases
+	options.ConsulHTTP = h.ConsulHTTP
 	if h.Executable != "" {
 		options.Executable = func() (string, error) { return h.Executable, nil }
 	}

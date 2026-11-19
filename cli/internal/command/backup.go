@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/ppalazon/lvh-yard/cli/internal/client"
 	"github.com/spf13/cobra"
 )
 
@@ -76,18 +77,9 @@ func NewImport(options *Options) *cobra.Command {
 		Long:  importHelp,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var data []byte
-			var err error
-			if args[0] == "-" {
-				data, err = io.ReadAll(options.Process.Input())
-				if err != nil {
-					return fmt.Errorf("Cannot read the standard input: %w", err)
-				}
-			} else {
-				data, err = os.ReadFile(args[0])
-				if err != nil {
-					return fmt.Errorf("Cannot read %s: %w", args[0], err)
-				}
+			data, err := readFileOrInput(options, args[0])
+			if err != nil {
+				return err
 			}
 			mode := "add"
 			if update {
@@ -97,41 +89,61 @@ func NewImport(options *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out := cmd.OutOrStdout()
-			if from := result.ExportedFrom; from != nil && from.Workstation != "" {
-				when := ""
-				if from.At != "" {
-					when = " at " + from.At
-				}
-				fmt.Fprintf(out, "Backup of %s%s.\n", from.Workstation, when)
-			}
-			added, updated := 0, 0
-			for _, entry := range result.Entries {
-				fmt.Fprintln(out, entry.Line())
-				switch entry.Action {
-				case "add":
-					added++
-				case "update":
-					updated++
-				}
-			}
-			skipped := len(result.Entries) - added - updated
-			if result.DryRun {
-				fmt.Fprintln(out, "Dry run: nothing changed.")
-			} else if added+updated == 0 {
-				fmt.Fprintf(out, "Nothing changed: skipped %d.\n", skipped)
-			} else if updated == 0 {
-				fmt.Fprintf(out, "Added %d, skipped %d.\n", added, skipped)
-			} else {
-				fmt.Fprintf(out, "Added %d, updated %d, skipped %d.\n", added, updated, skipped)
-			}
-			if result.SafetyBackup != "" {
-				fmt.Fprintf(out, "Safety Backup: %s, in the Backups folder.\n", result.SafetyBackup)
-			}
+			printImportResult(cmd.OutOrStdout(), result)
 			return nil
 		},
 	}
 	cmd.Flags().BoolVar(&update, "update", false, "Overwrites what exists with the Backup.")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Shows the plan. Changes nothing.")
 	return cmd
+}
+
+// readFileOrInput reads the standard input when the name is "-", and the named file otherwise.
+func readFileOrInput(options *Options, name string) ([]byte, error) {
+	if name == "-" {
+		data, err := io.ReadAll(options.Process.Input())
+		if err != nil {
+			return nil, fmt.Errorf("Cannot read the standard input: %w", err)
+		}
+		return data, nil
+	}
+	// #nosec G304 -- The user names the file to import.
+	data, err := os.ReadFile(name)
+	if err != nil {
+		return nil, fmt.Errorf("Cannot read %s: %w", name, err)
+	}
+	return data, nil
+}
+
+func printImportResult(out io.Writer, result client.ImportResult) {
+	if from := result.ExportedFrom; from != nil && from.Workstation != "" {
+		when := ""
+		if from.At != "" {
+			when = " at " + from.At
+		}
+		fmt.Fprintf(out, "Backup of %s%s.\n", from.Workstation, when)
+	}
+	added, updated := 0, 0
+	for _, entry := range result.Entries {
+		fmt.Fprintln(out, entry.Line())
+		switch entry.Action {
+		case "add":
+			added++
+		case "update":
+			updated++
+		}
+	}
+	skipped := len(result.Entries) - added - updated
+	if result.DryRun {
+		fmt.Fprintln(out, "Dry run: nothing changed.")
+	} else if added+updated == 0 {
+		fmt.Fprintf(out, "Nothing changed: skipped %d.\n", skipped)
+	} else if updated == 0 {
+		fmt.Fprintf(out, "Added %d, skipped %d.\n", added, skipped)
+	} else {
+		fmt.Fprintf(out, "Added %d, updated %d, skipped %d.\n", added, updated, skipped)
+	}
+	if result.SafetyBackup != "" {
+		fmt.Fprintf(out, "Safety Backup: %s, in the Backups folder.\n", result.SafetyBackup)
+	}
 }

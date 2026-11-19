@@ -103,7 +103,7 @@ description = "Run go vet, golangci-lint for this computer and for Windows, and 
 dir = "{{config_root}}/cli"
 # The gate runs only the linters that report nothing today. quality:go runs the full set of cli/.golangci.yml.
 # The second lint run type-checks the _windows.go files and the Windows tests, which the first run skips.
-env = { GATE_LINTERS = "errcheck,errorlint,modernize,staticcheck,bodyclose,misspell,unconvert,govet,ineffassign,unused,gosec" }
+env = { GATE_LINTERS = "errcheck,errorlint,modernize,staticcheck,bodyclose,misspell,unconvert,govet,ineffassign,unused,gosec,gocyclo,funlen" }
 run = [
   "go vet ./...",
   "golangci-lint run --enable-only=$GATE_LINTERS ./...",

@@ -14,6 +14,11 @@ func NewAlias(options *Options) *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE:  func(cmd *cobra.Command, args []string) error { return cmd.Help() },
 	}
+	group.AddCommand(newAliasAdd(options), newAliasList(options), newAliasRemove(options))
+	return group
+}
+
+func newAliasAdd(options *Options) *cobra.Command {
 	var workstation, remoteService string
 	add := &cobra.Command{
 		Use:   "add <service>",
@@ -49,7 +54,11 @@ func NewAlias(options *Options) *cobra.Command {
 	add.Flags().StringVar(&remoteService, "service", "", "Sets the name of the Remote Service.")
 	_ = add.MarkFlagRequired("workstation")
 	_ = add.MarkFlagRequired("service")
-	list := &cobra.Command{
+	return add
+}
+
+func newAliasList(options *Options) *cobra.Command {
+	return &cobra.Command{
 		Use:   "list <service>",
 		Short: "Lists the Aliases of a Service.",
 		Args:  cobra.ExactArgs(1),
@@ -71,6 +80,9 @@ func NewAlias(options *Options) *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func newAliasRemove(options *Options) *cobra.Command {
 	var removeWorkstation, removeService string
 	remove := &cobra.Command{
 		Use:   "remove <service>",
@@ -88,6 +100,5 @@ func NewAlias(options *Options) *cobra.Command {
 	remove.Flags().StringVar(&removeService, "service", "", "Sets the name of the Remote Service.")
 	_ = remove.MarkFlagRequired("workstation")
 	_ = remove.MarkFlagRequired("service")
-	group.AddCommand(add, list, remove)
-	return group
+	return remove
 }

@@ -3,14 +3,15 @@ package command
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
-	"time"
 
+	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
 	"github.com/ppalazon/lvh-yard/cli/internal/settings"
 	"github.com/spf13/cobra"
 )
@@ -28,73 +29,94 @@ type wanMember struct {
 	Tags   map[string]string `json:"Tags"`
 }
 
-func newWSYardPeers(folder func() string) *cobra.Command {
+func newWSYardPeers(options *Options, folder func() string) *cobra.Command {
 	var sync bool
 	cmd := &cobra.Command{
 		Use: "peers", Short: "Lists the Peers that Consul sees.", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			env, err := readWSEnv(folder())
-			if err != nil {
-				return err
-			}
-			self := strings.Trim(env.Get("YARD_WORKSTATION"), "\"'")
-			members, err := readWANMembers(env.ValueOrDefault("YARD_CONSUL_HTTP_PORT"))
-			if err != nil {
-				return err
-			}
-			var peers []wanMember
-			skipped := []string{}
-			for _, member := range members {
-				datacenter := member.Tags["dc"]
-				if datacenter == self {
-					continue
-				}
-				ip := net.ParseIP(member.Addr)
-				if member.Status != serfAlive || ip == nil || ip.To4() == nil {
-					skipped = append(skipped, datacenter)
-					continue
-				}
-				peers = append(peers, member)
-			}
-			sort.Slice(peers, func(i, j int) bool { return peers[i].Tags["dc"] < peers[j].Tags["dc"] })
-			out := cmd.OutOrStdout()
-			table := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(table, "WORKSTATION\tPEER")
-			addresses := make([]string, 0, len(peers))
-			for _, peer := range peers {
-				address := peerAddress(peer)
-				addresses = append(addresses, address)
-				fmt.Fprintf(table, "%s\t%s\n", peer.Tags["dc"], address)
-			}
-			if err := table.Flush(); err != nil {
-				return err
-			}
-			if len(skipped) > 0 {
-				sort.Strings(skipped)
-				fmt.Fprintf(out, "Not answering, left out: %s\n", strings.Join(skipped, ", "))
-			}
-			if !sync {
-				return nil
-			}
-			if len(addresses) == 0 {
-				return fmt.Errorf("no other Workstation answers. YARD_PEERS does not change")
-			}
-			value, err := settings.Check("peers", strings.Join(addresses, " "))
-			if err != nil {
-				return err
-			}
-			if strings.Join(strings.FieldsFunc(env.Get("YARD_PEERS"), func(r rune) bool { return r == ',' || r == ' ' }), " ") == value {
-				fmt.Fprintln(out, "YARD_PEERS is already up to date.")
-				return nil
-			}
-			if err := env.Set("YARD_PEERS", value); err != nil {
-				return err
-			}
-			return saveWSEnv(cmd, folder(), env)
+			return runYardPeers(cmd, options, folder(), sync)
 		},
 	}
 	cmd.Flags().BoolVar(&sync, "sync", false, "Sets YARD_PEERS to the Peers that answer.")
 	return cmd
+}
+
+func runYardPeers(cmd *cobra.Command, options *Options, folder string, sync bool) error {
+	env, err := readWSEnv(folder)
+	if err != nil {
+		return err
+	}
+	self := strings.Trim(env.Get("YARD_WORKSTATION"), "\"'")
+	members, err := readWANMembers(options.ConsulHTTP, env.ValueOrDefault("YARD_CONSUL_HTTP_PORT"))
+	if err != nil {
+		return err
+	}
+	peers, skipped := splitWANMembers(members, self)
+	out := cmd.OutOrStdout()
+	addresses, err := printPeerTable(out, peers)
+	if err != nil {
+		return err
+	}
+	if len(skipped) > 0 {
+		sort.Strings(skipped)
+		fmt.Fprintf(out, "Not answering, left out: %s\n", strings.Join(skipped, ", "))
+	}
+	if !sync {
+		return nil
+	}
+	return syncYardPeers(cmd, folder, env, addresses)
+}
+
+// splitWANMembers gives the other Workstations that answer, sorted by name, and the names of those
+// that do not answer.
+func splitWANMembers(members []wanMember, self string) (peers []wanMember, skipped []string) {
+	skipped = []string{}
+	for _, member := range members {
+		datacenter := member.Tags["dc"]
+		if datacenter == self {
+			continue
+		}
+		ip := net.ParseIP(member.Addr)
+		if member.Status != serfAlive || ip == nil || ip.To4() == nil {
+			skipped = append(skipped, datacenter)
+			continue
+		}
+		peers = append(peers, member)
+	}
+	sort.Slice(peers, func(i, j int) bool { return peers[i].Tags["dc"] < peers[j].Tags["dc"] })
+	return peers, skipped
+}
+
+// printPeerTable prints the Peers and gives their addresses.
+func printPeerTable(out io.Writer, peers []wanMember) ([]string, error) {
+	table := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(table, "WORKSTATION\tPEER")
+	addresses := make([]string, 0, len(peers))
+	for _, peer := range peers {
+		address := peerAddress(peer)
+		addresses = append(addresses, address)
+		fmt.Fprintf(table, "%s\t%s\n", peer.Tags["dc"], address)
+	}
+	return addresses, table.Flush()
+}
+
+// syncYardPeers sets YARD_PEERS to the addresses of the Peers that answer.
+func syncYardPeers(cmd *cobra.Command, folder string, env *envfile.File, addresses []string) error {
+	if len(addresses) == 0 {
+		return fmt.Errorf("no other Workstation answers. YARD_PEERS does not change")
+	}
+	value, err := settings.Check("peers", strings.Join(addresses, " "))
+	if err != nil {
+		return err
+	}
+	if strings.Join(strings.FieldsFunc(env.Get("YARD_PEERS"), func(r rune) bool { return r == ',' || r == ' ' }), " ") == value {
+		fmt.Fprintln(cmd.OutOrStdout(), "YARD_PEERS is already up to date.")
+		return nil
+	}
+	if err := env.Set("YARD_PEERS", value); err != nil {
+		return err
+	}
+	return saveWSEnv(cmd, folder, env)
 }
 
 // peerAddress leaves out the port when it is Consul's default.
@@ -106,9 +128,9 @@ func peerAddress(member wanMember) string {
 	return net.JoinHostPort(member.Addr, port)
 }
 
-func readWANMembers(port string) ([]wanMember, error) {
+func readWANMembers(client *http.Client, port string) ([]wanMember, error) {
 	address := "http://127.0.0.1:" + port
-	response, err := (&http.Client{Timeout: 5 * time.Second}).Get(address + "/v1/agent/members?wan=1")
+	response, err := client.Get(address + "/v1/agent/members?wan=1")
 	if err != nil {
 		return nil, fmt.Errorf("cannot reach Consul at %s. Start this Workstation with \"lvh-yard ws compose start\"", address)
 	}
