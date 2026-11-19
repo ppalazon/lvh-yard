@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.http.MediaType;
 
 /** Browsing containers and creating a Service from one container or Compose service. */
 class ContainersPageComponentTest extends DashboardComponentTest {
@@ -176,6 +177,16 @@ class ContainersPageComponentTest extends DashboardComponentTest {
   void unknownFilterValuesAreRefused() {
     assertThat(getPage("/containers?state=up").getStatusCode().value()).isEqualTo(400);
     assertThat(getPage("/containers?followed=maybe").getStatusCode().value()).isEqualTo(400);
+  }
+
+  @Test
+  void aBrowserIsToldWhichFilterValueIsUnknown() {
+    var state = getAccepting("/containers?state=up", MediaType.TEXT_HTML);
+    assertThat(state.getStatusCode().value()).isEqualTo(400);
+    assertThat(state.getBody()).contains("<html").contains("The state up is unknown");
+    var followed = getAccepting("/containers?followed=maybe", MediaType.TEXT_HTML);
+    assertThat(followed.getStatusCode().value()).isEqualTo(400);
+    assertThat(followed.getBody()).contains("The value maybe is unknown");
   }
 
   @Test
