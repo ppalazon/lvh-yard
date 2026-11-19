@@ -41,12 +41,12 @@ keeps package managers, Authenticode signing and a self-update command out of sc
       Windows ZIP (`lvh-yard.exe` and `LICENSE`), the Linux and macOS archives and `SHA256SUMS`. All four checksums
       verify. `releases/latest` is still `v0.1.0`. I first added `--prerelease` for hyphenated tags, because the
       installers use `releases/latest`.
-- [ ] Delete the test release, the tag and the image `lvh-yard-dashboard:0.1.1-rc.1` when you have finished looking at
-      them. I did not, because the token has no `delete:packages` scope, and you may want to look first.
-      `gh release delete v0.1.1-rc.1 --cleanup-tag` removes the release and the tag. Delete the image version in the
-      package settings on GitHub.
-- [ ] Deploy the site so that `install.ps1` is served. `mise run site:build` copies it to `docs/site/dist` (observed
-      locally); no deployment was observed.
+- [ ] Delete the image `lvh-yard-dashboard:0.1.1-rc.1`. You deleted the test release and its tag (no release and no tag
+      exist on GitHub). The image still resolves (digest `sha256:d44ca5c1...`, checked 2026-11-16), and the token has no
+      `delete:packages` scope. Delete the image version in the package settings on GitHub. The `latest` tag was not
+      touched.
+- [x] The site serves `install.ps1` since the pull requests merged: `https://lvhy.cc/install.ps1` answers 200 with the
+      same SHA-256 as `docs/site/install.ps1`, and the Pages run on `main` succeeded (observed 2026-11-16).
 - [x] Install on the real Windows 11 computer against the published files, partly. As `yarddev`, in Windows PowerShell 5.1
       and PowerShell 7, the installer file from the branch installed the published ZIP: the executable's SHA-256
       matched the one inside the ZIP, `--version` printed `lvh-yard 0.1.1-rc.1`, a reinstall left one PATH entry, and
@@ -136,9 +136,9 @@ Decided 2026-11-16, on my recommendations, except where noted.
 - [x] The raw outputs and scripts stay in `~/.local/state/lvh-yard-windows-11/`. The evidence files cite them by name.
 - [x] The Windows listener rule stays in three places (Go, `traefik-windows.sh`, the Compose command). Documented.
 - [x] The cross-Workstation stalls on the 2-CPU VM stay an accepted limit. They did not recur on the larger VM.
-- [ ] A container that publishes a port only on IPv6 gives no Bound Instance on Windows, and no message says why.
+- [x] A container that publishes a port only on IPv6 gives no Bound Instance on Windows, and no message says why.
       `Registrations.keepBoundInstances` skips it silently. The signal exists: `YARD_IPV4_ONLY` reaches the dashboard as
       `RuntimeNetwork.ipv4Only()`. A visible warning needs a new warning kind (API schema, `openapi.yaml`, CLI and
-      page) and a per-binding state that the Service view does not hold. That is a feature and not a fix. Open: your
-      decision. My recommendation is to wait until a user hits it. The user guide says that IPv6 targets are
+      page) and a per-binding state that the Service view does not hold. That is a feature and not a fix. Decided
+      2026-11-16: do not add it now. Add it when a user hits the case. The user guide says that IPv6 targets are
       unsupported on Windows.
