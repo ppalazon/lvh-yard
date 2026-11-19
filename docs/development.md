@@ -363,8 +363,9 @@ comparing it.
 
 - `quality:go` runs golangci-lint on `cli/`. The rules are in
   `cli/.golangci.yml`.
-  `gosec` also runs in `cli:check`, so a new unsuppressed security finding
-  fails the normal checks.
+  `gosec`, `gocyclo` and `funlen` also run in `cli:check`, so a new unsuppressed
+  security finding, a function over 15 branches or a function over 60 lines
+  fails the normal checks. The two size linters skip `_test.go` files.
 - `quality:java` runs SpotBugs and PMD on the dashboard, with every PMD rule of
   `dashboard/pmd-ruleset.xml`. The reports are
   `dashboard/target/spotbugsXml.xml` and `dashboard/target/pmd.xml`.
@@ -377,8 +378,10 @@ comparing it.
 `./mvnw verify`, and so `mise run check`, also runs SpotBugs and PMD, and
 fails on a finding. SpotBugs skips what `dashboard/spotbugs-exclude.xml` lists.
 PMD runs only the rules of `dashboard/pmd-gate.xml`: unused private methods,
-fields, local variables and parameters. [design.md](design.md) explains the
-findings.
+fields, local variables and parameters, a literal that does not come first in
+`equals`, and a case conversion with no `Locale`. [design.md](design.md)
+explains the findings. It also tells how PIT and go-mutesting ran by hand, on
+the component tests and on the CA code of the CLI.
 
 Managed CLI file operations use `os.Root` at the selected Workstation Folder,
 not a derived subfolder. The command tests in `ws_security_test.go` check
