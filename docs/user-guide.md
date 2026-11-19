@@ -26,10 +26,11 @@ an entry, Enter picks it, and Escape closes the list. The pages keep a contrast
 of at least 4.5 to 1 for text in both themes.
 
 The Status page shows one box for each of Consul, Traefik (when on) and Docker. Each box
-gives the state and the reason. A part that uses TLS also names it, next to a lock:
-Consul shows "TLS" when it checks the certificate of every Workstation, and
-Traefik shows "HTTPS", "Client Certificate" and "Mutual TLS" for each TLS Part
-that is on. Its Technical details list the facts behind the
+gives the state and the reason. Next to the name of Consul and Traefik, a badge shows each
+TLS that the part can have: green when it is on, red when it is off. Consul has
+"TLS", which it uses when it checks the certificate of every Workstation. Traefik
+has "HTTPS", "Client Certificate" and "Mutual TLS". A part that does not answer shows
+no badge. Its Technical details list the facts behind the
 state. When a part is not OK, its details start open. When a part is OK, they
 start closed. The page refreshes by itself and keeps the details that you open
 or close. On a phone, each detail stacks its name, state and value.
@@ -2146,8 +2147,8 @@ Service to open its page.
   into **Route options** and adapt the values before you save. Each example has
   usage notes and a link to the Traefik documentation. Opening an example keeps
   your form unchanged. On a phone, the examples follow the form.
-- To see a profile's options without editing, click its name or **View** in its
-  row. The page shows its YAML.
+- To see a profile's options without editing, click its row. The page shows its
+  YAML. Click **Back to Route Profiles** to return to the list.
 - To change a profile, click **Change**. The editor shows its YAML.
   Click **Save changes** to save it. Saving an existing name replaces that
   profile for every Service and chain that uses it.

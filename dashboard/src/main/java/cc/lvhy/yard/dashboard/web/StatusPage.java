@@ -47,22 +47,21 @@ final class StatusPage {
     content
         .div()
         .attrId(StatusViews.partId(part.name()))
-        .attrClass("min-w-0 p-5 wrap-anywhere")
+        .attrClass("min-w-0 p-4 wrap-anywhere")
         .div()
-        .attrClass("mb-2 flex flex-wrap items-center justify-between gap-3")
+        .attrClass("mb-1 flex flex-wrap items-center justify-between gap-3")
+        .div()
+        .attrClass("flex flex-wrap items-center gap-2")
         .h2()
         .text(part.name())
+        .__()
+        .of(title -> StatusViews.tlsBadges(title, part))
         .__()
         .of(heading -> StatusViews.badge(heading, part.state()))
         .__()
         .p()
         .text(part.reason())
         .__()
-        .of(card -> {
-          if (!part.tls().isEmpty()) {
-            tls(card, part);
-          }
-        })
         .of(card -> {
           if (!part.details().isEmpty()) {
             details(card, part);
@@ -71,23 +70,9 @@ final class StatusPage {
         .__();
   }
 
-  /** The lock and one badge for each TLS that the part uses. */
-  private static void tls(Div<?> card, Part part) {
-    card.div()
-        .attrClass("mt-3 flex flex-wrap items-center gap-2")
-        .of(row -> {
-          Layout.lockIcon(row.svg(), "size-4 text-muted-foreground");
-          row.span().attrClass("sr-only").text("Uses TLS:").__();
-          part.tls()
-              .forEach(name ->
-                  row.span().attrClass("badge").addAttr("data-variant", "outline").text(name).__());
-        })
-        .__();
-  }
-
   private static void details(Div<?> card, Part part) {
     card.custom("details")
-        .attrClass("status-details mt-4")
+        .attrClass("status-details mt-3")
         .addAttr("data-preserve-open", "status:" + part.name() + ":" + part.state())
         .of(box -> {
           if (part.state() != PartState.OK) {
@@ -99,7 +84,7 @@ final class StatusPage {
         .text("Technical details")
         .__()
         .section()
-        .attrClass("mt-2")
+        .attrClass("mt-1")
         .table()
         .attrClass("table status-details-table")
         .caption()

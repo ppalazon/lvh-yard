@@ -109,21 +109,20 @@ final class RouteProfilesPage {
                 body.tr()
                     .attrId(Layout.attr(rowId(profile.name())))
                     .td()
-                    .attrClass("align-top")
+                    .attrClass("align-middle")
                     .a()
                     .attrHref(Layout.attr(RouteProfileViewPage.path(profile.name())))
-                    .attrClass(
-                        "font-mono text-base font-semibold underline-offset-4 hover:underline")
+                    .attrClass("profile-link font-mono text-sm font-semibold")
                     .text(profile.name())
                     .__()
                     .__()
                     .td()
-                    .attrClass("align-top")
+                    .attrClass("align-middle")
                     .addAttr("data-label", "Type")
                     .text(profile.type() == null ? "" : profile.type())
                     .__()
                     .td()
-                    .attrClass("align-top")
+                    .attrClass("align-middle")
                     .addAttr("data-label", "Used by")
                     .of(cell -> {
                       if (profile.services().isEmpty()) {
@@ -131,7 +130,7 @@ final class RouteProfilesPage {
                         return;
                       }
                       cell.ul()
-                          .attrClass("flex flex-col gap-1")
+                          .attrClass("flex flex-wrap gap-x-3 gap-y-1")
                           .of(services -> {
                             for (String service : profile.services()) {
                               services
@@ -155,17 +154,9 @@ final class RouteProfilesPage {
 
   private static void actions(Tr<?> row, String profile) {
     row.td()
-        .attrClass("align-top")
+        .attrClass("align-middle")
         .div()
         .attrClass("flex flex-wrap gap-2 md:justify-end")
-        .a()
-        .attrHref(Layout.attr(RouteProfileViewPage.path(profile)))
-        .attrClass("btn")
-        .addAttr("data-variant", "outline")
-        .addAttr("data-size", "sm")
-        .addAttr("aria-label", Layout.attr("View " + profile))
-        .text("View")
-        .__()
         .a()
         .attrHref(Layout.attr(editPath(profile)))
         .attrClass("btn")

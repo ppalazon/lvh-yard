@@ -526,6 +526,12 @@ final class ServicePage {
         .of(heading -> ServiceViews.state(heading, service.state()))
         .div()
         .attrClass("ml-auto flex flex-wrap gap-2")
+        .a()
+        .attrHref(Layout.Section.CATALOG.path)
+        .attrClass("btn")
+        .addAttr("data-variant", "outline")
+        .text("Back to Catalog")
+        .__()
         .of(actions -> {
           if (!own && service.sharedWithYard()) {
             AliasRemoteServicePage.button(actions, service);

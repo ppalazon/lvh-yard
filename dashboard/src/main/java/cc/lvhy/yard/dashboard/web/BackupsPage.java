@@ -506,11 +506,11 @@ final class BackupsPage {
   private static void row(Tr<?> row, BackupFile file) {
     row.attrId(Layout.attr("backup-" + file.name()))
         .td()
-        .attrClass("align-top")
+        .attrClass("align-middle")
         .div()
-        .attrClass("flex min-w-0 flex-col gap-2")
+        .attrClass("flex min-w-0 flex-col gap-1")
         .span()
-        .attrClass("font-mono font-semibold")
+        .attrClass("font-mono text-sm font-semibold")
         .text(file.name())
         .__()
         .of(content -> {
@@ -542,12 +542,12 @@ final class BackupsPage {
         .__()
         .__()
         .td()
-        .attrClass("align-top")
+        .attrClass("align-middle")
         .addAttr("data-label", "Exported")
         .text(file.backup() == null ? "" : exported(file.backup()))
         .__()
         .td()
-        .attrClass("align-top")
+        .attrClass("align-middle")
         .addAttr("data-label", "Holds")
         .text(file.backup() == null ? "" : holds(file.backup()))
         .__()
@@ -559,7 +559,7 @@ final class BackupsPage {
   private static void actions(Tr<?> row, BackupFile file) {
     String backup = file.name();
     row.td()
-        .attrClass("align-top")
+        .attrClass("align-middle")
         .div()
         .attrClass("flex flex-wrap gap-2 lg:justify-end")
         .of(buttons -> {
