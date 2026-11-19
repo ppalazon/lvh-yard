@@ -21,8 +21,8 @@ class NavigationBarComponentTest extends DashboardComponentTest {
         .contains(">Route Profiles<")
         .contains("href=\"/backups\"")
         .contains(">Backups<")
-        .contains("href=\"/status\"")
-        .contains(">Status<");
+        .doesNotContain("href=\"/status\"")
+        .doesNotContain(">Status<");
   }
 
   @Test
@@ -31,7 +31,7 @@ class NavigationBarComponentTest extends DashboardComponentTest {
     assertThat(currentLinkOf("/containers")).isEqualTo("/containers");
     assertThat(currentLinkOf("/route-profiles")).isEqualTo("/route-profiles");
     assertThat(currentLinkOf("/backups")).isEqualTo("/backups");
-    assertThat(currentLinkOf("/status")).isEqualTo("/status");
+    assertThat(navOf(getPage("/status").getBody())).doesNotContain("aria-current");
   }
 
   @Test
