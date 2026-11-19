@@ -27,7 +27,7 @@ final class RouteDiagramPage {
   static String render(
       Workstation workstation, Service service, TraefikSettings traefik, OutOfRange outOfRange) {
     return Layout.page(
-        "Route Diagram · " + service.name(),
+        service.name() + " - Route Diagram",
         workstation.name(),
         main ->
             main.div()
@@ -35,7 +35,7 @@ final class RouteDiagramPage {
                 .div()
                 .attrClass("flex flex-wrap items-center justify-between gap-4")
                 .h1()
-                .text("Route Diagram")
+                .text(service.name() + " - Route Diagram")
                 .__()
                 .div()
                 .attrClass("flex flex-wrap gap-2")

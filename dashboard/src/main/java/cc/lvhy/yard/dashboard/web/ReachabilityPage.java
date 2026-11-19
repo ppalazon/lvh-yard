@@ -21,7 +21,7 @@ final class ReachabilityPage {
 
   static String render(Workstation workstation, Service service, Reachability reachability) {
     return Layout.page(
-        "Reachability · " + service.name(),
+        service.name() + " - Reachability",
         workstation.name(),
         main ->
             main.div()
@@ -29,7 +29,7 @@ final class ReachabilityPage {
                 .div()
                 .attrClass("flex flex-wrap items-center justify-between gap-4")
                 .h1()
-                .text("Reachability")
+                .text(service.name() + " - Reachability")
                 .__()
                 .div()
                 .attrClass("flex flex-wrap gap-2")
