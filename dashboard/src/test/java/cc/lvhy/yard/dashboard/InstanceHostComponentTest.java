@@ -28,6 +28,13 @@ class InstanceHostComponentTest extends DashboardComponentTest {
         .isEqualTo(NATIVE_HOST);
     assertThat(register(web, Map.of("host", lanAddress(), "port", 3002)).get("host").asString())
         .isEqualTo(lanAddress());
+  }
+
+  @Test
+  void instanceFormSuggestsTheNativeHost() {
+    String web = newServiceName("web");
+    register(web, Map.of("port", 3000));
+
     assertThat(getPage("/services/" + WORKSTATION + "/" + web + "/instances/new").getBody())
         .contains("placeholder=\"" + NATIVE_HOST + "\"");
   }

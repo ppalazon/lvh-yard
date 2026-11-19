@@ -26,9 +26,9 @@ class BoundInstancesComponentTest extends DashboardComponentTest {
     String firstName = newContainerName();
     String secondName = newContainerName();
     String failingName = newContainerName();
-    startComposeOnYard(firstName, project, 80);
-    startComposeOnYard(secondName, project, 80);
-    startComposeOnYard(failingName, project, 81);
+    Container first = startComposeOnYard(firstName, project, 80);
+    Container second = startComposeOnYard(secondName, project, 80);
+    Container failing = startComposeOnYard(failingName, project, 81);
     bindCompose(web, project, "web", 80);
     await()
         .atMost(Duration.ofSeconds(15))
@@ -36,12 +36,10 @@ class BoundInstancesComponentTest extends DashboardComponentTest {
             assertThat(div(getPage("/services/ws-test/" + web).getBody(), "id=\"sources\""))
                 .contains("3 Instances, 2 passing"));
 
-    String page = getPage("/services/ws-test/" + web).getBody();
-
-    assertThat(page)
-        .contains("Compose service web of project " + project)
-        .contains("Bound to Compose service web of project " + project + ", port 80.");
-    assertThat(div(page, "id=\"sources\"")).contains("3 Instances, 2 passing");
+    assertThat(div(getPage("/services/ws-test/" + web).getBody(), "id=\"sources\""))
+        .contains(containerAddress(first) + ":80")
+        .contains(containerAddress(second) + ":80")
+        .contains(containerAddress(failing) + ":80");
   }
 
   private static final Duration FOLLOW_TIMEOUT = Duration.ofSeconds(15);

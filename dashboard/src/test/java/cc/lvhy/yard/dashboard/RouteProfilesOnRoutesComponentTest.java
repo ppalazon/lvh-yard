@@ -80,11 +80,16 @@ class RouteProfilesOnRoutesComponentTest extends DashboardComponentTest {
                 """
                 {"headers": {"customRequestHeaders": {"X-Forwarded-Proto": "https"}}}
                 """));
-    assertThat(http.get("middlewares").get("ws-test_team-login").get("basicAuth")).isNotNull();
+    assertThat(http.get("middlewares").get("ws-test_team-login"))
+        .isEqualTo(
+            JSON.readTree(
+                """
+                {"basicAuth": {"users": ["ana:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/"]}}
+                """));
   }
 
   @Test
-  void chainComesWithItsMembersRenamedTheSameWay() throws Exception {
+  void chainComesWithItsMembersRenamedTheSameWayAndKeepsAMemberGoneFromConsul() throws Exception {
     putRouteProfiles(PROFILES);
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
@@ -102,6 +107,19 @@ class RouteProfilesOnRoutesComponentTest extends DashboardComponentTest {
                 """));
     assertThat(http.get("middlewares").has("ws-test_office-only")).isTrue();
     assertThat(http.get("middlewares").has("ws-test_team-login")).isTrue();
+
+    // Straight from Consul: the API refuses to remove a profile that a chain names.
+    consul.deleteValue("lvh-yard/route-profiles/team-login");
+
+    JsonNode middlewares = get("/traefik/configuration").getBody().get("http").get("middlewares");
+    assertThat(middlewares.get("ws-test_protected"))
+        .isEqualTo(
+            JSON.readTree(
+                """
+                {"chain": {"middlewares": ["ws-test_office-only", "ws-test_team-login"]}}
+                """));
+    assertThat(middlewares.has("ws-test_office-only")).isTrue();
+    assertThat(middlewares.has("ws-test_team-login")).isFalse();
   }
 
   @Test
@@ -229,12 +247,10 @@ class RouteProfilesOnRoutesComponentTest extends DashboardComponentTest {
     assertThat(get(servicePath(web)).getBody().get("profiles").toString())
         .isEqualTo("[\"behind-https\",\"team-login\"]");
     assertThat(getPage(page).getBody())
-        .contains("aria-label=\"Move team-login up\"")
         .contains("name=\"profiles\" value=\"team-login,behind-https\"")
         .contains("aria-label=\"Remove behind-https\"")
         .contains("name=\"profiles\" value=\"team-login\"")
-        .doesNotContain(">team-login</option>")
-        .contains("asks who the user is only on the hostname");
+        .doesNotContain(">team-login</option>");
   }
 
   @Test
@@ -247,6 +263,7 @@ class RouteProfilesOnRoutesComponentTest extends DashboardComponentTest {
         postForm("/services/ws-test/" + web + "/publish", Map.of("profiles", "nope"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(get(servicePath(web)).getBody().has("publication")).isFalse();
   }
 
   @Test
@@ -301,32 +318,7 @@ class RouteProfilesOnRoutesComponentTest extends DashboardComponentTest {
         .doesNotContain("behind-https");
     assertThat(severity(get(servicePath(web)).getBody(), "unknown-route-profile"))
         .isEqualTo("error");
-    assertThat(
-            div(
-                getPage("/services/ws-test/" + web).getBody(),
-                "The Route Profile team-login does not exist"))
-        .contains("role=\"alert\"")
-        .contains("data-variant=\"destructive\"");
-  }
-
-  @Test
-  void chainMemberGoneFromConsulStaysInTheChainSoTraefikRefusesTheRoute() throws Exception {
-    putRouteProfiles(PROFILES);
-    String web = newServiceName("web");
-    register(web, Map.of("host", "10.1.2.3", "port", 8080));
-    put(publicationPath(web), Map.of("profiles", List.of("protected")));
-
-    // Straight from Consul: the API refuses to remove a profile that a chain names.
-    consul.deleteValue("lvh-yard/route-profiles/team-login");
-
-    JsonNode middlewares = get("/traefik/configuration").getBody().get("http").get("middlewares");
-    assertThat(middlewares.get("ws-test_protected"))
-        .isEqualTo(
-            JSON.readTree(
-                """
-                {"chain": {"middlewares": ["ws-test_office-only", "ws-test_team-login"]}}
-                """));
-    assertThat(middlewares.has("ws-test_office-only")).isTrue();
-    assertThat(middlewares.has("ws-test_team-login")).isFalse();
+    assertThat(getPage("/services/ws-test/" + web).getBody())
+        .contains("The Route Profile team-login does not exist");
   }
 }

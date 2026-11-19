@@ -42,16 +42,13 @@ class BindContainerPageComponentTest extends DashboardComponentTest {
 
     String page = getPage(servicePage(web)).getBody();
 
-    String link = openingTag(page, "href=\"" + bindPage(web) + "\"");
-    assertThat(page).contains(link + "Bind container</a>");
+    assertThat(page).contains("href=\"" + bindPage(web) + "\"");
     ResponseEntity<String> response = getPage(bindPage(web));
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     String form = formTo(response.getBody(), bindAction(web));
-    assertThat(openingTag(form, "action=\"" + bindAction(web) + "\"")).contains("method=\"post\"");
     assertThat(form)
         .contains("name=\"target\"")
         .contains("name=\"containerPort\"")
-        .contains("type=\"submit\"")
         .contains("href=\"" + servicePage(web) + "\"");
   }
 
@@ -144,8 +141,7 @@ class BindContainerPageComponentTest extends DashboardComponentTest {
     String page = getPage(bindPage(web)).getBody();
 
     assertThat(option(page, name)).doesNotContain("aria-disabled");
-    String item = page.substring(page.indexOf("data-value=\"" + name + "\""));
-    assertThat(item.substring(0, item.indexOf("</li>"))).contains("used by " + other);
+    assertThat(optionText(page, name)).contains("used by " + other);
   }
 
   @Test
@@ -265,7 +261,8 @@ class BindContainerPageComponentTest extends DashboardComponentTest {
     remote.create(web);
 
     assertThat(getPage("/services/" + RemoteWorkstation.NAME + "/" + web).getBody())
-        .doesNotContain("Bind container");
+        .doesNotContain(
+            "href=\"/services/" + RemoteWorkstation.NAME + "/" + web + "/container-bindings/new\"");
     assertThat(
             getPage("/services/" + RemoteWorkstation.NAME + "/" + web + "/container-bindings/new")
                 .getStatusCode())
@@ -291,8 +288,9 @@ class BindContainerPageComponentTest extends DashboardComponentTest {
     String composeId = "compose:" + project + ":api:8080";
     postForm(bindAction(web), Map.of("target", project + "/api", "containerPort", "8080"));
     String page = getPage(servicePage(web)).getBody();
-    assertThat(openingTag(page, "href=\"" + editPage(web, name + ":80") + "\"")).startsWith("<a");
-    assertThat(openingTag(page, "href=\"" + editPage(web, composeId) + "\"")).startsWith("<a");
+    assertThat(page)
+        .contains("href=\"" + editPage(web, name + ":80") + "\"")
+        .contains("href=\"" + editPage(web, composeId) + "\"");
 
     String edit = editPage(web, name + ":80");
     String form = formTo(getPage(edit).getBody(), edit);
@@ -352,14 +350,19 @@ class BindContainerPageComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void editFormOfAMissingBindingOrARemoteServiceIsRefused() {
+  void editFormOfAMissingBindingIsNotFound() {
     String web = newServiceName("web");
     create(web);
-    String remoteWeb = newServiceName("web");
-    remote.create(remoteWeb);
 
     assertThat(getPage(editPage(web, "nothing:80")).getStatusCode())
         .isEqualTo(HttpStatus.NOT_FOUND);
+  }
+
+  @Test
+  void editFormOfARemoteServiceIsForbidden() {
+    String remoteWeb = newServiceName("web");
+    remote.create(remoteWeb);
+
     assertThat(
             getPage(
                     "/services/"

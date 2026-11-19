@@ -10,6 +10,7 @@ import cc.lvhy.yard.dashboard.docker.FakeDocker;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -68,7 +69,6 @@ class ContainersComponentTest extends DashboardComponentTest {
 
     JsonNode ports = listed(name).get("ports");
 
-    assertThat(bindings).hasSize(2);
     assertThat(ports.valueStream())
         .extracting(
             port -> port.get("containerPort").asInt(),
@@ -226,6 +226,12 @@ class ContainersComponentTest extends DashboardComponentTest {
           .atMost(Duration.ofSeconds(10))
           .until(() -> client.lines.contains("event:containers-changed"));
 
+      // Start can emit several events. Let them end so the stop wait sees only its own.
+      AtomicInteger seen = new AtomicInteger(-1);
+      await()
+          .during(Duration.ofMillis(800))
+          .atMost(Duration.ofSeconds(10))
+          .until(() -> seen.getAndSet(client.lines.size()) == client.lines.size());
       client.lines.clear();
       stopContainer(container);
 

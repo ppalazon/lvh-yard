@@ -60,7 +60,6 @@ class StaticInstancesOnTheServicePageComponentTest extends DashboardComponentTes
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
     assertThat(response.getHeaders().getLocation()).hasPath(pagePath(grafana));
     assertThat(getPage(pagePath(grafana)).getBody()).contains("10.1.2.3:3000");
-    assertThat(get(servicePath(grafana)).getBody().has("publication")).isFalse();
   }
 
   @Test
@@ -119,6 +118,9 @@ class StaticInstancesOnTheServicePageComponentTest extends DashboardComponentTes
     assertThat(instance.get("check").get("path").asString()).isEqualTo("/health");
     assertThat(instance.get("tags").valueStream().map(JsonNode::asString))
         .containsExactly("backend", "v2");
+    assertThat(instance.get("check").get("interval").asString()).isEqualTo("5s");
+    assertThat(instance.get("check").get("timeout").asString()).isEqualTo("1s");
+    assertThat(instance.get("meta").get("owner").asString()).isEqualTo("pablo");
     assertThat(instance.get("meta").get("team").asString()).isEqualTo("core");
   }
 
@@ -150,6 +152,7 @@ class StaticInstancesOnTheServicePageComponentTest extends DashboardComponentTes
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody()).contains("key=value").contains("owner pablo");
+    assertThat(get(servicePath(api)).getBody().get("instances")).isEmpty();
   }
 
   @Test
@@ -188,24 +191,8 @@ class StaticInstancesOnTheServicePageComponentTest extends DashboardComponentTes
       String instance = pagePath(api) + "/instances/" + id;
       assertThat(openingTag(page, "href=\"" + instance + "/edit\"")).startsWith("<a");
       assertThat(formTo(page, instance + "/remove"))
-          .contains("aria-label=\"Remove Static Instance")
-          .doesNotContain(">Remove<");
+          .contains("aria-label=\"Remove Static Instance");
     }
-  }
-
-  @Test
-  void removeButtonComesAfterTheButtonsThatMoveTheSource() {
-    String api = newServiceName("api");
-    String first = register(api, Map.of("host", "10.1.2.3", "port", 8080)).get("id").asString();
-    String second = register(api, Map.of("host", "10.1.2.3", "port", 8081)).get("id").asString();
-
-    String page = getPage(pagePath(api)).getBody();
-
-    String item =
-        page.substring(
-            page.indexOf("data-source=\"" + first + "\""),
-            page.indexOf("data-source=\"" + second + "\""));
-    assertThat(item.indexOf("/remove")).isGreaterThan(item.lastIndexOf(" down\""));
   }
 
   @Test

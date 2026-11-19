@@ -14,6 +14,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.web.client.RestClient;
 
+/** The dashboard's external settings file, read at start and after a restart. */
 class DashboardConfigComponentTest {
 
   @TempDir Path folder;

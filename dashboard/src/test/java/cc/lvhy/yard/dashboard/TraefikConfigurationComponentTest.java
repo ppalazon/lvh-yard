@@ -63,21 +63,14 @@ class TraefikConfigurationComponentTest extends DashboardComponentTest {
     assertThat(router.get("entryPoints").get(0).asString()).isEqualTo("web");
     assertThat(router.get("service").asString()).isEqualTo("yard");
     assertThat(router.has("tls")).isFalse();
+    assertThat(router.get("observability").get("accessLogs").asBoolean()).isFalse();
     assertThat(http.get("routers").has("yard__https")).isFalse();
     JsonNode server = http.get("services").get("yard").get("loadBalancer").get("servers").get(0);
     assertThat(server.get("url").asString()).isEqualTo("http://127.0.0.1:" + port);
   }
 
   @Test
-  void yardRouteHasNoAccessLog() {
-    JsonNode router =
-        get("/traefik/configuration").getBody().get("http").get("routers").get("yard");
-
-    assertThat(router.get("observability").get("accessLogs").asBoolean()).isFalse();
-  }
-
-  @Test
-  void accessLogIsOffUntilTurnedOn() {
+  void accessLogSwitchReachesTheRoute() {
     String web = newServiceName("web");
     register(web, Map.of("host", "10.1.2.3", "port", 8080));
     publish(web);
@@ -94,20 +87,25 @@ class TraefikConfigurationComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void publishedServiceIsRoutedToEveryInstance() {
-    String grafana = newServiceName("grafana");
-    register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
-    register(grafana, Map.of("host", "10.1.2.4", "port", 3000));
+  void publishedServiceIsRoutedToEveryInstanceWithItsShortHostnameInEitherScope() {
+    for (String scope : List.of("local", "yard")) {
+      String grafana = newServiceName("grafana");
+      register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
+      register(grafana, Map.of("host", "10.1.2.4", "port", 3000));
 
-    publish(grafana);
+      put(publicationPath(grafana), Map.of("scope", scope));
 
-    JsonNode http = get("/traefik/configuration").getBody().get("http");
-    JsonNode router = http.get("routers").get(grafana);
-    assertThat(router.get("rule").asString()).isEqualTo("Host(`" + grafana + ".lvh.test`)");
-    assertThat(router.get("entryPoints").get(0).asString()).isEqualTo("web");
-    assertThat(router.get("service").asString()).isEqualTo(grafana);
-    assertThat(serverUrls(http, grafana))
-        .containsExactly("http://10.1.2.3:3000", "http://10.1.2.4:3000");
+      JsonNode http = get("/traefik/configuration").getBody().get("http");
+      JsonNode router = http.get("routers").get(grafana);
+      assertThat(router.get("rule").asString())
+          .as(scope)
+          .isEqualTo("Host(`" + grafana + ".lvh.test`)");
+      assertThat(router.get("entryPoints").get(0).asString()).as(scope).isEqualTo("web");
+      assertThat(router.get("service").asString()).as(scope).isEqualTo(grafana);
+      assertThat(serverUrls(http, grafana))
+          .as(scope)
+          .containsExactly("http://10.1.2.3:3000", "http://10.1.2.4:3000");
+    }
   }
 
   @Test
@@ -133,30 +131,6 @@ class TraefikConfigurationComponentTest extends DashboardComponentTest {
     JsonNode http = get("/traefik/configuration").getBody().get("http");
     assertThat(http.get("routers").has(web)).isFalse();
     assertThat(http.get("services").has(web)).isFalse();
-  }
-
-  @Test
-  void yardRouteStaysBesidePublishedServices() {
-    String web = newServiceName("web");
-    register(web, Map.of("host", "10.1.2.3", "port", 8080));
-    publish(web);
-
-    JsonNode http = get("/traefik/configuration").getBody().get("http");
-
-    assertThat(http.get("routers").get("yard").get("rule").asString())
-        .isEqualTo("Host(`yard.lvh.test`)");
-    assertThat(serverUrls(http, "yard")).containsExactly("http://127.0.0.1:" + port);
-  }
-
-  @Test
-  void ownServiceWithYardScopeKeepsItsShortHostname() {
-    String web = newServiceName("web");
-    register(web, Map.of("host", "10.1.2.3", "port", 8080));
-
-    put(publicationPath(web), Map.of("scope", "yard"));
-
-    assertThat(serverUrlsAt(get("/traefik/configuration").getBody().get("http"), web + ".lvh.test"))
-        .containsExactly("http://10.1.2.3:8080");
   }
 
   @Test
@@ -242,33 +216,21 @@ class TraefikConfigurationComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void remoteInstanceOnLoopbackGetsNoRoute() {
-    String api = newServiceName("api");
-    remote.register(api, Map.of("host", "127.0.0.1", "port", 9090));
-    remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
+  void remoteInstanceOnLoopbackOrADockerNetworkGetsNoRoute() {
+    for (String host : List.of("127.0.0.1", "172.18.0.5")) {
+      String api = newServiceName("api");
+      remote.register(api, Map.of("host", host, "port", 9090));
+      remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
 
-    remote.publish(api, "yard");
+      remote.publish(api, "yard");
 
-    assertThat(
-            serverUrlsAt(
-                get("/traefik/configuration").getBody().get("http"),
-                api + "." + RemoteWorkstation.NAME + ".lvh.test"))
-        .containsExactly("http://10.9.8.7:9090");
-  }
-
-  @Test
-  void remoteInstanceOnADockerNetworkGetsNoRoute() {
-    String api = newServiceName("api");
-    remote.register(api, Map.of("host", "172.18.0.5", "port", 9090));
-    remote.register(api, Map.of("host", "10.9.8.7", "port", 9090));
-
-    remote.publish(api, "yard");
-
-    assertThat(
-            serverUrlsAt(
-                get("/traefik/configuration").getBody().get("http"),
-                api + "." + RemoteWorkstation.NAME + ".lvh.test"))
-        .containsExactly("http://10.9.8.7:9090");
+      assertThat(
+              serverUrlsAt(
+                  get("/traefik/configuration").getBody().get("http"),
+                  api + "." + RemoteWorkstation.NAME + ".lvh.test"))
+          .as(host)
+          .containsExactly("http://10.9.8.7:9090");
+    }
   }
 
   @Test

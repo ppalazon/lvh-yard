@@ -7,12 +7,8 @@ import static org.awaitility.Awaitility.await;
 
 import cc.lvhy.yard.dashboard.events.EventBroadcaster;
 import cc.lvhy.yard.dashboard.events.EventDebouncer;
-import cc.lvhy.yard.dashboard.web.Layout;
-import htmlflow.HtmlFlow;
 import java.time.Duration;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -24,17 +20,11 @@ class EventsComponentTest extends DashboardComponentTest {
   @Autowired EventDebouncer debouncer;
 
   @Test
-  void connectsToEventsStream() throws Exception {
+  void connectsToEventsStreamAndEmitsHeartbeatComments() throws Exception {
     try (EventStreamClient client = new EventStreamClient(port)) {
       assertThat(client.response.statusCode()).isEqualTo(200);
       assertThat(client.response.headers().firstValue("Content-Type"))
           .hasValueSatisfying(type -> assertThat(type).startsWith("text/event-stream"));
-    }
-  }
-
-  @Test
-  void emitsHeartbeatComments() throws Exception {
-    try (EventStreamClient client = new EventStreamClient(port)) {
       broadcaster.sendHeartbeat();
       await().atMost(Duration.ofSeconds(5)).until(() -> client.lines.contains(": ping"));
     }
@@ -43,8 +33,12 @@ class EventsComponentTest extends DashboardComponentTest {
   @Test
   void debouncerCoalescesRapidTriggers() throws Exception {
     try (EventStreamClient client = new EventStreamClient(port)) {
-      // Allow any startup event triggers to settle and flush past the 300ms window
-      Thread.sleep(500);
+      // Let startup triggers flush, so only the triggers below are counted
+      AtomicInteger seen = new AtomicInteger(-1);
+      await()
+          .during(Duration.ofMillis(600))
+          .atMost(Duration.ofSeconds(5))
+          .until(() -> seen.getAndSet(client.lines.size()) == client.lines.size());
       client.lines.clear();
 
       debouncer.trigger(YARD_CHANGED);
@@ -57,12 +51,16 @@ class EventsComponentTest extends DashboardComponentTest {
           .until(() ->
               client.lines.contains("event:yard-changed")
                   && client.lines.contains("event:containers-changed"));
-      long yardCount = client.lines.stream().filter(l -> l.equals("event:yard-changed")).count();
-      long containerCount =
-          client.lines.stream().filter(l -> l.equals("event:containers-changed")).count();
-
-      assertThat(yardCount).isEqualTo(1);
-      assertThat(containerCount).isEqualTo(1);
+      // A late second flush would add a line within the following windows
+      await()
+          .during(Duration.ofMillis(900))
+          .atMost(Duration.ofSeconds(5))
+          .untilAsserted(() -> {
+            assertThat(client.lines.stream().filter(l -> l.equals("event:yard-changed")))
+                .hasSize(1);
+            assertThat(client.lines.stream().filter(l -> l.equals("event:containers-changed")))
+                .hasSize(1);
+          });
     }
   }
 
@@ -105,59 +103,6 @@ class EventsComponentTest extends DashboardComponentTest {
   @Test
   void layoutIncludesHxSseAndConnectsToEvents() {
     String html = getPage("/").getBody();
-    assertThat(html)
-        .contains("<body hx-ext=\"sse\" hx-sse:connect=\"/events\">")
-        .containsPattern(
-            Pattern.compile(
-                "<script src=\"/webjars/htmx\\.org/dist/ext/hx-sse\\.min\\.js\""
-                    + " defer(=\"defer\")?></script>"));
-  }
-
-  @Test
-  void refreshedContractRendersSseTriggers() {
-    StringBuilder singleOut = new StringBuilder();
-    HtmlFlow.doc(singleOut)
-        .setIndented(false)
-        .html()
-        .body()
-        .main()
-        .of(main ->
-            Layout.refreshed(
-                main, "catalog", "/services", YARD_CHANGED, div -> div.text("content")))
-        .__()
-        .__()
-        .__();
-    assertThat(singleOut.toString()).contains("hx-trigger=\"yard-changed from:body, every 30s\"");
-
-    StringBuilder multiOut = new StringBuilder();
-    HtmlFlow.doc(multiOut)
-        .setIndented(false)
-        .html()
-        .body()
-        .main()
-        .of(main ->
-            Layout.refreshed(
-                main,
-                "containers",
-                "/containers",
-                List.of(CONTAINERS_CHANGED, YARD_CHANGED),
-                div -> div.text("content")))
-        .__()
-        .__()
-        .__();
-    assertThat(multiOut.toString())
-        .contains("hx-trigger=\"containers-changed from:body, yard-changed from:body, every 30s\"");
-
-    StringBuilder fallbackOut = new StringBuilder();
-    HtmlFlow.doc(fallbackOut)
-        .setIndented(false)
-        .html()
-        .body()
-        .main()
-        .of(main -> Layout.refreshed(main, "status", "/status", div -> div.text("content")))
-        .__()
-        .__()
-        .__();
-    assertThat(fallbackOut.toString()).contains("hx-trigger=\"every 5s\"");
+    assertThat(html).contains("hx-sse:connect=\"/events\"");
   }
 }

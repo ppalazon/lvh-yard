@@ -53,7 +53,6 @@ class CatalogPageComponentTest extends DashboardComponentTest {
                   "class=\"catalog-service-link\" href=\"/services/ws-test/" + grafana + "\"")
               .contains(
                   "<th>Service</th><th>State</th><th>Scope</th><th>Hostname</th><th>Instances</th>")
-              .doesNotContain("<th>Instance</th>", "<th>Health</th>", ">View<")
               .doesNotContain("10.1.2.3:3001");
           assertThat(rowOf(page, grafana)).contains("Unpublished", "1 of 2 passing");
         });
@@ -70,7 +69,10 @@ class CatalogPageComponentTest extends DashboardComponentTest {
     String page = getPage("/").getBody();
 
     assertThat(rowOf(page, web)).contains("Unpublished");
-    assertThat(rowOf(page, api)).contains("Unhealthy").contains(api + ".lvh.test");
+    assertThat(rowOf(page, api))
+        .contains(badge("destructive", "Unhealthy"))
+        .contains(api + ".lvh.test")
+        .contains("0 of 1 passing");
   }
 
   @Test
@@ -103,17 +105,6 @@ class CatalogPageComponentTest extends DashboardComponentTest {
             assertThat(rowOf(getPage("/").getBody(), web))
                 .contains(badge("success", "Healthy"))
                 .contains("1 of 1 passing"));
-  }
-
-  @Test
-  void showsBadStatesWithTheirOwnBadges() {
-    String web = newServiceName("web");
-    register(web, Map.of("host", "10.1.2.3", "port", 8080));
-    publish(web);
-
-    assertThat(rowOf(getPage("/").getBody(), web))
-        .contains(badge("destructive", "Unhealthy"))
-        .contains("0 of 1 passing");
   }
 
   @Test
@@ -152,7 +143,6 @@ class CatalogPageComponentTest extends DashboardComponentTest {
         .atMost(Duration.ofSeconds(30))
         .untilAsserted(() -> {
           String page = getPage("/").getBody();
-          assertThat(page).contains("<th>Scope</th><th>Hostname</th><th>Instances</th>");
           assertThat(rowOf(page, fixed)).contains(badge("secondary", "Static"));
           assertThat(rowOf(page, box)).contains(badge("secondary", "Docker"));
           assertThat(rowOf(page, stack)).contains(badge("secondary", "Compose"));
@@ -173,7 +163,6 @@ class CatalogPageComponentTest extends DashboardComponentTest {
 
     String page = getPage("/").getBody();
 
-    assertThat(page).doesNotContain("<th>Source</th>");
     assertThat(rowOf(page, local)).contains(badge("outline", "Local")).doesNotContain(">Yard<");
     assertThat(rowOf(page, shared)).contains(badge("outline", "Yard")).doesNotContain(">Local<");
     assertThat(rowOf(page, unpublished)).doesNotContain(">Local<", ">Yard<");
@@ -248,6 +237,11 @@ class CatalogPageComponentTest extends DashboardComponentTest {
   }
 
   @Test
+  void refusesAnUnknownState() {
+    assertThat(getPage("/?state=sleepy").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+  }
+
+  @Test
   void saysWhenTheYardHasNoSuchWorkstation() {
     assertThat(getPage("/?workstation=ws-typo").getBody())
         .contains("The Yard has no Workstation ws-typo.");
@@ -284,6 +278,9 @@ class CatalogPageComponentTest extends DashboardComponentTest {
 
   @Test
   void refreshesItsServicesWithYardChangedSignalAndFallbackPoll() {
+    assertThat(openingTag(getPage("/").getBody(), "id=\"catalog\""))
+        .as("without filters")
+        .contains("hx-get=\"/\"");
     String page = getPage("/?workstation=" + RemoteWorkstation.NAME + "&state=healthy").getBody();
 
     String region = openingTag(page, "id=\"catalog\"");
@@ -295,11 +292,6 @@ class CatalogPageComponentTest extends DashboardComponentTest {
     assertThat(div(page, "id=\"catalog\""))
         .as("the region a refresh swaps, which leaves the filter form")
         .doesNotContain("<form");
-  }
-
-  @Test
-  void refreshesFromThePlainCatalogWithoutFilters() {
-    assertThat(openingTag(getPage("/").getBody(), "id=\"catalog\"")).contains("hx-get=\"/\"");
   }
 
   @Test

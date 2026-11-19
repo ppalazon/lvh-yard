@@ -35,20 +35,13 @@ class StatusComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void consulWithALeaderIsOk() {
+  void consulWithALeaderIsOkAndShowsEachWorkstationOfItsWanPoolAndWhetherItIsAlive() {
     ResponseEntity<JsonNode> response = get("/api/status");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     JsonNode consul = part(response.getBody(), "Consul");
     assertThat(consul.get("state").asString()).isEqualTo("ok");
     assertThat(detail(consul, "leader").get("value").asString()).endsWith(":8300");
-  }
-
-  @Test
-  void consulShowsEachWorkstationOfItsWanPoolAndWhetherItIsAlive() {
-    JsonNode consul = part(get("/api/status").getBody(), "Consul");
-
-    assertThat(consul.get("state").asString()).isEqualTo("ok");
     JsonNode remoteMember = detail(consul, RemoteWorkstation.NAME);
     assertThat(remoteMember.get("value").asString()).startsWith("alive at ");
     assertThat(remoteMember.get("state").asString()).isEqualTo("ok");
@@ -71,6 +64,8 @@ class StatusComponentTest extends DashboardComponentTest {
 
     assertThat(status.get("parts").valueStream().map(part -> part.get("name").asString()))
         .containsExactly("Consul", "Traefik", "Docker");
+    assertThat(part(status, "Consul").get("tls")).isEmpty();
+    assertThat(part(status, "Docker").get("tls")).isEmpty();
   }
 
   @Test
@@ -132,7 +127,7 @@ class StatusComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void aPeerMissingFromTheWanPoolIsAWarning() {
+  void aPeerMissingFromTheWanPoolIsAWarningOnTheApiThePageAndTheSummary() {
     String joined = lanAddress() + ":8302";
     String missing = "192.0.2.1";
 
@@ -145,12 +140,19 @@ class StatusComponentTest extends DashboardComponentTest {
           assertThat(detail(consul, "peer " + missing).get("state").asString())
               .isEqualTo("warning");
           assertThat(consul.get("details").toString()).doesNotContain("peer " + joined);
+          String page = div(remote.page("/status"), "id=\"part-consul\"");
+          assertThat(page).contains("! Warning").contains("A Peer is not in Consul");
+          assertThat(page).containsPattern("<details[^>]*open");
+          String summary = remote.page("/status/summary");
+          assertThat(openingTag(summary, "id=\"dot-consul\""))
+              .contains("aria-label=\"Consul: Warning. A Peer is not in Consul");
+          assertThat(summary).containsPattern("id=\"dot-consul\"[^>]*>!</span>");
         },
         "--lvh-yard.consul.peers=" + joined + " " + missing);
   }
 
   @Test
-  void aMissingDockerSocketIsFailingAndSaysSo() {
+  void aMissingDockerSocketIsFailingOnTheApiThePageAndTheSummary() {
     remote.whileDashboardRunsWith(
         () -> {
           JsonNode status = remote.status();
@@ -160,6 +162,13 @@ class StatusComponentTest extends DashboardComponentTest {
               .contains("/nowhere/docker.sock")
               .contains("No Docker socket");
           assertThat(status.get("overall").asString()).isEqualTo("failing");
+          assertThat(remote.page("/status"))
+              .contains(badge("destructive", "✕ Failing"))
+              .contains("No Docker socket at /nowhere/docker.sock");
+          String summary = remote.page("/status/summary");
+          assertThat(summary).contains("href=\"/status\"").contains("✕");
+          assertThat(openingTag(summary, "id=\"dot-docker\""))
+              .contains("aria-label=\"Docker: Failing. No Docker socket at");
         },
         "--lvh-yard.docker.host=unix:///nowhere/docker.sock");
   }
@@ -186,44 +195,6 @@ class StatusComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void pageShowsAFailingPartAsFailing() {
-    remote.whileDashboardRunsWith(
-        () ->
-            assertThat(remote.page("/status"))
-                .contains(badge("destructive", "✕ Failing"))
-                .contains("No Docker socket at /nowhere/docker.sock"),
-        "--lvh-yard.docker.host=unix:///nowhere/docker.sock");
-  }
-
-  @Test
-  void pageAndSummaryShowAPartWithAWarningAsAWarning() {
-    remote.whileDashboardRunsWith(
-        () -> {
-          String consul = div(remote.page("/status"), "id=\"part-consul\"");
-          assertThat(consul).contains("! Warning").contains("A Peer is not in Consul");
-          assertThat(consul).containsPattern("<details[^>]*open");
-          String summary = remote.page("/status/summary");
-          assertThat(openingTag(summary, "id=\"dot-consul\""))
-              .contains("aria-label=\"Consul: Warning. A Peer is not in Consul");
-          assertThat(summary).containsPattern("id=\"dot-consul\"[^>]*>!</span>");
-        },
-        "--lvh-yard.consul.peers=192.0.2.1");
-  }
-
-  @Test
-  void summaryShowsAFailingPartWithACrossAndLinksToTheStatusPage() {
-    remote.whileDashboardRunsWith(
-        () -> {
-          String summary = remote.page("/status/summary");
-          assertThat(summary).contains("href=\"/status\"");
-          assertThat(openingTag(summary, "id=\"dot-docker\""))
-              .contains("aria-label=\"Docker: Failing. No Docker socket at");
-          assertThat(summary).contains("✕");
-        },
-        "--lvh-yard.docker.host=unix:///nowhere/docker.sock");
-  }
-
-  @Test
   void traefikPartNamesEachTlsPartThatIsOn() {
     remote.whileDashboardRunsWith(
         () -> {
@@ -236,13 +207,5 @@ class StatusComponentTest extends DashboardComponentTest {
         "--lvh-yard.traefik.https-port=8443",
         "--lvh-yard.traefik.client-auth=true",
         "--lvh-yard.traefik.mtls=true");
-  }
-
-  @Test
-  void partsWithoutTlsHaveAnEmptyTlsList() {
-    JsonNode status = get("/api/status").getBody();
-
-    assertThat(part(status, "Consul").get("tls")).isEmpty();
-    assertThat(part(status, "Docker").get("tls")).isEmpty();
   }
 }

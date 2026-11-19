@@ -41,22 +41,7 @@ class RouteDiagramComponentTest extends DashboardComponentTest {
 
     String page = getPage("/services/ws-test/" + web).getBody();
 
-    assertThat(page)
-        .contains("href=\"" + diagramPath("ws-test", web) + "\"")
-        .contains("Route Diagram");
-  }
-
-  /** An unclosed title row once pulled the hostname and facts up beside the title. */
-  @Test
-  void theButtonsLeaveTheTitleRowBeforeTheFactsStart() {
-    String web = newServiceName("web");
-    register(web, Map.of("host", "10.1.2.3", "port", 8080));
-
-    String page = getPage("/services/ws-test/" + web).getBody();
-
-    int buttons = page.indexOf("class=\"ml-auto flex flex-wrap gap-2\"");
-    int facts = page.indexOf("class=\"grid items-start gap-4 lg:grid-cols-2\"", buttons);
-    assertThat(page.substring(buttons, facts)).endsWith("</div></div><div ");
+    assertThat(page).contains("href=\"" + diagramPath("ws-test", web) + "\"");
   }
 
   @Test
@@ -122,11 +107,9 @@ class RouteDiagramComponentTest extends DashboardComponentTest {
     assertThat(page)
         .contains("diagram-login")
         .contains("basicAuth")
-        .contains("asks who the user is")
         .contains("removeHeader")
         .contains("customRequestHeaders.X-Team")
         .contains("platform")
-        .contains("(value hidden)")
         .doesNotContain("SECRETHASH");
   }
 

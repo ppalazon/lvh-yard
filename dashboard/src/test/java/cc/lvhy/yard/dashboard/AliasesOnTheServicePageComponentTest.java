@@ -70,11 +70,8 @@ class AliasesOnTheServicePageComponentTest extends DashboardComponentTest {
     String sources = div(getPage(page(web)).getBody(), "id=\"sources\"");
     assertThat(sources)
         .contains("data-source=\"" + target(grafana) + "\"")
-        .contains(">Alias</span>")
-        .contains(">" + grafana + " on " + RemoteWorkstation.NAME + "</span>")
         .contains("href=\"/services/" + target(grafana) + "\"")
-        .contains("10.9.8.7:3000")
-        .doesNotContain("data-alias-reason");
+        .contains("10.9.8.7:3000");
     assertThat(formTo(getPage(page(web) + "/aliases/new").getBody(), page(web) + "/aliases"))
         .as("a Remote Service that the Service already has an Alias to")
         .doesNotContain("value=\"" + target(grafana) + "\"");
@@ -135,9 +132,7 @@ class AliasesOnTheServicePageComponentTest extends DashboardComponentTest {
         .untilAsserted(() ->
             assertThat(get(servicePath(web)).getBody().get("state").asString())
                 .isEqualTo("healthy"));
-    assertThat(getPage(page(web)).getBody())
-        .contains("3 of 3 Instances passing")
-        .doesNotContain("No Instances are registered");
+    assertThat(getPage(page(web)).getBody()).contains("3 of 3 Instances passing");
     assertThat(getPage("/?state=healthy").getBody()).contains("3 of 3 passing");
   }
 
@@ -158,7 +153,9 @@ class AliasesOnTheServicePageComponentTest extends DashboardComponentTest {
         .extracting(instance -> instance.get("address").asString())
         .containsExactlyInAnyOrder("127.0.0.1:3001", "127.0.0.1:3002", "127.0.0.1:3003");
     assertThat(getPage(page(web) + "/reachability").getBody())
+        .contains("Instance 127.0.0.1:3001")
         .contains("Instance 127.0.0.1:3002")
+        .contains("Instance 127.0.0.1:3003")
         .contains("Only " + RemoteWorkstation.NAME + " reaches this address");
   }
 

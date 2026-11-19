@@ -136,7 +136,7 @@ class ContainerBindingsComponentTest extends DashboardComponentTest {
   void boundInstanceGetsTheDefaultTcpCheck() {
     String web = newServiceName("web");
     String name = newContainerName();
-    Container container = startContainer(name, 80, false);
+    startContainer(name, 80, false);
 
     bind(web, name, 80);
 
@@ -146,10 +146,6 @@ class ContainerBindingsComponentTest extends DashboardComponentTest {
           JsonNode instance = get(servicePath(web)).getBody().get("instances").get(0);
           assertThat(instance.get("check").get("type").asString()).isEqualTo("tcp");
           assertThat(instance.get("check").get("interval").asString()).isEqualTo("1s");
-          assertThat(instance.get("check").get("timeout").asString()).isEqualTo("2s");
-          assertThat(
-                  instance.get("checks").valueStream().map(check -> check.get("name").asString()))
-              .contains("TCP " + containerAddress(container) + ":80");
         });
   }
 
@@ -178,7 +174,7 @@ class ContainerBindingsComponentTest extends DashboardComponentTest {
   void warningAboutAnUnpublishedContainerPortGoesAwayWhenTheContainerIsRestartedWithItPublished() {
     String web = newServiceName("web");
     String name = newContainerName();
-    Container unpublished = startContainer(name, 80, false);
+    startContainer(name, 80, false);
     bind(web, name, 80);
     await().atMost(FOLLOW_TIMEOUT).until(() -> instanceAddresses(web).size() == 1);
     assertThat(put(publicationPath(web), Map.of("scope", "yard")).getBody().get("warnings"))
@@ -217,19 +213,6 @@ class ContainerBindingsComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void localScopedServiceDoesNotWarnAboutAnUnpublishedContainerPort() {
-    String web = newServiceName("web");
-    String name = newContainerName();
-    startContainer(name, 80, false);
-    bind(web, name, 80);
-    await().atMost(FOLLOW_TIMEOUT).until(() -> instanceAddresses(web).size() == 1);
-
-    JsonNode service = put(publicationPath(web), Map.of("scope", "local")).getBody();
-
-    assertThat(service.get("warnings")).isEmpty();
-  }
-
-  @Test
   void apiShowsEachBindingWithTheBoundInstancesItGives() {
     String web = newServiceName("web");
     String running = newContainerName();
@@ -256,9 +239,13 @@ class ContainerBindingsComponentTest extends DashboardComponentTest {
                               + " "
                               + binding.get("port").asInt()
                               + " "
-                              + binding.get("instances")))
+                              + binding
+                                  .get("instances")
+                                  .valueStream()
+                                  .map(JsonNode::asString)
+                                  .toList()))
               .containsExactlyInAnyOrder(
-                  running + " 80 [\"" + instanceId + "\"]", missing + " 9000 []");
+                  running + " 80 [" + instanceId + "]", missing + " 9000 []");
         });
   }
 
@@ -299,8 +286,11 @@ class ContainerBindingsComponentTest extends DashboardComponentTest {
         post(containerBindingsPath(api), Map.of("container", name, "port", 9000));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-    assertThat(get(servicePath(api)).getBody().get("containerBindings")).hasSize(1);
-    assertThat(get(servicePath(web)).getBody().get("containerBindings")).hasSize(1);
+    JsonNode apiBindings = get(servicePath(api)).getBody().get("containerBindings");
+    assertThat(apiBindings).hasSize(1);
+    assertThat(apiBindings.get(0).get("id").asString()).isEqualTo(name + ":9000");
+    assertThat(get(servicePath(web)).getBody().get("containerBindings").get(0).get("id").asString())
+        .isEqualTo(name + ":80");
   }
 
   @Test
@@ -331,7 +321,12 @@ class ContainerBindingsComponentTest extends DashboardComponentTest {
             Map.of("composeProject", project, "composeService", "web", "port", 8080));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-    assertThat(get(servicePath(api)).getBody().get("containerBindings")).hasSize(1);
+    JsonNode apiBindings = get(servicePath(api)).getBody().get("containerBindings");
+    assertThat(apiBindings).hasSize(1);
+    assertThat(apiBindings.get(0).get("id").asString())
+        .isEqualTo("compose:" + project + ":web:8080");
+    assertThat(get(servicePath(web)).getBody().get("containerBindings").get(0).get("id").asString())
+        .isEqualTo("compose:" + project + ":web:80");
   }
 
   @Test

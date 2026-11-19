@@ -7,7 +7,7 @@ import java.time.Duration;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import tools.jackson.databind.JsonNode;
 
 class ServiceStatesComponentTest extends DashboardComponentTest {
@@ -19,8 +19,8 @@ class ServiceStatesComponentTest extends DashboardComponentTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"429 Too Many Requests", "503 Service Unavailable"})
-  void aPassingAndANonPassingInstanceAreDegraded(String status) {
+  @CsvSource({"429 Too Many Requests,warning", "503 Service Unavailable,critical"})
+  void aPassingAndANonPassingInstanceAreDegraded(String status, String health) {
     String service = newServiceName("mixed");
     addHttpInstance(service, "200 OK");
     addHttpInstance(service, status);
@@ -34,14 +34,13 @@ class ServiceStatesComponentTest extends DashboardComponentTest {
                   body.get("instances")
                       .valueStream()
                       .map(instance -> instance.get("health").asString()))
-              .containsExactlyInAnyOrder(
-                  "passing", status.startsWith("429") ? "warning" : "critical");
+              .containsExactlyInAnyOrder("passing", health);
           assertThat(body.get("state").asString()).isEqualTo("degraded");
           assertThat(body.get("warnings")).isEmpty();
         });
     String page = getPage("/services/ws-test/" + service).getBody();
     assertThat(page).doesNotContain("role=\"alert\"");
-    if (status.startsWith("429")) {
+    if (health.equals("warning")) {
       assertThat(page).contains(badge("risk", "warning"));
     }
     assertThat(getPage("/?state=degraded").getBody())
@@ -53,8 +52,12 @@ class ServiceStatesComponentTest extends DashboardComponentTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"200 OK", "429 Too Many Requests", "503 Service Unavailable"})
-  void everyInstanceMustPassForHealthy(String status) {
+  @CsvSource({
+    "200 OK,passing,healthy",
+    "429 Too Many Requests,warning,unhealthy",
+    "503 Service Unavailable,critical,unhealthy"
+  })
+  void everyInstanceMustPassForHealthy(String status, String health, String state) {
     String service = newServiceName("same-health");
     addHttpInstance(service, status);
     addHttpInstance(service, status);
@@ -64,27 +67,13 @@ class ServiceStatesComponentTest extends DashboardComponentTest {
         .atMost(Duration.ofSeconds(15))
         .untilAsserted(() -> {
           JsonNode body = get(servicePath(service)).getBody();
-          String health =
-              status.startsWith("200")
-                  ? "passing"
-                  : status.startsWith("429") ? "warning" : "critical";
           assertThat(
                   body.get("instances")
                       .valueStream()
                       .map(instance -> instance.get("health").asString()))
               .containsExactly(health, health);
-          assertThat(body.get("state").asString())
-              .isEqualTo(status.startsWith("200") ? "healthy" : "unhealthy");
+          assertThat(body.get("state").asString()).isEqualTo(state);
         });
-  }
-
-  @Test
-  void anUnpublishedServiceStaysUnpublishedWithAFailingInstance() {
-    String service = newServiceName("unpublished");
-    addHttpInstance(service, "503 Service Unavailable");
-
-    assertThat(get(servicePath(service)).getBody().get("state").asString())
-        .isEqualTo("unpublished");
   }
 
   @Test

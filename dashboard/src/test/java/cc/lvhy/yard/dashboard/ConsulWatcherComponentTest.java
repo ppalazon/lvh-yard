@@ -8,69 +8,23 @@ import cc.lvhy.yard.dashboard.consul.ConsulAgent;
 import cc.lvhy.yard.dashboard.consul.ConsulSettings;
 import cc.lvhy.yard.dashboard.events.EventDebouncer;
 import cc.lvhy.yard.dashboard.services.ConsulWatcher;
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.ServerSocket;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 
 /** Consul watcher: Instance health, KV mutations, WAN pool changes, and SSE signals. */
 class ConsulWatcherComponentTest extends DashboardComponentTest {
 
-  @Autowired EventDebouncer debouncer;
-
-  private static class EventStreamClient implements AutoCloseable {
-    final HttpResponse<InputStream> response;
-    final BlockingQueue<String> lines = new LinkedBlockingQueue<>();
-    final InputStream stream;
-    final Thread readerThread;
-
-    EventStreamClient(int port) throws Exception {
-      HttpClient client = HttpClient.newHttpClient();
-      HttpRequest request =
-          HttpRequest.newBuilder()
-              .uri(URI.create("http://127.0.0.1:" + port + "/events"))
-              .header("Accept", "text/event-stream")
-              .GET()
-              .build();
-      this.response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
-      this.stream = response.body();
-      this.readerThread =
-          Thread.ofVirtual()
-              .name("test-consul-sse-reader")
-              .start(() -> {
-                try (BufferedReader reader =
-                    new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
-                  String line;
-                  while ((line = reader.readLine()) != null) {
-                    lines.add(line);
-                  }
-                } catch (Exception ignored) {
-                }
-              });
-    }
-
-    @Override
-    public void close() throws Exception {
-      stream.close();
-      readerThread.interrupt();
-    }
-  }
-
   @Test
   void registeringAnInstanceEmitsYardChangedOverEventsStream() throws Exception {
     try (EventStreamClient client = new EventStreamClient(port)) {
+      client.lines.clear();
       String service = newServiceName("watcher-reg");
       register(service, Map.of("host", "10.1.2.3", "port", 8080));
 
@@ -96,6 +50,7 @@ class ConsulWatcherComponentTest extends DashboardComponentTest {
         });
 
     try (EventStreamClient client = new EventStreamClient(port)) {
+      client.lines.clear();
       // Stop the listener so the health check transitions from passing to critical
       stopListeningOnLanAddress(portNum);
 
@@ -111,8 +66,8 @@ class ConsulWatcherComponentTest extends DashboardComponentTest {
     register(service, Map.of("host", "10.1.2.3", "port", 8080));
 
     try (EventStreamClient client = new EventStreamClient(port)) {
+      client.lines.clear();
       publish(service);
-
       await()
           .atMost(Duration.ofSeconds(10))
           .until(() -> client.lines.contains("event:yard-changed"));
@@ -125,9 +80,15 @@ class ConsulWatcherComponentTest extends DashboardComponentTest {
     AtomicBoolean recovered = new AtomicBoolean();
     AtomicInteger triggers = new AtomicInteger();
 
+    int deadPort;
+    try (ServerSocket socket = new ServerSocket(0)) {
+      deadPort = socket.getLocalPort();
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
     ConsulSettings deadConsul =
         new ConsulSettings(
-            URI.create("http://127.0.0.1:54321"),
+            URI.create("http://127.0.0.1:" + deadPort),
             "",
             Duration.ofMillis(500),
             Duration.ofSeconds(10));
@@ -172,16 +133,8 @@ class ConsulWatcherComponentTest extends DashboardComponentTest {
     String service = newServiceName("watcher-wan");
     register(service, Map.of("host", "10.1.2.3", "port", 8080));
 
-    // Verify Catalog and Service pages include HTMX SSE trigger for yard-changed
-    String catalogPage = getPage("/").getBody();
-    assertThat(openingTag(catalogPage, "id=\"catalog\""))
-        .contains("hx-trigger=\"" + YARD_CHANGED + " from:body, every 30s\"");
-
-    String servicePage = getPage("/services/ws-test/" + service).getBody();
-    assertThat(openingTag(servicePage, "id=\"service\""))
-        .contains("hx-trigger=\"" + YARD_CHANGED + " from:body, every 30s\"");
-
     try (EventStreamClient client = new EventStreamClient(port)) {
+      client.lines.clear();
       // Trigger WAN pool membership change by force-leaving remote WAN member
       remote.stopAnswering();
 

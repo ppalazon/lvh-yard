@@ -64,16 +64,6 @@ class AliasesComponentTest extends DashboardComponentTest {
     JsonNode source = source(web, id);
     assertThat(source.get("kind").asString()).isEqualTo("alias");
     assertThat(source.get("instances").size()).isEqualTo(1);
-  }
-
-  @Test
-  void serviceWhoseOnlySourceIsAnAliasIsNotEmpty() {
-    String grafana = sharedRemoteService("grafana");
-    String web = newServiceName("web");
-    create(web);
-
-    addAlias(web, grafana);
-
     assertThat(get(servicePath(web)).getBody().get("empty").asBoolean()).isFalse();
   }
 
@@ -188,6 +178,16 @@ class AliasesComponentTest extends DashboardComponentTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     assertThat(get(servicePath(web)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+  }
+
+  @Test
+  void listingOrRemovingAnAliasOfAServiceYouHaveNotCreatedIsNotFound() {
+    String grafana = sharedRemoteService("grafana");
+    String web = newServiceName("web");
+
+    assertThat(get(aliasesPath(web)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    assertThat(delete(aliasPath(web, RemoteWorkstation.NAME, grafana)).getStatusCode())
+        .isEqualTo(HttpStatus.NOT_FOUND);
   }
 
   @Test

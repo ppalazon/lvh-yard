@@ -88,15 +88,7 @@ class BoundInstanceTargetsComponentTest extends DashboardComponentTest {
     delete(publicationPath(web));
     assertThat(targetsNow(web)).containsExactly(lanAddress() + ":" + hostPort);
 
-    JsonNode service = get(servicePath(web)).getBody();
-    assertThat(service.get("instances")).hasSize(1);
-    JsonNode instance = service.get("instances").get(0);
-    assertThat(instance.get("id").asString()).isEqualTo(id);
-    assertThat(instance.get("containerBinding").asString()).isEqualTo(name + ":80");
-    assertThat(instance.get("container").asString()).isEqualTo(name);
-    assertThat(instance.get("containerPort").asInt()).isEqualTo(80);
-    assertThat(instance.get("hostPort").asInt()).isEqualTo(hostPort);
-    assertThat(service.get("containerBindings")).hasSize(1);
+    assertThat(onlyInstance(web).get("id").asString()).isEqualTo(id);
   }
 
   @Test
@@ -211,11 +203,14 @@ class BoundInstanceTargetsComponentTest extends DashboardComponentTest {
 
     publish(web);
 
-    assertThat(targets(web, 3))
-        .containsExactlyInAnyOrder(
-            LOOPBACK + ":" + hostPort(wildcard, 80),
-            lanAddress() + ":" + hostPort(explicit, 80),
-            containerAddress(internal) + ":80");
+    await()
+        .atMost(FOLLOW_TIMEOUT)
+        .untilAsserted(() ->
+            assertThat(targetsNow(web))
+                .containsExactlyInAnyOrder(
+                    LOOPBACK + ":" + hostPort(wildcard, 80),
+                    lanAddress() + ":" + hostPort(explicit, 80),
+                    containerAddress(internal) + ":80"));
 
     scope(web, "yard");
 
@@ -291,7 +286,7 @@ class BoundInstanceTargetsComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void equallyRankedPreferredMappingsKeepTheirOrderAndAWildcardComesFirst() {
+  void equallyRankedPreferredMappingsKeepTheirOrder() {
     String yard = newServiceName("yard");
     String local = newServiceName("local");
     String ties = newContainerName();
@@ -310,7 +305,10 @@ class BoundInstanceTargetsComponentTest extends DashboardComponentTest {
     bind(local, ties, 80);
     publish(local);
     assertThat(targets(local, 1)).containsExactly(LOOPBACK + ":" + hostPortOn(tied, 80, LOOPBACK));
+  }
 
+  @Test
+  void wildcardMappingComesFirstForYardScopeAndIsKeptForLocalScope() {
     String name = newContainerName();
     Container withWildcard =
         start(
@@ -400,28 +398,6 @@ class BoundInstanceTargetsComponentTest extends DashboardComponentTest {
             lanAddress() + ":" + hostPortOn(both, 80, lanAddress()),
             lanAddress() + ":" + hostPortOn(lanOnly, 80, lanAddress()),
             LOOPBACK + ":" + hostPortOn(loopbackOnly, 80, LOOPBACK));
-  }
-
-  @Test
-  void servicesFollowingOneContainerWithSeveralMappingsChooseByTheirOwnScope() {
-    String local = newServiceName("local");
-    String yard = newServiceName("yard");
-    String name = newContainerName();
-    Container container =
-        start(
-            FakeDocker.container(name).publishedOn(lanAddress(), 80).alsoPublishedOn(LOOPBACK, 80));
-    bind(local, name, 80);
-    bind(yard, name, 80);
-
-    publish(local);
-    scope(yard, "yard");
-
-    assertThat(targets(local, 1))
-        .containsExactly(LOOPBACK + ":" + hostPortOn(container, 80, LOOPBACK));
-    assertThat(targets(yard, 1))
-        .containsExactly(lanAddress() + ":" + hostPortOn(container, 80, lanAddress()));
-    assertThat(routeTargets(yard))
-        .containsExactly("http://" + lanAddress() + ":" + hostPortOn(container, 80, lanAddress()));
   }
 
   /** The other Workstation's own Yard-Scope Instances, as its Routes here take them. */

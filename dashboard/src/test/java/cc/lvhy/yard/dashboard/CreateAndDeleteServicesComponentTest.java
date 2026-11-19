@@ -29,6 +29,9 @@ class CreateAndDeleteServicesComponentTest extends DashboardComponentTest {
     assertThat(service.has("publication")).isFalse();
     assertThat(service.get("empty").asBoolean()).isTrue();
     assertThat(service.get("created").asBoolean()).isTrue();
+    String withSource = newServiceName("grafana");
+    register(withSource, Map.of("host", "10.1.2.3", "port", 3000));
+    assertThat(get(servicePath(withSource)).getBody().get("empty").asBoolean()).isFalse();
   }
 
   @Test
@@ -47,6 +50,7 @@ class CreateAndDeleteServicesComponentTest extends DashboardComponentTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody().get("field").asString()).isEqualTo("name");
+    assertThat(get(servicePath("My_Grafana")).getStatusCode()).isNotEqualTo(HttpStatus.OK);
   }
 
   @Test
@@ -83,15 +87,6 @@ class CreateAndDeleteServicesComponentTest extends DashboardComponentTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     assertThat(get(servicePath(web)).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-  }
-
-  @Test
-  void serviceWithASourceIsNotEmpty() {
-    String grafana = newServiceName("grafana");
-
-    register(grafana, Map.of("host", "10.1.2.3", "port", 3000));
-
-    assertThat(get(servicePath(grafana)).getBody().get("empty").asBoolean()).isFalse();
   }
 
   @Test

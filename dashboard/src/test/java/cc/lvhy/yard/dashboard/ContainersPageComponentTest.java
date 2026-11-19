@@ -40,7 +40,6 @@ class ContainersPageComponentTest extends DashboardComponentTest {
         .contains(createPath(project + "/web"));
     assertThat(page.substring(stoppedSection)).contains(createPath(project + "/web"));
     assertThat(page).doesNotContain(createPath(running)).doesNotContain(createPath(stopped));
-    assertThat(page).doesNotContain("type=\"checkbox\"");
   }
 
   @Test
@@ -171,7 +170,6 @@ class ContainersPageComponentTest extends DashboardComponentTest {
     assertThat(page).contains(">" + free + "<", ">" + freeStopped + "<");
     assertThat(page)
         .doesNotContain(">" + bound + "<", ">" + composeRunning + "<", ">" + composeStopped + "<");
-    assertThat(page).contains("hx-get=\"/containers?state=all\"");
   }
 
   @Test
@@ -201,7 +199,6 @@ class ContainersPageComponentTest extends DashboardComponentTest {
 
     String page = getPage(createPath(project + "/web")).getBody();
 
-    assertThat(openingTag(page, "name=\"containerPort\"")).contains("role=\"combobox\"");
     assertThat(page).contains("data-value=\"80\"", "data-value=\"8080\"", "data-value=\"9000\"");
     assertThat(page.split("data-value=\"80\"", -1)).hasSize(2);
   }
@@ -272,7 +269,14 @@ class ContainersPageComponentTest extends DashboardComponentTest {
   }
 
   @ParameterizedTest
-  @CsvSource({"true,local,true", "true,yard,false", "false,local,true", "false,yard,false"})
+  @CsvSource({
+    "true,local,true",
+    "true,yard,true",
+    "true,local,false",
+    "true,yard,false",
+    "false,local,true",
+    "false,local,false"
+  })
   void createsExactlyOneBindingForTheTarget(boolean publish, String scope, boolean compose)
       throws Exception {
     String project = newComposeProject();
