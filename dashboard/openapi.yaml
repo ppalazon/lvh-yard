@@ -229,7 +229,10 @@ paths:
         \ is a TCP container port, with its host port when it is published. A stopped\
         \ container has no ports. followedBy names the Services that have a Container\
         \ Binding that matches the container, whatever its port, and is empty when\
-        \ none does."
+        \ none does. Each port's followedBy names the Services that have a Container\
+        \ Binding at that port of the container's target: the container, or its Compose\
+        \ service, so a Binding by name to any container of the service counts for\
+        \ all of them."
       operationId: containers
       responses:
         "200":
@@ -1089,6 +1092,10 @@ components:
         containerPort:
           type: integer
           format: int32
+        followedBy:
+          type: array
+          items:
+            type: string
         hostIp:
           type: string
         hostPort:
@@ -1096,6 +1103,7 @@ components:
           format: int32
       required:
       - containerPort
+      - followedBy
     ExportedFrom:
       type: object
       properties:

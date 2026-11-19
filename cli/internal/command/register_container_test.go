@@ -19,7 +19,7 @@ func TestRegisterContainer(t *testing.T) {
 		list, own, stdout, stderr string
 		port                      int
 	}{
-		{"inferred distinct port", "grafana", "grafana", nil, `[{"name":"grafana","ports":[{"containerPort":3000,"hostPort":19080},{"containerPort":3000,"hostPort":19081}]}]`, `{"name":"grafana","hostname":"grafana.lvh.me","publication":{"scope":"local"},"instances":[{"id":"bound"}]}`, "Registered grafana as grafana, published at grafana.lvh.me.\n", "", 3000},
+		{"inferred distinct port", "grafana", "grafana", nil, `[{"name":"grafana","ports":[{"containerPort":3000,"followedBy":[],"hostPort":19080},{"containerPort":3000,"followedBy":[],"hostPort":19081}]}]`, `{"name":"grafana","hostname":"grafana.lvh.me","publication":{"scope":"local"},"instances":[{"id":"bound"}]}`, "Registered grafana as grafana, published at grafana.lvh.me.\n", "", 3000},
 		{"explicit port and service", "storefront", "shop", []string{"--port", "9000", "--service", "shop"}, "", `{"name":"shop","instances":[{"id":"bound"}]}`, "Registered storefront as shop. shop is not published.\n", "", 9000},
 		{"cleaned name", "My_Web", "my-web", []string{"--port", "80"}, "", `{"name":"my-web","instances":[]}`, "Registered My_Web as my-web. my-web is not published. No container of that name runs now. my-web gets a Bound Instance when one starts.\n", "", 80},
 		{"not running", "catalog", "catalog", []string{"--port", "80"}, "", `{"name":"catalog","hostname":"catalog.lvh.me","publication":{"scope":"local"},"instances":[]}`, "Registered catalog as catalog, published at catalog.lvh.me. No container of that name runs now. catalog gets a Bound Instance when one starts.\n", "", 80},
@@ -58,7 +58,7 @@ func TestRegisterContainerNeedsAnUnambiguousPort(t *testing.T) {
 	for _, tc := range []struct{ name, body, reason string }{
 		{"missing", `[]`, "No port is known for the container storefront: give --port."},
 		{"no ports", `[{"name":"storefront","ports":[]}]`, "No port is known for the container storefront: give --port."},
-		{"several", `[{"name":"storefront","ports":[{"containerPort":9000},{"containerPort":80},{"containerPort":80}]}]`, "The container storefront has more than one port: give --port with one of 80, 9000."},
+		{"several", `[{"name":"storefront","ports":[{"containerPort":9000,"followedBy":[]},{"containerPort":80,"followedBy":[]},{"containerPort":80,"followedBy":[]}]}]`, "The container storefront has more than one port: give --port with one of 80, 9000."},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

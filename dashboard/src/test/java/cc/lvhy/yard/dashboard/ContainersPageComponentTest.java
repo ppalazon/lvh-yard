@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -43,7 +44,7 @@ class ContainersPageComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void followedStandaloneAndComposeTargetsHideCreateLinksIncludingStoppedFollowedReplicas() {
+  void aFollowedPortHidesCreateServiceAndStoppedContainersAlwaysOfferIt() {
     String project = newComposeProject();
     String running = newContainerName();
     String stopped = newContainerName();
@@ -58,11 +59,80 @@ class ContainersPageComponentTest extends DashboardComponentTest {
     bind(followed, plain, 80);
 
     String page = decoded(getPage(EVERY_CONTAINER).getBody());
+    int stoppedSection = page.indexOf("id=\"stopped-containers\"");
+    String runningPage = page.substring(0, stoppedSection);
 
-    assertThat(page).doesNotContain(createPath(project + "/web")).doesNotContain(createPath(plain));
-    assertThat(page)
+    // Port 80 of the Compose service is followed by the Binding to its stopped replica.
+    assertThat(runningPage)
+        .doesNotContain(createPath(project + "/web"))
+        .doesNotContain(createPath(plain));
+    assertThat(runningPage)
         .contains(createPath(unused))
         .contains("href=\"/services/ws-test/" + followed + "\"");
+    // No port is known for a stopped container, so it shows who follows it and the button.
+    assertThat(page.substring(stoppedSection))
+        .contains(createPath(project + "/web"))
+        .contains("href=\"/services/ws-test/" + followed + "\"");
+  }
+
+  @Test
+  void eachPortOfAContainerShowsItsFollowersOrItsOwnCreateService() {
+    String target = newContainerName();
+    start(FakeDocker.container(target).port(80).port(8080).port(9000));
+    String web = newServiceName("web");
+    String admin = newServiceName("admin");
+    bind(web, target, 80);
+    bind(admin, target, 9000);
+
+    String page = decoded(getPage(EVERY_CONTAINER).getBody());
+
+    assertThat(page).containsPattern(portLink(target, 8080));
+    assertThat(page).doesNotContainPattern(portLink(target, 80));
+    assertThat(page).doesNotContainPattern(portLink(target, 9000));
+    assertThat(page)
+        .contains("href=\"/services/ws-test/" + web + "\"")
+        .contains("href=\"/services/ws-test/" + admin + "\"");
+  }
+
+  @Test
+  void aComposeServiceShowsFollowersPerPortAcrossItsContainers() {
+    String project = newComposeProject();
+    start(FakeDocker.container(newContainerName()).compose(project, "web").port(80).port(8080));
+    start(FakeDocker.container(newContainerName()).compose(project, "web").port(80).port(8080));
+    String followed = newServiceName("web");
+    bindCompose(followed, project, "web", 80);
+
+    String page = decoded(getPage(EVERY_CONTAINER).getBody());
+
+    assertThat(page).containsPattern(portLink(project + "/web", 8080));
+    assertThat(page).doesNotContainPattern(portLink(project + "/web", 80));
+    assertThat(page).contains("href=\"/services/ws-test/" + followed + "\"");
+  }
+
+  @Test
+  void aContainerWithAFreePortStaysInTheNotFollowedList() {
+    String partly = newContainerName();
+    String fully = newContainerName();
+    start(FakeDocker.container(partly).port(80).port(8080));
+    start(FakeDocker.container(fully).port(80));
+    bind(newServiceName("partly"), partly, 80);
+    bind(newServiceName("fully"), fully, 80);
+
+    assertThat(containers("/containers"))
+        .contains(">" + partly + "<")
+        .doesNotContain(">" + fully + "<");
+    assertThat(containers("/containers?followed=yes"))
+        .contains(">" + partly + "<", ">" + fully + "<");
+  }
+
+  @Test
+  void createServiceFormSelectsThePortOfTheLineThatOpenedIt() {
+    String target = newContainerName();
+    start(FakeDocker.container(target).port(80).port(8080));
+
+    String page = getPage(createPath(target) + "&port=8080").getBody();
+
+    assertThat(openingTag(page, "name=\"containerPort\"")).contains("value=\"8080\"");
   }
 
   @Test
@@ -256,6 +326,11 @@ class ContainersPageComponentTest extends DashboardComponentTest {
 
   private static String createPath(String target) {
     return "/containers/services/new?target=" + target;
+  }
+
+  /** The link of one port, up to its closing quote, so that 80 does not match 8080. */
+  private static Pattern portLink(String target, int port) {
+    return Pattern.compile(Pattern.quote(createPath(target)) + "(&amp;|&)port=" + port + "\"");
   }
 
   private static String decoded(String value) {

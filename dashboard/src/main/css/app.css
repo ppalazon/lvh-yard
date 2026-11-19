@@ -751,186 +751,146 @@
   }
 
   .containers-heading {
-    margin-bottom: 1.25rem;
+    margin-bottom: 0.75rem;
   }
 
-  .containers-heading p {
-    margin-top: 0.5rem;
-    max-width: 65ch;
-    color: var(--muted-foreground);
-  }
-
-  .containers-page a:focus-visible,
-  .containers-page .container-details > summary:focus-visible {
+  .containers-page a:focus-visible {
     outline: 2px solid var(--ring);
-    outline-offset: 3px;
+    outline-offset: 2px;
   }
 
   .container-list {
     display: flex;
     min-width: 0;
     flex-direction: column;
-    gap: 2rem;
+    gap: 1.25rem;
+    margin-top: 1rem;
   }
 
   .container-state {
     min-width: 0;
   }
 
+  /* A dot before the state, in the amber of the buttons while running. */
   .container-state-heading {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
-    gap: 0.5rem 1rem;
-    margin-bottom: 1rem;
+    gap: 0.125rem 0.75rem;
+    margin-bottom: 0.5rem;
   }
 
+  .container-state-heading h2 {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .container-state-heading h2::before {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background-color: var(--muted-foreground);
+    content: "";
+  }
+
+  .container-state[data-state="running"] .container-state-heading h2::before {
+    background-color: var(--primary);
+  }
+
+  /* One frame per Compose project. Every line inside it is a row of the same grid. */
   .container-project {
     min-width: 0;
-    margin-top: 1.25rem;
-    padding: 1.25rem;
+    overflow: hidden;
     border: 1px solid var(--border);
     border-radius: var(--radius);
   }
 
-  .container-compose-service,
-  .container-standalone-target {
-    padding: 1rem;
-    border-left: 4px solid var(--primary);
-  }
-
-  .container-state[data-state="stopped"] .container-compose-service,
-  .container-state[data-state="stopped"] .container-standalone-target {
-    border-left-color: var(--muted);
+  .container-project + .container-project {
+    margin-top: 0.625rem;
   }
 
   .container-project-heading {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
-    gap: 0.375rem 0.75rem;
-    padding-bottom: 0.75rem;
-    font-size: 1rem;
-    font-weight: 600;
-  }
-
-  .container-compose-service + .container-compose-service,
-  .container-standalone-target + .container-standalone-target {
-    margin-top: 1.25rem;
-  }
-  .container-compose-service:hover,
-  .container-standalone-target:hover {
-    background-color: var(--muted);
-  }
-
-  .container-target-heading {
-    display: flex;
-    min-width: 0;
-    min-height: 2.75rem;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem 1rem;
-  }
-
-  .container-target-heading h4 {
-    min-width: 0;
-    font-size: 0.9375rem;
-    font-weight: 600;
-  }
-
-  .container-create {
-    flex-shrink: 0;
-  }
-
-  .container-details {
-    min-width: 0;
-    margin-top: 0.25rem;
-  }
-
-  .container-details > summary {
-    display: list-item;
-    min-height: 2.5rem;
-    padding-block: 0.5rem;
-    list-style-position: inside;
-    list-style-type: disclosure-closed;
-    cursor: pointer;
-    color: var(--muted-foreground);
+    gap: 0.125rem 0.5rem;
+    padding: 0.375rem 0.75rem;
+    background-color: var(--secondary);
     font-size: 0.875rem;
+    font-weight: 600;
   }
 
-  .container-details[open] > summary {
-    list-style-type: disclosure-open;
-  }
-
-  .container-details > summary:hover {
-    color: var(--foreground);
-  }
-
-  .container-replicas {
-    min-width: 0;
-  }
-
-  .container-row {
+  .container-line {
     display: grid;
     min-width: 0;
     grid-template-columns: minmax(0, 1fr);
-    align-items: start;
-    gap: 0.75rem;
-    padding-block: 1rem;
+    align-items: baseline;
+    gap: 0.25rem 0.75rem;
+    padding: 0.4375rem 0.75rem;
     border-top: 1px solid var(--border);
-    scroll-margin-top: 7rem;
+    font-size: 0.875rem;
   }
 
-  .container-row > * {
+  .container-line > * {
     min-width: 0;
   }
 
-  .container-name {
-    padding-top: 0.125rem;
-    font-size: 0.875rem;
-    font-weight: 500;
+  /* Another Container Port of the same target. It sits close under the line above. */
+  .container-line.container-more-port {
+    padding-top: 0.25rem;
+    border-top-style: dotted;
   }
 
-  .container-port-table {
-    width: 100%;
-    table-layout: fixed;
-    text-align: left;
+  .container-name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 0.5rem;
+  }
+
+  .container-name h4 {
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  .container-replica .container-name {
+    padding-left: 1rem;
+  }
+
+  .container-detail,
+  .container-no-ports {
+    color: var(--muted-foreground);
     font-size: 0.8125rem;
+  }
+
+  .container-ports {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
     font-variant-numeric: tabular-nums;
   }
 
-  .container-port-table th,
-  .container-port-table td {
-    padding: 0.125rem 0.75rem 0.125rem 0;
-    vertical-align: top;
-    overflow-wrap: anywhere;
-  }
-
-  .container-port-table th {
-    padding-bottom: 0.375rem;
-    color: var(--muted-foreground);
-    font-size: 0.75rem;
-    font-weight: 400;
-  }
-
-  .container-port-table th:last-child,
-  .container-port-table td:last-child {
-    padding-right: 0;
+  .container-ports li {
+    padding-inline: 0.375rem;
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) - 2px);
+    font-size: 0.8125rem;
+    line-height: 1.25rem;
+    white-space: nowrap;
   }
 
   .container-followers {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
-    gap: 0.25rem 0.5rem;
-    font-size: 0.875rem;
+    gap: 0.125rem 0.5rem;
   }
 
   .container-followers ul {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.25rem 0.75rem;
+    gap: 0.125rem 0.625rem;
   }
 
   .container-followers a {
@@ -938,43 +898,30 @@
     text-underline-offset: 3px;
   }
 
-  .container-compose-service > .container-followers,
-  .container-standalone-target > .container-followers {
-    margin-block: 0.375rem;
+  .container-line > a.container-create {
+    height: 1.5rem;
+    justify-self: start;
+    padding-inline: 0.5rem;
+    font-size: 0.75rem;
   }
 
   .container-empty {
-    padding-block: 0.5rem;
+    padding-block: 0.25rem;
     color: var(--muted-foreground);
     font-size: 0.875rem;
   }
 
+  /* Name, ports, followers and button keep their columns from the first line to the last. */
   @media (width >= 48rem) {
-    .container-replica-row {
-      grid-template-columns: minmax(0, 1fr) minmax(17rem, 1.4fr) minmax(
-          0,
-          0.8fr
-        );
-      gap: 1rem;
+    .container-line {
+      grid-template-columns:
+        minmax(16rem, 1.5fr) minmax(0, 2fr) minmax(8rem, 1fr)
+        7.5rem;
     }
 
-    .container-replica-row .container-followers {
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-  }
-
-  @media (width < 30rem) {
-    .container-project {
-      padding: 0.75rem;
-    }
-
-    .container-target-heading {
-      align-items: flex-start;
-    }
-
-    .container-target-heading h4 {
-      flex-basis: 100%;
+    .container-line > a.container-create {
+      grid-column: 4;
+      justify-self: end;
     }
   }
 }

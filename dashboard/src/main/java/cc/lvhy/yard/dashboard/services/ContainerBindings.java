@@ -10,9 +10,11 @@ import cc.lvhy.yard.dashboard.docker.Docker.Port;
 import cc.lvhy.yard.dashboard.services.Registrations.BoundInstance;
 import java.net.InetAddress;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.function.Predicate;
@@ -222,6 +224,29 @@ public class ContainerBindings {
         ? one.composeProject().equals(other.composeProject())
             && one.composeService().equals(other.composeService())
         : one.container().equals(other.container());
+  }
+
+  /**
+   * The Services that have a Binding at {@code port} that matches any of {@code containers}, by
+   * name. A Binding by name matches that container. A Binding by Compose service matches every
+   * container of it.
+   */
+  static List<String> followersAt(
+      Map<String, Map<String, ContainerBindingRequest>> followed,
+      Collection<ListedContainer> containers,
+      int port) {
+    return followers(
+        followed,
+        binding ->
+            Objects.equals(binding.port(), port)
+                && containers.stream().anyMatch(container -> matches(binding, container)));
+  }
+
+  private static boolean matches(ContainerBindingRequest binding, ListedContainer container) {
+    return binding.followsCompose()
+        ? binding.composeProject().equals(container.composeProject())
+            && binding.composeService().equals(container.composeService())
+        : binding.container().equals(container.name());
   }
 
   /** The Services that have a Binding in {@code followed} that {@code test} accepts, by name. */

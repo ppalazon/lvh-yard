@@ -10,6 +10,7 @@ import cc.lvhy.yard.dashboard.docker.FakeDocker;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -149,6 +150,48 @@ class ContainersComponentTest extends DashboardComponentTest {
 
     assertThat(listed(name).get("followedBy").valueStream().map(JsonNode::asString))
         .containsExactlyInAnyOrder(web, api);
+  }
+
+  @Test
+  void eachPortNamesTheServicesThatFollowThatPort() {
+    String name = newContainerName();
+    start(FakeDocker.container(name).port(80).port(8080).port(9000));
+    String web = newServiceName("web");
+    String admin = newServiceName("admin");
+
+    bind(web, name, 80);
+    bind(admin, name, 9000);
+
+    JsonNode ports = listed(name).get("ports");
+    assertThat(followedBy(ports.get(0))).containsExactly(web);
+    assertThat(ports.get(0).get("containerPort").asInt()).isEqualTo(80);
+    assertThat(ports.get(1).get("containerPort").asInt()).isEqualTo(8080);
+    assertThat(followedBy(ports.get(1))).isEmpty();
+    assertThat(followedBy(ports.get(2))).containsExactly(admin);
+  }
+
+  @Test
+  void aPortOfAComposeContainerIsFollowedForTheWholeServiceByAnyBindingToIt() {
+    String project = newComposeProject();
+    String first = newContainerName();
+    String second = newContainerName();
+    start(FakeDocker.container(first).compose(project, "web").port(80).port(8080));
+    start(FakeDocker.container(second).compose(project, "web").port(80).port(8080));
+    String byService = newServiceName("web");
+    String byName = newServiceName("web-admin");
+
+    bindCompose(byService, project, "web", 80);
+    bind(byName, second, 8080);
+
+    for (String name : List.of(first, second)) {
+      JsonNode ports = listed(name).get("ports");
+      assertThat(followedBy(ports.get(0))).containsExactly(byService);
+      assertThat(followedBy(ports.get(1))).containsExactly(byName);
+    }
+  }
+
+  private static Stream<String> followedBy(JsonNode port) {
+    return port.get("followedBy").valueStream().map(JsonNode::asString);
   }
 
   @Test

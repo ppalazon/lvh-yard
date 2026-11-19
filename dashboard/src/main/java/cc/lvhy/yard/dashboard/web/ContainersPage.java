@@ -14,9 +14,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
+import java.util.function.Consumer;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.FlowContent;
@@ -97,8 +96,13 @@ final class ContainersPage {
       return Arrays.stream(values()).filter(filter -> filter.value.equals(value)).findFirst();
     }
 
-    boolean shows(boolean followed) {
-      return this == ALL || (this == YES) == followed;
+    /** Not followed is what still needs a Service: nothing follows it, or a known port is free. */
+    boolean shows(Context context, ListedContainer container) {
+      return switch (this) {
+        case ALL -> true;
+        case YES -> context.anyFollowed(container);
+        case NO -> !context.everyPortFollowed(container);
+      };
     }
   }
 
@@ -154,14 +158,46 @@ final class ContainersPage {
                 .__());
   }
 
-  /** A Compose service is followed when any of its containers is, as its Create Service link is. */
-  private static boolean followed(
-      ListedContainer container, Map<String, Set<String>> composeFollowers) {
-    if (container.composeProject() != null && container.composeService() != null) {
-      return composeFollowers.containsKey(
-          container.composeProject() + "/" + container.composeService());
+  /**
+   * What the lines need to say who follows what. Each port already says it for its whole target.
+   *
+   * @param composeGroups every container of each Compose service, as {@code project/service}, in
+   *     both states, as a Binding follows them all
+   */
+  private record Context(
+      Workstation workstation, Map<String, List<ListedContainer>> composeGroups) {
+
+    /** The Services that follow {@code port} of the target of {@code group}. */
+    static List<String> followersAt(List<ListedContainer> group, int port) {
+      return group.stream()
+          .flatMap(member -> member.ports().stream())
+          .filter(mapped -> mapped.containerPort() == port)
+          .findFirst()
+          .map(ListedContainer.ContainerPort::followedBy)
+          .orElse(List.of());
     }
-    return !container.followedBy().isEmpty();
+
+    /** The container, or every container of its Compose service. */
+    List<ListedContainer> group(ListedContainer container) {
+      if (container.composeProject() != null && container.composeService() != null) {
+        return composeGroups.get(container.composeProject() + "/" + container.composeService());
+      }
+      return List.of(container);
+    }
+
+    boolean anyFollowed(ListedContainer container) {
+      return group(container).stream().anyMatch(member -> !member.followedBy().isEmpty());
+    }
+
+    /** Followed, and at every port that is known. No port is known for a stopped container. */
+    boolean everyPortFollowed(ListedContainer container) {
+      List<ListedContainer> group = group(container);
+      return anyFollowed(container)
+          && group.stream()
+              .flatMap(member -> member.containerPorts().stream())
+              .distinct()
+              .noneMatch(port -> followersAt(group, port).isEmpty());
+    }
   }
 
   private static String empty(boolean running, FollowedFilter followed) {
@@ -245,33 +281,31 @@ final class ContainersPage {
     }
     List<ListedContainer> ordered =
         containers.stream().sorted(Comparator.comparing(ListedContainer::name)).toList();
-    Map<String, Set<String>> composeFollowers = new TreeMap<>();
-    // A name Binding on one replica also hides the action for its Compose target in both states.
+    Map<String, List<ListedContainer>> composeGroups = new TreeMap<>();
     for (ListedContainer container : ordered) {
-      if (container.composeProject() != null
-          && container.composeService() != null
-          && !container.followedBy().isEmpty()) {
-        composeFollowers
+      if (container.composeProject() != null && container.composeService() != null) {
+        composeGroups
             .computeIfAbsent(
                 container.composeProject() + "/" + container.composeService(),
-                ignored -> new TreeSet<>())
-            .addAll(container.followedBy());
+                ignored -> new ArrayList<>())
+            .add(container);
       }
     }
+    Context context = new Context(workstation, composeGroups);
     List<ListedContainer> shown =
         ordered.stream()
             .filter(container -> filters.state().shows(container))
-            .filter(container -> filters.followed().shows(followed(container, composeFollowers)))
+            .filter(container -> filters.followed().shows(context, container))
             .toList();
     region
         .div()
         .attrClass("container-list")
         .of(list -> {
           if (filters.state() != StateFilter.STOPPED) {
-            stateSection(list, workstation, shown, composeFollowers, filters, true);
+            stateSection(list, context, shown, filters, true);
           }
           if (filters.state() != StateFilter.RUNNING) {
-            stateSection(list, workstation, shown, composeFollowers, filters, false);
+            stateSection(list, context, shown, filters, false);
           }
         })
         .__();
@@ -279,9 +313,8 @@ final class ContainersPage {
 
   private static void stateSection(
       FlowContent<?, ?> parent,
-      Workstation workstation,
+      Context context,
       List<ListedContainer> containers,
-      Map<String, Set<String>> composeFollowers,
       Filters filters,
       boolean running) {
     Map<String, Map<String, List<ListedContainer>>> projects = new TreeMap<>();
@@ -341,41 +374,14 @@ final class ContainersPage {
                 .of(group -> {
                   for (var service : project.getValue().entrySet()) {
                     String target = project.getKey() + "/" + service.getKey();
-                    Set<String> followedBy = composeFollowers.getOrDefault(target, Set.of());
-                    int replicas = service.getValue().size();
-                    group
-                        .div()
-                        .attrClass("container-compose-service")
-                        .div()
-                        .attrClass("container-target-heading")
-                        .h4()
-                        .text(service.getKey())
-                        .__()
-                        .of(heading -> {
-                          if (followedBy.isEmpty()) {
-                            createLink(heading, target);
-                          }
-                        })
-                        .__()
-                        .of(targetGroup -> followers(targetGroup, workstation, followedBy))
-                        .custom("details")
-                        .attrClass("container-details")
-                        .addAttr(
-                            "data-preserve-open",
-                            Layout.attr("containers:" + state + ":compose:" + target))
-                        .custom("summary")
-                        .text(replicas + (replicas == 1 ? " container" : " containers"))
-                        .__()
-                        .div()
-                        .attrClass("container-replicas")
-                        .of(rows -> {
-                          for (ListedContainer container : service.getValue()) {
-                            containerRow(rows, workstation, container, true);
-                          }
-                        })
-                        .__()
-                        .__()
-                        .__();
+                    targetLines(
+                        group,
+                        context,
+                        new Target(
+                            service.getKey(),
+                            target,
+                            service.getValue(),
+                            context.composeGroups().get(target)));
                   }
                 })
                 .__();
@@ -383,40 +389,16 @@ final class ContainersPage {
           if (!standalone.isEmpty()) {
             section
                 .div()
-                .attrClass("container-project container-standalone")
+                .attrClass("container-project")
                 .h3()
                 .attrClass("container-project-heading")
                 .text("Other containers")
                 .__()
                 .of(group -> {
                   for (ListedContainer container : standalone) {
-                    group
-                        .div()
-                        .attrClass("container-standalone-target")
-                        .div()
-                        .attrClass("container-target-heading")
-                        .h4()
-                        .text(container.name())
-                        .__()
-                        .of(heading -> {
-                          if (container.followedBy().isEmpty()) {
-                            createLink(heading, container.name());
-                          }
-                        })
-                        .__()
-                        .of(targetGroup ->
-                            followers(targetGroup, workstation, container.followedBy()))
-                        .custom("details")
-                        .attrClass("container-details")
-                        .addAttr(
-                            "data-preserve-open",
-                            Layout.attr("containers:" + state + ":container:" + container.name()))
-                        .custom("summary")
-                        .text("Container details")
-                        .__()
-                        .of(details -> containerRow(details, workstation, container, false))
-                        .__()
-                        .__();
+                    List<ListedContainer> only = List.of(container);
+                    targetLines(
+                        group, context, new Target(container.name(), container.name(), only, only));
                   }
                 })
                 .__();
@@ -425,7 +407,8 @@ final class ContainersPage {
         .__();
   }
 
-  private static void createLink(FlowContent<?, ?> parent, String target) {
+  /** {@code port} is none for a container with no known ports: the form asks for it. */
+  private static void createLink(FlowContent<?, ?> parent, String target, Integer port) {
     parent
         .a()
         .attrClass("btn container-create")
@@ -433,50 +416,133 @@ final class ContainersPage {
         .addAttr("data-variant", "outline")
         .attrHref(
             Layout.attr(
-                PATH + "/services/new?target=" + URLEncoder.encode(target, StandardCharsets.UTF_8)))
-        .addAttr("aria-label", Layout.attr("Create Service for " + target))
+                PATH
+                    + "/services/new?target="
+                    + URLEncoder.encode(target, StandardCharsets.UTF_8)
+                    + (port == null ? "" : "&port=" + port)))
+        .addAttr(
+            "aria-label",
+            Layout.attr("Create Service for " + target + (port == null ? "" : " port " + port)))
         .text("Create Service")
         .__();
   }
 
-  private static void containerRow(
+  /**
+   * What a Service can follow: a standalone container or a Compose service.
+   *
+   * @param heading what the first line calls it
+   * @param name the target that the Create Service form takes
+   * @param shown its containers in the state of the section
+   * @param all its containers in both states, as a Binding follows them all
+   */
+  private record Target(
+      String heading, String name, List<ListedContainer> shown, List<ListedContainer> all) {
+
+    /** Docker lists no ports for a stopped container. */
+    List<Integer> ports() {
+      return shown.stream()
+          .flatMap(container -> container.containerPorts().stream())
+          .distinct()
+          .sorted()
+          .toList();
+    }
+  }
+
+  /**
+   * A line for each Container Port of the target, so each says which Services follow that port, or
+   * offers to create one. A target with no known ports has one line, which says which Services
+   * follow it at any port, and always offers the button, as the port is not known. A Compose
+   * service with several containers shows only these lines: it hides its containers, and each port
+   * shows only its number.
+   */
+  private static void targetLines(FlowContent<?, ?> parent, Context context, Target target) {
+    boolean single = target.shown().size() == 1;
+    ListedContainer only = target.shown().getFirst();
+    List<Integer> ports = target.ports();
+    Consumer<Div<?>> first =
+        name -> {
+          name.h4().text(target.heading()).__();
+          if (!single) {
+            name.span()
+                .attrClass("container-detail")
+                .text(target.shown().size() + " containers")
+                .__();
+            return;
+          }
+          if (!target.heading().equals(only.name())) {
+            name.span().attrClass("container-detail").text(only.name()).__();
+          }
+          health(name, only);
+        };
+    if (ports.isEmpty()) {
+      List<String> followedBy =
+          target.all().stream()
+              .flatMap(container -> container.followedBy().stream())
+              .distinct()
+              .sorted()
+              .toList();
+      line(
+          parent,
+          context,
+          "container-line container-target",
+          first,
+          ContainersPage::noPorts,
+          followedBy,
+          target.name(),
+          null);
+    }
+    for (int i = 0; i < ports.size(); i++) {
+      int port = ports.get(i);
+      List<String> followedBy = Context.followersAt(target.all(), port);
+      line(
+          parent,
+          context,
+          i == 0 ? "container-line container-target" : "container-line container-more-port",
+          i == 0 ? first : name -> {},
+          cell -> chips(cell, "Container Port", List.of(String.valueOf(port))),
+          followedBy,
+          followedBy.isEmpty() ? target.name() : null,
+          port);
+    }
+  }
+
+  private static void health(Div<?> name, ListedContainer container) {
+    if (container.health() != null) {
+      name.span()
+          .attrClass("container-detail")
+          .addAttr("title", "Healthcheck")
+          .text(container.health().value())
+          .__();
+    }
+  }
+
+  /** A line has the name, the ports, who follows them, and the button when it has a target. */
+  private static void line(
       FlowContent<?, ?> parent,
-      Workstation workstation,
-      ListedContainer container,
-      boolean replica) {
+      Context context,
+      String css,
+      Consumer<Div<?>> name,
+      Consumer<Div<?>> ports,
+      Collection<String> followedBy,
+      String createTarget,
+      Integer port) {
     parent
         .div()
-        .attrClass(replica ? "container-row container-replica-row" : "container-row")
-        .of(row -> {
-          if (replica || container.health() != null) {
-            row.div()
-                .attrClass("container-name")
-                .of(name -> {
-                  if (replica) {
-                    name.p().text(container.name()).__();
-                  }
-                  if (container.health() != null) {
-                    name.p()
-                        .attrClass("text-sm font-normal text-muted-foreground")
-                        .text("Healthcheck: " + container.health().value())
-                        .__();
-                  }
-                })
-                .__();
-          }
-        })
+        .attrClass(css)
         .div()
-        .attrClass("container-ports")
-        .of(ports -> ports(ports, container))
+        .attrClass("container-name")
+        .of(name::accept)
         .__()
-        .of(row -> {
-          if (container.followedBy().isEmpty()) {
-            row.p()
-                .attrClass("text-sm text-muted-foreground")
-                .text(container.running() ? "Unfollowed" : "Not followed")
-                .__();
-          } else if (replica) {
-            followers(row, workstation, container.followedBy());
+        .div()
+        .of(ports::accept)
+        .__()
+        .div()
+        .attrClass("container-follow")
+        .of(cell -> followers(cell, context.workstation(), followedBy))
+        .__()
+        .of(line -> {
+          if (createTarget != null) {
+            createLink(line, createTarget, port);
           }
         })
         .__();
@@ -509,59 +575,20 @@ final class ContainersPage {
         .__();
   }
 
-  private static void ports(Div<?> parent, ListedContainer container) {
-    if (container.ports().isEmpty()) {
-      parent.p().attrClass("text-sm text-muted-foreground").text("No known ports").__();
-      return;
-    }
-    parent
-        .table()
-        .attrClass("container-port-table")
-        .addAttr("aria-label", Layout.attr("Port mappings for " + container.name()))
-        .thead()
-        .tr()
-        .th()
-        .addAttr("scope", "col")
-        .text("Container Port")
-        .__()
-        .th()
-        .addAttr("scope", "col")
-        .text("Host Port")
-        .__()
-        .th()
-        .addAttr("scope", "col")
-        .text("Bind IP")
-        .__()
-        .__()
-        .__()
-        .tbody()
-        .of(body -> {
-          for (ListedContainer.ContainerPort port : container.ports()) {
-            body.tr()
-                .td()
-                .text(port.containerPort())
-                .__()
-                .td()
-                .text(port.hostPort() == null ? "Not published" : port.hostPort().toString())
-                .__()
-                .td()
-                .text(bindIp(port))
-                .__()
-                .__();
-          }
-        })
-        .__()
-        .__();
+  private static void noPorts(FlowContent<?, ?> parent) {
+    parent.p().attrClass("container-no-ports").text("No known ports").__();
   }
 
-  private static String bindIp(ListedContainer.ContainerPort port) {
-    if (port.hostPort() == null) {
-      return "—";
-    }
-    String ip = port.hostIp();
-    if (ip == null || ip.isBlank()) {
-      return "Unknown";
-    }
-    return ip.contains(":") && !ip.startsWith("[") ? "[" + ip + "]" : ip;
+  private static void chips(FlowContent<?, ?> parent, String label, List<String> texts) {
+    parent
+        .ul()
+        .attrClass("container-ports")
+        .addAttr("aria-label", Layout.attr(label))
+        .of(list -> {
+          for (String text : texts) {
+            list.li().text(text).__();
+          }
+        })
+        .__();
   }
 }

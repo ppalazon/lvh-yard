@@ -18,7 +18,8 @@ import java.util.stream.Stream;
  *     needs the service too
  * @param service the proposed Service name: the Compose service or the container name, cleaned to
  *     follow the Service name rule
- * @param ports its TCP port mappings, each once. Docker lists none for a stopped container
+ * @param ports its TCP port mappings, each once, with the Services that follow each port. Docker
+ *     lists none for a stopped container
  * @param health none when it has no HEALTHCHECK
  * @param followedBy the Services that have a Container Binding that matches it, whatever the
  *     Binding's port, by name
@@ -33,11 +34,23 @@ public record ListedContainer(
     @JsonInclude(JsonInclude.Include.NON_NULL) HealthcheckState health,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<String> followedBy) {
 
-  /** {@code hostPort} and {@code hostIp} are none when the container port is not published. */
+  /**
+   * {@code hostPort} and {@code hostIp} are none when the container port is not published.
+   *
+   * @param followedBy the Services that have a Container Binding at this port of the container's
+   *     target. The target is the container, or its Compose service, so a Binding by name to any
+   *     container of the service counts for them all. Empty when none does.
+   */
   public record ContainerPort(
       @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int containerPort,
       @JsonInclude(JsonInclude.Include.NON_NULL) Integer hostPort,
-      @JsonInclude(JsonInclude.Include.NON_NULL) String hostIp) {}
+      @JsonInclude(JsonInclude.Include.NON_NULL) String hostIp,
+      @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<String> followedBy) {
+
+    ContainerPort following(List<String> services) {
+      return new ContainerPort(containerPort, hostPort, hostIp, services);
+    }
+  }
 
   /** Its Docker HEALTHCHECK state. */
   public enum HealthcheckState {
@@ -70,7 +83,8 @@ public record ListedContainer(
                 new ContainerPort(
                     port.privatePort(),
                     port.publicPort(),
-                    port.publicPort() == null ? null : port.ip()))
+                    port.publicPort() == null ? null : port.ip(),
+                    List.of()))
             .distinct()
             .sorted(
                 Comparator.comparingInt(ContainerPort::containerPort)
@@ -81,6 +95,11 @@ public record ListedContainer(
             .toList(),
         container.healthState().flatMap(HealthcheckState::of).orElse(null),
         followedBy);
+  }
+
+  ListedContainer withPorts(List<ContainerPort> ports) {
+    return new ListedContainer(
+        name, composeProject, composeService, service, running, ports, health, followedBy);
   }
 
   /** A port published on IPv4 and IPv6 has two mappings in {@link #ports}. */

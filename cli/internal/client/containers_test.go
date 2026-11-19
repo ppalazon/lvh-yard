@@ -17,7 +17,7 @@ func TestContainersRequest(t *testing.T) {
 		if r.Method != "GET" || r.URL.EscapedPath() != "/prefix/api/workstation/containers" || r.Header.Get("Accept") != "application/json" || r.Header.Get("Content-Type") != "" {
 			t.Errorf("unexpected request: %s %s %v", r.Method, r.URL, r.Header)
 		}
-		w.Write([]byte(`[{"name":"shop-web-1","composeProject":"shop","composeService":"web","service":"web","running":true,"health":"healthy","followedBy":["web","shop"],"ports":[{"containerPort":80,"hostPort":19080,"hostIp":"127.0.0.1"},{"containerPort":443}]},{"name":"stopped","service":"stopped","running":false,"followedBy":[],"ports":[]}]`))
+		w.Write([]byte(`[{"name":"shop-web-1","composeProject":"shop","composeService":"web","service":"web","running":true,"health":"healthy","followedBy":["web","shop"],"ports":[{"containerPort":80,"followedBy":[],"hostPort":19080,"hostIp":"127.0.0.1"},{"containerPort":443,"followedBy":[]}]},{"name":"stopped","service":"stopped","running":false,"followedBy":[],"ports":[]}]`))
 	}))
 	defer server.Close()
 	containers, err := client.New(server.URL + "/prefix").Containers()

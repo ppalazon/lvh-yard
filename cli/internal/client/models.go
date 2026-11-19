@@ -47,9 +47,10 @@ type ContainerBindingRequest struct {
 }
 
 type ContainerPort struct {
-	ContainerPort int    `json:"containerPort"`
-	HostIP        string `json:"hostIp,omitempty"`
-	HostPort      *int   `json:"hostPort,omitempty"`
+	ContainerPort int      `json:"containerPort"`
+	FollowedBy    []string `json:"followedBy"`
+	HostIP        string   `json:"hostIp,omitempty"`
+	HostPort      *int     `json:"hostPort,omitempty"`
 }
 
 type ExportedFrom struct {

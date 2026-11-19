@@ -164,7 +164,7 @@ class OpenApiComponentTest extends DashboardComponentTest {
   }
 
   @Test
-  void containerPortsHaveOptionalHostPortsAndBindAddresses() {
+  void containerPortsHaveOptionalHostPortsAndBindAddressesAndTheirFollowers() {
     JsonNode port =
         get("/v3/api-docs").getBody().get("components").get("schemas").get("ContainerPort");
     JsonNode properties = port.get("properties");
@@ -172,8 +172,9 @@ class OpenApiComponentTest extends DashboardComponentTest {
     assertThat(properties.get("containerPort").get("type").asString()).isEqualTo("integer");
     assertThat(properties.get("hostPort").get("type").asString()).isEqualTo("integer");
     assertThat(properties.get("hostIp").get("type").asString()).isEqualTo("string");
+    assertThat(properties.get("followedBy").get("type").asString()).isEqualTo("array");
     assertThat(port.get("required").valueStream().map(JsonNode::asString))
-        .containsExactly("containerPort");
+        .containsExactlyInAnyOrder("containerPort", "followedBy");
   }
 
   @Test

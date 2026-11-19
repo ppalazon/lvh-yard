@@ -5,6 +5,7 @@ import cc.lvhy.yard.dashboard.docker.DockerFailures;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 /** Every container of this Workstation, with the Services whose Container Bindings follow it. */
@@ -36,18 +37,43 @@ public class ContainerList {
       throw new UnreadableDockerException(failures.reason(e), e);
     }
     Map<String, Map<String, ContainerBindingRequest>> followed = bindings.all(null);
-    return every.stream()
-        .map(container ->
-            ListedContainer.of(
-                container,
-                ContainerBindings.followers(
-                    followed, binding -> ContainerBindings.matches(binding, container))))
+    List<ListedContainer> listed =
+        every.stream()
+            .map(container ->
+                ListedContainer.of(
+                    container,
+                    ContainerBindings.followers(
+                        followed, binding -> ContainerBindings.matches(binding, container))))
+            .toList();
+    // A Binding follows every container of its Compose service, so the ports say it for the
+    // service.
+    Map<String, List<ListedContainer>> services =
+        listed.stream()
+            .filter(container -> container.composeProject() != null)
+            .collect(Collectors.groupingBy(ContainerList::composeKey));
+    return listed.stream()
+        .map(container -> {
+          List<ListedContainer> target =
+              container.composeProject() == null
+                  ? List.of(container)
+                  : services.get(composeKey(container));
+          return container.withPorts(
+              container.ports().stream()
+                  .map(port ->
+                      port.following(
+                          ContainerBindings.followersAt(followed, target, port.containerPort())))
+                  .toList());
+        })
         .sorted(
             Comparator.comparing(
                     ListedContainer::composeProject,
                     Comparator.nullsLast(Comparator.naturalOrder()))
                 .thenComparing(ListedContainer::name))
         .toList();
+  }
+
+  private static String composeKey(ListedContainer container) {
+    return container.composeProject() + "/" + container.composeService();
   }
 
   /**

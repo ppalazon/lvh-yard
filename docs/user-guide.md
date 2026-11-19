@@ -2476,24 +2476,32 @@ containers. Running and Stopped have separate sections, grouped by Compose
 project and service.
 
 Two selectors above the list filter it. State shows Running, Stopped or All
-containers. Followed shows containers and Compose services that no Service
-follows (Not followed), only those that one does (Followed), or All. The page
-starts with Running and Not followed. A Compose service counts as followed
-when any of its containers is. The filters stay in the page address, and the
-list keeps them when it refreshes.
+containers. Followed shows containers and Compose services that still need a
+Service (Not followed), only those that a Service follows (Followed), or All.
+A target still needs a Service when no Service follows it, or when one of its
+known ports has none. A Compose service counts as followed when any of its
+containers is. The page starts with Running and Not followed. The filters stay
+in the page address, and the list keeps them when it refreshes.
 
-Open the container count or Container details to see
-Container Ports, Host Ports and bind addresses. Details start closed and
-stay open or closed as you left them when the list refreshes.
-Links under Followed by open the Services that follow the target.
-A running container with no matching Container Binding is marked Unfollowed
-inside its details. If Docker does not answer, the page shows the reason
-and keeps trying.
+Every container shows on its own line, with nothing to open. A line gives the
+name, the ports, who follows them and a Create Service button. A Compose
+service with one container is one line: the service name, then the container
+name. A Compose service with more containers shows only the service and its
+container count. It hides the containers. Ports show only the Container Port,
+not the Host Port or the bind address. If Docker does not answer, the page
+shows the reason and keeps trying.
 
-Click Create Service beside a container or Compose service to open its form.
-The button is hidden when a Service already follows that target.
-For a Compose service, a Binding to any of its containers hides the button
-in both Running and Stopped. A Binding to a Compose service follows every
+Each Container Port has its own line. A Service follows a port when it has a
+Container Binding at that port. The line then shows Followed by, with links to
+the Services, and no button. If no Service follows the port, the line shows
+Create Service. For a Compose service, a Binding to the service or to any of
+its containers follows that port for the whole service, in both Running and
+Stopped.
+
+A container with no known ports has one line. Docker lists no ports for a
+stopped container. That line shows Followed by, for any port, and always shows
+Create Service. Click Create Service to open its form. The form selects the
+port of the line that you clicked. A Binding to a Compose service follows every
 replica, including containers that start later.
 
 The form creates one new Service with one Container Binding.
@@ -2525,8 +2533,12 @@ labels, and `running`. Each published TCP port mapping includes
 Docker binds on the Workstation. An unpublished port has no `hostPort` or
 `hostIp`. A stopped container has no ports. `followedBy` lists the Services
 that have a Container Binding that matches the container, whatever the port of
-the Binding, and is empty when none does. If the dashboard cannot read Docker,
-the answer is 503 and says why.
+the Binding, and is empty when none does. Each port also has `followedBy`. It
+lists the Services that have a Container Binding at that port of the
+container's target. The target is the container, or its Compose service, so a
+Binding by name to any container of the service counts for all of them. The
+dashboard uses it to show Followed by or Create Service for each port. If the
+dashboard cannot read Docker, the answer is 503 and says why.
 
 `lvh-yard containers` lists the running containers of this Workstation that no
 Container Binding follows. Use `--state running|stopped|all` and

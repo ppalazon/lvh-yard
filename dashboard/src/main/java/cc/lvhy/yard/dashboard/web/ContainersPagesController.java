@@ -82,7 +82,7 @@ class ContainersPagesController {
     }
     return ResponseEntity.ok()
         .contentType(Layout.HTML)
-        .body(form(params.getFirst("target"), null, null));
+        .body(form(params.getFirst("target"), params.getFirst("port"), null, null));
   }
 
   @PostMapping(path = CreateContainerServicePage.ACTION, produces = MediaType.TEXT_HTML_VALUE)
@@ -114,12 +114,16 @@ class ContainersPagesController {
       }
       return redirect(ServicePage.path(workstation.name(), result.name()));
     } catch (InvalidRegistrationException e) {
-      return ResponseEntity.badRequest().contentType(Layout.HTML).body(form(target, fields, e));
+      return ResponseEntity.badRequest()
+          .contentType(Layout.HTML)
+          .body(form(target, null, fields, e));
     }
   }
 
+  /** {@code requestedPort} is the port that the link of a container line chose, if any. */
   private String form(
       String target,
+      String requestedPort,
       CreateContainerServicePage.Fields submitted,
       InvalidRegistrationException error) {
     List<ListedContainer> listed = List.of();
@@ -134,9 +138,11 @@ class ContainersPagesController {
     String proposed = members.isEmpty() ? "" : members.getFirst().service();
     List<CreateContainerServicePage.Port> ports = ports(members);
     String port =
-        submitted == null
-            ? ports.size() == 1 ? String.valueOf(ports.getFirst().number()) : ""
-            : submitted.target().port();
+        submitted != null
+            ? submitted.target().port()
+            : !blank(requestedPort)
+                ? requestedPort.strip()
+                : ports.size() == 1 ? String.valueOf(ports.getFirst().number()) : "";
     var fields =
         new CreateContainerServicePage.Fields(
             submitted == null ? proposed : submitted.name(),
