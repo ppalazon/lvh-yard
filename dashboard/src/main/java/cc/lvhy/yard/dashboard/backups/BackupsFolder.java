@@ -10,6 +10,7 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -29,9 +30,12 @@ public class BackupsFolder {
 
   private final Workstation workstation;
 
-  BackupsFolder(BackupsSettings settings, Workstation workstation) {
+  private final Clock clock;
+
+  BackupsFolder(BackupsSettings settings, Workstation workstation, Clock clock) {
     this.path = settings.path();
     this.workstation = workstation;
+    this.clock = clock;
   }
 
   /**
@@ -42,7 +46,7 @@ public class BackupsFolder {
    * @return the file name
    */
   public String writeNew(String suffix, String text) {
-    String stem = workstation.name() + "-" + LocalDateTime.now().format(TIME) + suffix;
+    String stem = workstation.name() + "-" + LocalDateTime.now(clock).format(TIME) + suffix;
     for (int number = 1; ; number++) {
       String name = stem + (number == 1 ? "" : "-" + number) + ".yaml";
       try {

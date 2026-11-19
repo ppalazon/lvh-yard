@@ -5,6 +5,7 @@ import static cc.lvhy.yard.dashboard.events.EventBroadcaster.CONTAINERS_CHANGED;
 import cc.lvhy.yard.dashboard.docker.Docker;
 import cc.lvhy.yard.dashboard.docker.Docker.ContainerEvents;
 import cc.lvhy.yard.dashboard.events.EventDebouncer;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import org.slf4j.Logger;
@@ -35,15 +36,19 @@ class ContainerWatcher implements SmartLifecycle {
 
   private final EventDebouncer debouncer;
 
+  private final Clock clock;
+
   private volatile Thread watcher;
 
   /** The events being followed now, closed to stop the wait for the next one. */
   private volatile ContainerEvents events;
 
-  ContainerWatcher(Docker docker, ContainerBindings bindings, EventDebouncer debouncer) {
+  ContainerWatcher(
+      Docker docker, ContainerBindings bindings, EventDebouncer debouncer, Clock clock) {
     this.docker = docker;
     this.bindings = bindings;
     this.debouncer = debouncer;
+    this.clock = clock;
   }
 
   @Override
@@ -79,7 +84,7 @@ class ContainerWatcher implements SmartLifecycle {
   private void watch() {
     boolean failing = false;
     while (watcher == Thread.currentThread()) {
-      Instant synced = Instant.now().minus(CLOCK_MARGIN);
+      Instant synced = clock.instant().minus(CLOCK_MARGIN);
       try {
         bindings.sync();
       } catch (RuntimeException e) {

@@ -1,5 +1,6 @@
 package cc.lvhy.yard.dashboard.routes;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
@@ -11,10 +12,16 @@ import org.springframework.stereotype.Component;
 @Component
 public class TraefikFetches {
 
+  private final Clock clock;
+
   private volatile Instant last;
 
+  TraefikFetches(Clock clock) {
+    this.clock = clock;
+  }
+
   void fetched() {
-    last = Instant.now();
+    last = clock.instant();
   }
 
   public Optional<Instant> last() {
