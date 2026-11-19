@@ -17,7 +17,7 @@ touches:
 ---
 
 ## Decided
-- The user dropped the rule that a container or Compose service has one Container Binding only. ContainerBindings.add refuses nothing for a followed target: any number of Services can bind it, on any port, and the same Service can bind one container on two ports. It still throws for a missing Service. FollowedContainerException is gone, with its 409.
+- The user dropped the rule that a container or Compose service has one Container Binding only. ContainerBindings.add refuses nothing for a followed target: any number of Services can bind it, on any port, and the same Service can bind one container on two ports. It still throws for a missing Service. The exception for a followed target is gone, with its 409.
 - The user chose the simplest rule even where it makes little sense: the same Service may bind one container on two ports. Binding the same target and port to the same Service again writes the same key, so it is a no-op that still answers 201.
 - ListedContainer.followedBy is a list of Service names, always present and empty when nothing follows. The user said the API is not released, so it changed with no compatibility field.
 - The bind form shows 'used by <Services>' on such a target and lets you pick it. The Backup import (SourceImport) no longer plans a problem for a target that the file or the Workstation already binds, and its one-Binding messages are gone.
