@@ -47,7 +47,7 @@ public class CreateContainerService {
     }
     ContainerBindingRequest checked;
     try {
-      checked = ContainerBindings.check(service, binding);
+      checked = ContainerBindingRules.check(service, binding);
     } catch (InvalidRegistrationException invalid) {
       throw new InvalidRegistrationException("containerPort", invalid.getMessage());
     }

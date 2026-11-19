@@ -42,8 +42,8 @@ public class ContainerList {
             .map(container ->
                 ListedContainer.of(
                     container,
-                    ContainerBindings.followers(
-                        followed, binding -> ContainerBindings.matches(binding, container))))
+                    ContainerBindingRules.followers(
+                        followed, binding -> ContainerBindingRules.matches(binding, container))))
             .toList();
     // A Binding follows every container of its Compose service, so the ports say it for the
     // service.
@@ -61,7 +61,8 @@ public class ContainerList {
               container.ports().stream()
                   .map(port ->
                       port.following(
-                          ContainerBindings.followersAt(followed, target, port.containerPort())))
+                          ContainerBindingRules.followersAt(
+                              followed, target, port.containerPort())))
                   .toList());
         })
         .sorted(
@@ -81,7 +82,7 @@ public class ContainerList {
    * by name and a Binding by Compose service are different targets, even for one container.
    */
   public List<String> following(ContainerBindingRequest target) {
-    return ContainerBindings.followers(
-        bindings.all(null), binding -> ContainerBindings.sameTarget(target, binding));
+    return ContainerBindingRules.followers(
+        bindings.all(null), binding -> ContainerBindingRules.sameTarget(target, binding));
   }
 }

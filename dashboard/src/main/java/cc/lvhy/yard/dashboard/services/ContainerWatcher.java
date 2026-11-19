@@ -32,7 +32,7 @@ class ContainerWatcher implements SmartLifecycle {
 
   private final Docker docker;
 
-  private final ContainerBindings bindings;
+  private final ContainerSync sync;
 
   private final EventDebouncer debouncer;
 
@@ -43,10 +43,9 @@ class ContainerWatcher implements SmartLifecycle {
   /** The events being followed now, closed to stop the wait for the next one. */
   private volatile ContainerEvents events;
 
-  ContainerWatcher(
-      Docker docker, ContainerBindings bindings, EventDebouncer debouncer, Clock clock) {
+  ContainerWatcher(Docker docker, ContainerSync sync, EventDebouncer debouncer, Clock clock) {
     this.docker = docker;
-    this.bindings = bindings;
+    this.sync = sync;
     this.debouncer = debouncer;
     this.clock = clock;
   }
@@ -86,7 +85,7 @@ class ContainerWatcher implements SmartLifecycle {
     while (watcher == Thread.currentThread()) {
       Instant synced = clock.instant().minus(CLOCK_MARGIN);
       try {
-        bindings.sync();
+        sync.sync();
       } catch (RuntimeException e) {
         failing = failed(failing, e);
         if (!pause()) {
@@ -105,7 +104,7 @@ class ContainerWatcher implements SmartLifecycle {
         while (watcher == Thread.currentThread() && following.hasNext()) {
           following.next();
           if (watcher == Thread.currentThread()) {
-            bindings.sync();
+            sync.sync();
             debouncer.trigger(CONTAINERS_CHANGED);
           }
         }

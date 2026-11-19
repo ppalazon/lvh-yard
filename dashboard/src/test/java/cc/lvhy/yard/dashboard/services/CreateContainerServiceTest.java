@@ -11,14 +11,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import cc.lvhy.yard.dashboard.OutOfRange;
 import cc.lvhy.yard.dashboard.RuntimeNetwork;
 import cc.lvhy.yard.dashboard.Workstation;
 import cc.lvhy.yard.dashboard.consul.Consul;
 import cc.lvhy.yard.dashboard.consul.FakeConsul;
-import cc.lvhy.yard.dashboard.docker.FakeDocker;
 import java.time.Duration;
-import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class CreateContainerServiceTest {
@@ -39,15 +36,7 @@ class CreateContainerServiceTest {
       new Publications(workstation, consul, records, null, event -> {});
 
   private final ContainerBindings bindings =
-      new ContainerBindings(
-          workstation,
-          consul,
-          new FakeDocker(),
-          registrations,
-          records,
-          publications,
-          new OutOfRange(List.of()),
-          new RuntimeNetwork(false));
+      new ContainerBindings(workstation, consul, registrations, records, event -> {});
 
   private final Services services =
       new Services(workstation, records, publications, registrations, bindings);

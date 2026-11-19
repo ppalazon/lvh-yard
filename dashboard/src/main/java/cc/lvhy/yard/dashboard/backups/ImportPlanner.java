@@ -17,6 +17,7 @@ import cc.lvhy.yard.dashboard.profiles.RouteProfileEditor;
 import cc.lvhy.yard.dashboard.profiles.RouteProfiles;
 import cc.lvhy.yard.dashboard.services.Aliases;
 import cc.lvhy.yard.dashboard.services.ContainerBindingRequest;
+import cc.lvhy.yard.dashboard.services.ContainerBindingRules;
 import cc.lvhy.yard.dashboard.services.ContainerBindings;
 import cc.lvhy.yard.dashboard.services.Instance;
 import cc.lvhy.yard.dashboard.services.InstancePriorityRequest;
@@ -343,7 +344,7 @@ class ImportPlanner {
       ContainerBindingRequest checked;
       try {
         checked =
-            ContainerBindings.check(
+            ContainerBindingRules.check(
                 service,
                 binding.followsCompose()
                     ? ContainerBindingRequest.compose(
