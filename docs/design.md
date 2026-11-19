@@ -191,10 +191,12 @@ one thread, so it is a check to run by hand, and no `mise` task runs it.
 
 26 of the 44 survivors and mutants without coverage remove a `checkHome`,
 `checkName`, `checkTarget`, `checkRemote` or `checkPort` call. No test over
-HTTP depends on those calls. They stay as the second check of public classes.
-Two gaps were real, and tests now cover them: `sameTarget` of the Container
-Binding rules had no test, and no Backup import checked that the same sources
-in another order give an Instance Priority update.
+HTTP depends on those calls. They stay as the second check of public classes,
+and `GuardsTest` now tests them on the classes: 24 of the 25 such mutants die
+in the unit tests alone.
+Two more gaps were real, and tests now cover them: `sameTarget` of the
+Container Binding rules had no test, and no Backup import checked that the same
+sources in another order give an Instance Priority update.
 
 ### Target
 
