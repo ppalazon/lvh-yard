@@ -7,6 +7,7 @@ import cc.lvhy.yard.dashboard.consul.FakeConsul.Datacenter;
 import cc.lvhy.yard.dashboard.docker.FakeDocker;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,19 +42,22 @@ abstract class DashboardComponentTest extends DashboardClient {
   /** The Backups folder of this JVM's component tests. */
   static final Path BACKUPS = TestcontainersConfiguration.temporaryFolder("lvh-yard-component");
 
-  /** This Workstation's Consul after the first setup, which each test starts from. */
-  private static volatile Map<String, Datacenter> baseline;
+  // Each Spring context has its own dashboard port and first-setup state.
+  private static final Map<FakeConsul, Map<String, Datacenter>> BASELINES = new IdentityHashMap<>();
 
   @Autowired FakeConsul consul;
 
   @BeforeEach
   void resetFakes() {
     docker.reset();
-    if (baseline == null) {
-      // The dashboard does its first setup in the background, after it has started.
-      await().until(() -> !consul.values(null, "lvh-yard/first-setup").isEmpty());
-      baseline = consul.snapshot();
-    }
+    Map<String, Datacenter> baseline =
+        BASELINES.computeIfAbsent(
+            consul,
+            current -> {
+              // The dashboard does its first setup in the background, after it has started.
+              await().until(() -> !current.values(null, "lvh-yard/first-setup").isEmpty());
+              return current.snapshot();
+            });
     boolean wasPaused = remote.reset();
     consul.restore(baseline);
     TestcontainersConfiguration.empty(BACKUPS);

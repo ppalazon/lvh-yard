@@ -275,6 +275,10 @@ Surefire runs unit and component tests. Failsafe runs integration tests.
 `DockerContract` and `ConsulContract` run the same cases against each fake
 and against the real system, so a fake cannot drift from the real one.
 
+`DashboardComponentTest` keeps a separate first-setup snapshot for each fake
+Consul. Spring contexts use different dashboard ports, so they cannot share
+that snapshot.
+
 Give each edge case of a rule a unit test, for example the Route choice or an
 input check. Give each feature a component test through the API or a page.
 Keep an integration test only for what a fake cannot show. Examples are a
