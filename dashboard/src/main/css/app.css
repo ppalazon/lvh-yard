@@ -964,6 +964,15 @@
     max-width: 37.5rem;
     height: auto;
     margin-inline: auto;
+    --rd-ok: oklch(0.5 0.15 150);
+    --rd-net: oklch(0.5 0.17 255);
+    --rd-bad: oklch(0.55 0.23 27);
+  }
+
+  .dark .route-diagram-svg {
+    --rd-ok: oklch(0.78 0.17 150);
+    --rd-net: oklch(0.75 0.13 250);
+    --rd-bad: oklch(0.72 0.19 25);
   }
 
   .route-diagram-svg text {
@@ -1023,6 +1032,28 @@
     stroke: var(--border);
   }
 
+  /* Green: on and in the path of a request. */
+  .route-diagram-svg .rd-on {
+    fill: color-mix(in oklab, var(--rd-ok) 16%, var(--card));
+    stroke: color-mix(in oklab, var(--rd-ok) 65%, var(--border));
+  }
+
+  /* An Instance that the Route uses, stronger than the tint of its box. */
+  .route-diagram-svg .rd-live {
+    fill: color-mix(in oklab, var(--rd-ok) 28%, var(--card));
+  }
+
+  /* Instances at loopback are green, and Instances at any other address are blue. */
+  .route-diagram-svg .rd-loop {
+    fill: color-mix(in oklab, var(--rd-ok) 9%, var(--card));
+    stroke: color-mix(in oklab, var(--rd-ok) 45%, var(--border));
+  }
+
+  .route-diagram-svg .rd-ext {
+    fill: color-mix(in oklab, var(--rd-net) 9%, var(--card));
+    stroke: color-mix(in oklab, var(--rd-net) 45%, var(--border));
+  }
+
   .route-diagram-svg .rd-chip-auth {
     stroke: var(--foreground);
   }
@@ -1040,7 +1071,11 @@
   }
 
   .route-diagram-svg .rd-plain {
-    stroke: var(--risk);
+    stroke: var(--rd-bad);
+  }
+
+  .route-diagram-svg .rd-secure {
+    stroke: var(--rd-ok);
   }
 
   .route-diagram-svg .rd-wire-off {
@@ -1060,16 +1095,24 @@
     fill: var(--foreground);
   }
 
-  .route-diagram-svg .rd-risk-icon {
-    stroke: var(--risk);
+  .route-diagram-svg .rd-plain-icon {
+    stroke: var(--rd-bad);
   }
 
-  .route-diagram-svg .rd-in {
-    fill: var(--primary);
+  .route-diagram-svg .rd-secure-icon {
+    stroke: var(--rd-ok);
+  }
+
+  .route-diagram-svg .rd-plain-text {
+    fill: var(--rd-bad);
+  }
+
+  .route-diagram-svg .rd-secure-text {
+    fill: var(--rd-ok);
   }
 
   .route-diagram-svg .rd-ok {
-    @apply fill-green-700;
+    fill: var(--rd-ok);
   }
 
   .route-diagram-svg .rd-warn {

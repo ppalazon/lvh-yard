@@ -46,7 +46,7 @@ record RouteDiagram(
     List<RouteProfileSummary> profiles,
     String balancing,
     boolean instancePriority,
-    List<Group> groups,
+    List<Member> instances,
     Scope scope,
     String yardHostname,
     int skippedByYard) {
@@ -69,24 +69,19 @@ record RouteDiagram(
     }
   }
 
-  /** What a group's Instances do for the Route. */
-  enum Use {
-    /** There is no Route to use them. */
-    NONE,
-    IN_ROUTE,
-    WAITING,
-    OUT_OF_RANGE
-  }
-
-  /** One Instance Source with the Instances it gives. */
-  record Group(String label, Use use, List<Member> members) {}
-
   /**
+   * @param source the label of the Instance Source that gave it
    * @param routed whether the Route sends requests to it now
    * @param outOfRange whether this Workstation skips it, as a Remote Service's Instance that only
    *     its Home Workstation can connect to
    */
-  record Member(String address, Place place, Health health, boolean routed, boolean outOfRange) {}
+  record Member(
+      String source,
+      String address,
+      Place place,
+      Health health,
+      boolean routed,
+      boolean outOfRange) {}
 
   static RouteDiagram of(
       Workstation workstation, Service service, TraefikSettings traefik, OutOfRange outOfRange) {
@@ -97,9 +92,9 @@ record RouteDiagram(
     boolean route = traefik.enabled() && service.servedWith(httpsOn, clientAuth, mtls);
     boolean clientCertificate = service.requiresClientCertificate();
     Routing routing = service.routing();
-    List<Group> groups =
+    List<Member> instances =
         service.sources().stream()
-            .map(source -> group(service, source, routing, route, outOfRange))
+            .flatMap(source -> members(service, source, routing, route, outOfRange).stream())
             .toList();
     boolean yard = service.sharedWithYard();
     return new RouteDiagram(
@@ -119,7 +114,7 @@ record RouteDiagram(
         RouteProfileSummary.of(service),
         route ? balancing(service, routing) : null,
         service.instancePriority(),
-        groups,
+        instances,
         service.published() ? service.publication().scope() : null,
         yard && !remote
             ? workstation.yardHostname(service.name())
@@ -171,33 +166,23 @@ record RouteDiagram(
         + ".";
   }
 
-  private static Group group(
+  private static List<Member> members(
       Service service,
       InstanceSource source,
       Routing routing,
       boolean route,
       OutOfRange outOfRange) {
-    List<Member> members =
-        source.givenInstances().stream()
-            .map(instance ->
-                new Member(
-                    instance.address(),
-                    place(instance, outOfRange),
-                    instance.health(),
-                    route && routing != null && routing.routes(instance),
-                    instance.outOfRange()))
-            .toList();
-    Use use;
-    if (!route) {
-      use = Use.NONE;
-    } else if (members.stream().anyMatch(Member::routed)) {
-      use = Use.IN_ROUTE;
-    } else if (!members.isEmpty() && members.stream().allMatch(Member::outOfRange)) {
-      use = Use.OUT_OF_RANGE;
-    } else {
-      use = Use.WAITING;
-    }
-    return new Group(InstanceSourcesCard.label(service, source), use, members);
+    String label = InstanceSourcesCard.label(service, source);
+    return source.givenInstances().stream()
+        .map(instance ->
+            new Member(
+                label,
+                instance.address(),
+                place(instance, outOfRange),
+                instance.health(),
+                route && routing != null && routing.routes(instance),
+                instance.outOfRange()))
+        .toList();
   }
 
   private static Place place(Instance instance, OutOfRange outOfRange) {

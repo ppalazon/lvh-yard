@@ -2008,29 +2008,32 @@ itself when the Yard changes. A phone scrolls the picture sideways.
 
 The picture shows:
 
-- The HTTP and HTTPS listeners of Traefik, with their address and who can
-  connect. HTTPS is shown only when its TLS Part is on. A Route Profile that
-  needs a Client Certificate leaves only HTTPS.
-- The Route and its hostname.
-- The Route Profiles, in the order the Route applies them. A key marks a
-  middleware that asks who the user is.
-- How the Route shares requests: Traefik's round robin over the passing
-  Instances, under the Instance Priority.
-- Each Instance Source with its Instances, their Health and what their address
-  leads to: loopback, a Docker network or a network address. A solid wire and a
-  mark mean the Instance is in the Route. A dashed wire means it waits, or
-  that this Workstation skips it as an Out-of-range Instance.
-- Whether each step uses TLS. A closed lock means TLS. An open lock means plain
-  HTTP. A Service with mutual TLS on makes the step to the Instances
-  mutual TLS.
+- The browser, then the HTTP and HTTPS listeners of Traefik with their address
+  and who can connect. HTTPS is shown only when its TLS Part is on. A Route
+  Profile that needs a Client Certificate leaves only HTTPS.
+- The Route and its hostname, the Route Profiles in the order the Route applies
+  them, and how the Route shares requests. A key marks a middleware that asks
+  who the user is.
+- The Instances, in two boxes: green for loopback addresses and blue for
+  every other address. Each Instance shows its Health, its Instance Source and
+  where its address leads: loopback, a Docker network or a network address.
 - The Scope. For a Yard Service, the picture names the hostname that other
   Workstations use, and says how many Instances they skip.
 
-Next to the picture, the facts list the full values. They include the options
-of each Route Profile. A Route Profile can hold a secret, so the page never
-shows the `users` of `basicAuth` or `digestAuth`, `usersFile`, the options of a
-plugin, or the user, password and query of a `forwardAuth` address. Header
-values are shown.
+A green box is on and in the path of a request. A dashed box is off, or the
+Route does not use it: an Instance that waits, or that this Workstation skips
+as an Out-of-range Instance.
+
+Each wire shows the protocol of its step. A red wire with an open lock is plain
+HTTP. A green wire with a closed lock is TLS. A Service with mutual TLS on
+makes the step to the Instances mutual TLS. A grey dashed wire is not used.
+
+Next to the picture, the page lists only what the picture leaves out: how to
+turn HTTPS on, the certificate rules for a Client Certificate and for mutual
+TLS, the options of each Route Profile, and the effect of Instance Priority.
+A Route Profile can hold a secret, so the page never shows the `users` of
+`basicAuth` or `digestAuth`, `usersFile`, the options of a plugin, or the user,
+password and query of a `forwardAuth` address. Header values are shown.
 
 If the Service has no Route on this Workstation, the page says why and draws
 only the Instances. Use Test Reachability to see whether a request really gets

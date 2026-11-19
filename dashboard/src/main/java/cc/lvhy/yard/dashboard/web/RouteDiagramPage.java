@@ -5,8 +5,9 @@ import static cc.lvhy.yard.dashboard.events.EventBroadcaster.YARD_CHANGED;
 import cc.lvhy.yard.dashboard.OutOfRange;
 import cc.lvhy.yard.dashboard.TraefikSettings;
 import cc.lvhy.yard.dashboard.Workstation;
-import cc.lvhy.yard.dashboard.services.Scope;
 import cc.lvhy.yard.dashboard.services.Service;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 import org.xmlet.htmlapifaster.Div;
 import org.xmlet.htmlapifaster.Ul;
@@ -56,9 +57,9 @@ final class RouteDiagramPage {
                     service.name()
                         + " on "
                         + service.workstation()
-                        + ", drawn from "
+                        + ", as "
                         + workstation.name()
-                        + ". It shows the setup, and sends no request.")
+                        + " sees it. No request is sent.")
                 .__()
                 .of(page -> {
                   RouteDiagram diagram = RouteDiagram.of(workstation, service, traefik, outOfRange);
@@ -70,29 +71,43 @@ final class RouteDiagramPage {
                       region ->
                           region
                               .div()
-                              .attrClass("route-diagram grid items-start gap-6 xl:grid-cols-2")
+                              .attrClass(
+                                  hasFacts(diagram)
+                                      ? "route-diagram grid items-start gap-6 xl:grid-cols-2"
+                                      : "route-diagram")
                               .div()
                               .attrClass("route-diagram-figure min-w-0")
                               .of(figure -> RouteDiagramSvg.draw(figure, diagram))
                               .__()
-                              .div()
-                              .attrClass("route-diagram-facts flex min-w-0 flex-col gap-5")
-                              .of(facts -> facts(facts, diagram))
-                              .__()
+                              .of(grid -> {
+                                if (hasFacts(diagram)) {
+                                  grid.div()
+                                      .attrClass("route-diagram-facts flex min-w-0 flex-col gap-5")
+                                      .of(facts -> facts(facts, diagram))
+                                      .__();
+                                }
+                              })
                               .__());
                 })
                 .__());
   }
 
+  /** The notes that the diagram has no room for. Each section appears only when it has content. */
+  private static boolean hasFacts(RouteDiagram d) {
+    return !tlsNotes(d).isEmpty() || !detailed(d).isEmpty() || d.balancing() != null;
+  }
+
   private static void facts(Div<?> facts, RouteDiagram d) {
-    section(facts, "Listeners", body -> listeners(body, d));
-    section(facts, "TLS", body -> tls(body, d));
-    section(facts, "Route", body -> route(body, d));
-    section(facts, "Route Profiles", body -> profiles(body, d));
+    List<String> tls = tlsNotes(d);
+    if (!tls.isEmpty()) {
+      section(facts, "TLS", body -> tls.forEach(note -> body.p().text(note).__()));
+    }
+    if (!detailed(d).isEmpty()) {
+      section(facts, "Route Profiles", body -> profiles(body, d));
+    }
     if (d.balancing() != null) {
       section(facts, "Load balancing", body -> balancing(body, d));
     }
-    section(facts, "Yard", body -> yard(body, d));
   }
 
   private static void section(Div<?> facts, String title, Consumer<Div<?>> body) {
@@ -107,108 +122,43 @@ final class RouteDiagramPage {
         .__();
   }
 
-  private static void listeners(Div<?> body, RouteDiagram d) {
-    if (d.http() == null) {
-      body.p().text("This Workstation has no Traefik, so nothing listens for requests.").__();
-      return;
+  private static List<String> tlsNotes(RouteDiagram d) {
+    List<String> notes = new ArrayList<>();
+    if (d.http() != null && d.https() == null) {
+      notes.add("To turn HTTPS on, run \"lvh-yard ws tls https create\".");
     }
-    listener(body, "HTTP", d.http(), d.httpServes(), httpNote(d));
-    if (d.https() == null) {
-      body.p().text("HTTPS is off. Run \"lvh-yard ws tls https create\" to turn it on.").__();
-    } else {
-      listener(body, "HTTPS", d.https(), d.httpsServes(), null);
-    }
-  }
-
-  private static String httpNote(RouteDiagram d) {
-    return d.clientCertificate() && d.noRoute() == null
-        ? "A Route Profile needs a Client Certificate, so the Route answers only on HTTPS."
-        : null;
-  }
-
-  private static void listener(
-      Div<?> body, String name, RouteDiagram.Listener listener, boolean serves, String note) {
-    body.p()
-        .text(name + " listens on ")
-        .code()
-        .text(listener.address())
-        .__()
-        .text(
-            ": "
-                + listener.reach()
-                + ". "
-                + (serves ? "It serves this Route." : "It has no Route for this Service."))
-        .__();
-    if (note != null) {
-      body.p().attrClass("text-muted-foreground").text(note).__();
-    }
-  }
-
-  private static void tls(Div<?> body, RouteDiagram d) {
-    body.p()
-        .text(
-            "Browser to Traefik: HTTP is plain text."
-                + (d.https() == null ? "" : " HTTPS uses TLS."))
-        .__();
     if (d.clientCertificate()) {
-      body.p()
-          .text("The browser must also show a Client Certificate that the Workstation CA signed.")
-          .__();
+      notes.add("The browser must also show a Client Certificate signed by the Workstation CA.");
     }
-    body.p()
-        .text(
-            d.mutualTls()
-                ? "Traefik to Instances: mutual TLS. Traefik and the Instance check each other's"
-                    + " certificates. The Instance's certificate must name "
-                    + d.service()
-                    + "."
-                : "Traefik to Instances: plain HTTP.")
-        .__();
-    if (d.remote()) {
-      body.p()
-          .attrClass("text-muted-foreground")
-          .text("The Instances are on " + d.home() + ", so this step crosses the LAN.")
-          .__();
+    if (d.mutualTls()) {
+      notes.add("The certificate of each Instance must name " + d.service() + ".");
     }
+    return notes;
   }
 
-  private static void route(Div<?> body, RouteDiagram d) {
-    if (d.noRoute() != null) {
-      body.p().text(d.noRoute()).__();
-      return;
-    }
-    body.p().code().text(d.hostname()).__().text(" on " + d.viewer() + ".").__();
-    body.p()
-        .attrClass("text-muted-foreground")
-        .text("Access log: " + (d.accessLog() ? "on" : "off") + ".")
-        .__();
+  /** The Route Profiles with a middleware that has options or asks who the user is. */
+  private static List<RouteProfileSummary> detailed(RouteDiagram d) {
+    return d.profiles().stream()
+        .filter(profile -> profile.middlewares().stream().anyMatch(RouteDiagramPage::hasDetail))
+        .toList();
+  }
+
+  private static boolean hasDetail(RouteProfileSummary.Middleware middleware) {
+    return middleware.authentication() || !middleware.options().isEmpty();
   }
 
   private static void profiles(Div<?> body, RouteDiagram d) {
-    if (d.profiles().isEmpty()) {
-      body.p().text("None. Requests go to the Instances as they are.").__();
-      return;
-    }
-    body.p().attrClass("text-muted-foreground").text("In the order the Route applies them.").__();
-    for (RouteProfileSummary profile : d.profiles()) {
+    for (RouteProfileSummary profile : detailed(d)) {
       body.div()
           .attrClass("flex min-w-0 flex-col gap-1")
           .p()
           .attrClass("font-medium")
           .text(profile.name())
           .__()
-          .of(div -> {
-            if (profile.missing()) {
-              div.p()
-                  .text(
-                      "The Home Workstation has no such Route Profile, so Traefik refuses the"
-                          + " Route.")
-                  .__();
-            } else if (profile.middlewares().isEmpty()) {
-              div.p().attrClass("text-muted-foreground").text("It has no middleware.").__();
-            }
-            profile.middlewares().forEach(middleware -> middleware(div, middleware));
-          })
+          .of(div ->
+              profile.middlewares().stream()
+                  .filter(RouteDiagramPage::hasDetail)
+                  .forEach(middleware -> middleware(div, middleware)))
           .__();
     }
   }
@@ -247,54 +197,17 @@ final class RouteDiagramPage {
   }
 
   private static void balancing(Div<?> body, RouteDiagram d) {
-    body.p().text(d.balancing()).__();
     body.p()
         .text(
             d.instancePriority()
-                ? "Instance Priority is on: the Route uses only the first Instance Source with a"
-                    + " passing Instance."
-                : "Instance Priority is off: every passing Instance of every Instance Source"
-                    + " shares the Route.")
+                ? "Instance Priority is on: only the first Instance Source with a passing Instance"
+                    + " gets requests."
+                : "Instance Priority is off: every passing Instance of every Instance Source gets"
+                    + " requests.")
         .__();
     body.p()
         .attrClass("text-muted-foreground")
-        .text(
-            "Consul checks decide which Instances pass, not Traefik. There are no sticky sessions.")
+        .text("Consul checks decide which Instances pass. There are no sticky sessions.")
         .__();
-  }
-
-  private static void yard(Div<?> body, RouteDiagram d) {
-    if (d.scope() == null) {
-      body.p().text("Not published. No Workstation has a hostname for this Service.").__();
-    } else if (d.scope() == Scope.LOCAL) {
-      body.p().text("Local Scope: only " + d.home() + " has a hostname for this Service.").__();
-    } else if (d.remote()) {
-      body.p()
-          .text(
-              "Yard Scope: "
-                  + d.home()
-                  + " shares this Service. This Workstation sends requests straight to the"
-                  + " Instances that other Workstations can reach.")
-          .__();
-    } else {
-      body.p()
-          .text("Yard Scope: every Workstation gets the hostname ")
-          .code()
-          .text(d.yardHostname())
-          .__()
-          .text(
-              ", with its own Base Domain. Its Traefik sends requests straight to these Instances.")
-          .__();
-      if (d.skippedByYard() > 0) {
-        body.p()
-            .attrClass("text-risk")
-            .text(
-                "Other Workstations skip the Instances at a loopback or Docker address, because"
-                    + " only "
-                    + d.home()
-                    + " can connect to them.")
-            .__();
-      }
-    }
   }
 }

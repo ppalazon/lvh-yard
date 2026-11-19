@@ -107,12 +107,8 @@ final class RouteDiagramSvg {
           .append(d.mutualTls() ? "mutual TLS" : "plain HTTP")
           .append(".");
     }
-    long instances = d.groups().stream().mapToLong(group -> group.members().size()).sum();
-    long routed =
-        d.groups().stream()
-            .flatMap(group -> group.members().stream())
-            .filter(RouteDiagram.Member::routed)
-            .count();
+    long instances = d.instances().size();
+    long routed = d.instances().stream().filter(RouteDiagram.Member::routed).count();
     return text + " The Service has " + instances + " Instances. " + routed + " are in the Route.";
   }
 
@@ -155,7 +151,7 @@ final class RouteDiagramSvg {
     int entries = top + 36;
     // From the browser to the two entry points.
     wire(235, top - 58, entries, httpWire ? "rd-wire rd-plain" : "rd-wire rd-wire-off");
-    wire(365, top - 58, entries, httpsWire ? "rd-wire" : "rd-wire rd-wire-off");
+    wire(365, top - 58, entries, httpsWire ? "rd-wire rd-secure" : "rd-wire rd-wire-off");
     hopLabel(
         225,
         top - 24,
@@ -192,9 +188,9 @@ final class RouteDiagramSvg {
       return y;
     }
     wire(235, y, y + 24, httpWire ? "rd-wire rd-plain" : "rd-wire rd-wire-off");
-    wire(365, y, y + 24, httpsWire ? "rd-wire" : "rd-wire rd-wire-off");
+    wire(365, y, y + 24, httpsWire ? "rd-wire rd-secure" : "rd-wire rd-wire-off");
     y += 24;
-    add(rect(40, y, 520, 52, "rd-node"));
+    add(rect(40, y, 520, 52, "rd-node rd-on"));
     add(text(56, y + 22, "Route", "rd-b", "start"));
     if (diagram.accessLog()) {
       add(text(544, y + 22, "access log on", "rd-s rd-mute", "end"));
@@ -220,7 +216,7 @@ final class RouteDiagramSvg {
 
   private void entry(int x, int y, String name, RouteDiagram.Listener listener, boolean serves) {
     boolean on = listener != null;
-    add(rect(x, y, 230, 66, on ? "rd-node" : "rd-node rd-dashed"));
+    add(rect(x, y, 230, 66, serves ? "rd-node rd-on" : on ? "rd-node" : "rd-node rd-dashed"));
     add(text(x + 14, y + 22, name, on ? "rd-b" : "rd-b rd-mute", "start"));
     if (on) {
       add(text(x + 216, y + 22, serves ? "serves the Route" : "no Route", "rd-s rd-mute", "end"));
@@ -272,14 +268,16 @@ final class RouteDiagramSvg {
       cursor += 38;
     }
     int bottom = cursor + 2;
-    root.children.add(boxIndex, rect(40, top, 520, bottom - top, "rd-node"));
+    boolean refused = profiles.stream().anyMatch(RouteProfileSummary::missing);
+    String box = refused ? "rd-node" : "rd-node rd-on";
+    root.children.add(boxIndex, rect(40, top, 520, bottom - top, box));
     return bottom;
   }
 
   private int balancing(int y) {
     List<String> lines = wrap(diagram.balancing(), 66);
     int heightOfBox = 34 + lines.size() * 17;
-    add(rect(40, y, 520, heightOfBox, "rd-node"));
+    add(rect(40, y, 520, heightOfBox, "rd-node rd-on"));
     add(text(56, y + 22, "Load balancing", "rd-b", "start"));
     int lineY = y + 40;
     for (String line : lines) {
@@ -295,77 +293,99 @@ final class RouteDiagramSvg {
         (diagram.remote() ? "Across the LAN: " : "Traefik to Instances: ")
             + (mutual ? "mutual TLS" : "plain HTTP");
     lock(72, y + 6, !mutual);
-    add(text(94, y + 19, label, mutual ? "rd-s" : "rd-s rd-risk-text", "start"));
+    add(text(94, y + 19, label, mutual ? "rd-s rd-secure-text" : "rd-s rd-plain-text", "start"));
   }
 
+  /** One row of an Instance: two text lines. */
+  private static final int ROW = 44;
+
+  /** Where a wire from the trunk meets a cluster, and whether the Route uses that cluster. */
+  private record Branch(int y, boolean used) {}
+
   private int instances(int top, boolean route, int trunkStart) {
-    List<RouteDiagram.Group> groups = diagram.groups();
+    List<RouteDiagram.Member> loopback = new ArrayList<>();
+    List<RouteDiagram.Member> external = new ArrayList<>();
+    for (RouteDiagram.Member member : diagram.instances()) {
+      (member.place() == RouteDiagram.Place.LOOPBACK ? loopback : external).add(member);
+    }
     String title = diagram.remote() ? "Workstation " + diagram.home() : "Instances";
     Node zone = rect(20, top, 560, 0, diagram.remote() ? "rd-zone rd-dashed" : "rd-zone");
     add(zone);
     // The trunk runs down at x=60, so the title starts to its right.
     add(text(route ? 80 : 40, top + 22, title, "rd-b", "start"));
     int y = top + 34;
-    if (groups.isEmpty()) {
-      add(text(40, y + 14, "No Instance Source yet.", "rd-t rd-mute", "start"));
+    if (loopback.isEmpty() && external.isEmpty()) {
+      add(text(40, y + 14, "No Instance now.", "rd-t rd-mute", "start"));
       zone.attr("height", y + 30 - top);
       return y + 24;
     }
-    int firstBranch = -1;
-    int lastBranch = -1;
-    List<Node> branches = new ArrayList<>();
-    for (RouteDiagram.Group group : groups) {
-      int rows = Math.max(1, group.members().size());
-      int boxHeight = 32 + rows * 28 + 6;
-      boolean dim = route && group.use() != RouteDiagram.Use.IN_ROUTE;
-      add(rect(80, y, 480, boxHeight, dim ? "rd-node rd-dashed" : "rd-node"));
-      add(text(96, y + 21, fit(group.label(), 46), "rd-b", "start"));
-      String use =
-          switch (group.use()) {
-            case NONE -> null;
-            case IN_ROUTE -> "in the Route";
-            case WAITING -> "waiting";
-            case OUT_OF_RANGE -> "skipped here";
-          };
-      if (use != null) {
-        add(text(544, y + 21, use, "rd-s rd-mute", "end"));
+    List<Branch> branches = new ArrayList<>();
+    y = cluster(y, true, loopback, route, branches);
+    y = cluster(y, false, external, route, branches);
+    if (route) {
+      String tls = diagram.mutualTls() ? "rd-secure" : "rd-plain";
+      add(path("M60 " + trunkStart + "V" + branches.getLast().y(), "rd-wire " + tls));
+      for (Branch branch : branches) {
+        int by = branch.y();
+        add(
+            path(
+                "M60 " + by + "H80M74 " + (by - 4) + "L80 " + by + "L74 " + (by + 4),
+                branch.used() ? "rd-wire " + tls : "rd-wire rd-wire-off"));
       }
-      int rowY = y + 32;
-      if (group.members().isEmpty()) {
-        add(text(96, rowY + 18, "no Instance now", "rd-s rd-mute", "start"));
-      }
-      for (RouteDiagram.Member member : group.members()) {
-        member(rowY, member, route);
-        rowY += 28;
-      }
-      if (route) {
-        int branchY = y + 16;
-        firstBranch = firstBranch < 0 ? branchY : firstBranch;
-        lastBranch = branchY;
-        boolean used = group.use() == RouteDiagram.Use.IN_ROUTE;
-        Node branch = path("M60 " + branchY + "H80", used ? "rd-wire" : "rd-wire rd-wire-off");
-        branches.add(branch);
-      }
-      y += boxHeight + 10;
-    }
-    if (route && lastBranch >= 0) {
-      add(path("M60 " + trunkStart + "V" + lastBranch, "rd-wire"));
-      branches.forEach(this::add);
     }
     zone.attr("height", y + 4 - top);
     return y + 4;
   }
 
-  private void member(int y, RouteDiagram.Member member, boolean route) {
-    boolean dim = route && !member.routed();
-    String tone = dim ? " rd-dim" : "";
-    if (member.routed()) {
-      add(rect(88, y + 2, 3, 22, "rd-in"));
+  /** A box for the Instances at loopback or at any other address. Nothing is drawn when empty. */
+  private int cluster(
+      int y,
+      boolean loopback,
+      List<RouteDiagram.Member> members,
+      boolean route,
+      List<Branch> branches) {
+    if (members.isEmpty()) {
+      return y;
     }
-    add(circle(106, y + 13, 5, healthClass(member.health())));
-    add(text(118, y + 17, member.health().value(), "rd-s" + tone, "start"));
-    add(text(184, y + 17, fit(member.address(), 28), "rd-m" + tone, "start"));
-    add(text(544, y + 17, member.place().label, "rd-s rd-mute", "end"));
+    int height = 34 + members.size() * ROW;
+    add(rect(80, y, 480, height, loopback ? "rd-node rd-loop" : "rd-node rd-ext"));
+    add(text(96, y + 21, loopback ? "Loopback" : "External address", "rd-b", "start"));
+    add(
+        text(
+            544,
+            y + 21,
+            loopback ? "this computer only" : "Docker or network address",
+            "rd-s rd-mute",
+            "end"));
+    int rowY = y + 32;
+    for (RouteDiagram.Member member : members) {
+      member(rowY, member, route);
+      rowY += ROW;
+    }
+    boolean used = route && members.stream().anyMatch(RouteDiagram.Member::routed);
+    branches.add(new Branch(y + 16, used));
+    return y + height + 10;
+  }
+
+  private void member(int y, RouteDiagram.Member member, boolean route) {
+    boolean live = route && member.routed();
+    boolean dim = route && !live;
+    String box = live ? "rd-node rd-on rd-live" : dim ? "rd-node rd-dashed" : "rd-node";
+    add(rect(92, y, 456, 38, box));
+    String tone = dim ? " rd-dim" : "";
+    add(circle(110, y + 14, 5, healthClass(member.health())));
+    add(text(122, y + 18, member.health().value(), "rd-s" + tone, "start"));
+    add(text(190, y + 18, fit(member.address(), 26), "rd-m" + tone, "start"));
+    if (live) {
+      add(text(536, y + 18, "in the Route", "rd-s", "end"));
+    } else if (dim) {
+      String state = member.outOfRange() ? "skipped here" : "waiting";
+      add(text(536, y + 18, state, "rd-s rd-mute", "end"));
+    }
+    add(text(122, y + 32, fit(member.source(), 40), "rd-s rd-mute", "start"));
+    if (member.place() != RouteDiagram.Place.LOOPBACK) {
+      add(text(536, y + 32, member.place().label, "rd-s rd-mute", "end"));
+    }
   }
 
   private static String healthClass(Health health) {
@@ -430,8 +450,8 @@ final class RouteDiagramSvg {
   private void hopLabel(int x, int y, String anchor, String label, HopKind kind) {
     String cls =
         switch (kind) {
-          case PLAIN -> "rd-s rd-risk-text";
-          case TLS -> "rd-s";
+          case PLAIN -> "rd-s rd-plain-text";
+          case TLS -> "rd-s rd-secure-text";
           case OFF -> "rd-s rd-mute";
         };
     int textWidth = (int) (label.length() * 6.4);
@@ -447,7 +467,7 @@ final class RouteDiagramSvg {
   /** A padlock about 14 units wide, at {@code x}, {@code y}. */
   private void lock(int x, int y, boolean open) {
     Node group = new Node("g", null).attr("transform", "translate(" + x + " " + y + ") scale(0.6)");
-    group.attr("class", open ? "rd-icon rd-risk-icon" : "rd-icon");
+    group.attr("class", open ? "rd-icon rd-plain-icon" : "rd-icon rd-secure-icon");
     group.children.add(
         new Node("rect", null)
             .attr("x", 3)
