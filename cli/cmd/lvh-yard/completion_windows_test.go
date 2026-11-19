@@ -18,7 +18,7 @@ func TestPowerShellCompletesCommandsAndValues(t *testing.T) {
 	for name, shell := range shells(t) {
 		for typed, want := range map[string][]string{
 			"lvh-yard ws comp":              {"compose"},
-			"lvh-yard ws compose ":          {"logs", "recreate", "restart", "start", "stop", "upgrade"},
+			"lvh-yard ws compose ":          {"down", "logs", "recreate", "restart", "start", "stop", "upgrade"},
 			"lvh-yard publish web --scope ": {"local", "yard"},
 			"lvh-yard completions p":        {"powershell"},
 		} {

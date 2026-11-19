@@ -186,7 +186,12 @@ func TestWSYardInitAddress(t *testing.T) {
 	}
 	before := snapshotFolder(t, folder)
 	yard.Process.LANIP, yard.Process.LANError = "", errors.New("no route")
-	for _, flags := range [][]string{nil, {"--address", "0.0.0.0"}, {"--address", "::1"}, {"--address", "not-an-ip"}} {
+	cases := [][]string{{"--address", "0.0.0.0"}, {"--address", "::1"}, {"--address", "not-an-ip"}}
+	if runtime.GOOS != "windows" {
+		// Native Windows setup writes the LAN address to .env, so ws yard init always has one.
+		cases = append(cases, nil)
+	}
+	for _, flags := range cases {
 		if r := yard.Run(append([]string{"ws", "yard", "init", "--dir", folder}, flags...)...); r.ExitCode == 0 || !strings.Contains(r.Stderr, "--address") {
 			t.Fatalf("%v: %+v", flags, r)
 		}
@@ -455,9 +460,12 @@ func TestWSYardJoinRefusals(t *testing.T) {
 	if r := yard.Run("ws", "yard", "join", filepath.Join(t.TempDir(), "none.zip"), "--dir", joining); r.ExitCode == 0 {
 		t.Fatal("joined with a file that does not exist")
 	}
-	yard.Process.LANIP, yard.Process.LANError = "", errors.New("no route")
-	if r := yard.Run("ws", "yard", "join", zip, "--dir", joining, "--password", "pw"); r.ExitCode == 0 || !strings.Contains(r.Stderr, "--address") {
-		t.Fatalf("no LAN address: %+v", r)
+	// Native Windows setup writes the LAN address to .env, so ws yard join always has one.
+	if runtime.GOOS != "windows" {
+		yard.Process.LANIP, yard.Process.LANError = "", errors.New("no route")
+		if r := yard.Run("ws", "yard", "join", zip, "--dir", joining, "--password", "pw"); r.ExitCode == 0 || !strings.Contains(r.Stderr, "--address") {
+			t.Fatalf("no LAN address: %+v", r)
+		}
 	}
 	sameFolder(t, before, snapshotFolder(t, joining))
 }
