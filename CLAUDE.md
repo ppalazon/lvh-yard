@@ -20,7 +20,7 @@ Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/ag
 
 ### Checks
 
-While you work, run `mise run test:unit` (unit tests only, a few seconds). Run `mise run check` before committing. The pre-commit hook (`mise run hooks`) also scans for secrets with gitleaks. To try a change across Workstations, `mise run dev:up` starts two test Workstations on this computer. See `docs/development.md`.
+The shell starts in the repo root: run commands from there, with relative paths. While you work, run `mise run test:unit` (unit tests only, a few seconds). Run `mise run check` before committing. After you change a dashboard component test, run `mise run test:flaky`. The pre-commit hook (`mise run hooks`) also scans for secrets with gitleaks. To try a change across Workstations, `mise run dev:up` starts two test Workstations on this computer. See `docs/development.md`.
 
 ### Docs
 
@@ -36,11 +36,10 @@ Write all text in simple English: CLI help, messages, page text, API docs, docs,
 
 ### CLI text
 
-Applies to CLI help, output, prompts and errors. Tests guard the command rule: `cli/internal/command/help_commands_test.go`.
+Applies to CLI help, output, prompts and errors. Tests guard the rules they can check, and their failures name the rule: `cli/internal/command/help_commands_test.go` (commands in text) and `cli/internal/command/help_text_test.go` (`Short`, `Long` labels, flag usage length, no `mise`).
 
-- `Short`: one line, at most 50 characters, third person, ends with a period.
-- `Long`: blocks in this order, when they apply: one line of purpose, `Before:`, `Does:`, `Next:`, `Note:`. Each label ends with a colon on its own line. Items are two-space indented lines. Steps are numbered `1.`, facts start with `-`.
-- Flag usage: one clause, at most 70 characters, such as "Sets ...", "Reads ...". Write a default as `(default: ...)` at the end.
+- `Long`: one line of purpose, then the blocks that apply. Items are two-space indented lines. Steps are numbered `1.`, facts start with `-`.
+- Flag usage: one clause, such as "Sets ...", "Reads ...". Write a default as `(default: ...)` at the end.
 - Output: the success line first, then `label: value` lines or a `Next:` list. Do not repeat what the command just did.
 - Errors: "problem. What to do." Name the exact command or flag.
 - A command that the user runs stands alone on its own indented line, exactly as typed. Inside a sentence, put it in double quotes, for example `Run "lvh-yard ws init" first.`

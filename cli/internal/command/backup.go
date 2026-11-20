@@ -62,12 +62,14 @@ func writePrivateFile(path string, data []byte) error {
 
 const importHelp = `Adds what is new in a Backup. Skips what exists.
 
-Before: have a Backup file, made with "lvh-yard export".
+Before:
+  - Have a Backup file, made with "lvh-yard export".
 Does:
   1. Reads the file, or the standard input for -.
   2. Adds each new item.
   3. Skips each item that exists, unless you use --update.
-Note: --dry-run shows the plan and changes nothing.`
+Note:
+  - --dry-run shows the plan and changes nothing.`
 
 func NewImport(options *Options) *cobra.Command {
 	var update, dryRun bool

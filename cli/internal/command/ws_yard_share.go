@@ -51,7 +51,7 @@ func newWSYardShare(options *Options, folder func() string) *cobra.Command {
 		},
 	}
 	cmd.Flags().IntVar(&days, "days", 365, "Sets the certificate validity in days.")
-	cmd.Flags().StringVarP(&output, "output", "o", "", "Writes the zip file here (default: certificates/ in the Workstation Folder).")
+	cmd.Flags().StringVarP(&output, "output", "o", "", "Writes the zip file here (default: certificates/).")
 	cmd.Flags().StringVar(&password, "password", "", "Sets the zip file password (default: ask, or make a random one).")
 	addCAKeyPasswordFlags(cmd.Flags(), caKeyFlagUsage, caKeyFileFlagUsage)
 	return cmd

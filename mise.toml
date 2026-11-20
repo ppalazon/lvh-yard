@@ -74,6 +74,18 @@ run = [
 description = "Run the dashboard's component tests: the dashboard with fake Consul and Docker, without Docker"
 run = "./mvnw -q -pl dashboard test -Dtest='*ComponentTest' -Dsurefire.failIfNoSpecifiedTests=false"
 
+[tasks."test:flaky"]
+description = "Run the dashboard's component tests again and again, to find a test that fails now and then"
+# The tests run in four JVMs, and the timing of each run differs. A test that depends on a state that an earlier
+# test leaves in a shared Spring context fails on some runs only.
+usage = 'flag "--times <n>" default="5" help="How many runs"'
+run = """
+for run in $(seq 1 "${usage_times}"); do
+  echo "Component tests, run $run of ${usage_times}"
+  ./mvnw -q -pl dashboard test -Dtest='*ComponentTest' -Dsurefire.failIfNoSpecifiedTests=false || exit 1
+done
+"""
+
 [tasks."cli:templates"]
 description = "Refresh the Go CLI's embedded configuration templates"
 run = [

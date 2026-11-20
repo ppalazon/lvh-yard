@@ -296,6 +296,12 @@ tests. `mise run quality:go` runs all of them for this computer only.
 exit codes, editor file handling, subprocess arguments and shell quoting.
 Their build tag is `integration`, so `go test ./...` skips them.
 
+After you change a component test, run `mise run test:flaky`. It runs the
+component tests five times, or as many as `--times` says, because a test that
+shares state with an earlier test fails on some runs only. The CLI help text
+rules of `CLAUDE.md` are checked by `cli/internal/command/help_text_test.go`,
+which runs with `go test ./...`.
+
 On Windows, the integration tests use each PowerShell executable found on
 `PATH`. They report an absent `pwsh.exe`; a passing run with only Windows
 PowerShell 5.1 does not prove PowerShell 7 behavior. Completion checks load

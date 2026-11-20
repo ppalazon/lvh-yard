@@ -23,7 +23,8 @@ Does:
   2. Replaces this executable.
   3. Runs "ws compose upgrade".
   4. Asks to recreate the services, at a terminal.
-Note: --check shows the release and changes nothing.`
+Note:
+  - --check shows the release and changes nothing.`
 
 // NewUpdate replaces this executable with a release from GitHub, then runs ws compose upgrade with the new executable.
 // The templates are inside the executable, so only the new one can write the files of the new release.

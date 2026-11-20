@@ -34,7 +34,8 @@ Does:
   2. Makes a Gossip Key.
   3. Writes compose.yaml, .env, lvh-yard.yaml and consul.d/.
 
-Next: start the Compose services, as it prints.
+Next:
+  Start the Compose services, as it prints.
 Note:
   - it stops when a file exists. Use --force to overwrite.
   - the Base Domain has no default. Use a domain that resolves every name to 127.0.0.1, such as lvh.me or l.lvhy.cc.`
