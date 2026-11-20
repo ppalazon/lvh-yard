@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// The help text rules of CLAUDE.md, "CLI text".
+// The help text rules of CODING_STANDARDS.md, "CLI text".
 const (
 	maxShort = 50
 	maxUsage = 70

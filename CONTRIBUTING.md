@@ -39,7 +39,7 @@ gitleaks. `mise run secrets` scans the whole history.
   releasing, update [docs/development.md](docs/development.md).
 - Write all text in simple English: CLI help, messages, page text, docs and
   code comments. Use short sentences, active voice, and the condition before the
-  command. `CLAUDE.md` has the full rules.
+  command. [CODING_STANDARDS.md](CODING_STANDARDS.md) has the full rules.
 - Keep one idea in each commit, and say in the message what it does.
 
 ## AI-assisted changes

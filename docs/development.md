@@ -195,6 +195,8 @@ Docker Desktop prerequisites, native storage rules, and the reset, Backup
 transfer and complete removal procedures.
 The repository's developer tasks do not imply a native Windows build toolchain.
 Build on Linux and copy the CLI and dashboard image for native runtime checks.
+The [Windows test VM](windows-test-vm.md) describes the VM that the maintainer
+uses for native runtime checks, its accounts, helpers and rules.
 
 The Windows Workstation Folder holds configuration, certificates and Backups.
 Consul state lives in a named volume scoped to the Compose project.
@@ -299,7 +301,7 @@ Their build tag is `integration`, so `go test ./...` skips them.
 After you change a component test, run `mise run test:flaky`. It runs the
 component tests five times, or as many as `--times` says, because a test that
 shares state with an earlier test fails on some runs only. The CLI help text
-rules of `CLAUDE.md` are checked by `cli/internal/command/help_text_test.go`,
+rules of `CODING_STANDARDS.md` are checked by `cli/internal/command/help_text_test.go`,
 which runs with `go test ./...`.
 
 On Windows, the integration tests use each PowerShell executable found on
@@ -341,7 +343,7 @@ emptied.
 A test checks one behavior. An integration test checks the status code, the
 data, the CLI output or the Route that Traefik gets. It does not check exact
 sentences, HTML classes or layout. A page test checks only that the key
-element or link is there. The writing rules in `CLAUDE.md`, for
+element or link is there. The writing rules in `CODING_STANDARDS.md`, for
 example which commands user text names, are not tested. When authors write
 the text, they follow these rules.
 
