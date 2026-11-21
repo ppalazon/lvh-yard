@@ -4,6 +4,9 @@ prek = "0.3.10"
 go = "1.27.3"
 gitleaks = "8.30.1"
 golangci-lint = "2.15.0"
+uv = "0.13.9"
+# The guide generator. mise installs it with uv, so `zensical` is on the PATH of every task and of CI.
+"pipx:zensical" = "0.1.3"
 
 [tasks."css:install"]
 description = "Install Tailwind CSS and Basecoat into node_modules/, as package-lock.json pins them"
@@ -21,23 +24,36 @@ description = "Rebuild app.css whenever a web view or app.css's source changes"
 depends = ["css:install"]
 run = "npx tailwindcss -i dashboard/src/main/css/app.css -o dashboard/src/main/resources/static/app.css --minify --watch"
 
-[tasks."site:build"]
-description = "Build the landing page of docs/site into docs/site/dist"
+[tasks."pages:landing-build"]
+description = "Build the landing page of docs/landing into dist/pages, with the install scripts of dev/"
 depends = ["css:install"]
+# Removes only the files that this task writes, so dist/pages/docs, the guide, stays.
 run = [
-  "rm -rf docs/site/dist",
-  "mkdir -p docs/site/dist",
-  "npx tailwindcss -i docs/site/site.css -o docs/site/dist/site.css --minify",
-  "cp docs/site/index.html docs/site/dist/",
-  "cp docs/site/install.sh docs/site/install.ps1 docs/site/dist/",
-  "cp dashboard/src/main/resources/static/theme.js docs/site/dist/",
-  "cp -r docs/site/assets docs/site/dist/assets",
+  "mkdir -p dist/pages",
+  "rm -rf dist/pages/assets dist/pages/index.html dist/pages/site.css dist/pages/theme.js dist/pages/install.sh dist/pages/install.ps1",
+  "npx tailwindcss -i docs/landing/site.css -o dist/pages/site.css --minify",
+  "cp docs/landing/index.html dist/pages/",
+  "cp dev/install.sh dev/install.ps1 dist/pages/",
+  "cp dashboard/src/main/resources/static/theme.js dist/pages/",
+  "cp -r docs/landing/assets dist/pages/assets",
 ]
 
-[tasks."site:serve"]
-description = "Build the landing page and serve it at http://localhost:8800"
-depends = ["site:build"]
-run = "python3 -m http.server 8800 --directory docs/site/dist"
+[tasks."pages:docs-build"]
+description = "Build the guide of docs/guide into dist/pages/docs, and fail on a broken link or a missing page"
+run = "zensical build --strict"
+
+[tasks."pages:build"]
+description = "Build the landing page and the guide into dist/pages, as the Pages workflow does"
+run = [{ task = "pages:landing-build" }, { task = "pages:docs-build" }]
+
+[tasks."pages:landing-serve"]
+description = "Build the landing page and serve dist/pages at http://localhost:8800"
+depends = ["pages:landing-build"]
+run = "python3 -m http.server 8800 --directory dist/pages"
+
+[tasks."pages:docs-serve"]
+description = "Preview the guide, drafts included, at http://localhost:8000"
+run = "zensical serve"
 
 [tasks.hooks]
 description = "Install the git hook that formats and checks files before each commit (.pre-commit-config.yaml)"

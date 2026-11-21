@@ -31,5 +31,5 @@ node_modules/
 /.claude/worktrees/
 /.claude/scheduled_tasks.lock
 
-# The built landing page
-/docs/site/dist/
+# The built landing page and guide
+/dist/

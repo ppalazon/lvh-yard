@@ -1,12 +1,31 @@
-# The landing page in docs/site, at https://lvhy.cc/ (the custom domain of this repository's Pages).
+# The landing page (docs/landing) at https://lvhy.cc/ and the guide (docs/guide) at https://lvhy.cc/docs/, with the
+# install scripts of dev/. The custom domain of this repository's Pages is lvhy.cc.
 # One-time setup: in the repository settings, set Pages > Source to "GitHub Actions" and Pages > Custom domain to lvhy.cc.
+# A pull request builds the site and deploys nothing, so a broken link in the guide fails the pull request.
 name: Pages
 
 on:
   push:
     branches: [main]
     paths:
-      - docs/site/**
+      - docs/landing/**
+      - docs/guide/**
+      - zensical.toml
+      - dev/install.sh
+      - dev/install.ps1
+      - dashboard/src/main/resources/static/theme.js
+      - dashboard/src/main/css/theme.css
+      - package-lock.json
+      - .github/workflows/pages.yml
+  pull_request:
+    paths:
+      - docs/landing/**
+      - docs/guide/**
+      - zensical.toml
+      - dev/install.sh
+      - dev/install.ps1
+      - dashboard/src/main/resources/static/theme.js
+      - dashboard/src/main/css/theme.css
       - package-lock.json
       - .github/workflows/pages.yml
   workflow_dispatch:
@@ -27,14 +46,17 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v5
-      - run: mise run site:build
+      - run: mise run pages:build
       - uses: actions/configure-pages@v6
+        if: github.event_name != 'pull_request'
       - uses: actions/upload-pages-artifact@v5
+        if: github.event_name != 'pull_request'
         with:
-          path: docs/site/dist
+          path: dist/pages
 
   deploy:
     needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

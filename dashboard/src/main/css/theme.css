@@ -1,6 +1,6 @@
 /* Colors, radius and shadows from https://tweakcn.com/themes/cmq3zh8z1000104i6bwg93nqa (Phyxor).
    These rules come after Basecoat's, so .dark must set every color that :root sets. The dashboard
-   (app.css) and the landing page (docs/site/site.css) both import this file after Basecoat. */
+   (app.css) and the landing page (docs/landing/site.css) both import this file after Basecoat. */
 :root {
   --radius: 0.375rem;
   --background: oklch(1 0 0);

@@ -1,5 +1,5 @@
 // Package update finds a release of lvh-yard on GitHub, downloads it, checks it against SHA256SUMS and replaces the
-// running executable. The install scripts in docs/site do the same steps for a first install.
+// running executable. The install scripts in dev/ do the same steps for a first install.
 package update
 
 import (

@@ -1,5 +1,5 @@
 /* The landing page's stylesheet. It uses the dashboard's Basecoat components and its colors, so the page looks like
-   the product. `mise run site:build` writes it to docs/site/dist/site.css. */
+   the product. `mise run pages:landing-build` writes it to dist/pages/site.css. */
 @import "tailwindcss" source(none);
 @import "basecoat-css";
 @import "../../dashboard/src/main/css/theme.css";

@@ -2,7 +2,7 @@
 # The Linux job of CI builds the Package folder. It holds the integration test binary, the unit test binaries
 # with the files that they read, and the packaged archives of versions 9.8.7 and 9.8.8, each folder with its
 # SHA256SUMS. See "Continuous integration" in docs/development.md.
-#   powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File dev\test-windows-native.ps1 -Package <dir> -Installer docs\site\install.ps1 -PowerShellMajor 5
+#   powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File dev\test-windows-native.ps1 -Package <dir> -Installer dev\install.ps1 -PowerShellMajor 5
 param(
     [Parameter(Mandatory = $true)][string]$Package,
     [Parameter(Mandatory = $true)][string]$Installer,

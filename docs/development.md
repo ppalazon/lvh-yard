@@ -445,7 +445,7 @@ Two jobs run the Windows CLI on a real Windows system:
 3. It runs each unit test binary in the folder of its package. All must pass,
    and six Windows-only tests must have run, so a build constraint cannot
    hide them.
-4. It runs `dev/test-install-windows.ps1` with `docs/site/install.ps1` and the
+4. It runs `dev/test-install-windows.ps1` with `dev/install.ps1` and the
    packaged archives. The script seeds the user PATH with a real `%USERPROFILE%`
    entry, once as `REG_EXPAND_SZ` and once as `REG_SZ`, and checks that the
    installer keeps its text and kind.
@@ -467,8 +467,8 @@ an ordinary user.
 The runner account is an administrator. The job passes `-AllowAdministrator`,
 and the output says that the run does not show ordinary-user behavior. Without
 that switch, both scripts stop for an administrator. To check ordinary-user
-behavior, copy the folder that `windows-package` uploads, `dev/` and
-`docs/site/install.ps1` to Windows. Then run `dev/test-windows-native.ps1` as
+behavior, copy the folder that `windows-package` uploads and `dev/` to
+Windows. Then run `dev/test-windows-native.ps1` as
 an ordinary user in each shell.
 
 macOS has no job. The only macOS file is the CLI, and the release workflow
@@ -491,14 +491,22 @@ of a real Yard in a file of this repository. `.env` is ignored by Git for this
 reason. If gitleaks finds a real secret, remove it, rotate it, and do not just
 allow it.
 
-## The landing page
+## The landing page and the guide
 
-The landing page is one static page in `docs/site/`: `index.html`, `site.css`
-and `assets/`. `site.css` uses Tailwind CSS and Basecoat with the colors of
+The site at `https://lvhy.cc/` has two parts. The landing page is one static
+page in `docs/landing/`: `index.html`, `site.css` and `assets/`. `site.css`
+uses Tailwind CSS and Basecoat with the colors of
 `dashboard/src/main/css/theme.css`, so the page and the dashboard look alike.
 The page also loads the dashboard's `theme.js` for its dark theme.
-The site build copies both `install.sh` and `install.ps1` into
-`docs/site/dist`, for `/install.sh` and `/install.ps1` on the deployed site.
+The guide at `https://lvhy.cc/docs/` is written in Markdown in `docs/guide/`.
+[Zensical](https://zensical.org/) builds it. `zensical.toml` at the root holds
+its settings and its navigation. A page that is not approved yet is in
+`draft_docs` of that file: the build leaves it out, and the preview shows it.
+A link from a published page to a page in `draft_docs` fails the strict build.
+`docs/user-guide.md` is a separate reference, and the guide does not include it.
+The install scripts are `dev/install.sh` and `dev/install.ps1`. The landing
+build copies them into `dist/pages`, for `/install.sh` and `/install.ps1` on
+the deployed site.
 
 The hero cycles through service types and locations with CSS. Service types
 change every 2 seconds, and locations change every 2.6 seconds. Each reel
@@ -508,17 +516,23 @@ the heading stays on its first words. Screen readers get one fixed heading
 with all the words.
 
 ```sh
-mise run site:build    # writes docs/site/dist
-mise run site:serve    # builds it and serves http://localhost:8800
+mise run pages:build           # writes the landing page to dist/pages and the guide to dist/pages/docs
+mise run pages:landing-build   # only the landing page and the install scripts
+mise run pages:docs-build      # only the guide, in strict mode
+mise run pages:landing-serve   # builds the landing page and serves http://localhost:8800
+mise run pages:docs-serve      # previews the guide, drafts included, at http://localhost:8000
 ```
 
-The Pages workflow (`.github/workflows/pages.yml`) builds the page and
-deploys it to `https://lvhy.cc/` when `docs/site/` changes on `main`. Once, in
+The Pages workflow (`.github/workflows/pages.yml`) runs `pages:build` and
+deploys `dist/pages` to `https://lvhy.cc/` when a file of the landing page, the
+guide or the install scripts changes on `main`. A pull request that changes
+them runs the same build and deploys nothing, so a broken link fails the pull
+request. Once, in
 the repository settings, set **Pages > Source** to **GitHub Actions** and
 **Pages > Custom domain** to `lvhy.cc`. The DNS records are in Cloudflare, set
 to DNS only.
 
-The screenshots in `docs/site/assets/` are of the dashboard of a test Yard
+The screenshots in `docs/landing/assets/` are of the dashboard of a test Yard
 with demo Services. The README uses them too. To take them again, start the
 test Workstations with `mise run dev:up`, create the Services with
 `lvh-yard`, and take the pictures in the light and the dark theme.
@@ -620,7 +634,7 @@ command:
 sha256sum lvh-yard-*.tar.gz lvh-yard-*.zip > SHA256SUMS
 ```
 
-Copy those two folders, `docs/site/dist/install.ps1` from `mise run site:build`,
+Copy those two folders, `dev/install.ps1`,
 and `dev/test-install-windows.ps1` to an ordinary Windows user's test folder.
 In each supported PowerShell version, run:
 

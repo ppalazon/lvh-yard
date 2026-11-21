@@ -1,0 +1,73 @@
+# The guide at https://lvhy.cc/docs/. Its sources are in docs/guide/. `mise run pages:docs-build` builds it into
+# dist/pages/docs/ in strict mode, and `mise run pages:docs-serve` previews it, drafts included.
+# The landing page at https://lvhy.cc/ is separate: docs/landing/, built by `mise run pages:landing-build`.
+#
+# A page that the maintainer has not approved is listed in draft_docs. The build leaves it out, and the preview shows it.
+# When the maintainer approves a page, remove its line from draft_docs. A published page that links to a draft page
+# fails the strict build.
+[project]
+site_name = "LVH Yard"
+site_description = "Reach any development service on your HomeLab by name, not by IP and port. The guide to LVH Yard."
+site_url = "https://lvhy.cc/docs/"
+docs_dir = "docs/guide"
+site_dir = "dist/pages/docs"
+draft_docs = """
+index.md
+"""
+# The navigation tree is in .scratch/guide-site/spec.md. Each page ticket adds its page here.
+nav = [
+  { "Home" = "index.md" },
+]
+
+[project.theme]
+language = "en"
+features = [
+  "content.code.annotate",
+  "content.code.copy",
+  "content.tabs.link",
+  "navigation.footer",
+  "navigation.indexes",
+  "navigation.instant",
+  "navigation.path",
+  "navigation.sections",
+  "navigation.top",
+  "navigation.tracking",
+  "search.highlight",
+]
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme)"
+toggle.icon = "lucide/sun-moon"
+toggle.name = "Switch to light mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to system preference"
+
+[project.markdown_extensions]
+admonition = {}
+attr_list = {}
+def_list = {}
+md_in_html = {}
+toc.permalink = true
+pymdownx.betterem = {}
+pymdownx.details = {}
+pymdownx.highlight.anchor_linenums = true
+pymdownx.highlight.line_spans = "__span"
+pymdownx.highlight.pygments_lang_class = true
+pymdownx.inlinehilite = {}
+pymdownx.keys = {}
+pymdownx.superfences.custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
+pymdownx.tabbed.alternate_style = true
+pymdownx.tabbed.combine_header_slug = true
+pymdownx.tasklist.custom_checkbox = true

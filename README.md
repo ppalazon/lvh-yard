@@ -18,8 +18,8 @@ However, there could be some problems for specific ISP or DNS servers because
 they're block this kind of DNS.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/site/assets/dashboard-catalog-dark.png">
-  <img alt="The Catalog page of the LVH Yard dashboard. It lists the Services of two Workstations, each with its state, hostname and passing Instances." src="docs/site/assets/dashboard-catalog-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/landing/assets/dashboard-catalog-dark.png">
+  <img alt="The Catalog page of the LVH Yard dashboard. It lists the Services of two Workstations, each with its state, hostname and passing Instances." src="docs/landing/assets/dashboard-catalog-light.png">
 </picture>
 
 ## How it works
