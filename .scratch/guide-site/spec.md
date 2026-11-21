@@ -193,7 +193,7 @@ The Start page "What it solves" also has a short list, "What LVH Yard does not d
 The first release of the guide is `v0.2.0`. The site goes live when this core is approved:
 
 - the plumbing and the landing page;
-- the Start section (four pages);
+- the Home page and the Start section (four pages);
 - the Advanced page;
 - recipes 1, 2, 3, 8, 11, 16 and 19, which cover the six pains (pains 1 and 2 are "Your first Service" and recipe 8).
 
