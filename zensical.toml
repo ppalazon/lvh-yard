@@ -22,6 +22,7 @@ nav = [
   { "Home" = "index.md" },
   { "Start" = [
     { "Pick your Base Domain" = "start/pick-your-base-domain.md" },
+    { "Your first Service" = "start/first-service.md" },
   ] },
 ]
 

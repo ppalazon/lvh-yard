@@ -166,26 +166,13 @@ domain for you: `lvh-yard status` checks only Consul, Traefik and Docker.
     nslookup anything.l.lvhy.cc
     ```
 
-Both names must resolve to `127.0.0.1`. On Linux, the output looks like this:
-
-```text
-127.0.0.1       anything.l.lvhy.cc
-127.0.0.1       a.b.l.lvhy.cc
-```
+Both names must resolve to `127.0.0.1`.
 
 ### Enter the domain
 
-`lvh-yard ws init` asks for the domain at its last prompt:
-
-```text
-The Base Domain ends every hostname that this Workstation routes, such as web.<Base Domain>.
-Use a wildcard domain that resolves every name to 127.0.0.1, such as "lvh.me" or "l.lvhy.cc".
-If you are offline, or your router blocks such answers, use localhost.
-Base Domain:
-```
-
-The prompt suggests `localhost` for offline work. Enter `dev.localhost`
-instead, so that HTTPS works.
+`lvh-yard ws init` asks for the domain at its last prompt, `Base Domain:`. The
+prompt suggests `localhost` for offline work. Enter `dev.localhost` instead, so
+that HTTPS works.
 
 Without a terminal, give the flag `--base-domain`:
 
@@ -203,25 +190,9 @@ lvh-yard ws set base-domain dev.example.com
 lvh-yard ws compose recreate
 ```
 
-```text
-Saved .env.
-Next:
-  lvh-yard ws compose recreate
-```
-
-After the containers restart, every Route has its new hostname. Traefik answers
-`404 page not found` for the old ones.
-
-```text
-$ lvh-yard catalog
-ws-a (this Workstation)
-  consul-ui      healthy  local  consul-ui.dev.example.com      1/1  [static]
-  front          healthy  local  front.dev.example.com          1/1  [static]
-  traefik-admin  healthy  local  traefik-admin.dev.example.com  1/1  [static]
-  yard           healthy  local  yard.dev.example.com           1/1  [static]
-ws-b
-  grafana        healthy  yard   grafana.ws-b.dev.example.com   1/1  [static]
-```
+After the containers restart, every Route has its new hostname, and
+`lvh-yard catalog` shows it. Traefik answers `404 page not found` for the old
+ones.
 
 To undo the change, run the same two commands with the old domain. An HTTPS
 certificate that you created earlier names the old Base Domain.
