@@ -12,7 +12,6 @@ site_url = "https://lvhy.cc/docs/"
 docs_dir = "docs/guide"
 site_dir = "dist/pages/docs"
 draft_docs = """
-index.md
 """
 extra_javascript = [
   "javascripts/mermaid-box-colors.js",
