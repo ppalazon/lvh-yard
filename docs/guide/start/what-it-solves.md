@@ -6,6 +6,8 @@ computer in your Yard. You stop remembering ports and editing `/etc/hosts`. A
 Service has a name. Traefik routes the hostname to the process or container
 behind it. A wildcard DNS makes the hostname reach Traefik.
 
+To try it, [install LVH Yard](install.md).
+
 ## Problems it removes
 
 - "I forget which port each service uses." A Service has a name, and its

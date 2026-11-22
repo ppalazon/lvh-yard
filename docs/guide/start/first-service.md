@@ -6,10 +6,10 @@ host and port of the process as a Static Instance, and publish it. Then the
 process has the hostname `http://front.<Base Domain>`, whatever its port.
 
 A Docker container has a second problem. Docker gives it a new host port each
-time it starts, so an address that you wrote down goes stale. A Container
-Binding links a Service to the container by its name and its container port.
-LVH Yard follows the container, so the hostname stays the same when the host
-port changes.
+time it starts, so an address that you wrote down goes stale. A Service can
+follow the container instead. A Container Binding links the Service to the
+container by its name and its container port. LVH Yard follows the container, so
+the hostname stays the same when the host port changes.
 
 ## Before you start
 
@@ -49,10 +49,12 @@ lvh-yard service create front
 ```
 
 Add a Static Instance. It is the host and port where your app listens. Most dev
-servers listen on localhost only, so give `--host 127.0.0.1`. Without `--host`,
-LVH Yard registers the LAN address of your Workstation. An app that listens
-only on `127.0.0.1` then refuses the connection. See
-[Connection refused](#connection-refused).
+servers listen on localhost only, so give `--host 127.0.0.1`.
+
+Without `--host`, LVH Yard registers the address of your Workstation. That is
+`127.0.0.1` on a new Workstation, and its LAN address once the Workstation
+starts or joins a Yard. An app that listens only on `127.0.0.1` refuses the
+connection at the LAN address. See [Connection refused](#connection-refused).
 
 ```sh
 lvh-yard register static front --host 127.0.0.1 --port 4000
@@ -111,7 +113,8 @@ ws-a (this Workstation)
 ```
 
 LVH Yard registers `consul-ui`, `traefik-admin` and `yard` (the dashboard) when
-it starts for the first time.
+it starts for the first time. See
+[The default Services](install.md#the-default-services).
 
 ## Undo
 
@@ -142,7 +145,8 @@ No Instance passes. The Route uses every Instance in range.
 ```
 
 The app listens on `127.0.0.1`, and the Instance is at the LAN address of the
-Workstation (`192.168.1.67` here). Remove the Instance and register it again
+Workstation (`192.168.1.67` here). A Workstation in a Yard registers its LAN
+address when you give no `--host`. Remove the Instance and register it again
 with `--host 127.0.0.1`. Or make the app listen on every address.
 
 ## 404 page not found

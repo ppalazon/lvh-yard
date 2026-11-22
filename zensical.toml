@@ -16,12 +16,17 @@ index.md
 """
 extra_javascript = [
   "javascripts/mermaid-box-colors.js",
+  "javascripts/base-domain.js",
+]
+extra_css = [
+  "stylesheets/base-domain.css",
 ]
 # The navigation tree is in .scratch/guide-site/spec.md. Each page ticket adds its page here.
 nav = [
   { "Home" = "index.md" },
   { "Start" = [
     { "What LVH Yard solves" = "start/what-it-solves.md" },
+    { "Install LVH Yard" = "start/install.md" },
     { "Pick your Base Domain" = "start/pick-your-base-domain.md" },
     { "Your first Service" = "start/first-service.md" },
   ] },

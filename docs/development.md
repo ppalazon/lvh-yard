@@ -508,9 +508,16 @@ The install scripts are `dev/install.sh` and `dev/install.ps1`. The landing
 build copies them into `dist/pages`, for `/install.sh` and `/install.ps1` on
 the deployed site.
 
-The guide has one script, `docs/guide/javascripts/mermaid-box-colors.js`. It adds
+The guide has two scripts. `docs/guide/javascripts/mermaid-box-colors.js` adds
 the colors blue, green and orange for the boxes of a Mermaid sequence diagram,
 which the theme of Zensical would show in one color.
+`docs/guide/javascripts/base-domain.js` and `docs/guide/stylesheets/base-domain.css`
+add a Base Domain field to the header. The reader types the Base Domain of their
+Workstation. The script then replaces `lvh.me` and `<Base Domain>` in the text of
+the page, and it turns each inline code element that holds a whole `http` or
+`https` address into a link. A page keeps its examples as written when its
+Markdown holds the comment `<!-- base-domain: off -->`. The script does not
+change Mermaid diagrams. The reader's domain stays in `localStorage`.
 
 The hero cycles through service types and locations with CSS. Service types
 change every 2 seconds, and locations change every 2.6 seconds. Each reel

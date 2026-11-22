@@ -1,5 +1,7 @@
 # Pick your Base Domain
 
+<!-- base-domain: off -->
+
 The Base Domain is how you open a published Service by name. A Service named
 `front` has the hostname `front.<Base Domain>`, and Traefik reads that hostname
 in each request to know which Service you want.
