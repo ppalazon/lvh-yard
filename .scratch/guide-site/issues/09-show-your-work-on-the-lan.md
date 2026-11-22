@@ -36,7 +36,7 @@ Two diagrams: Yard Scope across two Workstations, and a phone reaching Traefik o
 - [ ] The maintainer and the writer draft it together. The writer does not generate the page alone, and does not move to the next page before the maintainer approves this one.
 - [ ] The page has the eight parts of the recipe template, in order, with one Mermaid diagram.
 - [ ] Every command ran on the setup named under Verification, and the output on the page is real. A part that nobody tested says so on the page.
-- [ ] The text passes the `ste80-humanizer` Humanize pass and uses only the terms of `GLOSSARY.md`. A warning comes before the command that it protects.
+- [ ] The page was drafted with `technical-writing` and polished with `ste80-humanizer`, as the spec describes. `ste_check.py` reports no findings, and the text uses only the terms of `GLOSSARY.md`. A warning comes before the command that it protects.
 - [ ] `mise run pages:docs-build` passes in strict mode.
 - [ ] The maintainer approved the page, and it left `draft_docs`.
 

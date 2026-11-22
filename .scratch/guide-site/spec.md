@@ -49,11 +49,15 @@ These files name `docs/site/` and change with the move: `.github/workflows/pages
 
 ### The writing rules
 
-- Write in English with the `ste80-humanizer` skill in Humanize mode: Pass 1 fully, and Pass 2 at 80%. One idea per sentence. Active voice. Condition first. No dashes. No forced triads. A warning comes before the command it protects.
+- Write in English, in two stages. The maintainer chose this process on 2026-11-22.
+- Stage 1, draft: use the `technical-writing` skill. State the checkpoint first: kind, audience, purpose and non-goals. The skill sets the structure: the answer first at every level, one home for each fact, noun-phrase headings (or the verbatim error string for a troubleshooting entry), and no banned constructions. A procedure also follows `writing-runbooks`. Finish stage 1 with the checklist of `reviewing-technical-prose`.
+- Stage 2, polish: use the `ste80-humanizer` skill on the stage 1 text, in Humanize mode (Pass 1 fully, Pass 2 at 80%). It sets the sentences: active voice, simple tenses, no semicolons, and 25 words at most. The polish changes sentences only. Headings, the order of sections, tables, code blocks, diagrams, links, commands and outputs stay as they are, and no fact is added or lost. The page must pass `ste_check.py` with no findings.
+- The writer saves the stage 1 text in `.scratch/guide-site/drafts/<slug>.stage1.md`, which Git ignores, so the maintainer can ask for a diff. The writer deletes the file when the maintainer approves the page.
+- A page carries no dates and no statement about what was tested or where: the ticket of the page records the tests. A warning comes before the command it protects.
 - Use the terms of `GLOSSARY.md`, and only those. Write Workstation, not host. Write Workstation CA, not private CA. Write Container Binding, Instance Priority and Static Instance by those names.
 - The guide may use two extra words for the Base Domain: **shared domain** (someone else runs its DNS, such as `lvh.me`) and **own domain** (you run its DNS). They do not go into `GLOSSARY.md`.
 - Code, commands, paths and identifiers stay exactly as they are.
-- Diagrams are Mermaid blocks in the guide. The landing page keeps hand-made SVG. Screenshots show the dashboard only.
+- Diagrams are Mermaid blocks in the guide. The landing page keeps hand-made SVG. Screenshots show the dashboard only. If Mermaid cannot draw what a page needs, the writer tells the maintainer what fails before any SVG diagram goes into the guide. A sequence diagram colors its boxes with `box rgba(33,118,255,0.25) Label` (blue), `rgba(34,170,80,0.25)` (green) or `rgba(245,158,11,0.25)` (orange), and `docs/guide/javascripts/mermaid-box-colors.js` makes the theme show them. The theme loads Mermaid from `unpkg.com`, so a diagram needs internet access.
 - The command names in this spec come from `docs/user-guide.md`. Run `lvh-yard <command> --help` to confirm each one before you write it into a page.
 
 ### The reader and the six pains

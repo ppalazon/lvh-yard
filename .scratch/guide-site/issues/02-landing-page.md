@@ -16,7 +16,7 @@
 - [ ] "Pick your Base Domain" shows the loopback wildcard idea, names `lvh.me` and `l.lvhy.cc` as shared domains, says that `l.lvhy.cc` is this project's domain, and recommends an own domain. It carries the approved warning in short form.
 - [ ] The block of eight typical questions follows the spec. Each answer has two sentences at most. The answer to question 5 says that `lvh.me` can stop working.
 - [ ] "Use it on a network that you trust" carries the approved dashboard-login text.
-- [ ] The copy passes the `ste80-humanizer` Humanize pass. The hero keeps its meaning.
+- [ ] The copy was written with `technical-writing` and polished with `ste80-humanizer`, as the spec describes, and `ste_check.py` reports no findings. The hero keeps its meaning.
 - [ ] Proof: `mise run pages:landing-serve`, then a browser check in light and dark themes, and at a narrow width. The page works with JavaScript off, except the hero animation, which has its text in `sr-only`.
 - [ ] The maintainer approved the page.
 

@@ -22,7 +22,7 @@ No command to run. Check every claim against `README.md` and `GLOSSARY.md`.
 
 - [ ] The page leaves the placeholder text. It is in `draft_docs` until the maintainer approves it.
 - [ ] The maintainer and the writer draft it together.
-- [ ] The text passes the `ste80-humanizer` Humanize pass and uses only the terms of `GLOSSARY.md`.
+- [ ] The page was drafted with `technical-writing` and polished with `ste80-humanizer`, as the spec describes. `ste_check.py` reports no findings, and the text uses only the terms of `GLOSSARY.md`.
 - [ ] `mise run pages:docs-build` passes in strict mode.
 - [ ] The maintainer approved the page, and it left `draft_docs`.
 

@@ -22,7 +22,7 @@
 
 - [ ] The page starts in `draft_docs` of `zensical.toml`.
 - [ ] The maintainer and the writer draft it together. The writer does not generate the page alone, and does not move to the next page before the maintainer approves this one.
-- [ ] The text passes the `ste80-humanizer` Humanize pass and uses only the terms of `GLOSSARY.md`.
+- [ ] The page was drafted with `technical-writing` and polished with `ste80-humanizer`, as the spec describes. `ste_check.py` reports no findings, and the text uses only the terms of `GLOSSARY.md`.
 - [ ] Every command ran, and every output on the page is real.
 - [ ] `mise run pages:docs-build` passes in strict mode.
 - [ ] The maintainer approved the page, and it left `draft_docs`.
