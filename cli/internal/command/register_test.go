@@ -97,7 +97,7 @@ func TestRegisterStaticAsksForTheFlagsThatAreMissing(t *testing.T) {
 		asked, notAsked []string
 	}{
 		{"port and host", "4000\n127.0.0.1\n", nil, `{"host":"127.0.0.1","port":4000}`, []string{"Port of the app: ", "Host of the app"}, nil},
-		{"Enter keeps the LAN address", "4000\n\n", nil, `{"port":4000}`, []string{"Port of the app: ", "Host of the app"}, nil},
+		{"Enter keeps the default address", "4000\n\n", nil, `{"port":4000}`, []string{"Port of the app: ", "Host of the app"}, nil},
 		{"a wrong port is asked again", "abc\n70000\n4000\n\n", nil, `{"port":4000}`, []string{"Give a port from 1 to 65535."}, nil},
 		{"host only", "127.0.0.1\n", []string{"--port", "4000"}, `{"host":"127.0.0.1","port":4000}`, []string{"Host of the app"}, []string{"Port of the app"}},
 		{"port only", "4000\n", []string{"--host", "10.1.2.3"}, `{"host":"10.1.2.3","port":4000}`, []string{"Port of the app: "}, []string{"Host of the app"}},

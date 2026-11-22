@@ -1308,7 +1308,7 @@ lvh-yard catalog --details                  # Instance addresses, Health, IDs an
 lvh-yard catalog --details --workstation ws-b --state degraded
 lvh-yard service create web                 # an empty, Unpublished Service, unless it exists
 lvh-yard service delete web                 # with its Publication, Static Instances and Container Bindings
-lvh-yard register static web --port 8080    # at this Workstation's LAN address
+lvh-yard register static web --port 8080    # at the address of this Workstation
 lvh-yard register static web               # at a terminal: asks for the port and the host
 lvh-yard register static web --host 127.0.0.1 --port 8080
 lvh-yard register static web --port 8080 --path /health --interval 5s --timeout 1s   # an HTTP check (default: TCP, 10s, 2s)
@@ -1393,10 +1393,11 @@ empty Service can use: a Static Instance, a Container Binding to a container or
 to a Compose service, and an Alias.
 
 `lvh-yard register static` needs a port. At a terminal, it asks for the port and
-the host that no flag gave. Enter keeps the LAN address of this Workstation as
-the host. Without a terminal, it asks nothing: a missing port is an error, and a
-missing host is the LAN address of this Workstation. Give `--host 127.0.0.1` for
-an app that listens on localhost only.
+the host that no flag gave. Enter keeps the address of this Workstation as the
+host: `127.0.0.1` until the Workstation starts or joins a Yard, then its LAN
+address. Without a terminal, it asks nothing: a missing port is an error, and a
+missing host is that same address. Give `--host 127.0.0.1` for an app that
+listens on localhost only.
 
 `lvh-yard profiles show` and `lvh-yard profiles set` use Traefik's file format:
 a YAML document with `http.middlewares.<name>`. So the output of `show` works as

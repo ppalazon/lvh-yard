@@ -69,7 +69,7 @@ func newRegisterStatic(options *Options) *cobra.Command {
 		},
 	}
 	cmd.Flags().IntVar(&port, "port", 0, "Sets the port of the Instance (default: asked at a terminal).")
-	cmd.Flags().StringVar(&host, "host", "", "Sets the Instance address (default: this Workstation's LAN address).")
+	cmd.Flags().StringVar(&host, "host", "", "Sets the Instance address (default: the address of this Workstation).")
 	cmd.Flags().StringVar(&check.Type, "check", "", "Sets the Health check: tcp or http.")
 	cmd.Flags().StringVar(&check.Path, "path", "", "Sets the path of an HTTP check.")
 	cmd.Flags().StringVar(&check.Interval, "interval", "", "Sets the time between checks, such as 5s or 1m.")
@@ -111,7 +111,7 @@ func askMissingStaticFlags(cmd *cobra.Command, options *Options, port *int, host
 		return hostGiven, nil
 	}
 	fmt.Fprintln(cmd.OutOrStdout(), "Use 127.0.0.1 for an app that listens on localhost only.")
-	answer, err := prompt.text("Host of the app (Enter for the LAN address of this Workstation)", "", nil)
+	answer, err := prompt.text("Host of the app (Enter for the address of this Workstation)", "", nil)
 	if err != nil || answer == "" {
 		return false, err
 	}
@@ -126,5 +126,5 @@ Does:
   2. Registers the Instance and starts its Health check.
 
 Note:
-  - Without --host, the Instance is at the LAN address of this Workstation.
+  - Without --host, the Instance is at the address of this Workstation: 127.0.0.1 until it starts or joins a Yard, then its LAN address.
   - Use --host 127.0.0.1 for an app that listens on localhost only.`

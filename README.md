@@ -56,8 +56,8 @@ lvh-yard publish mailpit
 ```
 
 Give `--host 127.0.0.1` for an app that listens on localhost only, as most dev
-servers do. Without `--host`, the Instance is at the LAN address of this
-Workstation.
+servers do. Without `--host`, the Instance is at the address of this
+Workstation: `127.0.0.1` until it starts or joins a Yard, then its LAN address.
 
 Then `http://front.lvh.me` and `http://mailpit.lvh.me` work in your browser.
 `lvh-yard catalog` shows the Services of the Yard that this Workstation reaches, grouped by Workstation:
