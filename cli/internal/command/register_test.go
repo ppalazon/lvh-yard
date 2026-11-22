@@ -88,3 +88,73 @@ func TestRegisterStaticUsage(t *testing.T) {
 		t.Fatalf("unexpected group help: %+v", result)
 	}
 }
+
+func TestRegisterStaticAsksForTheFlagsThatAreMissing(t *testing.T) {
+	for _, tc := range []struct {
+		name, stdin     string
+		args            []string
+		body            string
+		asked, notAsked []string
+	}{
+		{"port and host", "4000\n127.0.0.1\n", nil, `{"host":"127.0.0.1","port":4000}`, []string{"Port of the app: ", "Host of the app"}, nil},
+		{"Enter keeps the LAN address", "4000\n\n", nil, `{"port":4000}`, []string{"Port of the app: ", "Host of the app"}, nil},
+		{"a wrong port is asked again", "abc\n70000\n4000\n\n", nil, `{"port":4000}`, []string{"Give a port from 1 to 65535."}, nil},
+		{"host only", "127.0.0.1\n", []string{"--port", "4000"}, `{"host":"127.0.0.1","port":4000}`, []string{"Host of the app"}, []string{"Port of the app"}},
+		{"port only", "4000\n", []string{"--host", "10.1.2.3"}, `{"host":"10.1.2.3","port":4000}`, []string{"Port of the app: "}, []string{"Host of the app"}},
+		{"both flags", "", []string{"--host", "10.1.2.3", "--port", "4000"}, `{"host":"10.1.2.3","port":4000}`, nil, []string{"Port of the app", "Host of the app"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var body, want map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					t.Error(err)
+				}
+				if err := json.Unmarshal([]byte(tc.body), &want); err != nil {
+					t.Fatal(err)
+				}
+				if !reflect.DeepEqual(body, want) {
+					t.Errorf("registered %+v, want %+v", body, want)
+				}
+				w.WriteHeader(201)
+				w.Write([]byte(`{"id":"7b1c","host":"10.1.2.3","port":4000}`))
+			}))
+			defer server.Close()
+			h := commandtest.New(t)
+			h.Process.Terminal = true
+			h.Process.Stdin = tc.stdin
+			result := h.Run(append([]string{"--dashboard", server.URL, "register", "static", "web"}, tc.args...)...)
+			if result.ExitCode != 0 || result.Stderr != "" || !strings.HasSuffix(result.Stdout, "Registered web at 10.1.2.3:4000, Instance 7b1c.\n") {
+				t.Fatalf("unexpected result: %+v", result)
+			}
+			for _, text := range tc.asked {
+				if !strings.Contains(result.Stdout, text) {
+					t.Errorf("the output does not ask %q:\n%s", text, result.Stdout)
+				}
+			}
+			for _, text := range tc.notAsked {
+				if strings.Contains(result.Stdout, text) {
+					t.Errorf("the output asks %q, but a flag gave the answer:\n%s", text, result.Stdout)
+				}
+			}
+		})
+	}
+}
+
+func TestRegisterStaticWithoutAPortAsksNothingWhenNoTerminalIsOpen(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { requests++ }))
+	defer server.Close()
+	result := commandtest.New(t).Run("--dashboard", server.URL, "register", "static", "web")
+	if result.ExitCode != 1 || result.Stdout != "" || !strings.Contains(result.Stderr, "Missing --port") || requests != 0 {
+		t.Fatalf("unexpected result: %+v, %d requests", result, requests)
+	}
+}
+
+func TestRegisterStaticStopsWhenTheInputEndsBeforeTheAnswer(t *testing.T) {
+	h := commandtest.New(t)
+	h.Process.Terminal = true
+	result := h.Run("register", "static", "web")
+	if result.ExitCode != 1 || !strings.Contains(result.Stderr, "the input ended before the answer to") {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+}

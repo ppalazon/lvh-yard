@@ -29,10 +29,15 @@ func newRegisterStatic(options *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "static <service>",
 		Short: "Registers a Static Instance of a Service.",
+		Long:  registerStaticHelp,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			hostGiven, err := askMissingStaticFlags(cmd, options, &port, &host)
+			if err != nil {
+				return err
+			}
 			request := client.StaticInstanceRequest{Port: port}
-			if cmd.Flags().Changed("host") {
+			if hostGiven {
 				request.Host = &host
 			}
 			for _, name := range []string{"check", "path", "interval", "timeout"} {
@@ -63,8 +68,7 @@ func newRegisterStatic(options *Options) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().IntVar(&port, "port", 0, "Sets the port of the Instance.")
-	_ = cmd.MarkFlagRequired("port")
+	cmd.Flags().IntVar(&port, "port", 0, "Sets the port of the Instance (default: asked at a terminal).")
 	cmd.Flags().StringVar(&host, "host", "", "Sets the Instance address (default: this Workstation's LAN address).")
 	cmd.Flags().StringVar(&check.Type, "check", "", "Sets the Health check: tcp or http.")
 	cmd.Flags().StringVar(&check.Path, "path", "", "Sets the path of an HTTP check.")
@@ -78,3 +82,49 @@ func newRegisterStatic(options *Options) *cobra.Command {
 func instanceAddress(instance client.Instance) string {
 	return net.JoinHostPort(instance.Host, strconv.Itoa(instance.Port))
 }
+
+// validPort accepts a TCP port number.
+func validPort(answer string) error {
+	if number, err := strconv.Atoi(answer); err != nil || number < 1 || number > 65535 {
+		return fmt.Errorf("Give a port from 1 to 65535.")
+	}
+	return nil
+}
+
+// askMissingStaticFlags gives the port and the host of a Static Instance. At a terminal, it asks for
+// each one that no flag gave. Without a terminal, a missing port is an error and a missing host is
+// left to the dashboard. It tells whether host holds an address.
+func askMissingStaticFlags(cmd *cobra.Command, options *Options, port *int, host *string) (bool, error) {
+	prompt := newPrompter(cmd, options)
+	hostGiven := cmd.Flags().Changed("host")
+	if !cmd.Flags().Changed("port") {
+		if !prompt.terminal {
+			return hostGiven, fmt.Errorf("Missing --port. No terminal is open: pass --port")
+		}
+		answer, err := prompt.text("Port of the app", "", validPort)
+		if err != nil {
+			return hostGiven, err
+		}
+		*port, _ = strconv.Atoi(answer)
+	}
+	if hostGiven || !prompt.terminal {
+		return hostGiven, nil
+	}
+	fmt.Fprintln(cmd.OutOrStdout(), "Use 127.0.0.1 for an app that listens on localhost only.")
+	answer, err := prompt.text("Host of the app (Enter for the LAN address of this Workstation)", "", nil)
+	if err != nil || answer == "" {
+		return false, err
+	}
+	*host = answer
+	return true, nil
+}
+
+const registerStaticHelp = `Registers a Static Instance: the host and port of a process that you run.
+
+Does:
+  1. Asks for the port and the host at a terminal, when a flag is missing.
+  2. Registers the Instance and starts its Health check.
+
+Note:
+  - Without --host, the Instance is at the LAN address of this Workstation.
+  - Use --host 127.0.0.1 for an app that listens on localhost only.`

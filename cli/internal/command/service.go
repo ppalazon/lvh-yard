@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -23,7 +24,7 @@ func NewService(options *Options) *cobra.Command {
 				return err
 			}
 			if created {
-				fmt.Fprintf(cmd.OutOrStdout(), "Created %s. It is empty and Unpublished.\nNext, add Instances:\n  lvh-yard register static %s --port <port>\n", args[0], args[0])
+				fmt.Fprintf(cmd.OutOrStdout(), "Created %s. It is empty and Unpublished.\n%s", args[0], instanceSuggestions(args[0]))
 			} else {
 				fmt.Fprintf(cmd.OutOrStdout(), "%s exists already.\n", args[0])
 			}
@@ -48,4 +49,19 @@ func NewService(options *Options) *cobra.Command {
 		},
 	})
 	return group
+}
+
+// instanceSuggestions lists a command for each Instance Source that a new, empty Service can use.
+func instanceSuggestions(service string) string {
+	var list strings.Builder
+	list.WriteString("Next, add Instances. Pick the Instance Source that fits:\n")
+	for _, suggestion := range [][2]string{
+		{"Static Instance", "lvh-yard register static " + service + " --port <port>"},
+		{"Container Binding", "lvh-yard register container <container> --service " + service},
+		{"Container Binding, Compose", "lvh-yard register compose <project>/<service> --port <port> --service " + service},
+		{"Alias", "lvh-yard alias add " + service + " --workstation <workstation> --service <service>"},
+	} {
+		fmt.Fprintf(&list, "  %-28s%s\n", suggestion[0], suggestion[1])
+	}
+	return list.String()
 }

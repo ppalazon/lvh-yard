@@ -76,3 +76,25 @@ func TestServiceChangesPrintRemoteRefusalOnOneLine(t *testing.T) {
 		})
 	}
 }
+
+func TestServiceCreateSuggestsEveryInstanceSource(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(201)
+		w.Write([]byte(`{"name":"web","created":true}`))
+	}))
+	defer server.Close()
+	result := commandtest.New(t).Run("--dashboard", server.URL, "service", "create", "web")
+	if result.ExitCode != 0 || result.Stderr != "" {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+	for _, suggestion := range []string{
+		"lvh-yard register static web --port <port>",
+		"lvh-yard register container <container> --service web",
+		"lvh-yard register compose <project>/<service> --port <port> --service web",
+		"lvh-yard alias add web --workstation <workstation> --service <service>",
+	} {
+		if !strings.Contains(result.Stdout, suggestion) {
+			t.Errorf("the output does not suggest %q:\n%s", suggestion, result.Stdout)
+		}
+	}
+}
