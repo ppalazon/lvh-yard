@@ -508,6 +508,10 @@ The install scripts are `dev/install.sh` and `dev/install.ps1`. The landing
 build copies them into `dist/pages`, for `/install.sh` and `/install.ps1` on
 the deployed site.
 
+The guide has one script, `docs/guide/javascripts/mermaid-box-colors.js`. It adds
+the colors blue, green and orange for the boxes of a Mermaid sequence diagram,
+which the theme of Zensical would show in one color.
+
 The hero cycles through service types and locations with CSS. Service types
 change every 2 seconds, and locations change every 2.6 seconds. Each reel
 reserves space for its longest word and centers the text. Hover over the

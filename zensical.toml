@@ -14,9 +14,15 @@ site_dir = "dist/pages/docs"
 draft_docs = """
 index.md
 """
+extra_javascript = [
+  "javascripts/mermaid-box-colors.js",
+]
 # The navigation tree is in .scratch/guide-site/spec.md. Each page ticket adds its page here.
 nav = [
   { "Home" = "index.md" },
+  { "Start" = [
+    { "Pick your Base Domain" = "start/pick-your-base-domain.md" },
+  ] },
 ]
 
 [project.theme]
