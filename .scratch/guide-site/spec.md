@@ -70,7 +70,7 @@ The reader is a developer who runs services on one to three computers, such as a
 3. "I edit `/etc/hosts` on each computer, and I do it again for the next one."
 4. "`localhost:3000` breaks my cookies and my OAuth callbacks."
 5. "I need HTTPS in development, and I do not want to click through warnings."
-6. "My teammate or my phone cannot open my service."
+6. "My teammate cannot open my service."
 
 The six pains are the six cards of the landing section "Problems it solves".
 
@@ -108,7 +108,7 @@ Numbers are the catalogue numbers that the tickets use. Ticket numbers differ.
 | 8   | Compose ports that change on every `compose up`                                                              | Name your services                 |
 | 9   | Replicas, health checks and failover                                                                         | Choose which Instance              |
 | 10  | Swap a backend with an Alias                                                                                 | Choose which Instance              |
-| 11  | Show your work on the LAN: Yard Scope, a teammate, a phone                                                   | Reach other computers              |
+| 11  | Show your work on the LAN: Yard Scope and a teammate                                                         | Reach other computers              |
 | 12  | Protect a dev service with Route Profiles: basic auth, an IP allow list, CORS                                | HTTPS and access                   |
 | 13  | Require a Client Certificate for an internal tool                                                            | HTTPS and access                   |
 | 14  | Find and fix a bad Route                                                                                     | Find and fix problems              |
@@ -219,6 +219,7 @@ Every page that the maintainer has not approved stays in `draft_docs` of `zensic
 - A hardening guide for a public server.
 - Versioned docs. The site shows the latest release only, until 1.0.0.
 - A language other than English.
+- A device that cannot run a Workstation, such as a phone. A Workstation needs Docker with Compose, so the guide makes no promise for such a device. The maintainer wants to think about it later.
 
 ## Tickets
 

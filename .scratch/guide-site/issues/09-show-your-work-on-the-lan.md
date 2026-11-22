@@ -10,25 +10,28 @@
 
 ## Pain
 
-"My teammate or my phone cannot open my service."
+"My teammate cannot open my service."
 
 ## Result
 
-A teammate with a Workstation opens it at `<service>.<workstation>.<Base Domain>`. A device with no Workstation reaches it through a Traefik that listens on the LAN.
+A teammate with a Workstation opens it at `<service>.<workstation>.<Base Domain>`.
 
 ## Commands to use
 
 - `lvh-yard publish <service> --scope yard`.
-- `lvh-yard ws set traefik-bind-address <LAN address>` for a device with no Workstation, and the DNS that it needs (an own domain or a resolver wildcard that points to the LAN address, not to `127.0.0.1`).
 - `lvh-yard test <service> --workstation ws-a` as the check.
 
 ## Diagram idea
 
-Two diagrams: Yard Scope across two Workstations, and a phone reaching Traefik on the LAN.
+One diagram: Yard Scope across two Workstations.
 
 ## Verification
 
-`mise run dev:up` for Yard Scope. The phone case needs a real device. Label it "tested by hand", or run it with `curl --resolve` from the second test Workstation. Repeat the dashboard-has-no-login warning: Scope decides who gets a hostname, not who can connect.
+`mise run dev:up`. Repeat the dashboard-has-no-login warning: Scope decides who gets a hostname, not who can connect.
+
+## Open question
+
+A device that cannot run a Workstation, such as a phone, cannot use LVH Yard on its own, because a Workstation needs Docker with Compose. The recipe makes no promise for it. The maintainer wants to think about it later.
 
 ## Acceptance
 

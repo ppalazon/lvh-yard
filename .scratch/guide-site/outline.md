@@ -21,7 +21,7 @@ Rules for the titles: sentence case, in the words of the reader, and no recipe n
 | #   | Title                                   | Path                                 | Pain                                                  | Variants or parts                                          | Verified on                    | Core |
 | --- | --------------------------------------- | ------------------------------------ | ----------------------------------------------------- | ---------------------------------------------------------- | ------------------------------ | ---- |
 | 08  | Reach a service on another computer     | `recipes/reach/another-computer.md`  | "A service runs on another box, and I want its name." | A: second Workstation. B: Traefik off. C: Static Instance. | `dev:up`; real LAN box by hand | yes  |
-| 09  | Show your work to a teammate or a phone | `recipes/reach/show-your-work.md`    | "My teammate or my phone cannot open my service."     | Yard Scope; Traefik on the LAN address                     | `dev:up`; a real phone by hand | yes  |
+| 09  | Show your work to a teammate            | `recipes/reach/show-your-work.md`    | "My teammate cannot open my service."                 | Yard Scope across two Workstations                         | `dev:up`                       | yes  |
 | 10  | Use a Windows laptop and a Linux server | `recipes/reach/windows-and-linux.md` | "My laptop is Windows and my HomeLab box is Linux."   | Two Workstations, the federation ports                     | Real Windows, by hand          | no   |
 
 ### Name your services
