@@ -21,6 +21,7 @@ extra_javascript = [
 nav = [
   { "Home" = "index.md" },
   { "Start" = [
+    { "What LVH Yard solves" = "start/what-it-solves.md" },
     { "Pick your Base Domain" = "start/pick-your-base-domain.md" },
     { "Your first Service" = "start/first-service.md" },
   ] },
