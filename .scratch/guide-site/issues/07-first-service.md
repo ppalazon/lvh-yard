@@ -93,3 +93,9 @@ Removed the Container Binding of mailpit to container mailpit-1, port 8025.
 $ lvh-yard service delete front
 Deleted front with its Publication, Static Instances and Container Bindings. Its containers keep running.
 ```
+
+## Review round: the dashboard section
+
+- The maintainer asked for a short section "The same steps in the dashboard" in every page with CLI steps for Services, and for a review of the pages already written. Only this page has such steps, so only it got the section. "What LVH Yard solves", "Install LVH Yard" and "Pick your Base Domain" have no steps for Services.
+- The labels come from the running dashboard of a throwaway Workstation: the navigation bar has Catalog, Containers, Route Profiles and Backups. The Catalog page has New Service. The page of a Service has Add Static Instance, Bind container, Add Alias and the Published switch. The Containers page has a Create Service button for each port. The dashboard at `http://yard.<Base Domain>` is the `yard` Service, and `http://127.0.0.1:7780` is always open.
+- The spec says in the recipe template that every page with such steps has this section.

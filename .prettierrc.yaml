@@ -1,0 +1,7 @@
+# Zensical reads Markdown with Python-Markdown. It needs four spaces for the
+# content of a numbered list item, so the guide uses tabWidth 4.
+overrides:
+  - files: "docs/guide/**/*.md"
+    options:
+      tabWidth: 4
+      embeddedLanguageFormatting: "off"

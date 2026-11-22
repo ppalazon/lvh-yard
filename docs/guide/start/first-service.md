@@ -68,6 +68,8 @@ lvh-yard publish front
 curl http://front.lvh.me
 ```
 
+Or open `http://front.lvh.me` in your browser.
+
 `lvh-yard publish` prints the hostname and the State of the Service. The State
 is `unhealthy` until the first health check passes. The default check connects
 to the port every 10 seconds.
@@ -115,6 +117,14 @@ ws-a (this Workstation)
 LVH Yard registers `consul-ui`, `traefik-admin` and `yard` (the dashboard) when
 it starts for the first time. See
 [The default Services](install.md#the-default-services).
+
+## The same steps in the dashboard
+
+- Open `http://yard.<Base Domain>` or [`http://127.0.0.1:7780`](http://127.0.0.1:7780).
+- `Catalog` lists your Services. `New Service` creates one.
+- On the page of a Service, `Add Static Instance` registers a process, `Bind container` follows a container, and the `Published` switch publishes it.
+- `Containers` lists your containers, with a `Create Service` button for each port.
+- Follow the forms.
 
 ## Undo
 

@@ -130,7 +130,8 @@ Every recipe page has these parts, in this order:
 2. The result, in one sentence.
 3. One diagram of the workflow (Mermaid).
 4. Before you start: what must be true.
-5. Numbered steps. Each step has one command. The CLI comes first. The dashboard is a content tab only where it is clearly easier (Route Profiles, the Route Diagram). PowerShell is a tab only where the command differs.
+5. Numbered steps. Each step has one command. The CLI comes first. PowerShell is a tab only where the command differs. After the steps, a section "The same steps in the dashboard" is a short bullet list with no introduction. It names the address (`http://yard.<Base Domain>` or `http://127.0.0.1:7780`), the page and the buttons to use, and ends with "Follow the forms". The name of each page, button, switch and field of the dashboard is inline code, such as `Create Service`. It does not list the fields or repeat the steps. A recipe whose task has no form in the dashboard, or where the dashboard is clearly easier (Route Profiles, the Route Diagram), says so in its own words. Every page that has CLI steps for Services has this section. The page "Your first Service" has it too. A table has few words: a value or a short phrase in each cell.
+   A step that publishes a Service ends with the hostname as inline code, such as `http://mailpit.lvh.me`, and tells the reader to open it in the browser. The Base Domain script makes it a link.
 6. Check: one command that proves it works, with its real output.
 7. Undo: the command that removes what the steps made.
 8. If it fails: the Service Warning or the `lvh-yard test` result that names the cause.

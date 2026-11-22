@@ -29,6 +29,11 @@ nav = [
     { "Pick your Base Domain" = "start/pick-your-base-domain.md" },
     { "Your first Service" = "start/first-service.md" },
   ] },
+  { "Recipes" = [
+    { "Name your services" = [
+      { "Stop chasing Compose ports" = "recipes/name/compose-ports.md" },
+    ] },
+  ] },
 ]
 
 [project.theme]

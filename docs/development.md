@@ -519,6 +519,11 @@ the page, and it turns each inline code element that holds a whole `http` or
 Markdown holds the comment `<!-- base-domain: off -->`. The script does not
 change Mermaid diagrams. The reader's domain stays in `localStorage`.
 
+Zensical reads Markdown with Python-Markdown. It needs four spaces for the
+content of a numbered list item, so `.prettierrc.yaml` sets `tabWidth: 4` for
+the Markdown of the guide. It also turns off the formatting of the code blocks
+in those files, so Prettier leaves your commands as they are.
+
 The hero cycles through service types and locations with CSS. Service types
 change every 2 seconds, and locations change every 2.6 seconds. Each reel
 reserves space for its longest word and centers the text. Hover over the
