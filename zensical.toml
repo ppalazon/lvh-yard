@@ -31,6 +31,7 @@ nav = [
   ] },
   { "Recipes" = [
     { "Name your services" = [
+      { "Name every HomeLab service" = "recipes/name/homelab-services.md" },
       { "Stop chasing Compose ports" = "recipes/name/compose-ports.md" },
     ] },
   ] },
