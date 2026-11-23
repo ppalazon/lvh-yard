@@ -1,18 +1,21 @@
 /*
- * The steps of two Workstations in one list. See docs/development.md.
- * A step starts with the badge **ws-a**{.ws-a} or **ws-b**{.ws-b}. The badge
+ * The steps of up to three Workstations in one list. See docs/development.md.
+ * A step starts with the badge **ws-a**{.ws-a}, **ws-b**{.ws-b} or **ws-c**{.ws-c}. The badge
  * is a pill in the color of its Workstation, the colors of the sequence
  * diagrams. A step of a list also gets a bar in that color.
  */
 :root {
   --lvhy-ws-a: rgb(34, 170, 80);
   --lvhy-ws-b: rgb(245, 158, 11);
+  --lvhy-ws-c: rgb(33, 118, 255);
 }
 
 .md-typeset li:has(> p > strong.ws-a:first-child),
 .md-typeset li:has(> strong.ws-a:first-child),
 .md-typeset li:has(> p > strong.ws-b:first-child),
-.md-typeset li:has(> strong.ws-b:first-child) {
+.md-typeset li:has(> strong.ws-b:first-child),
+.md-typeset li:has(> p > strong.ws-c:first-child),
+.md-typeset li:has(> strong.ws-c:first-child) {
   padding-left: 0.8em;
 }
 
@@ -26,8 +29,14 @@
   border-left: 0.2rem solid var(--lvhy-ws-b);
 }
 
+.md-typeset li:has(> p > strong.ws-c:first-child),
+.md-typeset li:has(> strong.ws-c:first-child) {
+  border-left: 0.2rem solid var(--lvhy-ws-c);
+}
+
 .md-typeset strong.ws-a,
-.md-typeset strong.ws-b {
+.md-typeset strong.ws-b,
+.md-typeset strong.ws-c {
   padding: 0.05em 0.5em;
   color: #000;
   font-size: 0.75em;
@@ -41,4 +50,8 @@
 
 .md-typeset strong.ws-b {
   background-color: rgba(245, 158, 11, 0.35);
+}
+
+.md-typeset strong.ws-c {
+  background-color: rgba(33, 118, 255, 0.35);
 }

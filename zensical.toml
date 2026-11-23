@@ -49,6 +49,9 @@ nav = [
     { "Find and fix problems" = [
       { "Find and fix a bad Route" = "recipes/fix/bad-route.md" },
     ] },
+    { "Move a setup" = [
+      { "Move or copy a setup with a Backup" = "recipes/move/backup.md" },
+    ] },
   ] },
   { "Advanced" = [
     { "How the Workstation Folder wires Consul, Traefik and the dashboard" = "advanced/compose-consul-traefik.md" },

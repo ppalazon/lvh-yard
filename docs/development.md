@@ -524,9 +524,9 @@ content of a numbered list item, so `.prettierrc.yaml` sets `tabWidth: 4` for
 the Markdown of the guide. It also turns off the formatting of the code blocks
 in those files, so Prettier leaves your commands as they are.
 
-A step, a bullet or a paragraph that belongs to one of two Workstations starts with a badge: `**ws-a**{.ws-a}` or
-`**ws-b**{.ws-b}`. The `attr_list` extension gives the class to the bold text, and `docs/guide/stylesheets/steps.css`
-turns it into a pill, green for `ws-a` and orange for `ws-b`, like the boxes of the sequence diagrams. A step of a list
+A step, a bullet or a paragraph that belongs to one Workstation starts with a badge: `**ws-a**{.ws-a}`, `**ws-b**{.ws-b}`
+or `**ws-c**{.ws-c}`. The `attr_list` extension gives the class to the bold text, and `docs/guide/stylesheets/steps.css`
+turns it into a pill, green for `ws-a`, orange for `ws-b` and blue for `ws-c`, like the boxes of the sequence diagrams. A step of a list
 also gets a bar in that color. Write the class right after the closing `**`, with no space and no space inside the braces.
 Then a formatter that wraps the lines cannot separate the class from its text. A class on its own line after a paragraph,
 as in `{ .ws-a }`, does not survive a formatter that joins the lines. The style sheet uses the selector `:has()`.
