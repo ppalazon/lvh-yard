@@ -39,8 +39,7 @@ You need:
 
 This computer is `ws-a`. The other computer is `ws-b`.
 
-1. Publish the Service with Yard Scope. Yard Scope lets every Workstation of
-   the Yard open it. { .ws-b }
+1.  **ws-b**{.ws-b} Publish the Service with Yard Scope. Yard Scope lets every Workstation of the Yard open it.
 
     ```sh
     lvh-yard publish grafana --scope yard
@@ -52,11 +51,9 @@ This computer is `ws-a`. The other computer is `ws-b`.
       Other Workstations: grafana.ws-b.<base-domain>
     ```
 
-2. Open the hostname of `ws-b`, `grafana.ws-b.<Base Domain>`, in your browser:
-   `http://grafana.ws-b.lvh.me`. { .ws-a }
+2.  **ws-a**{.ws-a} Open the hostname of `ws-b`, `grafana.ws-b.<Base Domain>`, in your browser: `http://grafana.ws-b.lvh.me`.
 
-3. To open the Service at the name `grafana` too, add an Alias to it. The Alias
-   creates the Service `grafana` with Local Scope. { .ws-a }
+3.  **ws-a**{.ws-a} To open the Service at the name `grafana` too, add an Alias to it. The Alias creates the Service `grafana` with Local Scope.
 
     ```sh
     lvh-yard alias add grafana --workstation ws-b --service grafana
@@ -81,18 +78,16 @@ Static Instance.
 
 ## Dashboard Steps
 
-- On the other computer, open `http://yard.<Base Domain>` or
-  [`http://127.0.0.1:7780`](http://127.0.0.1:7780).
+- **ws-b**{.ws-b} Open `http://yard.<Base Domain>` or [`http://127.0.0.1:7780`](http://127.0.0.1:7780).
 - Open the Service in `Catalog`.
 - Switch `Share with the Yard` on.
-- On this computer, open the Remote Service in `Catalog` and click `Alias`.
-- On this computer, `Add Static Instance` on the page of a Service registers a
-  computer with no LVH Yard.
+- **ws-a**{.ws-a} Open the Remote Service in `Catalog` and click `Alias`.
+- **ws-a**{.ws-a} `Add Static Instance` on the page of a Service registers a computer with no LVH Yard.
 - Follow the forms.
 
 ## Check
 
-On this computer, list the Services of every Workstation:
+**ws-a**{.ws-a} List the Services of every Workstation:
 
 ```sh
 lvh-yard catalog
@@ -114,11 +109,15 @@ and names what fails.
 
 ### Stop sharing the Service
 
-On this computer, delete the Service that holds the Alias or the Static
-Instance. On the other computer, take the Service back to Local Scope.
+**ws-a**{.ws-a} Delete the Service that holds the Alias or the Static Instance:
 
 ```sh
 lvh-yard service delete grafana
+```
+
+**ws-b**{.ws-b} Take the Service back to Local Scope:
+
+```sh
 lvh-yard publish grafana --scope local
 ```
 

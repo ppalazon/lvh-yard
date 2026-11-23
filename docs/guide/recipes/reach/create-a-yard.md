@@ -39,27 +39,25 @@ Each Workstation keeps its own Base Domain.
 
 `ws-a` starts the Yard and holds its CA. `ws-b` joins it.
 
-1.  Make the Workstation CA. It signs the certificates of the Yard. { .ws-a }
+1.  **ws-a**{.ws-a} Make the Workstation CA. It signs the certificates of the Yard.
 
     ```sh
     lvh-yard ws tls ca create
     ```
 
-2.  Open the Workstation to a Yard. Run it once. It prints the ports to allow
-    in the firewall. { .ws-a }
+2.  **ws-a**{.ws-a} Open the Workstation to a Yard. Run it once. It prints the ports to allow in the firewall.
 
     ```sh
     lvh-yard ws yard init
     ```
 
-3.  Apply the change. { .ws-a }
+3.  **ws-a**{.ws-a} Apply the change.
 
     ```sh
     lvh-yard ws compose recreate
     ```
 
-4.  Write the invitation for `ws-b`. `ws-b` is the name that you gave to
-    `ws init` on the other computer. { .ws-a }
+4.  **ws-a**{.ws-a} Write the invitation for `ws-b`. `ws-b` is the name that you gave to `ws init` on the other computer.
 
     !!! warning "The zip file and its password open your Yard"
 
@@ -74,13 +72,13 @@ Each Workstation keeps its own Base Domain.
       Save it now. It is not shown again.
     ```
 
-5.  Read the invitation. The command asks for the password. { .ws-b }
+5.  **ws-b**{.ws-b} Read the invitation. The command asks for the password.
 
     ```sh
     lvh-yard ws yard join ws-b-yard.zip
     ```
 
-6.  Apply the change. { .ws-b }
+6.  **ws-b**{.ws-b} Apply the change.
 
     ```sh
     lvh-yard ws compose recreate
@@ -142,5 +140,4 @@ Workstation that reads it:
 this Invitation is for ws-b, and this Workstation is ws-c. Ask the sender for an Invitation for ws-c
 ```
 
-On `ws-a`, run `lvh-yard ws yard share ws-c`. Send the new zip file and its new
-password.
+**ws-a**{.ws-a} Run `lvh-yard ws yard share ws-c`. Send the new zip file and its new password.

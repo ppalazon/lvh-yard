@@ -34,6 +34,7 @@ nav = [
     { "Reach other computers" = [
       { "Create a Yard and join it" = "recipes/reach/create-a-yard.md" },
       { "Reach a service on another computer" = "recipes/reach/another-computer.md" },
+      { "Show your work to a teammate" = "recipes/reach/show-your-work.md" },
     ] },
     { "Name your services" = [
       { "Name every HomeLab service" = "recipes/name/homelab-services.md" },
