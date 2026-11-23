@@ -42,6 +42,7 @@ nav = [
     ] },
     { "HTTPS and access" = [
       { "Test HTTPS with your Workstation CA" = "recipes/https/workstation-ca.md" },
+      { "Use a real certificate on your own domain" = "recipes/https/real-certificate.md" },
     ] },
   ] },
 ]
