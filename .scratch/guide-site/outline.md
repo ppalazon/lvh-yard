@@ -72,9 +72,9 @@ Rules for the titles: sentence case, in the words of the reader, and no recipe n
 
 ## Advanced
 
-| #   | Title                                                              | Path                                 | Covers                                                                                                                                                                                                              | Core |
-| --- | ------------------------------------------------------------------ | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 31  | How the Workstation Folder wires Consul, Traefik and the dashboard | `advanced/compose-consul-traefik.md` | The files, the three containers, the HTTP provider and why not Consul tags, host networking, Consul and Traefik configuration, a Foreign Instance by hand, running without `ws init`, a public server (not tested). | yes  |
+| #   | Title                                                              | Path                                 | Covers                                                                                                                                                                                                                                                               | Core |
+| --- | ------------------------------------------------------------------ | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 31  | How the Workstation Folder wires Consul, Traefik and the dashboard | `advanced/compose-consul-traefik.md` | The files, the three containers, the HTTP provider and why not Consul tags, host networking, Consul and Traefik configuration, a Foreign Instance by hand (its own page, `advanced/register-in-consul.md`), running without `ws init`, a public server (not tested). | yes  |
 
 ## Reference
 
