@@ -21,7 +21,7 @@ You need:
 - A device with a fixed address that answers plain HTTP. Traefik calls each Instance over plain HTTP. The examples use a NAS at `192.168.1.67:5000` and a media server at `192.168.1.67:8096`.
 - A container. The examples use Grafana.
 
-## Steps
+## CLI Steps
 
 1. Start the container. Docker chooses the Host Port.
 
@@ -78,7 +78,7 @@ You need:
 
     Open `http://nas.lvh.me`, `http://media.lvh.me` and `http://grafana.lvh.me` in your browser.
 
-## The same steps in the dashboard
+## Dashboard Steps
 
 - Open `http://yard.<Base Domain>` or [`http://127.0.0.1:7780`](http://127.0.0.1:7780).
 - Click `New Service` on the `Catalog` page.
@@ -116,7 +116,9 @@ lvh-yard service delete grafana
 docker rm -f grafana
 ```
 
-## `Connection refused`
+## Troubleshooting
+
+### `Connection refused`
 
 The catalog shows the Service as `unhealthy` with `0/1` Instances. The device answers, but nothing listens at that port. The program on the device stopped, or the port is wrong. `lvh-yard test media` names the cause:
 
@@ -135,7 +137,7 @@ lvh-yard remove media --port 8096
 lvh-yard register static media --host 192.168.1.67 --port 8096
 ```
 
-## `No answer within 2 s`
+### `No answer within 2 s`
 
 The catalog shows the Service as `unhealthy` with `0/1` Instances. The device does not answer at that address. It is off, the address has a typo, or a firewall drops the connection. `lvh-yard test media` names the cause:
 
@@ -154,7 +156,7 @@ lvh-yard remove media --host 192.168.1.250 --port 8096
 lvh-yard register static media --host 192.168.1.67 --port 8096
 ```
 
-## `Every check passed`
+### `Every check passed`
 
 The catalog shows the Service as `unhealthy`, and `lvh-yard test nas` says that every check passed. The Route answers, but the HTTP check of the Instance does not pass. An HTTP check wants a `2xx` answer, and this device answers `302` on `/`, the redirect to its login page:
 

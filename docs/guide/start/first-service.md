@@ -118,7 +118,7 @@ LVH Yard registers `consul-ui`, `traefik-admin` and `yard` (the dashboard) when
 it starts for the first time. See
 [The default Services](install.md#the-default-services).
 
-## The same steps in the dashboard
+## Dashboard Steps
 
 - Open `http://yard.<Base Domain>` or [`http://127.0.0.1:7780`](http://127.0.0.1:7780).
 - `Catalog` lists your Services. `New Service` creates one.
@@ -141,7 +141,9 @@ lvh-yard service delete front
 lvh-yard service delete mailpit
 ```
 
-## Connection refused
+## Troubleshooting
+
+### Connection refused
 
 The catalog shows the Service as `unhealthy` with `0/1` Instances, and the
 hostname answers `502 Bad Gateway`. `lvh-yard test front` names the cause:
@@ -159,7 +161,7 @@ Workstation (`192.168.1.67` here). A Workstation in a Yard registers its LAN
 address when you give no `--host`. Remove the Instance and register it again
 with `--host 127.0.0.1`. Or make the app listen on every address.
 
-## 404 page not found
+### 404 page not found
 
 Traefik answers `404 page not found` when it has no Route for the hostname. The
 Service has no Publication, or the hostname uses another Base Domain.

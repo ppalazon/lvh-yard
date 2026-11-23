@@ -1,7 +1,10 @@
 # Zensical reads Markdown with Python-Markdown. It needs four spaces for the
-# content of a numbered list item, so the guide uses tabWidth 4.
+# content of a numbered list item, so the guide uses tabWidth 4. The guide keeps
+# the line breaks of its Markdown, so an editor setting for proseWrap cannot
+# change the lines of a page.
 overrides:
   - files: "docs/guide/**/*.md"
     options:
       tabWidth: 4
+      proseWrap: preserve
       embeddedLanguageFormatting: "off"

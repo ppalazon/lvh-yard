@@ -18,11 +18,12 @@ Rules for the titles: sentence case, in the words of the reader, and no recipe n
 
 ### Reach other computers
 
-| #   | Title                                   | Path                                 | Pain                                                  | Variants or parts                                          | Verified on                    | Core |
-| --- | --------------------------------------- | ------------------------------------ | ----------------------------------------------------- | ---------------------------------------------------------- | ------------------------------ | ---- |
-| 08  | Reach a service on another computer     | `recipes/reach/another-computer.md`  | "A service runs on another box, and I want its name." | A: second Workstation. B: Traefik off. C: Static Instance. | `dev:up`; real LAN box by hand | yes  |
-| 09  | Show your work to a teammate            | `recipes/reach/show-your-work.md`    | "My teammate cannot open my service."                 | Yard Scope across two Workstations                         | `dev:up`                       | yes  |
-| 10  | Use a Windows laptop and a Linux server | `recipes/reach/windows-and-linux.md` | "My laptop is Windows and my HomeLab box is Linux."   | Two Workstations, the federation ports                     | Real Windows, by hand          | no   |
+| #   | Title                                   | Path                                 | Pain                                                  | Variants or parts                                                            | Verified on                     | Core |
+| --- | --------------------------------------- | ------------------------------------ | ----------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------- | ---- |
+| 39  | Create a Yard and join it               | `recipes/reach/create-a-yard.md`     | "Each of my computers sees only its own Services."    | `ws-a` starts the Yard, `ws-b` joins it, in one list with Workstation badges | `ws` commands on two folders    | yes  |
+| 08  | Reach a service on another computer     | `recipes/reach/another-computer.md`  | "A service runs on another box, and I want its name." | Yard Scope or an Alias. Traefik off. A Static Instance, no Yard.             | `ws` commands; real LAN by hand | yes  |
+| 09  | Show your work to a teammate            | `recipes/reach/show-your-work.md`    | "My teammate cannot open my service."                 | Yard Scope across two Workstations                                           | `dev:up`                        | yes  |
+| 10  | Use a Windows laptop and a Linux server | `recipes/reach/windows-and-linux.md` | "My laptop is Windows and my HomeLab box is Linux."   | Two Workstations, the federation ports                                       | Real Windows, by hand           | no   |
 
 ### Name your services
 

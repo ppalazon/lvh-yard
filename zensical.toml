@@ -19,6 +19,7 @@ extra_javascript = [
 ]
 extra_css = [
   "stylesheets/base-domain.css",
+  "stylesheets/steps.css",
 ]
 # The navigation tree is in .scratch/guide-site/spec.md. Each page ticket adds its page here.
 nav = [
@@ -30,6 +31,10 @@ nav = [
     { "Your first Service" = "start/first-service.md" },
   ] },
   { "Recipes" = [
+    { "Reach other computers" = [
+      { "Create a Yard and join it" = "recipes/reach/create-a-yard.md" },
+      { "Reach a service on another computer" = "recipes/reach/another-computer.md" },
+    ] },
     { "Name your services" = [
       { "Name every HomeLab service" = "recipes/name/homelab-services.md" },
       { "Stop chasing Compose ports" = "recipes/name/compose-ports.md" },

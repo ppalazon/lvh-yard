@@ -524,6 +524,13 @@ content of a numbered list item, so `.prettierrc.yaml` sets `tabWidth: 4` for
 the Markdown of the guide. It also turns off the formatting of the code blocks
 in those files, so Prettier leaves your commands as they are.
 
+A step that belongs to one of two Workstations has a colored bar and a pill with the name of its Workstation. In
+Markdown, put the line `{ .ws-a }` or `{ .ws-b }` directly after the first paragraph of the step, in the same
+indented block. The `attr_list` extension gives the class to the paragraph, and `docs/guide/stylesheets/steps.css`
+turns it into a bar and a pill, green for `ws-a` and orange for `ws-b`, like the boxes of the sequence diagrams. The line
+must stay on its own line: `attr_list` ignores it at the end of a line of text. `.prettierrc.yaml` sets
+`proseWrap: preserve` for the guide, so Prettier keeps it there. The style sheet uses the selector `:has()`.
+
 The hero cycles through service types and locations with CSS. Service types
 change every 2 seconds, and locations change every 2.6 seconds. Each reel
 reserves space for its longest word and centers the text. Hover over the

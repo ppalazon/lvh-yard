@@ -1,0 +1,44 @@
+/*
+ * The steps of two Workstations in one list. See docs/development.md.
+ * The first paragraph of a step has the class ws-a or ws-b, from the line
+ * { .ws-a } or { .ws-b } after it. The step gets a bar and a pill in the color
+ * of its Workstation, the colors of the sequence diagrams.
+ */
+:root {
+  --lvhy-ws-a: rgb(34, 170, 80);
+  --lvhy-ws-b: rgb(245, 158, 11);
+}
+
+.md-typeset li:has(> p.ws-a),
+.md-typeset li:has(> p.ws-b) {
+  padding-left: 0.8em;
+}
+
+.md-typeset li:has(> p.ws-a) {
+  border-left: 0.2rem solid var(--lvhy-ws-a);
+}
+
+.md-typeset li:has(> p.ws-b) {
+  border-left: 0.2rem solid var(--lvhy-ws-b);
+}
+
+/* The name of the Workstation, in front of the step. */
+.md-typeset p.ws-a::before,
+.md-typeset p.ws-b::before {
+  margin-right: 0.5em;
+  padding: 0.05em 0.5em;
+  color: #000;
+  font-size: 0.75em;
+  font-weight: 700;
+  border-radius: 0.8em;
+}
+
+.md-typeset p.ws-a::before {
+  content: "ws-a";
+  background-color: rgba(34, 170, 80, 0.35);
+}
+
+.md-typeset p.ws-b::before {
+  content: "ws-b";
+  background-color: rgba(245, 158, 11, 0.35);
+}

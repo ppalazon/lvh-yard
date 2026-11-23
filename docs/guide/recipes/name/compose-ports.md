@@ -32,7 +32,7 @@ You need:
 - A Base Domain. See [Pick your Base Domain](../../start/pick-your-base-domain.md). The examples use `lvh.me`.
 - A Compose service that publishes its port with no Host Port, so that Docker chooses it.
 
-## Steps
+## CLI Steps
 
 1. Start a Compose project where Docker chooses the Host Port. The entry `"8025"` in `ports` has no Host Port. The project is `demo`, and its service is `mailpit`.
 
@@ -90,7 +90,7 @@ You need:
 
     Open `http://mailpit.lvh.me` in your browser.
 
-## The same steps in the dashboard
+## Dashboard Steps
 
 - Open `http://yard.<Base Domain>` or [`http://127.0.0.1:7780`](http://127.0.0.1:7780).
 - Open `Containers` in the navigation bar.
@@ -146,7 +146,9 @@ lvh-yard service delete mailpit
 docker compose down
 ```
 
-## `Connection refused`
+## Troubleshooting
+
+### `Connection refused`
 
 The catalog shows `mailpit` as `unhealthy` with `0/1` Instances. The hostname answers `502 Bad Gateway`. `lvh-yard test mailpit` names the cause:
 
@@ -165,7 +167,7 @@ lvh-yard remove mailpit --compose-project demo --compose-service mailpit
 lvh-yard register compose demo/mailpit --port 8025
 ```
 
-## `No Instances`
+### `No Instances`
 
 The catalog shows `mailpit` as `unavailable` with `No Instances`. No container matches the binding. Either the Compose project does not run, or the project in the binding has a typo. `register compose` does not check the project. For a project that does not run, it answers `None of its containers runs now`.
 

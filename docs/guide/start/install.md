@@ -138,7 +138,40 @@ that, they are ordinary Services. You can change, unpublish or delete them, and
 they do not come back. The dashboard is also always at `127.0.0.1:7780`, even
 when Traefik is down or you unpublish `yard`.
 
-## `LVH Yard on this Workstation: failing`
+## A Workstation without Traefik (Optional)
+
+This section is optional. It is for a shared Workstation that nobody uses
+directly to open Services. Other Workstations of your Yard open its Services at
+their own hostnames. Consul and the dashboard keep running, and the Workstation
+publishes its Instances. Other Workstations route to them through their own
+Traefik. So, to turn Traefik off:
+
+```sh
+lvh-yard ws compose stop
+lvh-yard ws set traefik off
+lvh-yard ws compose start
+```
+
+`lvh-yard status` then has no line for Traefik. If the Workstation has the
+Service `traefik-admin`, delete it:
+
+```sh
+lvh-yard service delete traefik-admin
+```
+
+To turn Traefik on again, stop the Workstation, run
+`lvh-yard ws set traefik on`, and start it. The Service `traefik-admin` does
+not come back.
+
+```sh
+lvh-yard ws compose stop
+lvh-yard ws set traefik on
+lvh-yard ws compose start
+```
+
+## Troubleshooting
+
+### `LVH Yard on this Workstation: failing`
 
 `lvh-yard status` lists Consul, Traefik and Docker, each with `ok` or `FAIL`
 and a reason. The command exits with 1 when a part fails. With Traefik stopped,

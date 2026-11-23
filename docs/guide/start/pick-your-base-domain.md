@@ -199,7 +199,9 @@ ones.
 To undo the change, run the same two commands with the old domain. An HTTPS
 certificate that you created earlier names the old Base Domain.
 
-## Could not resolve host
+## Troubleshooting
+
+### Could not resolve host
 
 `curl` prints this error, and the browser says that it cannot find the server:
 
