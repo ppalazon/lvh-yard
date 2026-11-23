@@ -2,7 +2,8 @@
 
 "Each of my computers sees only its own Services."
 
-`ws-b` joins the Yard of `ws-a`. Then each Workstation lists the Services of the other.
+`ws-b` joins the Yard of `ws-a`. Then each Workstation lists the Services of
+the other.
 
 ```mermaid
 sequenceDiagram
@@ -23,9 +24,14 @@ sequenceDiagram
 
 You need:
 
-- A running Workstation on each computer, made as in [Install LVH Yard](../../start/install.md). `lvh-yard status` starts with `LVH Yard on this Workstation: ok`.
-- A name for each Workstation. The examples use `ws-a` and `ws-b`. You gave the name to `ws init`.
-- A firewall that lets the two computers reach each other on TCP 8300 and on TCP and UDP 8302. These are the default ports. `lvh-yard ws yard init` prints the ports of your Workstation.
+- A running Workstation on each computer, made as in
+  [Install LVH Yard](../../start/install.md). `lvh-yard status` starts with
+  `LVH Yard on this Workstation: ok`.
+- A name for each Workstation. The examples use `ws-a` and `ws-b`. You gave the
+  name to `ws init`.
+- A firewall that lets the two computers reach each other on TCP 8300 and on
+  TCP and UDP 8302. These are the default ports. `lvh-yard ws yard init` prints
+  the ports of your Workstation.
 
 Each Workstation keeps its own Base Domain.
 
@@ -33,29 +39,27 @@ Each Workstation keeps its own Base Domain.
 
 `ws-a` starts the Yard and holds its CA. `ws-b` joins it.
 
-1.  Make the Workstation CA. It signs the certificates of the Yard.
-    { .ws-a }
+1.  Make the Workstation CA. It signs the certificates of the Yard. { .ws-a }
 
     ```sh
     lvh-yard ws tls ca create
     ```
 
-2.  Open the Workstation to a Yard. Run it once. It prints the ports to allow in the firewall.
-    { .ws-a }
+2.  Open the Workstation to a Yard. Run it once. It prints the ports to allow
+    in the firewall. { .ws-a }
 
     ```sh
     lvh-yard ws yard init
     ```
 
-3.  Apply the change.
-    { .ws-a }
+3.  Apply the change. { .ws-a }
 
     ```sh
     lvh-yard ws compose recreate
     ```
 
-4.  Write the invitation for `ws-b`. `ws-b` is the name that you gave to `ws init` on the other computer.
-    { .ws-a }
+4.  Write the invitation for `ws-b`. `ws-b` is the name that you gave to
+    `ws init` on the other computer. { .ws-a }
 
     !!! warning "The zip file and its password open your Yard"
 
@@ -70,15 +74,13 @@ Each Workstation keeps its own Base Domain.
       Save it now. It is not shown again.
     ```
 
-5.  Read the invitation. The command asks for the password.
-    { .ws-b }
+5.  Read the invitation. The command asks for the password. { .ws-b }
 
     ```sh
     lvh-yard ws yard join ws-b-yard.zip
     ```
 
-6.  Apply the change.
-    { .ws-b }
+6.  Apply the change. { .ws-b }
 
     ```sh
     lvh-yard ws compose recreate
@@ -103,7 +105,8 @@ LVH Yard on this Workstation: ok
 
 ## Undo
 
-On the computer that leaves the Yard, run `lvh-yard ws yard standalone`. It prints the `compose recreate` command to run.
+On the computer that leaves the Yard, run `lvh-yard ws yard standalone`. It
+prints the `compose recreate` command to run.
 
 ```sh
 lvh-yard ws yard standalone
@@ -121,7 +124,9 @@ LVH Yard on this Workstation: warning
   WARN  Consul: Consul cannot read from ws-b, though its WAN pool lists it as alive.
 ```
 
-`ws-b` is off, or its Consul stopped, or a firewall blocks the ports of the Yard. Start it. Allow TCP 8300 and TCP and UDP 8302 between the two computers, in both directions, for the Yard's computers only. Then read the log of Consul:
+`ws-b` is off, or its Consul stopped, or a firewall blocks the ports of the
+Yard. Start it. Allow TCP 8300 and TCP and UDP 8302 between the two computers,
+in both directions, for the Yard's computers only. Then read the log of Consul:
 
 ```sh
 lvh-yard ws compose logs consul
@@ -129,10 +134,13 @@ lvh-yard ws compose logs consul
 
 ### `this Invitation is for ws-b, and this Workstation is ws-c`
 
-`lvh-yard ws yard join` refuses the zip file. The invitation names one Workstation. The name that you gave to `share` is not the name of the Workstation that reads it:
+`lvh-yard ws yard join` refuses the zip file. The invitation names one
+Workstation. The name that you gave to `share` is not the name of the
+Workstation that reads it:
 
 ```text
 this Invitation is for ws-b, and this Workstation is ws-c. Ask the sender for an Invitation for ws-c
 ```
 
-On `ws-a`, run `lvh-yard ws yard share ws-c`. Send the new zip file and its new password.
+On `ws-a`, run `lvh-yard ws yard share ws-c`. Send the new zip file and its new
+password.

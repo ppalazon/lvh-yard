@@ -39,8 +39,8 @@ You need:
 
 This computer is `ws-a`. The other computer is `ws-b`.
 
-1.  Publish the Service with Yard Scope. Yard Scope lets every Workstation of the Yard open it.
-    { .ws-b }
+1. Publish the Service with Yard Scope. Yard Scope lets every Workstation of
+   the Yard open it. { .ws-b }
 
     ```sh
     lvh-yard publish grafana --scope yard
@@ -52,11 +52,11 @@ This computer is `ws-a`. The other computer is `ws-b`.
       Other Workstations: grafana.ws-b.<base-domain>
     ```
 
-2.  Open the hostname of `ws-b`, `grafana.ws-b.<Base Domain>`, in your browser: `http://grafana.ws-b.lvh.me`.
-    { .ws-a }
+2. Open the hostname of `ws-b`, `grafana.ws-b.<Base Domain>`, in your browser:
+   `http://grafana.ws-b.lvh.me`. { .ws-a }
 
-3.  To open the Service at the name `grafana` too, add an Alias to it. The Alias creates the Service `grafana` with Local Scope.
-    { .ws-a }
+3. To open the Service at the name `grafana` too, add an Alias to it. The Alias
+   creates the Service `grafana` with Local Scope. { .ws-a }
 
     ```sh
     lvh-yard alias add grafana --workstation ws-b --service grafana

@@ -73,7 +73,7 @@ HTTPServer(("127.0.0.1", port), Handler).serve_forever()
 
     Open `http://app.lvh.me` and `http://api.lvh.me` in your browser. Traefik passes the `Host` header unchanged, so the app reads `app.lvh.me`. Build the callback URL from it.
 
-3.  Give the callback URL to your identity provider: `http://app.lvh.me/callback`. If the provider needs HTTPS, see the recipe "Test HTTPS with your Workstation CA".
+3.  Give the callback URL to your identity provider: `http://app.lvh.me/callback`. If the provider needs HTTPS, see [Test HTTPS with your Workstation CA](../https/workstation-ca.md).
 
 4.  Log in. The app sets two cookies. A cookie with no `Domain` goes to its own host only, here `app.lvh.me`. A cookie with `Domain=lvh.me` goes to every host below `lvh.me`.
 
