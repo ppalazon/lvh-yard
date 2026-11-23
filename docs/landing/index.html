@@ -6,7 +6,7 @@
     <title>LVH Yard: reach your development services by name</title>
     <meta
       name="description"
-      content="LVH Yard gives each development service in your HomeLab a hostname, such as grafana.lvh.me. It runs Consul and Traefik for you."
+      content="LVH (Local Virtual Host) Yard gives each development service in your HomeLab a hostname, such as mailpit.lvh.me. It integrates Consul, Traefik and Docker for you."
     />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="LVH Yard" />
@@ -52,12 +52,7 @@
             href="#features"
             >Features</a
           >
-          <a
-            class="btn"
-            data-variant="ghost"
-            href="https://github.com/ppalazon/lvh-yard/blob/main/docs/user-guide.md"
-            >User guide</a
-          >
+          <a class="btn" data-variant="ghost" href="/docs/">Docs</a>
           <a
             class="btn"
             data-variant="ghost"
@@ -144,51 +139,35 @@
           </h1>
         </div>
         <p class="text-muted-foreground mt-6 max-w-2xl text-lg">
-          LVH Yard gives each service that you run on your computers a hostname,
-          such as <code class="text-foreground">http://grafana.lvh.me</code>. It
-          works for your own computer and for every other computer in your Yard.
-          It runs Consul and Traefik for you, in Docker.
+          LVH (Local Virtual Host) Yard gives every service a hostname, such as
+          <code class="text-foreground">http://mailpit.lvh.me</code>, and you
+          write no port. The service can be a local process, a Docker container,
+          a Compose project or a program on another computer. Every computer in
+          your Yard opens the same name. LVH Yard integrates Consul, Traefik and
+          Docker for you.
         </p>
-        <div class="mt-8 flex flex-wrap gap-3">
-          <a
-            class="btn"
-            href="https://github.com/ppalazon/lvh-yard/releases"
-            data-size="lg"
-            >Download</a
-          >
-          <a
-            class="btn"
-            data-variant="outline"
-            data-size="lg"
-            href="https://github.com/ppalazon/lvh-yard"
-            >View on GitHub</a
-          >
-        </div>
-
-        <pre
-          class="terminal mt-10 max-w-2xl"
-        ><code><span class="comment"># Install lvh-yard in ~/.local/bin:</span>
-<span class="prompt">$ </span>curl -fsSL https://lvhy.cc/install.sh | sh
-<span class="prompt">$ </span>lvh-yard ws init
-<span class="prompt">$ </span>cd ~/.config/lvh-yard &amp;&amp; docker compose up -d
-<span class="prompt">$ </span>lvh-yard status</code></pre>
       </section>
 
       <section class="mx-auto max-w-5xl px-6 pb-20">
         <img
           class="screenshot dark:hidden"
-          src="assets/dashboard-catalog-light.png"
+          src="assets/dashboard-route-light.png"
           width="1200"
-          height="900"
-          alt="The Catalog page of the LVH Yard dashboard. It lists the Services of two Workstations, each with its state, hostname and passing Instances."
+          height="860"
+          alt="The Route Diagram of mailpit in the LVH Yard dashboard. The browser reaches the HTTPS listener of Traefik with a Client Certificate. The HTTP listener has no Route. Traefik sends the request to the Instance over plain HTTP."
         />
         <img
           class="screenshot hidden dark:block"
-          src="assets/dashboard-catalog-dark.png"
+          src="assets/dashboard-route-dark.png"
           width="1200"
-          height="900"
-          alt="The Catalog page of the LVH Yard dashboard. It lists the Services of two Workstations, each with its state, hostname and passing Instances."
+          height="860"
+          alt="The Route Diagram of mailpit in the LVH Yard dashboard. The browser reaches the HTTPS listener of Traefik with a Client Certificate. The HTTP listener has no Route. Traefik sends the request to the Instance over plain HTTP."
         />
+        <p class="text-muted-foreground mt-4 max-w-2xl text-sm">
+          The Route Diagram shows how a request reaches a Service: the listeners
+          of Traefik, the Route Profiles, and the Instances, with the protocol
+          of each step.
+        </p>
       </section>
 
       <!-- How it works -->
@@ -199,12 +178,13 @@
         <div class="mx-auto max-w-5xl px-6">
           <h2>How it works</h2>
           <p class="text-muted-foreground mt-3 max-w-2xl">
-            A wildcard domain such as <code>lvh.me</code> points every hostname
-            to <code>127.0.0.1</code>. Traefik on your computer reads the
+            A wildcard domain points every hostname below it to the same
+            address. For <code>lvh.me</code>, that address is
+            <code>127.0.0.1</code>, your own computer. Traefik reads the
             hostname and sends the request to the right service.
           </p>
 
-          <ol class="mt-10 grid gap-6 md:grid-cols-3">
+          <ol class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <li class="card">
               <header>
                 <h3>1. Install</h3>
@@ -228,31 +208,197 @@
               <header>
                 <h3>3. Open</h3>
                 <p>
-                  <code>front.lvh.me</code> works in your browser. Share it with
-                  the Yard, and every computer can open it.
+                  <code>whoami.lvh.me</code> works in your browser. Share it
+                  with the Yard, and every computer can open it.
                 </p>
               </header>
+            </li>
+            <li class="card">
+              <header>
+                <h3>4. Explore</h3>
+                <p>
+                  On its first start, LVH Yard publishes three Services for you.
+                  They use your Base Domain, here <code>lvh.me</code>.
+                </p>
+              </header>
+              <section>
+                <ul class="space-y-2 text-sm">
+                  <li>
+                    <a
+                      class="text-foreground underline"
+                      href="http://yard.lvh.me"
+                      >yard.lvh.me</a
+                    >, the dashboard
+                  </li>
+                  <li>
+                    <a
+                      class="text-foreground underline"
+                      href="http://consul-ui.lvh.me"
+                      >consul-ui.lvh.me</a
+                    >, the web page of Consul
+                  </li>
+                  <li>
+                    <a
+                      class="text-foreground underline"
+                      href="http://traefik-admin.lvh.me"
+                      >traefik-admin.lvh.me</a
+                    >, the admin page of Traefik
+                  </li>
+                </ul>
+              </section>
             </li>
           </ol>
 
           <pre
             class="terminal mt-10"
-          ><code><span class="comment"># On ws-a: publish a process and a Docker container.</span>
-<span class="prompt">$ </span>lvh-yard service create front
-<span class="prompt">$ </span>lvh-yard register static front --port 3000
-<span class="prompt">$ </span>lvh-yard publish front
-<span class="prompt">$ </span>lvh-yard service create mailpit
-<span class="prompt">$ </span>lvh-yard register container mailpit-1 --port 8025 --service mailpit
-<span class="prompt">$ </span>lvh-yard publish mailpit
+          ><code><span class="comment"># Install Docker first, or Docker Desktop on Windows, and keep it running.</span>
+<span class="comment"># Install LVH Yard on Linux or macOS.</span>
+<span class="prompt">$ </span>curl -fsSL https://lvhy.cc/install.sh | sh
 
-<span class="comment"># Any Workstation in the Yard sees every Service.</span>
-<span class="prompt">$ </span>lvh-yard catalog
-ws-a (this Workstation)
-  front    healthy  local  front.lvh.me          1/1
-  mailpit  healthy  local  mailpit.lvh.me        1/1
-ws-b
-  grafana  healthy  yard   grafana.ws-b.lvh.me   1/1</code></pre>
+<span class="comment"># Install LVH Yard on Windows 11, in PowerShell.</span>
+<span class="prompt">PS&gt; </span>irm https://lvhy.cc/install.ps1 | iex</code></pre>
+
+          <pre
+            class="terminal mt-6"
+          ><code><span class="comment"># From here, every command is the same on Linux, macOS and Windows.</span>
+<span class="comment"># Create a Workstation and answer its two questions.</span>
+<span class="prompt">$ </span>lvh-yard ws init
+Workstation name (lowercase letters, digits and -) [laptop]: ws-a
+Base Domain: lvh.me
+<span class="prompt">$ </span>lvh-yard ws compose start
+<span class="prompt">$ </span>lvh-yard status
+LVH Yard on this Workstation: ok
+
+<span class="comment"># Run a container and give it a name. Docker picks the port.</span>
+<span class="prompt">$ </span>docker run -d --name whoami -p 80 traefik/whoami
+<span class="prompt">$ </span>lvh-yard service create whoami
+<span class="prompt">$ </span>lvh-yard register container whoami --port 80
+<span class="prompt">$ </span>lvh-yard publish whoami
+Published whoami at whoami.lvh.me.
+
+<span class="comment"># Open it by name. On Windows, run curl.exe.</span>
+<span class="prompt">$ </span>curl http://whoami.lvh.me
+Hostname: 82ec38bd098d</code></pre>
         </div>
+      </section>
+
+      <!-- Problems it solves -->
+      <section id="problems" class="mx-auto max-w-5xl px-6 py-20">
+        <h2>Problems it solves</h2>
+        <p class="text-muted-foreground mt-3 max-w-2xl">
+          Each card gives the problem, one command and the page that shows how.
+        </p>
+        <ul class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <li class="card">
+            <header>
+              <h3>I forget which port each service uses.</h3>
+              <p>A Service has a name. Its hostname replaces the port.</p>
+            </header>
+            <section>
+              <code class="text-sm">lvh-yard publish mailpit</code>
+            </section>
+            <footer>
+              <a class="underline" href="/docs/start/first-service/"
+                >Your first Service</a
+              >
+            </footer>
+          </li>
+          <li class="card">
+            <header>
+              <h3>
+                Docker gives my container a new port after every
+                <code>compose up</code>.
+              </h3>
+              <p>Bind the Compose service once. The hostname stays the same.</p>
+            </header>
+            <section>
+              <code class="text-sm"
+                >lvh-yard register compose demo/mailpit --port 8025</code
+              >
+            </section>
+            <footer>
+              <a class="underline" href="/docs/recipes/name/compose-ports/"
+                >Stop chasing Compose ports</a
+              >
+            </footer>
+          </li>
+          <li class="card">
+            <header>
+              <h3>
+                I edit <code>/etc/hosts</code> on each computer, and I do it
+                again for the next one.
+              </h3>
+              <p>
+                A wildcard domain gives every name below it the same address.
+                You edit no file.
+              </p>
+            </header>
+            <section>
+              <code class="text-sm">lvh-yard ws init --base-domain lvh.me</code>
+            </section>
+            <footer>
+              <a class="underline" href="/docs/start/pick-your-base-domain/"
+                >Pick your Base Domain</a
+              >
+            </footer>
+          </li>
+          <li class="card">
+            <header>
+              <h3>
+                <code>localhost:3000</code> breaks my cookies and my OAuth
+                callbacks.
+              </h3>
+              <p>
+                Give the app its own hostname. Its cookies stay with that host.
+              </p>
+            </header>
+            <section>
+              <code class="text-sm">lvh-yard publish mailpit</code>
+            </section>
+            <footer>
+              <a class="underline" href="/docs/recipes/name/cookies-and-oauth/"
+                >Fix cookies and OAuth callbacks</a
+              >
+            </footer>
+          </li>
+          <li class="card">
+            <header>
+              <h3>
+                I need HTTPS in development, and I do not want to click through
+                warnings.
+              </h3>
+              <p>
+                Sign the certificate with your Workstation CA. Trust that CA
+                once.
+              </p>
+            </header>
+            <section>
+              <code class="text-sm">lvh-yard ws tls https create</code>
+            </section>
+            <footer>
+              <a class="underline" href="/docs/recipes/https/workstation-ca/"
+                >Test HTTPS with your Workstation CA</a
+              >
+            </footer>
+          </li>
+          <li class="card">
+            <header>
+              <h3>My teammate cannot open my service.</h3>
+              <p>
+                Publish it with Yard Scope. Every Workstation of the Yard gets a
+                hostname.
+              </p>
+            </header>
+            <section>
+              <code class="text-sm">lvh-yard publish mailpit --scope yard</code>
+            </section>
+            <footer>
+              <a class="underline" href="/docs/recipes/reach/show-your-work/"
+                >Show your work to a teammate</a
+              >
+            </footer>
+          </li>
+        </ul>
       </section>
 
       <!-- The Yard -->
@@ -337,16 +483,16 @@ ws-b
             Traefik :80
           </text>
           <rect
-            x="190"
+            x="170"
             y="220"
-            width="90"
+            width="110"
             height="40"
             rx="8"
             fill="none"
             stroke="currentColor"
           />
-          <text x="235" y="245" font-size="14" text-anchor="middle">
-            front :3000
+          <text x="225" y="245" font-size="14" text-anchor="middle">
+            mailpit :8025
           </text>
           <line
             x1="95"
@@ -357,13 +503,13 @@ ws-b
             marker-end="url(#arrow)"
           />
           <path
-            d="M95 190 V240 H188"
+            d="M95 190 V240 H168"
             fill="none"
             stroke="currentColor"
             marker-end="url(#arrow)"
           />
-          <text x="104" y="232" font-size="11" fill="var(--muted-foreground)">
-            front.lvh.me
+          <text x="104" y="214" font-size="11" fill="var(--muted-foreground)">
+            mailpit.lvh.me
           </text>
 
           <!-- ws-b -->
@@ -441,6 +587,23 @@ ws-b
             grafana.ws-b.lvh.me
           </text>
         </svg>
+
+        <img
+          class="screenshot dark:hidden mt-10"
+          src="assets/dashboard-catalog-light.png"
+          width="1200"
+          height="700"
+          loading="lazy"
+          alt="The Catalog page of the LVH Yard dashboard. It lists the Services of two Workstations, each with its state, scope, hostname and passing Instances."
+        />
+        <img
+          class="screenshot mt-10 hidden dark:block"
+          src="assets/dashboard-catalog-dark.png"
+          width="1200"
+          height="700"
+          loading="lazy"
+          alt="The Catalog page of the LVH Yard dashboard. It lists the Services of two Workstations, each with its state, scope, hostname and passing Instances."
+        />
       </section>
 
       <!-- Features -->
@@ -506,14 +669,124 @@ ws-b
         </div>
       </section>
 
+      <!-- Instance Priority -->
+      <section class="mx-auto max-w-5xl px-6 py-20">
+        <h2>Your process first, the container as fallback</h2>
+        <p class="text-muted-foreground mt-3 max-w-2xl">
+          You develop an app that you usually run as a Docker container. Run
+          your modified copy as a process, and give it the first place in the
+          order of the Instance Sources. The Route uses the first source that
+          has a passing Instance. While your copy runs, it gets the requests.
+          When you stop it, the container answers again.
+        </p>
+
+        <svg
+          class="diagram mt-10 w-full"
+          viewBox="0 0 760 260"
+          role="img"
+          aria-labelledby="priority-title priority-desc"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <title id="priority-title">Instance Priority</title>
+          <desc id="priority-desc">
+            The Route of mailpit.lvh.me has two Instance Sources. The first is a
+            Static Instance: your modified copy of Mailpit, on port 8025. The
+            second is a Container Binding: the Docker container that you usually
+            run. The Route uses the first source while it passes, and the second
+            only when the first does not pass.
+          </desc>
+          <defs>
+            <marker
+              id="priority-arrow"
+              viewBox="0 0 10 10"
+              refX="9"
+              refY="5"
+              markerWidth="7"
+              markerHeight="7"
+              orient="auto-start-reverse"
+            >
+              <path d="M0 0L10 5L0 10z" fill="currentColor" />
+            </marker>
+          </defs>
+
+          <rect
+            x="20"
+            y="95"
+            width="150"
+            height="50"
+            rx="8"
+            fill="var(--card)"
+            stroke="var(--border)"
+          />
+          <text x="95" y="125" font-size="14" text-anchor="middle">
+            mailpit.lvh.me
+          </text>
+
+          <rect
+            x="300"
+            y="30"
+            width="300"
+            height="70"
+            rx="10"
+            fill="none"
+            stroke="var(--primary)"
+            stroke-width="2"
+          />
+          <text x="320" y="58" font-size="15" font-weight="600">
+            1. Static Instance
+          </text>
+          <text x="320" y="82" font-size="13" fill="var(--muted-foreground)">
+            your modified copy, 127.0.0.1:8025
+          </text>
+
+          <rect
+            x="300"
+            y="160"
+            width="300"
+            height="70"
+            rx="10"
+            fill="none"
+            stroke="currentColor"
+            stroke-dasharray="6 4"
+          />
+          <text x="320" y="188" font-size="15" font-weight="600">
+            2. Container Binding
+          </text>
+          <text x="320" y="212" font-size="13" fill="var(--muted-foreground)">
+            the Mailpit container that you usually run
+          </text>
+
+          <path
+            d="M170 112 H235 V65 H298"
+            fill="none"
+            stroke="var(--primary)"
+            stroke-width="2"
+            marker-end="url(#priority-arrow)"
+          />
+          <path
+            d="M170 128 H235 V195 H298"
+            fill="none"
+            stroke="var(--muted-foreground)"
+            stroke-dasharray="4 4"
+            marker-end="url(#priority-arrow)"
+          />
+          <text x="615" y="70" font-size="12" fill="var(--muted-foreground)">
+            used while it passes
+          </text>
+          <text x="615" y="200" font-size="12" fill="var(--muted-foreground)">
+            used when 1 fails
+          </text>
+        </svg>
+      </section>
+
       <!-- The Service page -->
       <section class="mx-auto max-w-5xl px-6 py-20">
         <h2>See every Instance behind a name</h2>
         <p class="text-muted-foreground mt-3 max-w-2xl">
           The Service page shows the state of a Service, its Publication, and
-          the order of its Instance Sources. Here, one of the two Instances of
-          <code>back</code> does not answer, so the Service is degraded and the
-          Route uses the other one.
+          the order of its Instance Sources. Here, the first source, a Static
+          Instance on port 8025, does not answer, so the Service has the state
+          degraded. The Route uses the second source, the Mailpit container.
         </p>
         <img
           class="screenshot dark:hidden mt-10"
@@ -521,7 +794,7 @@ ws-b
           width="1200"
           height="900"
           loading="lazy"
-          alt="The Service page of back. It is degraded: one of two Instances passes. The page shows its Publication settings and its Instance Sources."
+          alt="The Service page of mailpit. It is degraded: the first Instance Source, a Static Instance, is unavailable. The Route uses the second source, a Container Binding. The page shows its Publication settings."
         />
         <img
           class="screenshot mt-10 hidden dark:block"
@@ -529,25 +802,158 @@ ws-b
           width="1200"
           height="900"
           loading="lazy"
-          alt="The Service page of back. It is degraded: one of two Instances passes. The page shows its Publication settings and its Instance Sources."
+          alt="The Service page of mailpit. It is degraded: the first Instance Source, a Static Instance, is unavailable. The Route uses the second source, a Container Binding. The page shows its Publication settings."
         />
       </section>
 
+      <!-- Pick your Base Domain -->
+      <section
+        id="base-domain"
+        class="border-border bg-muted/40 border-y py-20"
+      >
+        <div class="mx-auto max-w-5xl px-6">
+          <h2>Pick your Base Domain</h2>
+          <p class="text-muted-foreground mt-3 max-w-2xl">
+            A wildcard domain answers the same address for every name below it.
+            For <code>lvh.me</code>, that address is <code>127.0.0.1</code>, so
+            <code>mailpit.lvh.me</code> reaches your own computer, and Traefik
+            routes the request. A domain that you own can answer any address,
+            such as the LAN address of a Workstation. Two shared domains work
+            for a trial: <code>lvh.me</code>, which belongs to a third party,
+            and <code>l.lvhy.cc</code>, the domain of this project. For daily
+            work, use a domain that you own.
+            <a
+              class="text-foreground underline"
+              href="/docs/start/pick-your-base-domain/"
+              >Read how to pick a Base Domain.</a
+            >
+          </p>
+        </div>
+      </section>
+
+      <!-- Typical questions -->
+      <section id="questions" class="mx-auto max-w-5xl px-6 py-20">
+        <h2>Typical questions</h2>
+        <dl class="mt-10 grid gap-8 md:grid-cols-2">
+          <div>
+            <dt>
+              <h3>Why not edit <code>/etc/hosts</code>?</h3>
+            </dt>
+            <dd class="text-muted-foreground mt-2">
+              Each computer needs its own edit, and each new name needs another
+              one. A wildcard domain answers the same address for every name, so
+              you edit no file.
+              <a
+                class="text-foreground underline"
+                href="/docs/start/pick-your-base-domain/"
+                >Pick your Base Domain</a
+              >
+            </dd>
+          </div>
+          <div>
+            <dt>
+              <h3>Why not just use <code>localhost:3000</code>?</h3>
+            </dt>
+            <dd class="text-muted-foreground mt-2">
+              A cookie ignores the port, so apps on <code>localhost</code> share
+              their cookies. A hostname for each service keeps them apart.
+              <a
+                class="text-foreground underline"
+                href="/docs/recipes/name/cookies-and-oauth/"
+                >Fix cookies and OAuth callbacks</a
+              >
+            </dd>
+          </div>
+          <div>
+            <dt><h3>Is it magic? How does it reach my computer?</h3></dt>
+            <dd class="text-muted-foreground mt-2">
+              No. The wildcard DNS of <code>lvh.me</code> answers
+              <code>127.0.0.1</code> for every name below it. So
+              <code>mailpit.lvh.me</code> points to your own computer, and
+              Traefik sends the request to the Instance.
+              <a
+                class="text-foreground underline"
+                href="/docs/start/what-it-solves/"
+                >What LVH Yard solves</a
+              >
+            </dd>
+          </div>
+          <div>
+            <dt><h3>Does LVH Yard start or stop my processes?</h3></dt>
+            <dd class="text-muted-foreground mt-2">
+              No. It manages Services, and it never starts or stops the
+              processes or containers behind them.
+            </dd>
+          </div>
+          <div>
+            <dt>
+              <h3>Will <code>lvh.me</code> stop working one day?</h3>
+            </dt>
+            <dd class="text-muted-foreground mt-2">
+              It can, because its owner controls the DNS. Use a domain that you
+              own for daily work.
+              <a
+                class="text-foreground underline"
+                href="/docs/start/pick-your-base-domain/"
+                >Pick your Base Domain</a
+              >
+            </dd>
+          </div>
+          <div>
+            <dt><h3>Does it work offline?</h3></dt>
+            <dd class="text-muted-foreground mt-2">
+              Yes. Use <code>dev.localhost</code>, or a wildcard domain in your
+              own DNS resolver.
+              <a
+                class="text-foreground underline"
+                href="/docs/start/pick-your-base-domain/"
+                >Pick your Base Domain</a
+              >
+            </dd>
+          </div>
+          <div>
+            <dt><h3>Is it safe on my LAN?</h3></dt>
+            <dd class="text-muted-foreground mt-2">
+              It is for a network that you trust, and the dashboard has no
+              login.
+              <a
+                class="text-foreground underline"
+                href="https://github.com/ppalazon/lvh-yard/blob/main/SECURITY.md"
+                >Read the limits.</a
+              >
+            </dd>
+          </div>
+          <div>
+            <dt><h3>Does it work on macOS and Windows?</h3></dt>
+            <dd class="text-muted-foreground mt-2">
+              Yes, with the limits that
+              <a class="text-foreground underline" href="#requirements"
+                >What you need</a
+              >
+              lists.
+            </dd>
+          </div>
+        </dl>
+      </section>
+
       <!-- Requirements -->
-      <section class="border-border bg-muted/40 border-y py-20">
+      <section
+        id="requirements"
+        class="border-border bg-muted/40 border-y py-20"
+      >
         <div class="mx-auto grid max-w-5xl gap-10 px-6 md:grid-cols-2">
           <div>
             <h2>What you need</h2>
             <ul class="text-muted-foreground mt-6 list-disc space-y-2 pl-5">
               <li>Docker with Compose on every Workstation.</li>
               <li>
-                <code>lvh-yard</code> for Linux (amd64, arm64), macOS (arm64)
-                or Windows 11 (x64). It needs no Java.
+                <code>lvh-yard</code> for Linux (amd64, arm64), macOS (arm64) or
+                Windows 11 (x64). It needs no Java.
               </li>
               <li>
                 On Windows 11: Docker Desktop with the WSL2 backend and host
-                networking. The Windows Workstation supports IPv4 only, and
-                the executable is not signed.
+                networking. The Windows Workstation supports IPv4 only, and the
+                executable is not signed.
               </li>
               <li>
                 Docker is the only container runtime that LVH Yard supports.
@@ -557,15 +963,31 @@ ws-b
           <div>
             <h2>Use it on a network that you trust</h2>
             <p class="text-muted-foreground mt-6">
-              LVH Yard is a development tool. The dashboard has no login: anyone
-              who reaches it can change the Services of that Workstation and
-              reach its containers through the Docker socket. By default it
-              listens on <code>127.0.0.1</code> only.
+              LVH Yard is a development tool. Anyone who reaches the dashboard
+              can change the Services of that Workstation and reach its
+              containers through the Docker socket. By default it listens on
+              <code>127.0.0.1</code> only.
               <a
                 class="text-foreground underline"
                 href="https://github.com/ppalazon/lvh-yard/blob/main/SECURITY.md"
                 >Read the security policy.</a
               >
+            </p>
+            <p class="text-muted-foreground mt-4">
+              <strong class="text-foreground"
+                >The dashboard has no login. You can add one.</strong
+              >
+              Publish the <code>yard</code> Service with a Route Profile that
+              has basic auth. Keep the dashboard on <code>127.0.0.1</code>. Let
+              only Traefik listen on the address that others reach, and serve it
+              over HTTPS.
+            </p>
+            <p class="text-muted-foreground mt-4">
+              Use a domain that you own and that points to that address:
+              <code>lvh.me</code> and <code>l.lvhy.cc</code> point to
+              <code>127.0.0.1</code>. Anything that runs on the Workstation
+              still reaches the dashboard without a password. The maintainer has
+              not tested a public server.
             </p>
           </div>
         </div>
@@ -584,12 +1006,15 @@ ws-b
             href="https://github.com/ppalazon/lvh-yard/releases"
             >Download</a
           >
+          <a class="btn" data-variant="outline" data-size="lg" href="/docs/"
+            >Read the docs</a
+          >
           <a
             class="btn"
             data-variant="outline"
             data-size="lg"
-            href="https://github.com/ppalazon/lvh-yard/blob/main/docs/user-guide.md"
-            >Read the user guide</a
+            href="https://github.com/ppalazon/lvh-yard"
+            >View on GitHub</a
           >
         </div>
       </section>
@@ -609,6 +1034,11 @@ ws-b
           every change.
         </p>
         <nav aria-label="Project" class="flex gap-4">
+          <a
+            class="underline"
+            href="https://github.com/ppalazon/lvh-yard/blob/main/docs/user-guide.md"
+            >User guide</a
+          >
           <a
             class="underline"
             href="https://github.com/ppalazon/lvh-yard/issues"

@@ -37,6 +37,11 @@
     @apply font-mono;
   }
 
+  /* Inline code has a muted background. The code of a terminal does not. */
+  :not(pre) > code {
+    @apply bg-muted rounded px-1.5 py-0.5 text-[0.9em];
+  }
+
   a:focus-visible,
   button:focus-visible {
     outline: 2px solid var(--ring);

@@ -4,20 +4,71 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-human
+**Status:** done
 
 **Core for v0.2.0:** yes
 
 ## Acceptance
 
-- [ ] The header has a Docs link to `/docs/`. Both "Read the user guide" links point to `/docs/`.
-- [ ] "Problems it solves" has six cards, one for each pain of the spec. Each card has the pain, one command, and a link. A link to a page that is not live is absent, not broken.
-- [ ] The Instance Priority SVG follows the style of the Yard diagram: colors only from the theme variables, no script, and an accessible title and description.
-- [ ] "Pick your Base Domain" shows the loopback wildcard idea, names `lvh.me` and `l.lvhy.cc` as shared domains, says that `l.lvhy.cc` is this project's domain, and recommends an own domain. It carries the approved warning in short form.
-- [ ] The block of eight typical questions follows the spec. Each answer has two sentences at most. The answer to question 5 says that `lvh.me` can stop working.
-- [ ] "Use it on a network that you trust" carries the approved dashboard-login text.
-- [ ] The copy was written with `technical-writing` and polished with `ste80-humanizer`, as the spec describes, and `ste_check.py` reports no findings. The hero keeps its meaning.
-- [ ] Proof: `mise run pages:landing-serve`, then a browser check in light and dark themes, and at a narrow width. The page works with JavaScript off, except the hero animation, which has its text in `sr-only`.
-- [ ] The maintainer approved the page.
+- [x] The header has a Docs link to `/docs/`, in the place of the "User guide" link. The call to action "Read the docs" points to `/docs/` too. The footer keeps a link "User guide" to the user guide on GitHub, which is the reference.
+- [x] "Problems it solves" has six cards, one for each pain of the spec. Each card has the pain, one command, and a link. A link to a page that is not live is absent, not broken.
+- [x] The Instance Priority SVG follows the style of the Yard diagram: colors only from the theme variables, no script, and an accessible title and description.
+- [x] "Pick your Base Domain" shows the loopback wildcard idea, names `lvh.me` and `l.lvhy.cc` as shared domains, says that `l.lvhy.cc` is this project's domain, and recommends an own domain. It carries the approved warning in short form.
+- [x] The block of eight typical questions follows the spec. Each answer has two sentences at most. The answer to question 5 says that `lvh.me` can stop working.
+- [x] "Use it on a network that you trust" carries the approved dashboard-login text.
+- [x] The copy was written with `technical-writing` and polished with `ste80-humanizer`, as the spec describes, and `ste_check.py` reports no findings. The hero keeps its meaning.
+- [x] Proof: `mise run pages:landing-serve`, then a browser check in light and dark themes, and at a narrow width. The page works with JavaScript off, except the hero animation, which has its text in `sr-only`.
+- [x] The maintainer approved the page.
 
 See `../spec.md` for the decisions, the writing rules and the recipe template.
+
+## Draft notes
+
+- All six cards link to live pages, so none is missing: "Your first Service", "Stop chasing Compose ports", "Pick your Base Domain", "Fix cookies and OAuth callbacks", "Test HTTPS with your Workstation CA" and "Show your work to a teammate". The eight answers link to "Pick your Base Domain" (three times), "Fix cookies and OAuth callbacks", "What LVH Yard solves", the security policy and the section "What you need". The answers to questions 4 and 8 have no new page to link to.
+- The Instance Priority section follows the Yard diagram: colors from `var(--card)`, `var(--border)`, `var(--primary)`, `var(--muted-foreground)` and `currentColor`, no script, a `title` and a `desc`, and its own arrow marker id. It claims only what the glossary says: the Route uses the first source with a passing Instance. It does not say which source comes first by default.
+- The answer to "Does it work offline?" says `dev.localhost`, not `localhost` as the spec lists, because the Base Domain page of the guide found that a one-label Base Domain gets a certificate that browsers reject (ticket 38).
+- The spec text of the dashboard login is in two paragraphs, because `ste_check.py` allows six sentences in a paragraph and the text has eight. The words are the approved ones, and the sentence "The dashboard has no login." of the old paragraph is not repeated.
+- The hero paragraph changed to: LVH Yard gives each service ... `http://grafana.lvh.me`. The hostname works for your own computer and for every other computer in your Yard. LVH Yard runs Consul and Traefik for you, in Docker. The h1 and its `sr-only` text did not change.
+- Style check: the visible text of `<main>` (without the SVG and the terminals) went through `ste_check.py` with 0 findings and 145 sentences of 25 words at most.
+- Proof: `mise run pages:landing-serve` and the guide next to it at `http://localhost:8800`. All eight `/docs/` links answered `200`. Light and dark themes were checked for the new sections and the Instance Priority diagram, and a width of 390 px (no horizontal scroll, `scrollWidth` 390). The new sections are static HTML and CSS, so they need no JavaScript. Only the theme toggle uses a script. The `alert` block of the Base Domain section uses a `div` with a `h3` and a `p`, not the structure of the dashboard component, and it looks right in the light and the dark theme. The block of the login text was also checked in the dark theme.
+
+## Review round
+
+- The maintainer asked for a Route Diagram screenshot in the hero, with a whoami service that has client authentication and plain HTTP to the Instance. The hero now shows `assets/dashboard-route-light.png` and `assets/dashboard-route-dark.png` (1200 x 860), with a caption. The Catalog screenshots moved to the end of the section "One Yard, many computers", where they show two Workstations. `og:image` and the README still use the Catalog screenshot.
+- How the picture was made: a throwaway Workstation in `/tmp` (folder `rclw`, Base Domain `lvh.me`, other ports than the defaults for Consul, the dashboard and Traefik admin). HTTPS and the check of Client Certificates were on (`ws tls ca create`, `https create`, `client create`). A Route Profile `certificate` with `clientCertificate: {}` came from `lvh-yard profiles set`. The container `whoami` (`traefik/whoami`, `-p 80`) was bound with `register container whoami --port 80`, and `lvh-yard publish whoami --profile certificate` published it. The Route Diagram page of the dashboard was at 1200 px wide in the light and the dark theme. The page shows the HTTP listener without a Route ("needs HTTPS"), the HTTPS listener with "TLS, Client Certificate", the `clientCertificate` middleware, the load balancing, and the red wire "Traefik to Instances: plain HTTP".
+- The listeners in the picture show `127.0.0.1:9080` and `127.0.0.1:9443`, not 80 and 443, because the real Workstation of the maintainer holds those ports on this computer. A listener on `127.0.0.2:80` said "other computers can connect", which is false for the default, so I used 9080 and 9443 on `127.0.0.1`. A screenshot from a Workstation with the default ports would replace them.
+- The Instance Priority section now says why: you develop an app that you usually run as a Docker container, you run your modified copy as a process, and the container answers again when you stop it. The SVG says "your modified copy" and "the container that you usually run".
+- The hero text changed once more: the maintainer made the last sentence "LVH Yard integrates Consul, Traefik and Docker for you.", and I kept it. The first two sentences are shorter, because `ste_check.py` joined a sentence that ended with the address `grafana.lvh.me`.
+
+## Second review round: the install terminal
+
+- The maintainer asked to move the install terminal of the hero into "How it works", as a quick tutorial with a `whoami` container, with the answers to the questions of `ws init`, and only the output that matters. The hero has no terminal now. "How it works" has one terminal in three steps that match its three cards: install and create the Workstation (the install script, `ws init` with its two questions, `ws compose start`, `status`), run `traefik/whoami` and give it a name (`docker run`, `service create`, `register container`, `publish`), and open it (`curl`). The terminal replaces the old one, which published a process and a container and listed two Workstations. The card "3. Open" says `whoami.lvh.me`.
+- The terminal shows four outputs only: the two questions of `ws init` with their answers, `LVH Yard on this Workstation: ok`, `Published whoami at whoami.lvh.me.` and `Hostname: <id>` of `curl`. They come from a run on a throwaway Workstation in `/tmp` with other ports than the defaults. The `curl` of the test used the HTTP port of that Workstation, and the `Hostname` line is the id of its container. The default of the question about the name shows `[laptop]`, a made-up host name, because the test showed the host name of the maintainer's computer. The install script and the `docker run` line were not run again here. The Workstation, the container and the files are removed.
+- The hero buttons "Download" and "View on GitHub" are not in the file any more. The maintainer's last edit of the hero removed them, so I did not add them again. The call to action at the end of the page still has "Download".
+- The style check of the text of the page still gives 0 findings. At 390 px, the page does not scroll sideways, and the terminal scrolls inside its box.
+
+## Third review round: the install snippet
+
+- The install lines are a snippet of their own, before the tutorial: `curl -fsSL https://lvhy.cc/install.sh | sh` for Linux and macOS, and `irm https://lvhy.cc/install.ps1 | iex` for Windows 11 in PowerShell. The tutorial snippet starts at `lvh-yard ws init`, and its first comment says that every command from there is the same on Linux, macOS and Windows.
+- That claim rests on the Windows evidence of the repo (`.scratch/windows-11/evidence/`): `ws compose start`, `stop` and `recreate` ran on native Windows. The tutorial was run on Linux only. Two lines differ in PowerShell: in Windows PowerShell 5.1, `curl` is an alias of `Invoke-WebRequest`, so the last comment says "On Windows, run curl.exe". `docker run -d --name whoami -p 80 traefik/whoami` needs Docker Desktop with host networking on Windows, as the page "Install LVH Yard" says. The `irm ... | iex` line was run in PowerShell 7 on Linux for ticket 05 (the download and the extraction worked, and the registry step failed because it was not Windows).
+- No other text changed. The style check of the text of the page gives 0 findings, and the page does not scroll sideways at 390 px.
+
+## Fourth review round: mailpit and grafana, and muted inline code
+
+- Inline code has a muted background: `:not(pre) > code` in `docs/landing/site.css` uses `bg-muted`, a small radius and padding. The code of the terminals is unchanged. Checked in the light and the dark theme.
+- The examples use one local container, Mailpit, and one remote container, Grafana on `ws-b`. `front`, `app`, `web`, `shop/web` and the local `grafana.lvh.me` are gone from the page: the hero and the meta description (`mailpit.lvh.me`), the six cards (`lvh-yard publish mailpit`, `lvh-yard register compose demo/mailpit --port 8025`, `lvh-yard publish mailpit --scope yard`), the Yard diagram (`mailpit :8025` on `ws-a`, `grafana :3000` on `ws-b`, the path `grafana.ws-b.lvh.me`), the Instance Priority diagram (`mailpit.lvh.me`, your modified copy at `127.0.0.1:8025`, the Mailpit container as fallback), the Base Domain block and the answer about magic. The tutorial of "How it works" keeps `whoami`, as the maintainer asked.
+- The Route Diagram screenshots were taken again, for `mailpit`: a throwaway Workstation (folder `rcmw`), HTTPS and the Client Certificate check on, the Route Profile `certificate` with `clientCertificate: {}`, and `axllent/mailpit` bound with `register container mailpit --port 8025`. Traefik listened on `127.0.0.1:80` and `127.0.0.1:443`: the Workstation of the maintainer was stopped at that moment, so both ports were free, and the page of the diagram says "this computer only" for both. The Workstation was removed right after the screenshots, so the ports are free again. The files are `docs/landing/assets/dashboard-route-light.png` and `-dark.png` (1200 x 860).
+- Not changed, and they still show other names: the Catalog screenshots (`back`, `front`, `mailpit`, `mkdocs`, and `ws-b`) and the Service page screenshots (`back`, degraded). The maintainer named only the Route Diagram screenshots. The text next to the Service page still says `back`, as the screenshot does.
+
+## Fifth review round: the intro, Docker, wildcard DNS and two screenshots
+
+- The hero paragraph is shorter and says how the service runs: "LVH (Local Virtual Host) Yard gives every service a hostname, such as http://mailpit.lvh.me, and you write no port. The service can be a local process, a Docker container, a Compose project or a program on another computer. Every computer in your Yard opens the same name. LVH Yard integrates Consul, Traefik and Docker for you." It has five lines at the width of the page.
+- The first install snippet starts with the comment "Install Docker first, or Docker Desktop on Windows, and keep it running." The Install page says the same: Docker with Compose, and Docker Desktop 4.34 or later on Windows.
+- Wildcard DNS: every mention on the page says that it answers the same address for every name below it, and that the address is 127.0.0.1 for `lvh.me` only. A domain that you own can answer any address, for example the LAN address of a Workstation. Changed in "How it works", the card "I edit /etc/hosts", "Pick your Base Domain", and the answers "Why not edit /etc/hosts", "Is it magic" and "Does it work offline". The Yard diagram and its text did not say that the address is 127.0.0.1, so they stay.
+- The Catalog and the Service page screenshots were taken again, in light and dark, on a throwaway Yard of two Workstations (`ws-a`, `ws-b`; folders `rcca` and `rccb`; Base Domain `lvh.me`; the dashboard image `ghcr.io/ppalazon/lvh-yard-dashboard:latest` that Compose uses, built on 2026-11-19, after the last commit that changed the dashboard code). The Catalog shows the new Scope column, the Scope filter and the lock icons: `ws-a` has `consul-ui`, `mailpit` (degraded), `traefik-admin` and `yard`, and `ws-b` has `grafana` with Scope Yard at `grafana.ws-b.lvh.me`. The PNGs are 1200 x 700 because the page ends there. The Service page is `mailpit` with two Instance Sources: 1. a Static Instance `127.0.0.1:8025` that nothing listens on (Unavailable), and 2. a Container Binding to the container `mailpit` on port 8025 (In use). The state is degraded. I closed the details of the first source so that the second shows, as in the old picture. The text above the picture says that the first source does not answer and the Route uses the second one. This matches the Instance Priority diagram.
+- The Workstations, the containers `mailpit` and `grafana`, their volumes and the files are removed.
+
+## Sixth review round: a fourth step
+
+- "How it works" has a fourth card, "4. Explore": "On its first start, LVH Yard publishes three Services for you. They use your Base Domain, here lvh.me." It lists three links: `http://yard.lvh.me` (the dashboard), `http://consul-ui.lvh.me` (the web page of Consul) and `http://traefik-admin.lvh.me` (the admin page of Traefik). The facts come from the user guide (the section about the first start of the dashboard) and from the Catalog of the throwaway Yard of round five, which listed the three hostnames. The links work only on a computer with a Workstation whose Base Domain is `lvh.me` and whose Traefik listens on port 80. The grid has four columns from 1024 px, two columns below, and one at 390 px.
+- The user guide says that the dashboard skips `traefik-admin` when Traefik is off at the first start. The card does not say so.
