@@ -102,7 +102,7 @@ To add a second Workstation to your Yard, read [Create a Yard and join it](https
 
 - **A name instead of a port.** `lvh-yard publish mailpit` gives `mailpit.lvh.me`. [Your first Service](https://lvhy.cc/docs/start/first-service/)
 - **Containers and Compose services follow their Service.** Bind once with `lvh-yard register compose demo/mailpit --port 8025`. The hostname stays when `docker compose up` gives a new port. [Stop chasing Compose ports](https://lvhy.cc/docs/recipes/name/compose-ports/)
-- **Instance Priority.** Run your modified copy of a service first. When it stops, the container that you usually run answers again.
+- **Instance Priority.** Run your modified copy of a service first. When it stops, the container that you usually run answers again. [Put your process before the container](https://lvhy.cc/docs/recipes/choose/instance-priority/)
 - **Health-checked Routes.** A Service can have many Instances. The Route uses only the ones that pass, so you can test replicas as in production.
 - **One hostname per app.** Each app gets its own cookies, so `localhost:3000` no longer breaks cookies and OAuth callbacks. [Fix cookies and OAuth callbacks](https://lvhy.cc/docs/recipes/name/cookies-and-oauth/)
 - **HTTPS in development.** `lvh-yard ws tls https create` signs a certificate with your Workstation CA. Trust that CA once. [Test HTTPS with your Workstation CA](https://lvhy.cc/docs/recipes/https/workstation-ca/)

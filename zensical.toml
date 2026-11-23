@@ -38,6 +38,9 @@ nav = [
       { "Stop chasing Compose ports" = "recipes/name/compose-ports.md" },
       { "Fix cookies and OAuth callbacks" = "recipes/name/cookies-and-oauth.md" },
     ] },
+    { "Choose which Instance answers" = [
+      { "Put your process before the container" = "recipes/choose/instance-priority.md" },
+    ] },
     { "HTTPS and access" = [
       { "Test HTTPS with your Workstation CA" = "recipes/https/workstation-ca.md" },
       { "Use a real certificate on your own domain" = "recipes/https/real-certificate.md" },
