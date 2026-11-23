@@ -270,8 +270,8 @@ public class ReachabilityTester {
           check,
           status,
           "Traefik answered 500: it could not set up a connection to an Instance. If the Route uses"
-              + " mutual TLS, check that the Service Certificate names the address of each"
-              + " Instance. Run \"lvh-yard ws compose logs traefik\" to see why.");
+              + " mutual TLS, check that the Service Certificate names the Service. Run"
+              + " \"lvh-yard ws compose logs traefik\" to see why.");
     }
     if (status == 502 || status == 503 || status == 504) {
       return failed(check, status, "Traefik answered " + status + ": no Instance answered.");

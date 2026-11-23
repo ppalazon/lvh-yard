@@ -12,6 +12,7 @@ site_url = "https://lvhy.cc/docs/"
 docs_dir = "docs/guide"
 site_dir = "dist/pages/docs"
 draft_docs = """
+recipes/fix/bad-route.md
 """
 extra_javascript = [
   "javascripts/mermaid-box-colors.js",
@@ -45,6 +46,9 @@ nav = [
     { "HTTPS and access" = [
       { "Test HTTPS with your Workstation CA" = "recipes/https/workstation-ca.md" },
       { "Use a real certificate on your own domain" = "recipes/https/real-certificate.md" },
+    ] },
+    { "Find and fix problems" = [
+      { "Find and fix a bad Route" = "recipes/fix/bad-route.md" },
     ] },
   ] },
   { "Advanced" = [
