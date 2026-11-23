@@ -12,6 +12,7 @@ Do not review these by eye. A failing test names the rule.
 ## Docs
 
 - A change that affects how people install or use LVH Yard updates `docs/user-guide.md`.
+- If a change alters a command or a result that a page of `docs/guide/` shows, update that page.
 - A change that affects building, testing or releasing updates `docs/development.md`.
 - `README.md` and the landing page in `docs/landing/` are short. They link to the user guide and do not repeat it. A change updates them only when it alters what LVH Yard is or how it installs. The maintainer reviews them.
 
