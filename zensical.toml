@@ -36,6 +36,7 @@ nav = [
     { "Name your services" = [
       { "Name every HomeLab service" = "recipes/name/homelab-services.md" },
       { "Stop chasing Compose ports" = "recipes/name/compose-ports.md" },
+      { "Develop one service, keep the rest in Docker" = "recipes/name/host-process-and-compose.md" },
       { "Fix cookies and OAuth callbacks" = "recipes/name/cookies-and-oauth.md" },
     ] },
     { "Choose which Instance answers" = [
