@@ -118,7 +118,7 @@ Remove your process. The container keeps answering.
 lvh-yard remove mailpit --host 127.0.0.1 --port 8025
 ```
 
-To keep both sources, disable the order. Then every passing Instance shares the requests, and the hostname alternates between your process and the container. The order stays, and `--on` enables it again.
+To keep both sources, disable the order. Then the Route load balances the requests across every passing Instance, so the hostname alternates between your process and the container. The order stays, and `--on` enables it again.
 
 ```sh
 lvh-yard priority mailpit --off

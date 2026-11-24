@@ -53,7 +53,7 @@ You need:
     lvh-yard publish back
     ```
 
-4. Make the copies share the requests. Two Static Instances are two Instance Sources, and Instance Priority uses only the first one that passes. Turn the Instance Priority off. Then every passing Instance shares the Route.
+4. Make the Route load balance across the copies. Two Static Instances are two Instance Sources, and Instance Priority uses only the first one that passes. Turn the Instance Priority off. Then the Route load balances the requests across every passing Instance.
 
     ```sh
     lvh-yard priority back --off
