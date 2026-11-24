@@ -61,8 +61,10 @@ nav = [
   ] },
   { "Concepts" = [
     { "How it works" = "concepts/how-it-works.md" },
+    { "The Yard" = "concepts/the-yard.md" },
     { "Instance Sources" = "concepts/instance-sources-and-priority.md" },
     { "Scope" = "concepts/scope.md" },
+    { "Vocabulary" = "concepts/vocabulary.md" },
   ] },
   { "Advanced" = [
     { "Workstation Folder" = "advanced/compose-consul-traefik.md" },
