@@ -16,6 +16,7 @@ draft_docs = """
 extra_javascript = [
   "javascripts/mermaid-box-colors.js",
   "javascripts/base-domain.js",
+  "javascripts/workstation-code.js",
 ]
 extra_css = ["stylesheets/base-domain.css", "stylesheets/steps.css"]
 # The navigation tree is in .scratch/guide-site/spec.md. Each page ticket adds its page here.
