@@ -46,6 +46,7 @@ nav = [
       { "Test HTTPS with your Workstation CA" = "recipes/https/workstation-ca.md" },
       { "Use a real certificate on your own domain" = "recipes/https/real-certificate.md" },
       { "Protect a dev service with Route Profiles" = "recipes/https/route-profiles.md" },
+      { "Require a Client Certificate" = "recipes/https/client-certificate.md" },
     ] },
     { "Find and fix problems" = [
       { "Find and fix a bad Route" = "recipes/fix/bad-route.md" },
