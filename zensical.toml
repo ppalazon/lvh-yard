@@ -58,6 +58,9 @@ nav = [
       { "Backup" = "recipes/move/backup.md" },
     ] },
   ] },
+  { "Concepts" = [
+    { "How it works" = "concepts/how-it-works.md" },
+  ] },
   { "Advanced" = [
     { "Workstation Folder" = "advanced/compose-consul-traefik.md" },
     { "Register in Consul" = "advanced/register-in-consul.md" },
