@@ -41,6 +41,7 @@ nav = [
     ] },
     { "Choose which Instance answers" = [
       { "Put your process before the container" = "recipes/choose/instance-priority.md" },
+      { "Test replicas and failover" = "recipes/choose/replicas-and-failover.md" },
       { "Swap a backend with an Alias" = "recipes/choose/swap-with-an-alias.md" },
     ] },
     { "HTTPS and access" = [
