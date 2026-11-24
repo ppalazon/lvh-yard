@@ -47,6 +47,7 @@ nav = [
       { "Use a real certificate on your own domain" = "recipes/https/real-certificate.md" },
       { "Protect a dev service with Route Profiles" = "recipes/https/route-profiles.md" },
       { "Require a Client Certificate" = "recipes/https/client-certificate.md" },
+      { "Open the dashboard to your LAN with a password" = "recipes/https/dashboard-password.md" },
     ] },
     { "Find and fix problems" = [
       { "Find and fix a bad Route" = "recipes/fix/bad-route.md" },
