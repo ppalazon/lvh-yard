@@ -22,45 +22,45 @@ extra_css = ["stylesheets/base-domain.css", "stylesheets/steps.css"]
 nav = [
   { "Home" = "index.md" },
   { "Start" = [
-    { "What LVH Yard solves" = "start/what-it-solves.md" },
-    { "Install LVH Yard" = "start/install.md" },
-    { "Pick your Base Domain" = "start/pick-your-base-domain.md" },
-    { "Your first Service" = "start/first-service.md" },
+    { "What it solves" = "start/what-it-solves.md" },
+    { "Install" = "start/install.md" },
+    { "Base Domain" = "start/pick-your-base-domain.md" },
+    { "First Service" = "start/first-service.md" },
   ] },
   { "Recipes" = [
-    { "Reach other computers" = [
-      { "Create a Yard and join it" = "recipes/reach/create-a-yard.md" },
-      { "Reach a service on another computer" = "recipes/reach/another-computer.md" },
-      { "Show your work to a teammate" = "recipes/reach/show-your-work.md" },
+    { "Names" = [
+      { "HomeLab services" = "recipes/name/homelab-services.md" },
+      { "Compose ports" = "recipes/name/compose-ports.md" },
+      { "Process and Compose" = "recipes/name/host-process-and-compose.md" },
+      { "Cookies and OAuth" = "recipes/name/cookies-and-oauth.md" },
     ] },
-    { "Name your services" = [
-      { "Name every HomeLab service" = "recipes/name/homelab-services.md" },
-      { "Stop chasing Compose ports" = "recipes/name/compose-ports.md" },
-      { "Develop one service, keep the rest in Docker" = "recipes/name/host-process-and-compose.md" },
-      { "Fix cookies and OAuth callbacks" = "recipes/name/cookies-and-oauth.md" },
-    ] },
-    { "Choose which Instance answers" = [
-      { "Put your process before the container" = "recipes/choose/instance-priority.md" },
-      { "Test replicas and failover" = "recipes/choose/replicas-and-failover.md" },
-      { "Swap a backend with an Alias" = "recipes/choose/swap-with-an-alias.md" },
+    { "Instances" = [
+      { "Process first" = "recipes/choose/instance-priority.md" },
+      { "Replicas and failover" = "recipes/choose/replicas-and-failover.md" },
+      { "Alias" = "recipes/choose/swap-with-an-alias.md" },
     ] },
     { "HTTPS and access" = [
-      { "Test HTTPS with your Workstation CA" = "recipes/https/workstation-ca.md" },
-      { "Use a real certificate on your own domain" = "recipes/https/real-certificate.md" },
-      { "Protect a dev service with Route Profiles" = "recipes/https/route-profiles.md" },
-      { "Require a Client Certificate" = "recipes/https/client-certificate.md" },
-      { "Open the dashboard to your LAN with a password" = "recipes/https/dashboard-password.md" },
+      { "Workstation CA" = "recipes/https/workstation-ca.md" },
+      { "Real certificate" = "recipes/https/real-certificate.md" },
+      { "Route Profiles" = "recipes/https/route-profiles.md" },
+      { "Client Certificate" = "recipes/https/client-certificate.md" },
+      { "Dashboard password" = "recipes/https/dashboard-password.md" },
     ] },
-    { "Find and fix problems" = [
-      { "Find and fix a bad Route" = "recipes/fix/bad-route.md" },
+    { "Other computers" = [
+      { "Create a Yard" = "recipes/reach/create-a-yard.md" },
+      { "Another computer" = "recipes/reach/another-computer.md" },
+      { "Show a teammate" = "recipes/reach/show-your-work.md" },
     ] },
-    { "Move a setup" = [
-      { "Move or copy a setup with a Backup" = "recipes/move/backup.md" },
+    { "Problems" = [
+      { "Bad Route" = "recipes/fix/bad-route.md" },
+    ] },
+    { "Move" = [
+      { "Backup" = "recipes/move/backup.md" },
     ] },
   ] },
   { "Advanced" = [
-    { "How the Workstation Folder wires Consul, Traefik and the dashboard" = "advanced/compose-consul-traefik.md" },
-    { "Register a service in Consul directly" = "advanced/register-in-consul.md" },
+    { "Workstation Folder" = "advanced/compose-consul-traefik.md" },
+    { "Register in Consul" = "advanced/register-in-consul.md" },
   ] },
 ]
 
