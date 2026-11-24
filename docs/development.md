@@ -508,9 +508,13 @@ The install scripts are `dev/install.sh` and `dev/install.ps1`. The landing
 build copies them into `dist/pages`, for `/install.sh` and `/install.ps1` on
 the deployed site.
 
-The guide has two scripts. `docs/guide/javascripts/mermaid-box-colors.js` adds
+The guide has three scripts. `docs/guide/javascripts/mermaid-box-colors.js` adds
 the colors blue, green and orange for the boxes of a Mermaid sequence diagram,
 which the theme of Zensical would show in one color.
+`docs/guide/javascripts/workstation-code.js` marks each inline code element that
+is exactly `ws-a`, `ws-b` or `ws-c` with the attribute `data-ws`, and
+`docs/guide/stylesheets/steps.css` tints it in the color of that Workstation. Code
+blocks and code with more text, such as `ws-b/api`, keep their color.
 `docs/guide/javascripts/base-domain.js` and `docs/guide/stylesheets/base-domain.css`
 add a Base Domain field to the header. The reader types the Base Domain of their
 Workstation. The script then replaces `lvh.me` and `<Base Domain>` in the text of

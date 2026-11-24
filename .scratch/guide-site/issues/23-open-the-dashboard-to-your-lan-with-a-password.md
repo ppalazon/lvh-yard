@@ -4,7 +4,7 @@
 
 **Blocked by:** 01, 19, 21
 
-**Status:** ready-for-human
+**Status:** done
 
 **Core for v0.2.0:** no
 
@@ -37,12 +37,25 @@ Warn first: anything that runs on the Workstation still reaches the dashboard wi
 
 ## Acceptance
 
-- [ ] The page starts in `draft_docs` of `zensical.toml`.
-- [ ] The maintainer and the writer draft it together. The writer does not generate the page alone, and does not move to the next page before the maintainer approves this one.
-- [ ] The page has the eight parts of the recipe template, in order, with one Mermaid diagram.
-- [ ] Every command ran on the setup named under Verification, and the output on the page is real. A part that nobody tested says so on the page.
-- [ ] The page was drafted with `technical-writing` and polished with `ste80-humanizer`, as the spec describes. `ste_check.py` reports no findings, and the text uses only the terms of `GLOSSARY.md`. A warning comes before the command that it protects.
-- [ ] `mise run pages:docs-build` passes in strict mode.
-- [ ] The maintainer approved the page, and it left `draft_docs`.
+- [x] The page starts in `draft_docs` of `zensical.toml`.
+- [x] The maintainer and the writer draft it together. The writer does not generate the page alone, and does not move to the next page before the maintainer approves this one.
+- [x] The page has the eight parts of the recipe template, in order, with one Mermaid diagram.
+- [x] Every command ran on the setup named under Verification, and the output on the page is real. A part that nobody tested says so on the page.
+- [x] The page was drafted with `technical-writing` and polished with `ste80-humanizer`, as the spec describes. `ste_check.py` reports no findings, and the text uses only the terms of `GLOSSARY.md`. A warning comes before the command that it protects.
+- [x] `mise run pages:docs-build` passes in strict mode.
+- [x] The maintainer approved the page, and it left `draft_docs`.
 
 See `../spec.md` for the decisions, the writing rules and the recipe template.
+
+## Draft notes
+
+- The page is `docs/guide/recipes/https/dashboard-password.md`, titled "Open the dashboard to your LAN with a password" (`<!-- base-domain: off -->`, because it uses `dev.example.com`). It is in `draft_docs`, and the navigation lists it in "HTTPS and access". The stage 1 text is in `drafts/23-dashboard-password.stage1.md`. `ste_check.py` reports only the allowed `Troubleshooting` heading. The warning that anything on the Workstation still reaches the dashboard comes first, before the diagram and every command. The diagram shows the browser, Traefik on the LAN address with the password, the dashboard on loopback, and the bypass when the dashboard listens on `0.0.0.0`. The page links to "Run on a public server (not tested)" of the Advanced page for a server that the internet reaches.
+- Tested on a throwaway Workstation in `/tmp` (folder `rcdlx`, Workstation name `ws-a`) with the default ports and the Base Domain `dev.example.com`, on the LAN address of this computer (`192.168.1.67`, written as the invented `192.168.1.20` on the page). The maintainer's Workstation was stopped, and its ports were free. The outputs on the page are real, except for the `risk` line and the `test` lines, which are exact. DNS of `dev.example.com` was not set, so the test used `curl --resolve`.
+  - `htpasswd -nbB`, `profiles set`, and `publish yard --profile basic-auth` printed the lines on the page, with the `risk: [Authenticated Route]` line for `127.0.0.1:7780`.
+  - `ws set traefik-bind-address <LAN>`, `ws set dashboard-bind-address 127.0.0.1` and `ws compose recreate`: Traefik listened on the LAN address only. A request to `yard.dev.example.com` on `127.0.0.1:80` failed with `curl: (7) Failed to connect to yard.dev.example.com:80 after 0 ms: Could not connect to server`.
+  - Before the profile, a request with the `Host` header to the LAN address answered `200`: the dashboard was open. After it, HTTP answered `401` and HTTPS answered `HTTP/2 401` without a password and `HTTP/2 200` with it (the page does not show the password request, because the gitleaks hook refuses a `curl` line with a user and a password). The dashboard port on the LAN address answered `000` (no connection). `lvh-yard test yard` printed `answered 401` for the HTTP and the HTTPS Route and `Every check passed.`
+  - Bypass: with `dashboard-bind-address 0.0.0.0`, `http://<LAN>:7780` answered `200` without a password. With `127.0.0.1` again, it answered `000`.
+  - Undo: `publish yard --no-profiles`, `ws set traefik-bind-address 127.0.0.1` and `ws compose recreate` made the Route on loopback answer `200` again, and `status` said `ok`.
+  - The `ws set` commands print no warning about the bind addresses.
+- Not tested: a second computer, a firewall, a real DNS record, the dashboard form of the profile and the Service card for `yard` (the same forms as ticket 21), a browser, and a public server.
+- After the maintainer approves the page: remove it from `draft_docs`, mark the ticket done, delete the stage 1 draft, and commit.

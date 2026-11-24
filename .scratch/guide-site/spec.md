@@ -77,6 +77,8 @@ The six pains are the six cards of the landing section "Problems it solves".
 
 ### The navigation tree
 
+The labels in the navigation are short nouns: "Base Domain", "First Service", "Other computers", "Names", "Instances", "Problems", "Move". The title of a page keeps its full words. `zensical.toml` holds the labels, and the tree below shows the groups.
+
 ```text
 Start        What it solves · Install · Pick your Base Domain · Your first Service
 Recipes

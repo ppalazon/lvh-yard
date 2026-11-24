@@ -55,3 +55,16 @@
 .md-typeset strong.ws-c {
   background-color: rgba(33, 118, 255, 0.35);
 }
+
+/* The inline code that is exactly `ws-a`, `ws-b` or `ws-c` gets a light tint. javascripts/workstation-code.js sets data-ws. */
+.md-typeset code[data-ws="ws-a"] {
+  background-color: rgba(34, 170, 80, 0.2);
+}
+
+.md-typeset code[data-ws="ws-b"] {
+  background-color: rgba(245, 158, 11, 0.2);
+}
+
+.md-typeset code[data-ws="ws-c"] {
+  background-color: rgba(33, 118, 255, 0.2);
+}
