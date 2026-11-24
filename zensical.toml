@@ -70,6 +70,9 @@ nav = [
     { "Workstation Folder" = "advanced/compose-consul-traefik.md" },
     { "Register in Consul" = "advanced/register-in-consul.md" },
   ] },
+  { "Reference" = [
+    { "CLI" = "reference/cli.md" },
+  ] },
 ]
 
 [project.theme]
