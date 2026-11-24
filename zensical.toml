@@ -72,6 +72,7 @@ nav = [
   ] },
   { "Reference" = [
     { "CLI" = "reference/cli.md" },
+    { "Settings" = "reference/settings-and-ports.md" },
   ] },
 ]
 
