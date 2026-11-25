@@ -90,6 +90,17 @@ class StatusComponentTest extends DashboardComponentTest {
   }
 
   @Test
+  void pageShowsTheVersionOfTheDashboardInABadgeNextToTheStatus() {
+    String body = getPage("/status").getBody();
+
+    int version = body.indexOf("id=\"dashboard-version\"");
+    assertThat(body.substring(version, body.indexOf("</a>", version)))
+        .contains("href=\"https://github.com/ppalazon/lvh-yard/releases\"")
+        .containsPattern("</svg>v\\d+\\.\\d+\\.\\d+[^<]*$");
+    assertThat(version).isGreaterThan(body.indexOf("<h1>Status"));
+  }
+
+  @Test
   void pageRefreshesItsPartsWithSseAndFallback() {
     assertThat(openingTag(getPage("/status").getBody(), "id=\"status\""))
         .contains("hx-get=\"/status\"")

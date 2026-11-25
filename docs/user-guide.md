@@ -35,6 +35,14 @@ state. When a part is not OK, its details start open. When a part is OK, they
 start closed. The page refreshes by itself and keeps the details that you open
 or close. On a phone, each detail stacks its name, state and value.
 
+The Status page shows the version of the dashboard as a badge next to its
+heading and its overall Status, written as the release tag reads, such as
+`v0.2.0`. The badge links to the
+[releases of LVH Yard on GitHub](https://github.com/ppalazon/lvh-yard/releases),
+in a new tab. The dashboard makes no call to the internet and does not say
+whether a newer release exists; to see that, open the link or run
+`lvh-yard update --check` (see [Upgrading](#upgrading)).
+
 The Catalog shows one row for each Service, grouped by Workstation. Its columns
 are Service, State, Scope, Hostname and Instances. On a phone, each row stacks these
 facts without sideways scrolling. The Scope column says Local or Yard for a

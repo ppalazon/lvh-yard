@@ -13,9 +13,23 @@ final class StatusPage {
 
   static final String PATH = "/status";
 
+  private static final String RELEASES_URL = "https://github.com/ppalazon/lvh-yard/releases";
+
+  /** Lucide's tag icon: the outline, and the hole of its string as a dot. */
+  private static final String TAG_SHAPE =
+      "M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704"
+          + " 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z";
+
+  private static final String TAG_HOLE = "M7.5 7.5h.01";
+
   private StatusPage() {}
 
-  static String render(Workstation workstation, Status status) {
+  /** {@code v0.2.0}, as the release tag reads. A version that is not a number stays as it is. */
+  private static String label(String version) {
+    return !version.isEmpty() && Character.isDigit(version.charAt(0)) ? "v" + version : version;
+  }
+
+  static String render(Workstation workstation, Status status, String version) {
     return Layout.page(
         "Status",
         workstation.name(),
@@ -35,6 +49,22 @@ final class StatusPage {
                         .text("Status")
                         .__()
                         .of(heading -> StatusViews.badge(heading, status.overall()))
+                        .a()
+                        .attrId("dashboard-version")
+                        .attrHref(RELEASES_URL)
+                        .attrTarget("_blank")
+                        .addAttr("rel", "noopener noreferrer")
+                        .attrClass("badge tabular-nums")
+                        .addAttr("data-variant", "outline")
+                        .addAttr(
+                            "aria-label",
+                            "Dashboard version "
+                                + version
+                                + ". Releases on GitHub (opens in a new tab)")
+                        .attrTitle("Dashboard version " + version + ". See the releases on GitHub.")
+                        .of(link -> Layout.icon(link.svg(), "", TAG_SHAPE, TAG_HOLE))
+                        .text(label(version))
+                        .__()
                         .__()
                         .__()
                         .div()
