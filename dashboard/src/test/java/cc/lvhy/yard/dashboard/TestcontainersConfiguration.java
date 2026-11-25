@@ -1,11 +1,19 @@
 package cc.lvhy.yard.dashboard;
 
+import static org.awaitility.Awaitility.await;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -13,7 +21,10 @@ import org.springframework.test.context.DynamicPropertyRegistrar;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
+import org.testcontainers.containers.wait.strategy.AbstractWaitStrategy;
 import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.containers.wait.strategy.WaitAllStrategy;
+import org.testcontainers.containers.wait.strategy.WaitStrategy;
 import org.testcontainers.utility.DockerImageName;
 
 /**
@@ -195,7 +206,60 @@ class TestcontainersConfiguration {
             "--providers.http.endpoint=" + configuration,
             "--providers.http.pollInterval=1s",
             "--log.level=INFO")
-        .waitingFor(Wait.forLogMessage(".*Starting provider \\*http\\.Provider.*", 1));
+        .waitingFor(traefikReady(adminPort, port));
+  }
+
+  /**
+   * Traefik is ready when its provider has started, its ping answers and each of its entry points
+   * on {@code ports} accepts a connection. The log line of the provider comes before Traefik
+   * listens, so a test that goes on after it alone can reach Traefik too early.
+   */
+  static WaitStrategy traefikReady(int adminPort, int... ports) {
+    return new WaitAllStrategy()
+        .withStrategy(Wait.forLogMessage(".*Starting provider \\*http\\.Provider.*", 1))
+        .withStrategy(new TraefikListening(adminPort, ports));
+  }
+
+  /** Waits until the ping at {@code adminPort} answers 200 and each of {@code ports} listens. */
+  private static final class TraefikListening extends AbstractWaitStrategy {
+    private final int adminPort;
+    private final int[] ports;
+
+    TraefikListening(int adminPort, int... ports) {
+      this.adminPort = adminPort;
+      this.ports = ports.clone();
+    }
+
+    @Override
+    protected void waitUntilReady() {
+      await()
+          .atMost(startupTimeout)
+          .pollInterval(Duration.ofMillis(200))
+          .ignoreExceptions()
+          .until(() -> pingAnswers() && Arrays.stream(ports).allMatch(TraefikListening::listens));
+    }
+
+    private boolean pingAnswers() throws IOException {
+      HttpURLConnection ping =
+          (HttpURLConnection)
+              URI.create("http://127.0.0.1:" + adminPort + "/ping").toURL().openConnection();
+      ping.setConnectTimeout(1000);
+      ping.setReadTimeout(1000);
+      try {
+        return ping.getResponseCode() == 200;
+      } finally {
+        ping.disconnect();
+      }
+    }
+
+    private static boolean listens(int port) {
+      try (Socket socket = new Socket()) {
+        socket.connect(new InetSocketAddress("127.0.0.1", port), 1000);
+        return true;
+      } catch (IOException e) {
+        return false;
+      }
+    }
   }
 
   /** {@code count} free ports, taken together, so that no two are the same. */

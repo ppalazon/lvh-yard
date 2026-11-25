@@ -77,7 +77,12 @@ class ReachabilityHttpsIT extends DashboardIT {
                   "--entryPoints.websecure.address=127.0.0.1:" + HTTPS_PORT,
                   "--providers.file.directory=/dynamic")
               .withFileSystemBind(dynamic.toString(), "/dynamic", BindMode.READ_ONLY)
-              .withFileSystemBind(tls.toString(), "/etc/traefik/tls", BindMode.READ_ONLY);
+              .withFileSystemBind(tls.toString(), "/etc/traefik/tls", BindMode.READ_ONLY)
+              .waitingFor(
+                  TestcontainersConfiguration.traefikReady(
+                      TestcontainersConfiguration.TRAEFIK_ADMIN_PORT,
+                      TestcontainersConfiguration.TRAEFIK_PORT,
+                      HTTPS_PORT));
       traefik.start();
     }
   }
