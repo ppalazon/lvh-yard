@@ -66,7 +66,7 @@ All three containers use `network_mode: host`. Traefik then reaches an Instance 
 | Consul DNS and gRPC | `127.0.0.1`                   | 8600 and 8503         | No                                                |
 | Traefik, HTTP       | `YARD_TRAEFIK_BIND_ADDRESS`   | 80                    | Only if you set another address                   |
 | Traefik, HTTPS      | `YARD_TRAEFIK_BIND_ADDRESS`   | 443, when HTTPS is on | Only if you set another address                   |
-| Traefik admin       | `127.0.0.1`                   | 8080                  | No                                                |
+| Traefik admin       | `127.0.0.1`                   | 7781                  | No                                                |
 | Dashboard           | `YARD_DASHBOARD_BIND_ADDRESS` | 7780                  | Only if you set another address. It has no login. |
 
 `YARD_BIND_ADDRESS` is `127.0.0.1` after `ws init`. The ports of Consul that face the LAN open only when `ws yard init` or `ws yard join` sets the LAN address.
@@ -86,7 +86,7 @@ Traefik has no `traefik.yaml`. It takes its install options from one source only
 
 - **Fixed flags** in `compose.yaml`:
     - the entry point `web` at `YARD_TRAEFIK_BIND_ADDRESS:YARD_HTTP_PORT`
-    - the admin entry point `traefik` at `127.0.0.1:8080`, and the ping
+    - the admin entry point `traefik` at `127.0.0.1:7781`, and the ping
     - the file provider of `traefik/dynamic/`
     - the HTTP provider, with a poll of 5 seconds
 - **Flags that `scripts/traefik.sh` adds** from `.env`: the HTTPS entry point `websecure`, when `YARD_HTTPS_PORT` has a value, and the endpoint of the HTTP provider. For a dashboard on `0.0.0.0`, the endpoint uses `127.0.0.1`.

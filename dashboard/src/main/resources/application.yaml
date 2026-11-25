@@ -58,7 +58,7 @@ lvh-yard:
     client-auth: ${YARD_CLIENT_AUTH_ENABLED:false}
     mtls: ${YARD_MTLS_ENABLED:false}
     # Its admin entry point, with its admin page and ping, on loopback only.
-    admin-port: ${YARD_TRAEFIK_ADMIN_PORT:8080}
+    admin-port: ${YARD_TRAEFIK_ADMIN_PORT:7781}
   # The Docker of this Workstation, whose containers the Container Bindings follow. DOCKER_HOST, as the docker
   # command uses it.
   docker:

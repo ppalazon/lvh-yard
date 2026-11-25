@@ -130,7 +130,7 @@ your Base Domain. If you changed `http-port`, add the port to the address.
 | --------------- | ------------------------------------ | ----------------------------- |
 | `yard`          | `http://yard.<Base Domain>`          | 127.0.0.1:7780                |
 | `consul-ui`     | `http://consul-ui.<Base Domain>`     | 127.0.0.1:8500                |
-| `traefik-admin` | `http://traefik-admin.<Base Domain>` | 127.0.0.1:8080                |
+| `traefik-admin` | `http://traefik-admin.<Base Domain>` | 127.0.0.1:7781                |
 
 The Instances use the ports that `.env` holds at the first start. The defaults
 are the ports in the table. The dashboard sets the Services up once. After

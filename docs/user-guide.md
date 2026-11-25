@@ -1126,8 +1126,8 @@ this computer, because they resolve to `127.0.0.1`.
 The dashboard has no login. Anyone who reaches it can change the Services of
 this Workstation, and its containers through the Docker socket.
 
-The admin page of Traefik is at `127.0.0.1:8080/dashboard/`, and its ping is at
-`127.0.0.1:8080/ping`. They are always on loopback, whatever
+The admin page of Traefik is at `127.0.0.1:7781/dashboard/`, and its ping is at
+`127.0.0.1:7781/ping`. They are always on loopback, whatever
 `YARD_TRAEFIK_BIND_ADDRESS` says. `YARD_TRAEFIK_ADMIN_PORT` changes the port.
 
 ### The dashboard image

@@ -49,7 +49,7 @@ Each port has a setting. Change it with `lvh-yard ws set <name> <port>`.
 | ---------------------- | -------------------------------------- | ----------- | -------------------------------------- | ------------------------ |
 | `http-port`            | 80                                     | TCP         | Traefik, the hostnames over HTTP       | `traefik-bind-address`   |
 | `https-port`           | Empty. 443 after `ws tls https create` | TCP         | Traefik, the hostnames over HTTPS      | `traefik-bind-address`   |
-| `traefik-admin-port`   | 8080                                   | TCP         | The admin page and the ping of Traefik | `127.0.0.1`              |
+| `traefik-admin-port`   | 7781                                   | TCP         | The admin page and the ping of Traefik | `127.0.0.1`              |
 | `dashboard-port`       | 7780                                   | TCP         | The dashboard                          | `dashboard-bind-address` |
 | `consul-http-port`     | 8500                                   | TCP         | The HTTP API of Consul                 | `127.0.0.1`              |
 | `consul-dns-port`      | 8600                                   | TCP and UDP | The DNS of Consul                      | `127.0.0.1`              |

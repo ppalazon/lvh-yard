@@ -86,7 +86,7 @@ services:
           "CMD",
           "wget",
           "-qO-",
-          "http://127.0.0.1:${YARD_TRAEFIK_ADMIN_PORT:-8080}/ping",
+          "http://127.0.0.1:${YARD_TRAEFIK_ADMIN_PORT:-7781}/ping",
         ]
       interval: 30s
       timeout: 5s
@@ -102,7 +102,7 @@ services:
     entrypoint: ["/bin/sh", "/scripts/traefik.sh"]
     command:
       - --entryPoints.web.address=${YARD_TRAEFIK_BIND_ADDRESS:-127.0.0.1}:${YARD_HTTP_PORT:-80}
-      - --entryPoints.traefik.address=127.0.0.1:${YARD_TRAEFIK_ADMIN_PORT:-8080}
+      - --entryPoints.traefik.address=127.0.0.1:${YARD_TRAEFIK_ADMIN_PORT:-7781}
       - --api.dashboard=true
       - --api.insecure=true
       - --ping=true
@@ -155,7 +155,7 @@ services:
       YARD_CLIENT_AUTH_ENABLED: ${YARD_CLIENT_AUTH_ENABLED:-false}
       YARD_MTLS_ENABLED: ${YARD_MTLS_ENABLED:-false}
       YARD_TRAEFIK_BIND_ADDRESS: ${YARD_TRAEFIK_BIND_ADDRESS:-127.0.0.1}
-      YARD_TRAEFIK_ADMIN_PORT: ${YARD_TRAEFIK_ADMIN_PORT:-8080}
+      YARD_TRAEFIK_ADMIN_PORT: ${YARD_TRAEFIK_ADMIN_PORT:-7781}
       YARD_TRAEFIK_ENABLED: ${YARD_TRAEFIK_ENABLED:-true}
       YARD_DASHBOARD_PORT: ${YARD_DASHBOARD_PORT:-7780}
       YARD_DASHBOARD_BIND_ADDRESS: ${YARD_DASHBOARD_BIND_ADDRESS:-127.0.0.1}
