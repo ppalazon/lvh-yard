@@ -304,6 +304,11 @@ shares state with an earlier test fails on some runs only. The CLI help text
 rules of `CODING_STANDARDS.md` are checked by `cli/internal/command/help_text_test.go`,
 which runs with `go test ./...`.
 
+A test that waits on the real timing of Traefik or Docker can fail on a slow GitHub Actions runner
+while the same code passes on the next run. Do not keep such a test red in CI. Annotate it with
+`@TimingSensitive`: it runs on your computer and is skipped when `GITHUB_ACTIONS` is `true`.
+Remove the annotation after you make the test deterministic.
+
 On Windows, the integration tests use each PowerShell executable found on
 `PATH`. They report an absent `pwsh.exe`; a passing run with only Windows
 PowerShell 5.1 does not prove PowerShell 7 behavior. Completion checks load

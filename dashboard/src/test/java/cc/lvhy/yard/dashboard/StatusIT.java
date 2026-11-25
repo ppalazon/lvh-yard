@@ -31,6 +31,7 @@ class StatusIT extends DashboardIT {
   }
 
   @Test
+  @TimingSensitive
   void infrastructureTransitionEmitsStatusChangedOverEventsStream() throws Exception {
     try (EventStreamClient client = new EventStreamClient(port)) {
       GenericContainer<?> traefik = TestcontainersConfiguration.traefik(port);

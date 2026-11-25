@@ -148,6 +148,7 @@ class ReachabilityHttpsIT extends DashboardIT {
    * Instance and the same CA, is refused.
    */
   @Test
+  @TimingSensitive
   void mutualTlsChecksTheNameOfTheServiceAndNotTheAddressOfTheInstance() throws Exception {
     String right = newServiceName("web");
     String wrong = newServiceName("other");
