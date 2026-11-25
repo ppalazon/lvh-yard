@@ -5,11 +5,11 @@
 
 **Reach any dev, local or Docker service on your computer, HomeLab or LAN by name, not by IP and port.**
 
-LVH (Local Virtual Host) Yard gives every service a hostname, such as `http://mailpit.lvh.me`, and you write no port. The service can be a local process, a Docker container, a Compose project or a program on another computer. Every computer in your Yard opens the same name. LVH Yard integrates Consul, Traefik and Docker for you.
+LVH (Local Virtual Host) Yard gives every service a hostname, such as `http://mailpit.lvh.me`, and you write no port. The service can be a local process, a Docker container, a Compose project or a program on another computer. LVH Yard integrates Consul, Traefik and Docker for you.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/landing/assets/dashboard-catalog-dark.png">
-  <img alt="The Catalog page of the LVH Yard dashboard. It lists the Services of two Workstations, each with its state, scope, hostname and passing Instances." src="docs/landing/assets/dashboard-catalog-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/landing/assets/dashboard-route-dark.png">
+  <img alt="The Route Diagram of mailpit in the LVH Yard dashboard. The browser reaches the HTTPS listener of Traefik with a Client Certificate. The HTTP listener has no Route. Traefik sends the request to the Instance over plain HTTP." src="docs/landing/assets/dashboard-route-light.png">
 </picture>
 
 ## Requirements
