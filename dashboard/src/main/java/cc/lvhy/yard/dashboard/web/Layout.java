@@ -181,6 +181,33 @@ public final class Layout {
   }
 
   /**
+   * A button-looking link to the documentation, in a new tab, with Lucide's book-open icon. {@code
+   * noopener} keeps the docs page away from the dashboard tab.
+   */
+  private static void docsLink(Div<?> header) {
+    header
+        .a()
+        .attrHref(DOCS_URL)
+        .attrTarget("_blank")
+        .addAttr("rel", "noopener noreferrer")
+        .attrClass("btn")
+        .addAttr("data-variant", "ghost")
+        .addAttr("data-size", "icon")
+        .addAttr("aria-label", "Documentation (opens in a new tab)")
+        .addAttr("title", "Documentation")
+        .of(link ->
+            icon(
+                link.svg(),
+                "",
+                "M12 7v14",
+                "M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1"
+                    + " 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"))
+        .__();
+  }
+
+  private static final String DOCS_URL = "https://lvhy.cc/docs";
+
+  /**
    * {@code theme.js} handles it. It shows a moon in the light theme and a sun in the dark one
    * (Lucide's icons).
    */
