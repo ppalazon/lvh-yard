@@ -1,6 +1,6 @@
 # LVH Yard
 
-Reach any development service on your HomeLab by name, not by IP and port. LVH Yard gives each service that you run on your computers a hostname such as `http://grafana.lvh.me`. The hostname works on your own computer and on every other computer in your Yard.
+LVH (Local Virtual Host) Yard gives every service a hostname, such as `http://mailpit.lvh.me`, and you write no port. The service can be a local process, a Docker container, a Compose project or a program on another computer. LVH Yard integrates Consul, Traefik and Docker for you.
 
 ## Problems it removes
 
