@@ -32,6 +32,13 @@ class StatusIT extends DashboardIT {
         .orElseThrow(() -> new AssertionError("No detail " + name + " in " + part));
   }
 
+  /**
+   * A real Traefik that starts shows as OK on the summary and on the page, and a change of status
+   * reaches an events stream. When a part signals a change is a unit test of its own, {@code
+   * StatusWatcherTest}. This test never takes an event as a sign that Traefik is OK: a change of
+   * any part sends one, and the status is kept for 5 s, so the page can still show the state from
+   * before Traefik answered.
+   */
   @Test
   @TimingSensitive
   void infrastructureTransitionEmitsStatusChangedOverEventsStream() throws Exception {
@@ -41,8 +48,15 @@ class StatusIT extends DashboardIT {
       try {
         // The container is up when Traefik starts its provider, which is before its ping answers.
         await()
-            .atMost(Duration.ofSeconds(15))
-            .until(() -> client.lines.contains("event:status-changed"));
+            .atMost(STATE_CHANGES)
+            .until(() ->
+                openingTag(getPage("/status/summary").getBody(), "id=\"dot-traefik\"")
+                    .contains("aria-label=\"Traefik: OK."));
+        await()
+            .atMost(STATE_CHANGES)
+            .until(() ->
+                div(getPage("/status").getBody(), "id=\"part-traefik\"")
+                    .contains(badge("success", "✓ OK")));
 
         // The watcher reads the status every 2 s from a status that is kept for 5 s.
         await().atMost(STATE_CHANGES).until(() -> client.lines.contains("event:status-changed"));
