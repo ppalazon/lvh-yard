@@ -304,10 +304,12 @@ shares state with an earlier test fails on some runs only. The CLI help text
 rules of `CODING_STANDARDS.md` are checked by `cli/internal/command/help_text_test.go`,
 which runs with `go test ./...`.
 
-A test that waits on the real timing of Traefik or Docker can fail on a slow GitHub Actions runner
-while the same code passes on the next run. Do not keep such a test red in CI. Annotate it with
-`@TimingSensitive`: it runs on your computer and is skipped when `GITHUB_ACTIONS` is `true`.
-Remove the annotation after you make the test deterministic.
+A test that needs real containers to answer on time can fail on a GitHub Actions runner, where Docker
+and its published ports answer late or not at all, while the same code passes on the next run. Do
+not keep such a test red in CI. Annotate it with `@TimingSensitive`: it runs on your computer and is
+skipped when `GITHUB_ACTIONS` is `true`. Run those tests yourself with `mise run check` before you
+commit, because CI does not run them. Keep the annotation when the test is correct and only the
+runner is unreliable. Remove it only if you see the test pass reliably on GitHub Actions.
 
 On Windows, the integration tests use each PowerShell executable found on
 `PATH`. They report an absent `pwsh.exe`; a passing run with only Windows

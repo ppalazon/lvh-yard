@@ -8,10 +8,12 @@ import java.lang.annotation.Target;
 import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
 
 /**
- * A test that waits on the real timing of Traefik or Docker and failed now and then on a slow
- * GitHub Actions runner, with the same code that passed on the next run. It runs on a computer and
- * is skipped in GitHub Actions, where it gives no signal. Make the test deterministic, then remove
- * this annotation.
+ * A test that needs real containers to answer on time. On a GitHub Actions runner, Docker and its
+ * published ports answer late or not at all, so the test failed now and then with the same code
+ * that passed on the next run. It runs on a computer and is skipped in GitHub Actions, where it
+ * gives no signal. CI does not run it, so run it before you commit. Keep this annotation when the
+ * test is correct and only the runner is unreliable. Remove it only after you see the test pass
+ * reliably on GitHub Actions.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
