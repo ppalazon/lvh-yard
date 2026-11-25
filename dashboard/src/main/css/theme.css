@@ -42,9 +42,6 @@
   /* The primary color for a line, a dot or a border. The primary is too light for that on the white page (2.4 to 1),
      so it is the dark teal of the theme there. */
   --primary-mark: var(--secondary-foreground);
-  /* A pill that stands out from the primary one: amber with dark text. */
-  --highlight: oklch(0.6942 0.1205 77.2913);
-  --highlight-foreground: oklch(0.2686 0 0);
 }
 
 .dark {
@@ -82,8 +79,6 @@
   --sidebar-ring: oklch(0.6942 0.1205 77.2913);
   --risk: oklch(0.75 0.183 55.934);
   --primary-mark: var(--primary);
-  --highlight: oklch(0.7586 0.1189 88.0673);
-  --highlight-foreground: oklch(0.2046 0 0);
 }
 
 /* Only the system fonts, so the pages load no font, also on a LAN with no internet. The theme's Inter, JetBrains Mono
