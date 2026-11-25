@@ -304,13 +304,13 @@ shares state with an earlier test fails on some runs only. The CLI help text
 rules of `CODING_STANDARDS.md` are checked by `cli/internal/command/help_text_test.go`,
 which runs with `go test ./...`.
 
-A test that waits for a real container, such as Traefik, to be ready can fail on a GitHub Actions
-runner, where the container answers later than the test waits, while the same code passes on the
-next run. Do not keep such a test red in CI. First make the test wait for the state that it needs,
-with a limit, and not for an event or a fixed time. If it is still unreliable on GitHub Actions,
-annotate it with `@TimingSensitive`: it runs on your computer and is skipped when `GITHUB_ACTIONS`
-is `true`. CI does not run it, so run it with `mise run check` before you commit. Remove the
-annotation only after you see the test pass reliably on GitHub Actions.
+A test that waits for a real container, such as Traefik, to be ready can time out on a GitHub
+Actions runner, where the container answers later than the test waits, while the same code passes
+on a computer. Write such a test so that it waits, with a limit, for the state that it needs, and
+not for an event or a fixed time. If it still times out now and then on GitHub Actions, annotate it
+with `@TimingSensitive`. This is the standing policy, and not a step before a fix: the annotation
+stays. The test runs on your computer and is skipped when `GITHUB_ACTIONS` is `true`, so CI does not
+run it. `mise run check` before each commit is the gate for these tests.
 
 On Windows, the integration tests use each PowerShell executable found on
 `PATH`. They report an absent `pwsh.exe`; a passing run with only Windows

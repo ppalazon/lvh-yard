@@ -8,12 +8,12 @@ import java.lang.annotation.Target;
 import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
 
 /**
- * A test that waits for a real container, such as Traefik, to be ready. On a GitHub Actions runner
- * the container answered later than the test waited, so the test failed now and then with the same
- * code that passed on the next run. It runs on a computer and is skipped in GitHub Actions, where
- * it gives no signal. CI does not run it, so run it before you commit. First make the test wait for
- * the state that it needs, not for an event or a fixed time. Keep this annotation if the test is
- * still unreliable on GitHub Actions. Remove it only after you see the test pass there reliably.
+ * A test that waits for a real container, such as Traefik, to be ready, and that times out now and
+ * then on a GitHub Actions runner, where the container answers later than the test waits. The
+ * standing policy is to annotate such a test. It runs on a computer and is skipped in GitHub
+ * Actions, so CI does not run it and {@code mise run check} before each commit is its gate. The
+ * annotation stays: do not remove it to try the test on CI. Write the test to wait, with a limit,
+ * for the state that it needs, and not for an event or a fixed time.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
