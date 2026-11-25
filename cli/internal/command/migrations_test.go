@@ -29,7 +29,7 @@ func TestInitRecordsTheLayoutSoNoMigrationRuns(t *testing.T) {
 	if got := strings.TrimSpace(readInitFile(t, folder, ".lvh-yard-layout")); got != "3" {
 		t.Fatalf("layout = %q", got)
 	}
-	run := yard.Run("ws", "compose", "upgrade", "--dir", folder)
+	run := yard.Run("ws", "compose", "update", "--dir", folder)
 	if run.ExitCode != 0 || strings.Contains(run.Stdout, "Note:") {
 		t.Fatalf("upgrade: %+v", run)
 	}
@@ -38,7 +38,7 @@ func TestInitRecordsTheLayoutSoNoMigrationRuns(t *testing.T) {
 func TestUpgradeRunsEachMigrationOnce(t *testing.T) {
 	folder := oldFolder(t)
 	yard := commandtest.New(t)
-	run := yard.Run("ws", "compose", "upgrade", "--dir", folder)
+	run := yard.Run("ws", "compose", "update", "--dir", folder)
 	if run.ExitCode != 0 || !strings.Contains(run.Stdout, oldDataFolderNote) {
 		t.Fatalf("first upgrade: %+v", run)
 	}
@@ -48,7 +48,7 @@ func TestUpgradeRunsEachMigrationOnce(t *testing.T) {
 	if !strings.Contains(readInitFile(t, folder, "compose.yaml"), "./consul-data:/consul/data") {
 		t.Fatal("the migration changed compose.yaml, which is the user's file")
 	}
-	run = yard.Run("ws", "compose", "upgrade", "--dir", folder)
+	run = yard.Run("ws", "compose", "update", "--dir", folder)
 	if run.ExitCode != 0 || strings.Contains(run.Stdout, oldDataFolderNote) {
 		t.Fatalf("second upgrade: %+v", run)
 	}
@@ -57,7 +57,7 @@ func TestUpgradeRunsEachMigrationOnce(t *testing.T) {
 func TestMigrationStaysQuietForAFolderThatItDoesNotConcern(t *testing.T) {
 	folder := t.TempDir()
 	writeUpgradeFile(t, folder, "compose.yaml", "services:\n  dashboard:\n    image: ghcr.io/ppalazon/lvh-yard-dashboard:latest\n  consul:\n    image: hashicorp/consul:2.1.0\n    volumes:\n      - consul-data:/consul/data\n  traefik:\n    image: traefik:v3.7.16\n")
-	run := commandtest.New(t).Run("ws", "compose", "upgrade", "--dir", folder)
+	run := commandtest.New(t).Run("ws", "compose", "update", "--dir", folder)
 	if run.ExitCode != 0 || strings.Contains(run.Stdout, "Note:") {
 		t.Fatalf("upgrade: %+v", run)
 	}
@@ -69,7 +69,7 @@ func TestMigrationStaysQuietForAFolderThatItDoesNotConcern(t *testing.T) {
 func TestUpgradeLeavesAFolderOfANewerReleaseAlone(t *testing.T) {
 	folder := oldFolder(t)
 	writeUpgradeFile(t, folder, ".lvh-yard-layout", "99\n")
-	run := commandtest.New(t).Run("ws", "compose", "upgrade", "--dir", folder)
+	run := commandtest.New(t).Run("ws", "compose", "update", "--dir", folder)
 	if run.ExitCode != 0 || !strings.Contains(run.Stdout, "newer lvh-yard") || strings.Contains(run.Stdout, oldDataFolderNote) {
 		t.Fatalf("upgrade: %+v", run)
 	}
@@ -81,7 +81,7 @@ func TestUpgradeLeavesAFolderOfANewerReleaseAlone(t *testing.T) {
 func TestUpgradeRefusesAnUnreadableLayout(t *testing.T) {
 	folder := oldFolder(t)
 	writeUpgradeFile(t, folder, ".lvh-yard-layout", "soon\n")
-	run := commandtest.New(t).Run("ws", "compose", "upgrade", "--dir", folder)
+	run := commandtest.New(t).Run("ws", "compose", "update", "--dir", folder)
 	if run.ExitCode != 1 || !strings.Contains(run.Stderr, ".lvh-yard-layout") {
 		t.Fatalf("upgrade: %+v", run)
 	}

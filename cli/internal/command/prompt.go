@@ -90,25 +90,3 @@ func (p *prompter) text(question, fallback string, check func(string) error) (st
 		return answer, nil
 	}
 }
-
-func (p *prompter) yesNo(question string, fallback bool) (bool, error) {
-	offered := "[Y/n]"
-	if !fallback {
-		offered = "[y/N]"
-	}
-	for {
-		answer, err := p.text(question+" "+offered, "", nil)
-		if err != nil {
-			return false, err
-		}
-		switch strings.ToLower(answer) {
-		case "":
-			return fallback, nil
-		case "y", "yes":
-			return true, nil
-		case "n", "no":
-			return false, nil
-		}
-		fmt.Fprintln(p.out, "Answer y or n.")
-	}
-}

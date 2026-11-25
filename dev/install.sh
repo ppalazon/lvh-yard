@@ -6,6 +6,7 @@
 # Settings, as environment variables:
 #   LVH_YARD_VERSION      A release such as 0.1.0 or v0.1.0. The default is the latest release.
 #   LVH_YARD_INSTALL_DIR  The folder for lvh-yard. The default is ~/.local/bin, or /usr/local/bin for root.
+#   LVH_YARD_FORCE        Set it to install over an lvh-yard that a package manager installed.
 set -eu
 
 REPO="ppalazon/lvh-yard"
@@ -59,6 +60,24 @@ verify() {
   fi
 }
 
+# Stops when something else owns an lvh-yard that this script would replace or hide: the one in the install folder,
+# and the first one on PATH. It asks the executable with its hidden install-method command. A package gives its
+# own name, such as deb. A release archive gives standalone, and a build from the sources gives nothing. An
+# executable from before the command fails, and counts as not owned. Output that is not one word is ignored.
+check_owner() {
+  [ -z "${LVH_YARD_FORCE:-}" ] || return 0
+  for existing in "$(command -v lvh-yard 2>/dev/null || true)" "$1/lvh-yard"; do
+    if [ -z "$existing" ] || [ ! -x "$existing" ]; then
+      continue
+    fi
+    method=$("$existing" install-method 2>/dev/null || true)
+    case "$method" in
+    "" | standalone | *[!a-z0-9._-]*) ;;
+    *) fail "$existing was installed by $method, not by this script. Update it with that package manager, then run \"lvh-yard ws compose update\". To install here anyway, set LVH_YARD_FORCE=1." ;;
+    esac
+  done
+}
+
 main() {
   have tar || fail "tar is required."
 
@@ -77,6 +96,8 @@ main() {
   else
     dir="$HOME/.local/bin"
   fi
+
+  check_owner "$dir"
 
   tmp=$(mktemp -d)
   trap 'rm -rf "$tmp"' EXIT INT TERM

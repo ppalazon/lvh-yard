@@ -108,18 +108,18 @@ Full reference: [Backups](https://github.com/ppalazon/lvh-yard/blob/main/docs/us
 
 ## Run the Workstation
 
-| Command                           | Result                                                                              |
-| --------------------------------- | ----------------------------------------------------------------------------------- |
-| `lvh-yard ws init`                | Writes the setup files of this Workstation.                                         |
-| `lvh-yard ws set <name> <value>`  | Changes one setting.                                                                |
-| `lvh-yard ws compose start`       | Starts the Compose services.                                                        |
-| `lvh-yard ws compose stop`        | Stops them.                                                                         |
-| `lvh-yard ws compose restart`     | Restarts them.                                                                      |
-| `lvh-yard ws compose recreate`    | Recreates them to apply new settings.                                               |
-| `lvh-yard ws compose logs consul` | Shows the logs of `consul`, `traefik` or `dashboard`. `-f` follows them.            |
-| `lvh-yard ws compose upgrade`     | Updates the images in `compose.yaml`.                                               |
-| `lvh-yard ws compose down`        | Removes the containers. `-v` removes the data volumes too.                          |
-| `lvh-yard update`                 | Installs a release and upgrades this Workstation. `--check` only shows the release. |
+| Command                           | Result                                                                   |
+| --------------------------------- | ------------------------------------------------------------------------ |
+| `lvh-yard ws init`                | Writes the setup files of this Workstation.                              |
+| `lvh-yard ws set <name> <value>`  | Changes one setting.                                                     |
+| `lvh-yard ws compose start`       | Starts the Compose services.                                             |
+| `lvh-yard ws compose stop`        | Stops them.                                                              |
+| `lvh-yard ws compose restart`     | Restarts them.                                                           |
+| `lvh-yard ws compose recreate`    | Recreates them to apply new settings.                                    |
+| `lvh-yard ws compose logs consul` | Shows the logs of `consul`, `traefik` or `dashboard`. `-f` follows them. |
+| `lvh-yard ws compose update`      | Updates the images in `compose.yaml`.                                    |
+| `lvh-yard ws compose down`        | Removes the containers. `-v` removes the data volumes too.               |
+| `lvh-yard update`                 | Installs a release of lvh-yard. `--check` only shows the release.        |
 
 Full reference: [the Workstation section of the user guide](https://github.com/ppalazon/lvh-yard/blob/main/docs/user-guide.md#running-on-a-workstation).
 

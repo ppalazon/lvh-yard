@@ -78,7 +78,7 @@ Java or a copy of this repository.
    to `$XDG_CONFIG_HOME/lvh-yard`. It creates `backups/`. Consul keeps its data in a
    Docker volume, not in this folder.
    Folders have mode 700, and files have mode 600.
-   `ws init`, `ws compose upgrade` and `ws set` repair these modes.
+   `ws init`, `ws compose update` and `ws set` repair these modes.
    For Windows paths and storage, see [Windows Workstation setup](#windows-workstation-setup).
    `--dir` picks another folder for any `ws` command, before or after the
    subcommand. Every platform keeps the
@@ -251,7 +251,7 @@ Four actions treat this state in different ways:
 
 After Docker Desktop or the computer restarts, run `lvh-yard ws compose start`.
 It starts the same project and uses the same volume.
-`lvh-yard ws compose upgrade` changes only image lines, so it keeps the volume
+`lvh-yard ws compose update` changes only image lines, so it keeps the volume
 too. See [Upgrading](#upgrading).
 
 ##### Reset a Windows Workstation
@@ -435,7 +435,7 @@ lvh-yard:
 ```
 
 After saving the file, run `docker compose restart dashboard` in the Workstation
-Folder. `lvh-yard ws compose upgrade` and `lvh-yard ws set` leave the file unchanged.
+Folder. `lvh-yard ws compose update` and `lvh-yard ws set` leave the file unchanged.
 A dashboard run from the sources loads the Workstation Folder's settings through
 the [development tasks](development.md#a-yard-on-one-computer).
 
@@ -677,7 +677,7 @@ ca/
   client/<name>.p12      the Client Certificates of people
 ```
 
-`ws compose upgrade` moves the files of an older folder from `ca/certs/` and
+`ws compose update` moves the files of an older folder from `ca/certs/` and
 `ca/clients/` to these places.
 
 A Workstation has one CA. For another one, use another Workstation Folder, or
@@ -787,7 +787,7 @@ Every group has the same four commands:
 
 All commands that turn a part on or off save `.env`. Apply the change with the printed
 `lvh-yard ws compose recreate`. A part needs Traefik on: they refuse to run while
-`ws set traefik off` is in effect, except `disable`. `ws compose upgrade` writes the
+`ws set traefik off` is in effect, except `disable`. `ws compose update` writes the
 generated files of the parts that are on again, and keeps the certificates.
 
 `ws tls install`, `ws tls enable` and `ws tls disable` no longer exist. A folder
@@ -1050,43 +1050,48 @@ Certificate signed by the CA of this Workstation. The default option does not re
 
 ### Upgrading
 
-`lvh-yard update` installs the latest release from GitHub and upgrades this
-Workstation. It checks the download against `SHA256SUMS`. Before it changes
-anything, it asks the dashboard for a [Backup](#backups) and saves it in the
-Backups folder as `<workstation>-<yyyyMMdd-HHmmss>-before-update.yaml`. If the
-dashboard is stopped, it warns that there is no Backup and goes on, because the
-Consul data stays in its Docker volume. To get a Backup first, run
-`lvh-yard ws compose start` and then `lvh-yard update`. Then `update` replaces
-the executable that you ran. Then the new executable runs `ws compose upgrade`,
-because only the new release has the files of the new release. On a terminal, it
-asks whether to recreate the services. Without a terminal, it prints the command.
+`lvh-yard update` installs the latest release from GitHub. It checks the
+download against `SHA256SUMS` and replaces the executable that you ran. It does
+not change a Workstation, because only the new release has the files of the new
+release. It ends with the command to run next: `lvh-yard ws compose update`.
 
 ```sh
 lvh-yard update --check          # shows the latest release, changes nothing
 lvh-yard update                  # installs the latest release
 lvh-yard update 0.4.0            # installs this release, an older one too
-lvh-yard update --dir <folder>   # upgrades another Workstation Folder
 ```
 
-`update` upgrades one Workstation Folder. Run `ws --dir <folder> compose upgrade`
-for each other one. A development build cannot update. If you cannot write to
-the folder of the executable, run the install script again.
+Only an executable from a release archive or from the install script updates
+itself. If a package manager installed `lvh-yard`, or you built it from the
+sources, `update` refuses. Update it the way you installed it, then run
+`lvh-yard ws compose update`. If you cannot write to the folder of the
+executable, run the install script again.
+
+Before `ws compose update` changes anything, it asks the dashboard for a
+[Backup](#backups) and saves it in the Backups folder as
+`<workstation>-<yyyyMMdd-HHmmss>-before-update.yaml`. If the dashboard is
+stopped, it warns that there is no Backup and goes on, because the Consul data
+stays in its Docker volume. To get a Backup first, run
+`lvh-yard ws compose start` and then `lvh-yard ws compose update`. A command
+that refuses to update writes no Backup.
 
 `lvh-yard ws init` does not overwrite a file unless you give `--force`.
-After you install a new `lvh-yard` by hand, run `lvh-yard ws compose upgrade`.
+After you install a new `lvh-yard`, run `lvh-yard ws compose update` in each
+Workstation Folder. Use `lvh-yard ws --dir <folder> compose update` for a folder
+other than the default one.
 It changes only the image lines in `compose.yaml`: consul, traefik and
 dashboard, and the one-shot `consul-data-init` too.
 It also rewrites `consul.d/00-lvh-yard.hcl`.
-Then run `lvh-yard ws compose recreate`,
+Then run `lvh-yard ws compose recreate`, which the command prints,
 even if every image is current. This makes Consul load the generated options.
 
-`ws compose upgrade` also runs the migrations that a release adds. A migration
+`ws compose update` also runs the migrations that a release adds. A migration
 changes a file that LVH Yard owns, or tells you what to change in a file that
 you own. It runs once for a folder. The file `.lvh-yard-layout` in the folder
 records how many migrations the folder has had. Do not edit it.
 
 A Linux or macOS folder from an older `lvh-yard` mounts `./consul-data` and keeps
-doing so, because the upgrade changes only image lines. The first upgrade prints
+doing so, because the update changes only image lines. The first update prints
 a note about it. `ws compose down -v` does not remove that folder. To use the
 Docker volume, export a Backup, make a new
 folder with `lvh-yard ws init --dir <new folder>` and the same Workstation name
@@ -1098,13 +1103,13 @@ LVH Yard owns `consul.d/00-lvh-yard.hcl`, `consul.d/10-tls.hcl`,
 The scripts in `scripts/` start Consul, Traefik and, on Windows, the dashboard.
 `compose.yaml` mounts each one at `/scripts/` in its container.
 `ws init` writes them without a notice, so you can change them.
-`ws compose upgrade` writes them again and replaces your changes. It adds a
+`ws compose update` writes them again and replaces your changes. It adds a
 notice to each script, so you can see that a command wrote it. To keep a change,
 copy the script and point `compose.yaml` at the copy. If a script stops working
 after you change it, fix it by hand.
 You own `compose.yaml`, `.env`, `lvh-yard.yaml` and every other file you add
 to `consul.d/` or `traefik/dynamic/`. Put custom options in your own files.
-`ws compose upgrade` keeps their contents unchanged.
+`ws compose update` keeps their contents unchanged.
 Consul reads `consul.d/` read-only. On Linux and macOS, Traefik watches the
 read-only `traefik/dynamic/` mount. Windows stages the same source files locally.
 
@@ -1163,11 +1168,16 @@ curl -fsSL https://lvhy.cc/install.sh | sh
 ```
 
 If `~/.local/bin` is not on your `PATH`, the script tells you the line to add.
-Two environment variables change what it does:
+Three environment variables change what it does:
 
 - `LVH_YARD_VERSION`, a release such as `0.1.0`. The default is the latest
   release.
 - `LVH_YARD_INSTALL_DIR`, the folder for `lvh-yard`.
+- `LVH_YARD_FORCE`, any value. See below.
+
+If a package manager installed the `lvh-yard` that the script would replace or
+hide, the script stops and names the package manager. The package manager
+updates that `lvh-yard`. Set `LVH_YARD_FORCE=1` to install over it anyway.
 
 ```sh
 curl -fsSL https://lvhy.cc/install.sh \

@@ -96,9 +96,9 @@ The admin page and the ping use their own entry point, always on loopback. They 
 
 ## Who owns which file
 
-LVH Yard owns the files that it generates, and their names say so. Each one starts with a line "Generated, do not edit". LVH Yard owns the scripts too, because `ws compose upgrade` writes them again. Consul and Traefik read their folders in name order, so your files come after them.
+LVH Yard owns the files that it generates, and their names say so. Each one starts with a line "Generated, do not edit". LVH Yard owns the scripts too, because `ws compose update` writes them again. Consul and Traefik read their folders in name order, so your files come after them.
 
-| File                                                                 | Owner    | `ws compose upgrade`                         |
+| File                                                                 | Owner    | `ws compose update`                          |
 | -------------------------------------------------------------------- | -------- | -------------------------------------------- |
 | `compose.yaml`                                                       | You      | Changes only the image lines                 |
 | `.env`, `lvh-yard.yaml`                                              | You      | Leaves them                                  |

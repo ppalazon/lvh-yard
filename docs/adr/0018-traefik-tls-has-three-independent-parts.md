@@ -33,7 +33,7 @@ Mutual TLS to Services applies by Service, as a setting of its Publication, beca
 ## Consequences
 
 - `https import` checks the chain of the certificate when it imports. The CA that signed it is not kept, so `https enable` checks only the key, the dates and the Yard hostname again.
-- A folder from before this decision has `traefik.crt`, `traefik.key` and `ca.crt`. `ws compose upgrade` renames them to `https.crt`, `https.key` and `client-ca.crt`, and turns the client check on when HTTPS was on, because HTTPS used to turn it on.
+- A folder from before this decision has `traefik.crt`, `traefik.key` and `ca.crt`. `ws compose update` renames them to `https.crt`, `https.key` and `client-ca.crt`, and turns the client check on when HTTPS was on, because HTTPS used to turn it on.
 - Client Certificate authentication is off after `https create` until `client create` runs. A Route with `clientCertificate: {}` has no Route, and a Service Warning, until then.
 - The CA that checks the Services (`mtls-ca.crt`) may differ from the one that signed Traefik's certificate, as it does in a company with its own CA.
 - The dashboard does not check that an Instance speaks TLS. A Reachability test of an Instance stays a plain TCP connection.

@@ -13,7 +13,7 @@ import (
 const layoutFile = ".lvh-yard-layout"
 
 // migration changes a Workstation Folder, or tells the user what to change, when a new release needs it. It runs once
-// in ws compose upgrade, which lvh-yard update runs after it replaces the executable. The new executable runs it, so
+// in ws compose update, which the user runs after lvh-yard update replaces the executable. The new executable runs it, so
 // a migration may use the templates of the release that needs it.
 //
 // To add one, append it to migrations. Never reorder or remove one: a folder's layout is a place in this list. A

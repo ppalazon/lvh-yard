@@ -652,15 +652,28 @@ installed executable to make room for an upgrade.
 (or `releases/download/v<version>` for a given version), so the archive names
 also matter there. The code is in `cli/internal/update`. It swaps the
 executable by renaming the old file aside, because Windows can rename a running
-executable but not overwrite it. A failed swap puts the old file back. Then
-`update` runs `<new executable> ws compose upgrade`. It must be the new
-executable, because the compose and Consul templates are embedded in it.
+executable but not overwrite it. A failed swap puts the old file back. `update`
+does not touch a Workstation Folder. It prints `lvh-yard ws compose update`,
+which the user runs with the new executable, because the compose and Consul
+templates are embedded in it.
+
+`update` replaces only an executable that reports the install method
+`standalone`. `dev/package-cli.sh` sets it with `-X main.installMethod=standalone`.
+No other build sets it: a package must build with its own non-empty value, and
+then `update` refuses and leaves the executable to the package manager. Do not
+repackage the release archive's executable, because it says `standalone`.
+
+`dev/install.sh` reads the same value with the hidden `lvh-yard install-method`
+command, for the `lvh-yard` in its install folder and the first one on `PATH`. A
+value other than empty or `standalone` stops the script, unless `LVH_YARD_FORCE`
+is set. An empty value, an executable without the command, and output that is
+not one word all pass, so a package with an empty value is not protected.
 
 ### Migrations
 
 A release that needs a change in an existing Workstation Folder adds an entry at
 the end of `migrations` in `cli/internal/command/migrations.go`. `ws compose
-upgrade` runs the entries that the folder has not had, in order, and records
+update` runs the entries that the folder has not had, in order, and records
 each in `.lvh-yard-layout`. A new `ws init` writes the current number, so a new
 folder runs none. Rules:
 

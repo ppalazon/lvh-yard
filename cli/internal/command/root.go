@@ -15,9 +15,11 @@ import (
 
 type Options struct {
 	Version string
-	Process Process
-	Out     io.Writer
-	Err     io.Writer
+	// InstallMethod says who installed this executable. update replaces it only when it is InstallMethodStandalone.
+	InstallMethod string
+	Process       Process
+	Out           io.Writer
+	Err           io.Writer
 	// Dashboard builds the dashboard of an address. The default is the HTTP client.
 	Dashboard func(address string) Dashboard
 	// Releases is the address of the GitHub releases that update reads. Tests give their own server.
@@ -88,7 +90,7 @@ func NewRoot(options Options, groups ...func(*Options) *cobra.Command) *cobra.Co
 	root.AddCommand(NewContainers(&options))
 	root.AddCommand(NewPublish(&options), NewUnpublish(&options), NewPriority(&options))
 	root.AddCommand(NewAlias(&options))
-	root.AddCommand(NewCompletions(&options))
+	root.AddCommand(NewCompletions(&options), NewInstallMethod(&options))
 	for _, group := range groups {
 		root.AddCommand(group(&options))
 	}

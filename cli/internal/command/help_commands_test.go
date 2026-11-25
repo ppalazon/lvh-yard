@@ -53,7 +53,7 @@ func TestPrintedCommandsStandAloneOrInQuotes(t *testing.T) {
 	empty := filepath.Join(t.TempDir(), "none")
 	for _, args := range [][]string{
 		{"ws", "--dir", empty, "show"},
-		{"ws", "--dir", empty, "compose", "upgrade"},
+		{"ws", "--dir", empty, "compose", "update"},
 		{"ws", "--dir", folder, "init", "--workstation", "ws-a", "--base-domain", "lvh.me"},
 		{"ws", "--dir", folder, "set", "workstation", "ws-b"},
 		{"ws", "--dir", folder, "set", "peers", "192.168.1.11"},
@@ -71,7 +71,7 @@ func TestPrintedCommandsStandAloneOrInQuotes(t *testing.T) {
 		{"ws", "--dir", folder, "tls", "client", "create"},
 		{"ws", "--dir", folder, "tls", "mtls", "create"},
 		{"ws", "--dir", folder, "tls", "mtls", "enable"},
-		{"ws", "--dir", folder, "compose", "upgrade"},
+		{"ws", "--dir", folder, "compose", "update"},
 		{"ws", "--dir", folder, "yard", "standalone"},
 	} {
 		run := yard.Run(args...)

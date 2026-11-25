@@ -27,5 +27,5 @@ A Client Certificate is required by a Route Profile option, for the Publications
 
 - If the Workstation with the CA key is lost, nothing breaks until a certificate expires. Then you make a new CA, and every Workstation installs new certificates.
 - Renaming a Workstation does not exist (`ws` has no `rename`), because the name is in the certificate, in the Consul datacenter, and in every hostname.
-- A Workstation Folder from before this decision mounts `./tls` in both containers. `ws compose upgrade` says to mount `./tls/consul` and `./tls/traefik`, and the certificates are installed again. This is the one step of the change.
+- A Workstation Folder from before this decision mounts `./tls` in both containers. `ws compose update` says to mount `./tls/consul` and `./tls/traefik`, and the certificates are installed again. This is the one step of the change.
 - Traefik to Instances over mutual TLS with the Yard CA is not part of this decision. It would add a third certificate: a client certificate that Traefik presents to the Instances, which differs from the server certificate that browsers see. The role folders leave room for it.

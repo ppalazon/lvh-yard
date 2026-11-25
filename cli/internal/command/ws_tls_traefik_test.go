@@ -86,7 +86,7 @@ func TestWSTLSHTTPSCreateTurnsOnOnlyHTTPS(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(folder, "traefik", "dynamic", "10-tls.yaml"), []byte("broken"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	mustRun(t, yard, "ws", "compose", "upgrade", "--dir", folder)
+	mustRun(t, yard, "ws", "compose", "update", "--dir", folder)
 	if readInitFile(t, folder, "traefik/dynamic/10-tls.yaml") != https {
 		t.Fatal("upgrade did not regenerate TLS")
 	}
@@ -316,7 +316,7 @@ func TestUpgradeSplitsTheTraefikFilesIntoParts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r := mustRun(t, yard, "ws", "compose", "upgrade", "--dir", folder)
+	r := mustRun(t, yard, "ws", "compose", "update", "--dir", folder)
 	if !strings.Contains(r.Stdout, "three parts") {
 		t.Fatalf("no note about the new parts:\n%s", r.Stdout)
 	}
@@ -334,7 +334,7 @@ func TestUpgradeSplitsTheTraefikFilesIntoParts(t *testing.T) {
 		t.Fatalf("the settings after the upgrade are wrong:\n%s", readInitFile(t, folder, ".env"))
 	}
 	// A second upgrade has nothing to say.
-	if r := mustRun(t, yard, "ws", "compose", "upgrade", "--dir", folder); strings.Contains(r.Stdout, "three parts") {
+	if r := mustRun(t, yard, "ws", "compose", "update", "--dir", folder); strings.Contains(r.Stdout, "three parts") {
 		t.Fatalf("the migration ran twice:\n%s", r.Stdout)
 	}
 }
@@ -363,7 +363,7 @@ func TestUpgradeMovesWhatTheCASignedIntoGroups(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r := mustRun(t, yard, "ws", "compose", "upgrade", "--dir", folder)
+	r := mustRun(t, yard, "ws", "compose", "update", "--dir", folder)
 	if !strings.Contains(r.Stdout, "new places") {
 		t.Fatalf("no note about the new places:\n%s", r.Stdout)
 	}

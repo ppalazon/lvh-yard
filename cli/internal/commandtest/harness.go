@@ -23,7 +23,9 @@ type Harness struct {
 	// Dashboard stands in for the dashboard. With none, commands use the --dashboard address.
 	Dashboard command.Dashboard
 	Version   string
-	Groups    []func(*command.Options) *cobra.Command
+	// InstallMethod is the install method that the CLI reports. With none, update refuses, as it does for a package.
+	InstallMethod string
+	Groups        []func(*command.Options) *cobra.Command
 	// Releases is the address of a fake GitHub releases server for update. With none, update would reach GitHub.
 	Releases string
 	// Executable is the file that update replaces.
@@ -43,10 +45,11 @@ func (h *Harness) Run(args ...string) Result {
 	var stdout, stderr bytes.Buffer
 	h.Process.input = strings.NewReader(h.Process.Stdin)
 	options := command.Options{
-		Version: h.Version,
-		Process: h.Process,
-		Out:     &stdout,
-		Err:     &stderr,
+		Version:       h.Version,
+		InstallMethod: h.InstallMethod,
+		Process:       h.Process,
+		Out:           &stdout,
+		Err:           &stderr,
 	}
 	if h.Dashboard != nil {
 		options.Dashboard = func(string) command.Dashboard { return h.Dashboard }

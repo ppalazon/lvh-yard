@@ -51,11 +51,21 @@ func newWSLifecycle(options *Options, folder func() string) []*cobra.Command {
 	}
 	compose.AddCommand(newWSComposeDown(options, folder))
 	compose.AddCommand(&cobra.Command{
-		Use:   "upgrade",
+		Use:   "update",
 		Short: "Updates the images in compose.yaml.",
-		Args:  cobra.NoArgs,
+		Long: `Updates this Workstation to the release of this executable.
+
+Before:
+  Run "lvh-yard update" to install a release. A package manager does it for a package.
+Does:
+  1. Writes a Backup to the Backups folder, when the dashboard answers.
+  2. Changes the image lines in compose.yaml.
+  3. Writes the generated files again, and runs the migrations of the release.
+Next:
+  Run "lvh-yard ws compose recreate" to apply the changes.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return upgradeInit(options, folder(), wsCommandOf(cmd, folder()), cmd.OutOrStdout())
+			return upgradeInit(options, folder(), wsCommandOf(cmd, folder()), cmd.OutOrStdout(), cmd.ErrOrStderr())
 		},
 	})
 	compose.AddCommand(newWSComposeLogs(options, folder))

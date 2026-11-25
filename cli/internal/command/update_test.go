@@ -8,17 +8,15 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"strings"
-	"sync/atomic"
 	"testing"
 
+	"github.com/ppalazon/lvh-yard/cli/internal/command"
 	"github.com/ppalazon/lvh-yard/cli/internal/commandtest"
 	"github.com/ppalazon/lvh-yard/cli/internal/update"
 )
@@ -28,8 +26,6 @@ type updateFixture struct {
 	yard       *commandtest.Harness
 	executable string
 	folder     string
-	// dashboardStatus is the HTTP status of the fake dashboard's Backup. Zero means 200.
-	dashboardStatus atomic.Int32
 }
 
 // releaseArchive packs an executable that says "new executable", as a release does for goos: a ZIP for windows and a
@@ -105,20 +101,11 @@ func newUpdateFixtureFor(t *testing.T, goos, installed, version string) *updateF
 	yard := commandtest.New(t)
 	yard.Process.System = goos
 	yard.Version = installed
+	yard.InstallMethod = command.InstallMethodStandalone
 	yard.Releases = server.URL
 	yard.Executable = executable
 	yard.Process.Env["YARD_CONFIG_DIR"] = folder
-	f := &updateFixture{yard: yard, executable: executable, folder: folder}
-	dashboard := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if status := int(f.dashboardStatus.Load()); status != 0 {
-			http.Error(w, "down", status)
-			return
-		}
-		_, _ = io.WriteString(w, rawBackup)
-	}))
-	t.Cleanup(dashboard.Close)
-	yard.Process.Env["YARD_DASHBOARD_URL"] = dashboard.URL
-	return f
+	return &updateFixture{yard: yard, executable: executable, folder: folder}
 }
 
 func (f *updateFixture) installed(t *testing.T) string {
@@ -140,7 +127,7 @@ func (f *updateFixture) writeCompose(t *testing.T) {
 	}
 }
 
-func TestUpdateReplacesTheExecutableThenTheNewOneUpgradesTheWorkstation(t *testing.T) {
+func TestUpdateReplacesTheExecutableAndInvitesToUpdateTheWorkstation(t *testing.T) {
 	f := newUpdateFixture(t, "1.0.0", "2.0.0")
 	f.writeCompose(t)
 	run := f.yard.Run("update")
@@ -150,13 +137,17 @@ func TestUpdateReplacesTheExecutableThenTheNewOneUpgradesTheWorkstation(t *testi
 	if f.installed(t) != "new executable" {
 		t.Fatal("the executable was not replaced")
 	}
-	// Only the new executable has the templates of the new release, so it does the upgrade.
-	want := []commandtest.Command{{Name: f.executable, Args: []string{"ws", "compose", "upgrade"}, Dir: f.folder}}
-	if !reflect.DeepEqual(f.yard.Process.Commands, want) {
-		t.Fatalf("commands = %+v, want %+v", f.yard.Process.Commands, want)
+	// Only the new executable has the templates of the new release, so the user runs the Workstation update with it.
+	if len(f.yard.Process.Commands) != 0 {
+		t.Fatalf("update ran %+v, and the Workstation is the next command's work", f.yard.Process.Commands)
 	}
-	if !strings.Contains(run.Stdout, "Updating lvh-yard 1.0.0 to 2.0.0") {
-		t.Fatalf("output: %q", run.Stdout)
+	for _, want := range []string{"Updating lvh-yard 1.0.0 to 2.0.0", "\n  lvh-yard ws compose update\n"} {
+		if !strings.Contains(run.Stdout, want) {
+			t.Fatalf("output has no %q: %q", want, run.Stdout)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(f.folder, "backups")); !os.IsNotExist(err) {
+		t.Fatalf("update touched the Workstation Folder: %v", err)
 	}
 }
 
@@ -183,76 +174,14 @@ func TestUpdateInstallsTheZipOfAWindowsRelease(t *testing.T) {
 	}
 }
 
-func TestUpdateNamesAGivenFolderForTheUpgrade(t *testing.T) {
-	f := newUpdateFixture(t, "1.0.0", "2.0.0")
-	other := t.TempDir()
-	if err := os.WriteFile(filepath.Join(other, "compose.yaml"), []byte("services: {}\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if run := f.yard.Run("update", "--dir", other); run.ExitCode != 0 {
-		t.Fatalf("update: %+v", run)
-	}
-	want := []string{"ws", "--dir", other, "compose", "upgrade"}
-	if len(f.yard.Process.Commands) != 1 || !reflect.DeepEqual(f.yard.Process.Commands[0].Args, want) {
-		t.Fatalf("commands = %+v, want args %v", f.yard.Process.Commands, want)
-	}
-}
-
-func TestUpdateOffersToRecreateOnlyAtATerminal(t *testing.T) {
-	for _, test := range []struct {
-		name     string
-		terminal bool
-		answer   string
-		recreate bool
-	}{
-		{"yes", true, "y\n", true},
-		{"no", true, "n\n", false},
-		{"no terminal", false, "y\n", false},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			f := newUpdateFixture(t, "1.0.0", "2.0.0")
-			f.writeCompose(t)
-			f.yard.Process.Terminal = test.terminal
-			f.yard.Process.Stdin = test.answer
-			if run := f.yard.Run("update"); run.ExitCode != 0 {
-				t.Fatalf("update: %+v", run)
-			}
-			commands := f.yard.Process.Commands
-			if !test.recreate {
-				if len(commands) != 1 {
-					t.Fatalf("commands = %+v, want only the upgrade", commands)
-				}
-				return
-			}
-			want := []string{"compose", "--project-directory", f.folder, "up", "-d", "--force-recreate"}
-			if len(commands) != 2 || commands[1].Name != "docker" || !reflect.DeepEqual(commands[1].Args, want) {
-				t.Fatalf("commands = %+v, want the upgrade, then docker %v", commands, want)
-			}
-		})
-	}
-}
-
-func TestUpdateWithoutAWorkstationFolderOnlyReplacesTheExecutable(t *testing.T) {
+func TestUpdateWithoutAWorkstationFolderInvitesToInitInstead(t *testing.T) {
 	f := newUpdateFixture(t, "1.0.0", "2.0.0")
 	run := f.yard.Run("update")
-	if run.ExitCode != 0 || f.installed(t) != "new executable" || len(f.yard.Process.Commands) != 0 {
-		t.Fatalf("update: %+v, commands %+v", run, f.yard.Process.Commands)
-	}
-	if !strings.Contains(run.Stdout, "ws init") {
-		t.Fatalf("output does not point to ws init: %q", run.Stdout)
-	}
-}
-
-func TestUpdateKeepsTheNewExecutableWhenTheUpgradeFails(t *testing.T) {
-	f := newUpdateFixture(t, "1.0.0", "2.0.0")
-	f.writeCompose(t)
-	f.yard.Process.RunCommand = func(string, []string, string, io.Writer, io.Writer) (int, error) { return 3, nil }
-	run := f.yard.Run("update")
-	if run.ExitCode != 1 || !strings.Contains(run.Stderr, "lvh-yard is updated, but") || !strings.Contains(run.Stderr, "exit code 3") {
+	if run.ExitCode != 0 || f.installed(t) != "new executable" {
 		t.Fatalf("update: %+v", run)
 	}
-	if f.installed(t) != "new executable" {
-		t.Fatal("the new executable was rolled back")
+	if !strings.Contains(run.Stdout, "ws init") || strings.Contains(run.Stdout, "ws compose update") {
+		t.Fatalf("output does not point to ws init only: %q", run.Stdout)
 	}
 }
 
@@ -294,16 +223,8 @@ func TestUpdateInstallsAGivenOlderRelease(t *testing.T) {
 	}
 }
 
-func TestUpdateRefusesADevelopmentBuildAndAnUnknownRelease(t *testing.T) {
-	f := newUpdateFixture(t, "dev", "2.0.0")
-	if run := f.yard.Run("update"); run.ExitCode != 1 || !strings.Contains(run.Stderr, "development build") {
-		t.Fatalf("dev update: %+v", run)
-	}
-	// A development build may still look.
-	if run := f.yard.Run("update", "--check"); run.ExitCode != 0 || !strings.Contains(run.Stdout, "2.0.0") {
-		t.Fatalf("dev check: %+v", run)
-	}
-	f.yard.Version = "1.0.0"
+func TestUpdateRefusesAnUnknownRelease(t *testing.T) {
+	f := newUpdateFixture(t, "1.0.0", "2.0.0")
 	if run := f.yard.Run("update", "9.9.9"); run.ExitCode != 1 || !strings.Contains(run.Stderr, "9.9.9") {
 		t.Fatalf("unknown release: %+v", run)
 	}
@@ -312,83 +233,22 @@ func TestUpdateRefusesADevelopmentBuildAndAnUnknownRelease(t *testing.T) {
 	}
 }
 
-func TestUpdateWritesABackupBeforeItReplacesTheExecutable(t *testing.T) {
-	f := newUpdateFixture(t, "1.0.0", "2.0.0")
-	f.writeCompose(t)
-	if err := os.WriteFile(filepath.Join(f.folder, ".env"), []byte("YARD_WORKSTATION=ws-a\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	// The Backup must exist while the old executable is still in place, so check it when the upgrade starts.
-	var atUpgrade, executableAtUpgrade string
-	f.yard.Process.RunCommand = func(string, []string, string, io.Writer, io.Writer) (int, error) {
-		files, _ := filepath.Glob(filepath.Join(f.folder, "backups", "ws-a-*-before-update.yaml"))
-		if len(files) == 1 {
-			data, _ := os.ReadFile(files[0])
-			atUpgrade = string(data)
+// A package manager owns the executable of a package, and a build from the sources has no install method. Neither
+// updates itself, not even to look: the release on GitHub is not the one that the owner would install.
+func TestUpdateLeavesAnExecutableThatIsNotStandalone(t *testing.T) {
+	for _, method := range []string{"", "deb", "homebrew"} {
+		for _, args := range [][]string{{"update"}, {"update", "--check"}, {"update", "2.0.0"}} {
+			t.Run(method+"/"+strings.Join(args, " "), func(t *testing.T) {
+				f := newUpdateFixture(t, "1.0.0", "2.0.0")
+				f.yard.InstallMethod = method
+				run := f.yard.Run(args...)
+				if run.ExitCode != 1 || !strings.Contains(run.Stderr, "does not update itself") || !strings.Contains(run.Stderr, "\"lvh-yard ws compose update\"") {
+					t.Fatalf("update: %+v", run)
+				}
+				if run.Stdout != "" || f.installed(t) != "old executable" {
+					t.Fatalf("a refused update printed or changed something: %q, %q", run.Stdout, f.installed(t))
+				}
+			})
 		}
-		executableAtUpgrade = f.installed(t)
-		return 0, nil
-	}
-	run := f.yard.Run("update")
-	if run.ExitCode != 0 || run.Stderr != "" || !strings.Contains(run.Stdout, "Backup before the update: "+filepath.Join(f.folder, "backups", "ws-a-")) {
-		t.Fatalf("update: %+v", run)
-	}
-	if atUpgrade != rawBackup {
-		t.Fatalf("Backup = %q, want %q", atUpgrade, rawBackup)
-	}
-	files, _ := filepath.Glob(filepath.Join(f.folder, "backups", "*.yaml"))
-	info, err := os.Stat(files[0])
-	if err != nil || (commandtest.UnixModes && info.Mode().Perm() != 0o600) {
-		t.Fatalf("Backup mode: %v, %v", info, err)
-	}
-	if executableAtUpgrade != "new executable" {
-		t.Fatal("the update did not replace the executable")
-	}
-}
-
-// .env belongs to the user: a Workstation name with a path in it must not decide where the Backup goes.
-func TestUpdateBackupNameNeverHoldsAPath(t *testing.T) {
-	f := newUpdateFixture(t, "1.0.0", "2.0.0")
-	f.writeCompose(t)
-	if err := os.WriteFile(filepath.Join(f.folder, ".env"), []byte("YARD_WORKSTATION=../../escape\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	run := f.yard.Run("update")
-	if run.ExitCode != 0 {
-		t.Fatalf("update: %+v", run)
-	}
-	files, _ := filepath.Glob(filepath.Join(f.folder, "backups", "workstation-*-before-update.yaml"))
-	if len(files) != 1 {
-		t.Fatalf("Backups in the Backups folder: %v", files)
-	}
-	if outside, _ := filepath.Glob(filepath.Join(f.folder, "..", "*escape*")); len(outside) != 0 {
-		t.Fatalf("a Backup was written outside the Workstation Folder: %v", outside)
-	}
-}
-
-func TestUpdateGoesOnWhenTheDashboardCannotGiveABackup(t *testing.T) {
-	f := newUpdateFixture(t, "1.0.0", "2.0.0")
-	f.writeCompose(t)
-	f.dashboardStatus.Store(http.StatusServiceUnavailable)
-	run := f.yard.Run("update")
-	if run.ExitCode != 0 || !strings.Contains(run.Stderr, "no Backup was written before the update") {
-		t.Fatalf("update: %+v", run)
-	}
-	if f.installed(t) != "new executable" || len(f.yard.Process.Commands) != 1 {
-		t.Fatalf("the update did not finish: %q, commands %+v", f.installed(t), f.yard.Process.Commands)
-	}
-	if files, _ := filepath.Glob(filepath.Join(f.folder, "backups", "*")); len(files) != 0 {
-		t.Fatalf("files in backups: %v", files)
-	}
-}
-
-func TestUpdateWritesNoBackupWhenItInstallsNothing(t *testing.T) {
-	f := newUpdateFixture(t, "2.0.0", "2.0.0")
-	f.writeCompose(t)
-	if run := f.yard.Run("update"); run.ExitCode != 0 {
-		t.Fatalf("update: %+v", run)
-	}
-	if _, err := os.Stat(filepath.Join(f.folder, "backups")); !os.IsNotExist(err) {
-		t.Fatalf("backups folder: %v", err)
 	}
 }

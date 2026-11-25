@@ -39,7 +39,7 @@ func TestWSDirWorksBeforeSubcommands(t *testing.T) {
 	if run.ExitCode != 0 || !strings.Contains(readInitFile(t, folder, ".env"), "YARD_WORKSTATION=ws-a\n") {
 		t.Fatalf("init with group dir: %+v", run)
 	}
-	run = yard.Run("ws", "--dir", folder, "compose", "upgrade")
+	run = yard.Run("ws", "--dir", folder, "compose", "update")
 	if run.ExitCode != 0 || !strings.Contains(run.Stdout, "already this version") {
 		t.Fatalf("upgrade with group dir: %+v", run)
 	}

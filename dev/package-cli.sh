@@ -13,7 +13,7 @@ for platform in linux-amd64 linux-arm64 macos-arm64 windows-amd64; do
   if [ "$os" = windows ]; then executable=lvh-yard.exe; fi
   mkdir -p "target/$platform"
   GOOS="$os" GOARCH="$arch" go build -trimpath \
-    -ldflags="-s -w -X main.version=$version" \
+    -ldflags="-s -w -X main.version=$version -X main.installMethod=standalone" \
     -o "target/$platform/$executable" ./cmd/lvh-yard
   archive="lvh-yard-$version-$platform"
   if [ "$os" = windows ]; then

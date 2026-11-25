@@ -3,37 +3,41 @@ package command
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
-	"time"
 
-	"github.com/ppalazon/lvh-yard/cli/internal/envfile"
-	"github.com/ppalazon/lvh-yard/cli/internal/settings"
 	"github.com/ppalazon/lvh-yard/cli/internal/update"
 	"github.com/spf13/cobra"
 )
 
-const updateHelp = `Installs the latest release, or the one you name, and upgrades this Workstation.
+// InstallMethodStandalone is the install method of an executable from a release archive, which is also what the
+// install scripts put in place. dev/package-cli.sh sets it with -ldflags "-X main.installMethod=standalone". Any other
+// value, or none, means that something else owns the executable, such as a package manager or a build from the
+// sources, and update leaves it alone.
+const InstallMethodStandalone = "standalone"
+
+const updateHelp = `Installs the latest release, or the one you name.
 
 Does:
-  1. Writes a Backup to the Backups folder.
+  1. Downloads the release and checks it against SHA256SUMS.
   2. Replaces this executable.
-  3. Runs "ws compose upgrade".
-  4. Asks to recreate the services, at a terminal.
+Next:
+  Run "lvh-yard ws compose update" to update the Workstation.
 Note:
+  - Only an executable from a release archive or the install script updates itself. A package manager updates the others.
   - --check shows the release and changes nothing.`
 
-// NewUpdate replaces this executable with a release from GitHub, then runs ws compose upgrade with the new executable.
-// The templates are inside the executable, so only the new one can write the files of the new release.
+// NewUpdate replaces this executable with a release from GitHub, and invites the user to update the Workstation. It
+// does not touch a Workstation Folder: the templates are inside the executable, so the new executable does that, in
+// ws compose update.
 func NewUpdate(options *Options) *cobra.Command {
 	var check bool
-	var dir string
 	cmd := &cobra.Command{
 		Use:   "update [version]",
-		Short: "Installs a release and upgrades this Workstation.",
+		Short: "Installs a release of lvh-yard.",
 		Long:  updateHelp,
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -41,26 +45,22 @@ func NewUpdate(options *Options) *cobra.Command {
 			if len(args) == 1 {
 				wanted = strings.TrimPrefix(args[0], "v")
 			}
-			folder := options.WorkstationFolder()
-			if cmd.Flags().Changed("dir") {
-				folder = dir
-			}
-			return runUpdate(options, cmd, updateRequest{wanted: wanted, check: check, folder: folder, folderGiven: cmd.Flags().Changed("dir")})
+			return runUpdate(options, cmd, updateRequest{wanted: wanted, check: check})
 		},
 	}
 	cmd.Flags().BoolVar(&check, "check", false, "Shows the release to install. Changes nothing.")
-	cmd.Flags().StringVar(&dir, "dir", "", "Upgrades this Workstation Folder.")
 	return cmd
 }
 
 type updateRequest struct {
-	wanted      string
-	check       bool
-	folder      string
-	folderGiven bool
+	wanted string
+	check  bool
 }
 
 func runUpdate(options *Options, cmd *cobra.Command, request updateRequest) error {
+	if options.InstallMethod != InstallMethodStandalone {
+		return errors.New("this lvh-yard does not update itself, because it was not installed from a release archive. Update it the way you installed it, for example with your package manager. Then run \"lvh-yard ws compose update\"")
+	}
 	out := cmd.OutOrStdout()
 	platform, err := update.Platform(options.Process.OS(), runtime.GOARCH)
 	if err != nil {
@@ -86,9 +86,6 @@ func runUpdate(options *Options, cmd *cobra.Command, request updateRequest) erro
 		fmt.Fprintf(out, "To install it:\n  lvh-yard update %s\n", release.Version)
 		return nil
 	}
-	if current == "dev" {
-		return errors.New("this is a development build and has no release to update from. Use the install script")
-	}
 	path, err := options.Executable()
 	if err != nil {
 		return fmt.Errorf("could not find this executable: %w", err)
@@ -102,95 +99,22 @@ func runUpdate(options *Options, cmd *cobra.Command, request updateRequest) erro
 	if err != nil {
 		return err
 	}
-	backupBeforeUpdate(options, cmd, request.folder)
 	if err := update.Replace(path, executable); err != nil {
 		return fmt.Errorf("could not replace %s: %w. If you cannot write there, run the install script again with sudo, or set LVH_YARD_INSTALL_DIR to a folder you own", path, err)
 	}
 	fmt.Fprintf(out, "Installed %s.\n", path)
-	return upgradeWorkstation(options, cmd, path, request)
+	inviteWorkstationUpdate(options, out)
+	return nil
 }
 
-// upgradeWorkstation runs ws compose upgrade with the new executable, and then offers to recreate the services.
-func upgradeWorkstation(options *Options, cmd *cobra.Command, executable string, request updateRequest) error {
-	out := cmd.OutOrStdout()
-	folder, err := filepath.Abs(request.folder)
-	if err != nil {
-		return err
-	}
+// inviteWorkstationUpdate says what to run next. Only the new executable has the files of the new release, so the
+// Workstation is updated by a second command, which the user runs. With no Workstation Folder, there is nothing to
+// update, and the invitation is to make one.
+func inviteWorkstationUpdate(options *Options, out io.Writer) {
+	folder := options.WorkstationFolder()
 	if _, err := os.Stat(filepath.Join(folder, "compose.yaml")); err != nil {
-		fmt.Fprintf(out, "No Workstation Folder at %s. Nothing more to upgrade.\nTo make one:\n  lvh-yard ws init\n", folder)
-		return nil
-	}
-	args := []string{"ws"}
-	if request.folderGiven {
-		args = append(args, "--dir", folder)
-	}
-	args = append(args, "compose", "upgrade")
-	fmt.Fprintln(out)
-	code, err := options.Process.Run(executable, args, folder, out, cmd.ErrOrStderr())
-	if err != nil {
-		return fmt.Errorf("lvh-yard is updated, but \"lvh-yard %s\" did not run: %w", strings.Join(args, " "), err)
-	}
-	if code != 0 {
-		return fmt.Errorf("lvh-yard is updated, but \"lvh-yard %s\" failed with exit code %d. Fix the cause and run it again", strings.Join(args, " "), code)
-	}
-	prompt := newPrompter(cmd, options)
-	if !prompt.terminal {
-		return nil
-	}
-	recreate, err := prompt.yesNo("Recreate the services now?", false)
-	if err != nil || !recreate {
-		return err
-	}
-	return runWSCompose(options, cmd, folder, composeRecreate)
-}
-
-// backupBeforeUpdate writes a Backup to the Backups folder before anything changes, in the way of the safety Backup
-// of an import. It only warns when it cannot: the data lives in a Docker volume, which the update does not touch, and
-// a Workstation that is stopped has no dashboard to ask.
-func backupBeforeUpdate(options *Options, cmd *cobra.Command, folder string) {
-	folder, err := filepath.Abs(folder)
-	if err != nil {
+		fmt.Fprintf(out, "No Workstation Folder at %s. To make one:\n  lvh-yard ws init\n", folder)
 		return
 	}
-	if _, err := os.Stat(filepath.Join(folder, "compose.yaml")); err != nil {
-		return // no Workstation Folder: nothing to back up
-	}
-	root, err := os.OpenRoot(folder)
-	if err != nil {
-		return
-	}
-	defer func() { _ = root.Close() }()
-	env, _ := root.ReadFile(".env")
-	warn := func(reason error) {
-		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: no Backup was written before the update: %v\n", reason)
-	}
-	backup, err := options.Dashboard(options.dashboardAddressIn(folder)).Backup()
-	if err != nil {
-		warn(err)
-		return
-	}
-	backups := filepath.Join(folder, "backups")
-	if err := os.MkdirAll(backups, 0700); err != nil {
-		warn(err)
-		return
-	}
-	name := envfile.Setting(string(env), "YARD_WORKSTATION", "workstation")
-	if !settings.ValidWorkstationName(name) {
-		name = "workstation" // .env is a file of the user: never let it put a path in the file name
-	}
-	stem := name + "-" + time.Now().Format("20060102-150405") + "-before-update"
-	file := stem + ".yaml"
-	for n := 2; ; n++ {
-		if _, err := root.Lstat(filepath.Join("backups", file)); os.IsNotExist(err) {
-			break
-		}
-		file = stem + "-" + strconv.Itoa(n) + ".yaml"
-	}
-	path := filepath.Join(backups, file)
-	if err := writePrivateFile(path, []byte(backup)); err != nil {
-		warn(err)
-		return
-	}
-	fmt.Fprintf(cmd.OutOrStdout(), "Backup before the update: %s\n", path)
+	fmt.Fprintf(out, "To update this Workstation to the new release:\n  lvh-yard ws compose update\n")
 }

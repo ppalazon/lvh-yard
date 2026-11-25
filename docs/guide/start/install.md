@@ -43,6 +43,8 @@ Consul keeps its data in a Docker volume, not in the folder.
 
     The script downloads the archive of your platform and checks it against `SHA256SUMS`. It then copies `lvh-yard` to `~/.local/bin`. As root, it copies it to `/usr/local/bin`. If that folder is not on your `PATH`, the script prints the line to add.
 
+    If a package manager installed the `lvh-yard` that the script would replace or hide, the script stops and names the package manager. Update that one with the package manager. Set `LVH_YARD_FORCE=1` to install over it anyway.
+
 === "Windows"
 
     Read the installer before you run it. Use Windows PowerShell 5.1 or PowerShell 7:

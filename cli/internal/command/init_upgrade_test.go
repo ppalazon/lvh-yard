@@ -1,9 +1,14 @@
 package command_test
 
 import (
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -43,7 +48,8 @@ func TestInitUpgradeChangesOnlyImageValues(t *testing.T) {
 			writeUpgradeFile(t, folder, "lvh-yard.yaml", "# my dashboard settings\nlvh-yard:\n  events:\n    debounce-window: 500ms\n")
 			yard := commandtest.New(t)
 			yard.Version = tc.version
-			run := yard.Run("ws", "compose", "upgrade", "--dir", folder)
+			newBackupDashboard(t, yard, folder)
+			run := yard.Run("ws", "compose", "update", "--dir", folder)
 			if run.ExitCode != 0 || run.Stderr != "" {
 				t.Fatalf("upgrade: %+v", run)
 			}
@@ -83,7 +89,8 @@ func TestInitUpgradeAlreadyCurrentDoesNotWriteCompose(t *testing.T) {
 	}
 	yard := commandtest.New(t)
 	yard.Version = "0.8.1"
-	run := yard.Run("ws", "compose", "upgrade", "--dir", folder)
+	newBackupDashboard(t, yard, folder)
+	run := yard.Run("ws", "compose", "update", "--dir", folder)
 	if run.ExitCode != 0 || run.Stderr != "" {
 		t.Fatalf("already-current upgrade: %+v", run)
 	}
@@ -104,7 +111,7 @@ func TestInitUpgradeMissingImageLeavesEveryFileUntouched(t *testing.T) {
 			before := strings.Replace(complete, "    image: old-"+service+"\n", "    # image: removed\n    environment:\n      image: not-a-service-image\n", 1)
 			writeUpgradeFile(t, folder, "compose.yaml", before)
 			writeUpgradeFile(t, folder, ".env", "YARD_WORKSTATION=mine\n")
-			run := commandtest.New(t).Run("ws", "compose", "upgrade", "--dir", folder)
+			run := commandtest.New(t).Run("ws", "compose", "update", "--dir", folder)
 			if run.ExitCode != 1 || !strings.Contains(run.Stderr, filepath.Join(folder, "compose.yaml")+" has no image: line for "+service) || !strings.Contains(run.Stderr, "Nothing was changed") {
 				t.Fatalf("missing image: %+v", run)
 			}
@@ -117,7 +124,7 @@ func TestInitUpgradeMissingImageLeavesEveryFileUntouched(t *testing.T) {
 
 func TestInitUpgradeMissingComposeSaysToRunInit(t *testing.T) {
 	folder := t.TempDir()
-	run := commandtest.New(t).Run("ws", "compose", "upgrade", "--dir", folder)
+	run := commandtest.New(t).Run("ws", "compose", "update", "--dir", folder)
 	if run.ExitCode != 1 || !strings.Contains(run.Stderr, filepath.Join(folder, "compose.yaml")+" does not exist") || !strings.Contains(run.Stderr, "lvh-yard ws init") {
 		t.Fatalf("missing compose: %+v", run)
 	}
@@ -132,7 +139,7 @@ func TestInitUpgradeRejectsOtherWriteModes(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			folder := t.TempDir()
 			writeUpgradeFile(t, folder, ".env", "YARD_WORKSTATION=mine\n")
-			run := commandtest.New(t).Run("ws", "compose", "upgrade", "--dir", folder, mode)
+			run := commandtest.New(t).Run("ws", "compose", "update", "--dir", folder, mode)
 			if run.ExitCode != 1 || !strings.Contains(run.Stderr, "unknown flag") || !strings.Contains(run.Stderr, strings.TrimPrefix(mode, "--")) {
 				t.Fatalf("conflicting modes: %+v", run)
 			}
@@ -149,7 +156,8 @@ func TestInitUpgradeUsesStandardWorkstationFolder(t *testing.T) {
 	writeUpgradeFile(t, folder, "compose.yaml", "services:\n  dashboard:\n    image: old-dashboard\n  consul:\n    image: old-consul\n  traefik:\n    image: old-traefik\n"+dataInitService("old-consul"))
 	yard := commandtest.New(t)
 	yard.Process.Env["YARD_CONFIG_DIR"] = folder
-	run := yard.Run("ws", "compose", "upgrade")
+	newBackupDashboard(t, yard, folder)
+	run := yard.Run("ws", "compose", "update")
 	if run.ExitCode != 0 || run.Stderr != "" {
 		t.Fatalf("upgrade default Workstation Folder: %+v", run)
 	}
@@ -165,15 +173,128 @@ func TestInitUpgradeAcceptsTheComposeThatInitWrote(t *testing.T) {
 	folder := t.TempDir()
 	yard := commandtest.New(t)
 	yard.Version = "0.8.1"
+	newBackupDashboard(t, yard, folder)
 	if run := yard.Run("ws", "init", "--dir", folder, "--workstation", "ws-a", "--base-domain", "lvh.me"); run.ExitCode != 0 {
 		t.Fatalf("init: %+v", run)
 	}
 	yard.Version = "0.8.2"
-	run := yard.Run("ws", "compose", "upgrade", "--dir", folder)
+	run := yard.Run("ws", "compose", "update", "--dir", folder)
 	if run.ExitCode != 0 || run.Stderr != "" {
 		t.Fatalf("upgrade of a generated compose.yaml: %+v", run)
 	}
 	if !strings.Contains(readInitFile(t, folder, "compose.yaml"), "lvh-yard-dashboard:0.8.2}") {
 		t.Fatal("upgrade did not change the dashboard image")
+	}
+}
+
+// backupDashboard stands in for the running dashboard of a Workstation that is being updated. It gives rawBackup, and
+// remembers what compose.yaml held when the Backup was asked for.
+type backupDashboard struct {
+	// status is the HTTP status of the Backup. Zero means 200.
+	status atomic.Int32
+	asked  atomic.Int32
+	mu     sync.Mutex
+	// composeAtBackup is compose.yaml at the last request, to show that the Backup comes before the changes.
+	composeAtBackup string
+}
+
+func newBackupDashboard(t *testing.T, yard *commandtest.Harness, folder string) *backupDashboard {
+	t.Helper()
+	d := &backupDashboard{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		d.asked.Add(1)
+		data, _ := os.ReadFile(filepath.Join(folder, "compose.yaml"))
+		d.mu.Lock()
+		d.composeAtBackup = string(data)
+		d.mu.Unlock()
+		if status := int(d.status.Load()); status != 0 {
+			http.Error(w, "down", status)
+			return
+		}
+		_, _ = io.WriteString(w, rawBackup)
+	}))
+	t.Cleanup(server.Close)
+	yard.Process.Env["YARD_DASHBOARD_URL"] = server.URL
+	return d
+}
+
+const oldComposeForBackup = "services:\n  dashboard:\n    image: old-dashboard\n  consul:\n    image: old-consul\n  traefik:\n    image: old-traefik\n"
+
+func TestComposeUpdateWritesABackupBeforeItChangesAnyFile(t *testing.T) {
+	folder := t.TempDir()
+	writeUpgradeFile(t, folder, "compose.yaml", oldComposeForBackup)
+	writeUpgradeFile(t, folder, ".env", "YARD_WORKSTATION=ws-a\n")
+	yard := commandtest.New(t)
+	dashboard := newBackupDashboard(t, yard, folder)
+	run := yard.Run("ws", "compose", "update", "--dir", folder)
+	if run.ExitCode != 0 || run.Stderr != "" || !strings.Contains(run.Stdout, "Backup before the update: "+filepath.Join(folder, "backups", "ws-a-")) {
+		t.Fatalf("update: %+v", run)
+	}
+	if dashboard.composeAtBackup != oldComposeForBackup {
+		t.Fatalf("compose.yaml was already changed when the Backup was taken: %q", dashboard.composeAtBackup)
+	}
+	files, _ := filepath.Glob(filepath.Join(folder, "backups", "ws-a-*-before-update.yaml"))
+	if len(files) != 1 {
+		t.Fatalf("Backups: %v", files)
+	}
+	data, err := os.ReadFile(files[0])
+	if err != nil || string(data) != rawBackup {
+		t.Fatalf("Backup = %q, %v", data, err)
+	}
+	if info, err := os.Stat(files[0]); err != nil || (commandtest.UnixModes && info.Mode().Perm() != 0o600) {
+		t.Fatalf("Backup mode: %v, %v", info, err)
+	}
+}
+
+// .env belongs to the user: a Workstation name with a path in it must not decide where the Backup goes.
+func TestComposeUpdateBackupNameNeverHoldsAPath(t *testing.T) {
+	folder := t.TempDir()
+	writeUpgradeFile(t, folder, "compose.yaml", oldComposeForBackup)
+	writeUpgradeFile(t, folder, ".env", "YARD_WORKSTATION=../../escape\n")
+	yard := commandtest.New(t)
+	newBackupDashboard(t, yard, folder)
+	if run := yard.Run("ws", "compose", "update", "--dir", folder); run.ExitCode != 0 {
+		t.Fatalf("update: %+v", run)
+	}
+	if files, _ := filepath.Glob(filepath.Join(folder, "backups", "workstation-*-before-update.yaml")); len(files) != 1 {
+		t.Fatalf("Backups in the Backups folder: %v", files)
+	}
+	if outside, _ := filepath.Glob(filepath.Join(folder, "..", "*escape*")); len(outside) != 0 {
+		t.Fatalf("a Backup was written outside the Workstation Folder: %v", outside)
+	}
+}
+
+func TestComposeUpdateGoesOnWhenTheDashboardCannotGiveABackup(t *testing.T) {
+	folder := t.TempDir()
+	writeUpgradeFile(t, folder, "compose.yaml", oldComposeForBackup)
+	yard := commandtest.New(t)
+	dashboard := newBackupDashboard(t, yard, folder)
+	dashboard.status.Store(http.StatusServiceUnavailable)
+	run := yard.Run("ws", "compose", "update", "--dir", folder)
+	if run.ExitCode != 0 || !strings.Contains(run.Stderr, "no Backup was written before the update") {
+		t.Fatalf("update: %+v", run)
+	}
+	if !strings.Contains(readInitFile(t, folder, "compose.yaml"), "image: hashicorp/consul:") {
+		t.Fatal("the update did not finish")
+	}
+	if files, _ := filepath.Glob(filepath.Join(folder, "backups", "*")); len(files) != 0 {
+		t.Fatalf("files in backups: %v", files)
+	}
+}
+
+// A refused update changes nothing, so it asks for no Backup and leaves no Backups folder.
+func TestComposeUpdateThatRefusesWritesNoBackup(t *testing.T) {
+	folder := t.TempDir()
+	writeUpgradeFile(t, folder, "compose.yaml", "services:\n  consul:\n    image: old-consul\n")
+	yard := commandtest.New(t)
+	dashboard := newBackupDashboard(t, yard, folder)
+	if run := yard.Run("ws", "compose", "update", "--dir", folder); run.ExitCode != 1 {
+		t.Fatalf("update: %+v", run)
+	}
+	if dashboard.asked.Load() != 0 {
+		t.Fatal("a refused update asked the dashboard for a Backup")
+	}
+	if _, err := os.Stat(filepath.Join(folder, "backups")); !os.IsNotExist(err) {
+		t.Fatalf("backups folder: %v", err)
 	}
 }

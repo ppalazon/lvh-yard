@@ -64,7 +64,7 @@ func TestWSCommandsRefuseEscapingSettingsAndCompose(t *testing.T) {
 	}{
 		{"show settings", ".env", []string{"show"}},
 		{"change settings", ".env", []string{"set", "dashboard-port", "7790"}},
-		{"upgrade images", "compose.yaml", []string{"compose", "upgrade"}},
+		{"upgrade images", "compose.yaml", []string{"compose", "update"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			yard, folder := newSecurityWorkstation(t)
