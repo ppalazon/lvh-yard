@@ -131,7 +131,7 @@ A change by hand to a file that LVH Yard owns is lost at the next upgrade. To ke
 
 2. Write `.env`. Compose needs `YARD_WORKSTATION`, `YARD_GOSSIP_KEY`, `YARD_UID` and `YARD_GID`. The dashboard needs the group of the Docker socket. Set `YARD_BIND_ADDRESS` to `127.0.0.1`. When it is empty, Consul listens on the address of the default route.
 
-    ```sh
+    ```ini
     YARD_WORKSTATION=ws-a
     YARD_GOSSIP_KEY=<the output of: openssl rand -base64 32>
     YARD_BIND_ADDRESS=127.0.0.1

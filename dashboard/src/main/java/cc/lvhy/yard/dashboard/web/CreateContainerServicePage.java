@@ -108,7 +108,7 @@ final class CreateContainerServicePage {
     String field = "containerPort";
     section
         .div()
-        .attrClass("flex flex-col gap-3 border-l-4 border-primary pl-4")
+        .attrClass("flex flex-col gap-3 border-l-4 border-primary-mark pl-4")
         .input()
         .attrType(EnumTypeInputType.HIDDEN)
         .attrName("target")

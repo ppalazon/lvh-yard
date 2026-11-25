@@ -66,8 +66,8 @@
   }
 
   .hero-word-places {
-    background: var(--accent);
-    color: var(--accent-foreground);
+    background: var(--secondary);
+    color: var(--secondary-foreground);
   }
 
   .hero-word-track {

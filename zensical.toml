@@ -8,7 +8,10 @@
 [project]
 site_name = "LVH Yard"
 site_description = "Reach any development service on your HomeLab by name, not by IP and port. The guide to LVH Yard."
+copyright = 'LVH Yard is maintained by <a href="https://ppalazon.dev">Pablo Palazon</a> and licensed under <a href="https://github.com/ppalazon/lvh-yard/blob/main/LICENSE">Apache License 2.0</a>. It was developed with the help of AI tools. The maintainer reviews every change.'
 site_url = "https://lvhy.cc/docs/"
+repo_url = "https://github.com/ppalazon/lvh-yard"
+repo_name = "ppalazon/lvh-yard"
 docs_dir = "docs/guide"
 site_dir = "dist/pages/docs"
 draft_docs = """
@@ -17,8 +20,14 @@ extra_javascript = [
   "javascripts/mermaid-box-colors.js",
   "javascripts/base-domain.js",
   "javascripts/workstation-code.js",
+  "javascripts/code-style.js",
+  "javascripts/header-logo.js",
 ]
-extra_css = ["stylesheets/base-domain.css", "stylesheets/steps.css"]
+extra_css = [
+  "stylesheets/theme.css",
+  "stylesheets/base-domain.css",
+  "stylesheets/steps.css",
+]
 # The navigation tree is in .scratch/guide-site/spec.md. Each page ticket adds its page here.
 nav = [
   { "Home" = "index.md" },
@@ -80,6 +89,11 @@ nav = [
 
 [project.theme]
 language = "en"
+favicon = "assets/favicon.svg"
+logo = "assets/logo.svg"
+icon.repo = "fontawesome/brands/github"
+# No web font: the dashboard uses the system fonts, and stylesheets/theme.css sets them.
+font = false
 features = [
   "content.code.annotate",
   "content.code.copy",

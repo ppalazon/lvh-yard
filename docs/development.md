@@ -497,6 +497,11 @@ The site at `https://lvhy.cc/` has two parts. The landing page is one static
 page in `docs/landing/`: `index.html`, `site.css` and `assets/`. `site.css`
 uses Tailwind CSS and Basecoat with the colors of
 `dashboard/src/main/css/theme.css`, so the page and the dashboard look alike.
+Those colors are the `lvhy` theme of [tweakcn](https://tweakcn.com/themes/cmwvupuop000004lb6tqjhsrp). The file
+keeps some values of its own, so that text and lines stay readable: `--destructive` and `--risk`, darker so that
+their text passes 4.5 to 1, `--primary-foreground`, dark text on the light teal primary, and `--primary-mark`, the color
+of a line or a dot (the dark teal on the white page, the primary on the dark page). The guide uses the dark teal for
+its links and its commands on the white page.
 The page also loads the dashboard's `theme.js` for its dark theme.
 The guide at `https://lvhy.cc/docs/` is written in Markdown in `docs/guide/`.
 [Zensical](https://zensical.org/) builds it. `zensical.toml` at the root holds
@@ -508,7 +513,7 @@ The install scripts are `dev/install.sh` and `dev/install.ps1`. The landing
 build copies them into `dist/pages`, for `/install.sh` and `/install.ps1` on
 the deployed site.
 
-The guide has three scripts. `docs/guide/javascripts/mermaid-box-colors.js` adds
+The guide has five scripts. `docs/guide/javascripts/mermaid-box-colors.js` adds
 the colors blue, green and orange for the boxes of a Mermaid sequence diagram,
 which the theme of Zensical would show in one color.
 `docs/guide/javascripts/workstation-code.js` marks each inline code element that
@@ -522,6 +527,20 @@ the page, and it turns each inline code element that holds a whole `http` or
 `https` address into a link. A page keeps its examples as written when its
 Markdown holds the comment `<!-- base-domain: off -->`. The script does not
 change Mermaid diagrams. The reader's domain stays in `localStorage`.
+
+The look of the guide comes from the dashboard. `docs/guide/stylesheets/theme.css` sets the Material
+variables of the theme from the colors of `dashboard/src/main/css/theme.css`, in the light and the
+dark scheme, and it sets the system fonts of the dashboard. `font = false` in `zensical.toml` stops the
+theme from loading Inter and JetBrains Mono. When a color of `theme.css` of the dashboard changes, change the
+same value in `docs/guide/stylesheets/theme.css`. `docs/guide/assets/logo.svg` is a copy of the favicon of the
+dashboard, and the logo of the header. `docs/guide/javascripts/header-logo.js` links that logo to the landing
+page, `https://lvhy.cc`. `docs/guide/assets/favicon.svg` is the favicon of the guide, with the colors of the
+logo swapped. `copyright` in `zensical.toml` is the text of the footer, and `repo_url` shows the repository, with
+its stars and forks from the GitHub API, in the header.
+`docs/guide/javascripts/code-style.js` puts a `$` before each command of a `sh` block, wraps the command
+word and the flags so that the stylesheet can color them, and tints the inline code that starts with
+`lvh-yard`. The `$` is a style, so the copy button does not copy it. A `sh` block that holds no
+commands, such as the lines of an `.env` file, uses another language, such as `ini`.
 
 Zensical reads Markdown with Python-Markdown. It needs four spaces for the
 content of a numbered list item, so `.prettierrc.yaml` sets `tabWidth: 4` for

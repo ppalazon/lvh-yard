@@ -16,7 +16,7 @@
     />
     <meta
       property="og:image"
-      content="https://lvhy.cc/assets/dashboard-catalog-light.png"
+      content="https://lvhy.cc/assets/dashboard-route-light.png"
     />
     <meta property="og:url" content="https://lvhy.cc/" />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
@@ -138,13 +138,12 @@
             </span>
           </h1>
         </div>
-        <p class="text-muted-foreground mt-6 text-lg">
+        <p class="mt-6 text-lg">
           LVH (Local Virtual Host) Yard gives every service a hostname, such as
           <code class="text-foreground">http://mailpit.lvh.me</code>, and you
           write no port. The service can be a local process, a Docker container,
-          a Compose project or a program on another computer. Every computer in
-          your Yard opens the same name. LVH Yard integrates Consul, Traefik and
-          Docker for you.
+          a Compose project or a program on another computer. LVH Yard
+          integrates Consul, Traefik and Docker for you.
         </p>
       </section>
 
@@ -163,7 +162,7 @@
           height="860"
           alt="The Route Diagram of mailpit in the LVH Yard dashboard. The browser reaches the HTTPS listener of Traefik with a Client Certificate. The HTTP listener has no Route. Traefik sends the request to the Instance over plain HTTP."
         />
-        <p class="text-muted-foreground mt-4 text-sm">
+        <p class="mt-4 text-sm">
           The Route Diagram shows how a request reaches a Service: the listeners
           of Traefik, the Route Profiles, and the Instances, with the protocol
           of each step.
@@ -177,7 +176,7 @@
       >
         <div class="mx-auto max-w-5xl px-6">
           <h2>How it works</h2>
-          <p class="text-muted-foreground mt-3">
+          <p class="mt-3">
             A wildcard domain points every hostname below it to the same
             address. For <code>lvh.me</code>, that address is
             <code>127.0.0.1</code>, your own computer. Traefik reads the
@@ -404,7 +403,7 @@ Hostname: 82ec38bd098d</code></pre>
       <!-- The Yard -->
       <section class="mx-auto max-w-5xl px-6 py-20">
         <h2>One Yard, many computers</h2>
-        <p class="text-muted-foreground mt-3">
+        <p class="mt-3">
           Every Workstation in your HomeLab joins the same Yard with one shared
           key. Each one learns the Services of the others. A Service that you
           publish with Yard Scope gets a hostname on every Workstation:
@@ -672,7 +671,7 @@ Hostname: 82ec38bd098d</code></pre>
       <!-- Instance Priority -->
       <section class="mx-auto max-w-5xl px-6 py-20">
         <h2>Your process first, the container as fallback</h2>
-        <p class="text-muted-foreground mt-3">
+        <p class="mt-3">
           You develop an app that you usually run as a Docker container. Run
           your modified copy as a process, and give it the first place in the
           order of the Instance Sources. The Route uses the first source that
@@ -787,7 +786,7 @@ Hostname: 82ec38bd098d</code></pre>
       <!-- The Service page -->
       <section class="mx-auto max-w-5xl px-6 py-20">
         <h2>See every Instance behind a name</h2>
-        <p class="text-muted-foreground mt-3">
+        <p class="mt-3">
           The Service page shows the state of a Service, its Publication, and
           the order of its Instance Sources. Here, the first source, a Static
           Instance on port 8025, does not answer, so the Service has the state
@@ -818,7 +817,7 @@ Hostname: 82ec38bd098d</code></pre>
       >
         <div class="mx-auto max-w-5xl px-6">
           <h2>Pick your Base Domain</h2>
-          <p class="text-muted-foreground mt-3">
+          <p class="mt-3">
             A wildcard domain answers the same address for every name below it.
             For <code>lvh.me</code>, that address is <code>127.0.0.1</code>, so
             <code>mailpit.lvh.me</code> reaches your own computer, and Traefik
@@ -1030,7 +1029,9 @@ Hostname: 82ec38bd098d</code></pre>
         class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-8"
       >
         <p>
-          LVH Yard is licensed under the
+          LVH Yard is maintained by
+          <a class="underline" href="https://ppalazon.dev">Pablo Palazon</a>
+          and licensed under the
           <a
             class="underline"
             href="https://github.com/ppalazon/lvh-yard/blob/main/LICENSE"

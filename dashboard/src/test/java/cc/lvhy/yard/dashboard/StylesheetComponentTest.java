@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
-/** The stylesheet that every page loads: the Phyxor theme with the system fonts. */
+/** The stylesheet that every page loads: the lvhy theme with the system fonts. */
 class StylesheetComponentTest extends DashboardComponentTest {
 
   @Test

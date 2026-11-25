@@ -1,0 +1,181 @@
+/*
+ * The look of the guide: the colors and the fonts of the dashboard.
+ * The values come from dashboard/src/main/css/theme.css (the lvhy theme of tweakcn). Keep the two in step.
+ * Only system fonts, as in the dashboard, so that the guide loads no font. See docs/development.md.
+ */
+
+/* Light. */
+:root,
+[data-md-color-scheme="default"] {
+  --lvhy-background: oklch(1 0 0);
+  --lvhy-foreground: oklch(0.2686 0 0);
+  --lvhy-surface: oklch(0.9846 0.0017 247.8389);
+  --lvhy-muted-foreground: oklch(0.5551 0.0147 266.6154);
+  --lvhy-border: oklch(0.9281 0.0042 271.3672);
+  --lvhy-primary: oklch(0.511 0.096 186.391);
+  --lvhy-ring: oklch(0.6942 0.1205 77.2913);
+  --lvhy-link: oklch(0.3751 0.0595 189.9911);
+  --lvhy-on-link: oklch(0.9846 0.0017 247.8389);
+  --lvhy-success: oklch(0.527 0.154 150.069);
+  --lvhy-risk: oklch(0.52 0.195 38.402);
+  --lvhy-command: oklch(0.3751 0.0595 189.9911);
+  --lvhy-flag: oklch(0.5174 0.0971 56.139);
+}
+
+/* Dark. The primary of the theme is light enough for text here (7.4 to 1), so the link and the command use it. In the light
+   scheme the primary gives 2.4 to 1 on white, so the link and the command use the dark teal of the theme. */
+[data-md-color-scheme="slate"] {
+  --lvhy-background: oklch(0.2046 0 0);
+  --lvhy-foreground: oklch(0.9219 0 0);
+  --lvhy-surface: oklch(0.2686 0 0);
+  --lvhy-muted-foreground: oklch(0.7155 0 0);
+  --lvhy-border: oklch(0.3715 0 0);
+  --lvhy-primary: oklch(0.704 0.14 182.503);
+  --lvhy-ring: oklch(0.6942 0.1205 77.2913);
+  --lvhy-link: oklch(0.704 0.14 182.503);
+  --lvhy-on-link: oklch(0.2046 0 0);
+  --lvhy-success: oklch(0.792 0.209 151.711);
+  --lvhy-risk: oklch(0.75 0.183 55.934);
+  --lvhy-command: oklch(0.704 0.14 182.503);
+  --lvhy-flag: oklch(0.7586 0.1189 88.0673);
+}
+
+/* The Material variables, from the colors above. The attribute twice gives the rule more weight than the palette of the
+   theme, which sets the link color of the dark scheme with two attributes. */
+body[data-md-color-scheme][data-md-color-scheme] {
+  --md-default-bg-color: var(--lvhy-background);
+  --md-default-bg-color--light: color-mix(
+    in oklab,
+    var(--lvhy-background) 70%,
+    transparent
+  );
+  --md-default-bg-color--lighter: color-mix(
+    in oklab,
+    var(--lvhy-background) 30%,
+    transparent
+  );
+  --md-default-bg-color--lightest: color-mix(
+    in oklab,
+    var(--lvhy-background) 12%,
+    transparent
+  );
+  --md-default-fg-color: var(--lvhy-foreground);
+  --md-default-fg-color--light: var(--lvhy-muted-foreground);
+  --md-default-fg-color--lighter: color-mix(
+    in oklab,
+    var(--lvhy-foreground) 32%,
+    transparent
+  );
+  --md-default-fg-color--lightest: color-mix(
+    in oklab,
+    var(--lvhy-foreground) 7%,
+    transparent
+  );
+
+  --md-primary-fg-color: var(--lvhy-link);
+  --md-primary-fg-color--light: var(--lvhy-link);
+  --md-primary-fg-color--dark: var(--lvhy-link);
+  --md-primary-bg-color: var(--lvhy-on-link);
+  --md-primary-bg-color--light: color-mix(
+    in oklab,
+    var(--lvhy-on-link) 70%,
+    transparent
+  );
+  --md-accent-fg-color: var(--lvhy-link);
+  --md-accent-fg-color--transparent: color-mix(
+    in oklab,
+    var(--lvhy-primary) 18%,
+    transparent
+  );
+  --md-accent-bg-color: var(--lvhy-on-link);
+  --md-accent-bg-color--light: color-mix(
+    in oklab,
+    var(--lvhy-on-link) 70%,
+    transparent
+  );
+  --md-typeset-a-color: var(--lvhy-link);
+
+  --md-code-fg-color: var(--lvhy-foreground);
+  --md-code-bg-color: var(--lvhy-surface);
+  --md-code-bg-color--light: color-mix(
+    in oklab,
+    var(--lvhy-surface) 70%,
+    transparent
+  );
+  --md-code-bg-color--lighter: color-mix(
+    in oklab,
+    var(--lvhy-surface) 30%,
+    transparent
+  );
+  --md-typeset-table-color: var(--lvhy-border);
+  --md-typeset-table-color--light: color-mix(
+    in oklab,
+    var(--lvhy-border) 35%,
+    transparent
+  );
+  --md-typeset-mark-color: color-mix(
+    in oklab,
+    var(--lvhy-ring) 35%,
+    transparent
+  );
+  --md-typeset-kbd-color: var(--lvhy-surface);
+  --md-typeset-kbd-accent-color: var(--lvhy-background);
+  --md-typeset-kbd-border-color: var(--lvhy-border);
+  --md-footer-bg-color: var(--lvhy-surface);
+  --md-footer-bg-color--dark: var(--lvhy-surface);
+  --md-footer-fg-color: var(--lvhy-foreground);
+  --md-footer-fg-color--light: var(--lvhy-muted-foreground);
+  --md-footer-fg-color--lighter: var(--lvhy-muted-foreground);
+
+  /* The colors of the code. docs/guide/javascripts/code-style.js adds the command and the flags of a shell. */
+  --md-code-hl-keyword-color: var(--lvhy-risk);
+  --md-code-hl-function-color: var(--lvhy-command);
+  --md-code-hl-string-color: var(--lvhy-success);
+  --md-code-hl-number-color: var(--md-code-fg-color);
+  --md-code-hl-constant-color: var(--lvhy-risk);
+  --md-code-hl-special-color: var(--lvhy-risk);
+  --md-code-hl-variable-color: var(--lvhy-flag);
+  --md-code-hl-comment-color: var(--lvhy-muted-foreground);
+  --md-code-hl-operator-color: var(--lvhy-muted-foreground);
+  --md-code-hl-punctuation-color: var(--lvhy-muted-foreground);
+}
+
+body {
+  --md-text-font-family: ui-sans-serif, system-ui, sans-serif;
+  --md-code-font-family: ui-monospace, monospace;
+}
+
+/* The command and the flags of a shell block, and the $ that marks a command. javascripts/code-style.js sets the classes. */
+.md-typeset .highlight .lvhy-command {
+  color: var(--lvhy-command);
+  font-weight: 600;
+}
+
+.md-typeset .highlight .lvhy-flag {
+  color: var(--lvhy-flag);
+}
+
+.md-typeset .highlight .lvhy-prompt::before {
+  content: "$ ";
+  color: var(--lvhy-muted-foreground);
+  user-select: none;
+}
+
+/* Inline code that starts with lvh-yard has a very light tint of the primary color. */
+.md-typeset code[data-lvhy="command"] {
+  background-color: color-mix(
+    in oklab,
+    var(--lvhy-primary) 14%,
+    var(--lvhy-surface)
+  );
+}
+
+/* The surface of the theme is almost white in the light scheme, so a code block gets a thin border. */
+.md-typeset .highlight pre > code {
+  box-shadow: inset 0 0 0 1px var(--lvhy-border);
+}
+
+/* A Mermaid diagram that is narrower than the text sits in the middle. The theme leaves it at the left. */
+.md-typeset .mermaid {
+  text-align: center;
+}
