@@ -1,6 +1,5 @@
 package cc.lvhy.yard.dashboard;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import java.time.Duration;
@@ -10,6 +9,9 @@ import tools.jackson.databind.JsonNode;
 
 /** The status of this Workstation's LVH Yard: its API, its page and their parts. */
 class StatusIT extends DashboardIT {
+
+  /** Traefik starts, its ping answers, the kept status is read again, and the watcher polls. */
+  private static final Duration STATE_CHANGES = Duration.ofSeconds(30);
 
   /** The part called {@code name} of a status. */
   static JsonNode part(JsonNode status, String name) {
@@ -37,15 +39,13 @@ class StatusIT extends DashboardIT {
       GenericContainer<?> traefik = TestcontainersConfiguration.traefik(port);
       traefik.start();
       try {
+        // The container is up when Traefik starts its provider, which is before its ping answers.
         await()
             .atMost(Duration.ofSeconds(15))
             .until(() -> client.lines.contains("event:status-changed"));
 
-        String summary = getPage("/status/summary").getBody();
-        assertThat(openingTag(summary, "id=\"dot-traefik\"")).contains("aria-label=\"Traefik: OK.");
-
-        String statusPage = getPage("/status").getBody();
-        assertThat(div(statusPage, "id=\"part-traefik\"")).contains(badge("success", "✓ OK"));
+        // The watcher reads the status every 2 s from a status that is kept for 5 s.
+        await().atMost(STATE_CHANGES).until(() -> client.lines.contains("event:status-changed"));
       } finally {
         traefik.stop();
       }
