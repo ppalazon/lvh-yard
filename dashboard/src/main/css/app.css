@@ -318,7 +318,7 @@
     gap: 0.5rem;
     padding-block: 0.25rem;
     padding-left: 1rem;
-    border-left: 4px solid var(--primary);
+    border-left: 4px solid var(--primary-mark);
   }
 
   .instance-body {
@@ -812,7 +812,7 @@
     min-width: 0;
   }
 
-  /* A dot before the state, in the amber of the buttons while running. */
+  /* A dot before the state, in the primary color while running. */
   .container-state-heading {
     display: flex;
     flex-wrap: wrap;
@@ -836,7 +836,7 @@
   }
 
   .container-state[data-state="running"] .container-state-heading h2::before {
-    background-color: var(--primary);
+    background-color: var(--primary-mark);
   }
 
   /* One frame per Compose project. Every line inside it is a row of the same grid. */
@@ -1050,7 +1050,7 @@
 
   .route-diagram-svg .rd-band {
     fill: var(--card);
-    stroke: var(--primary);
+    stroke: var(--primary-mark);
     stroke-width: 1.5;
   }
 

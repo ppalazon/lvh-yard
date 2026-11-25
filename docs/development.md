@@ -497,6 +497,11 @@ The site at `https://lvhy.cc/` has two parts. The landing page is one static
 page in `docs/landing/`: `index.html`, `site.css` and `assets/`. `site.css`
 uses Tailwind CSS and Basecoat with the colors of
 `dashboard/src/main/css/theme.css`, so the page and the dashboard look alike.
+Those colors are the `lvhy` theme of [tweakcn](https://tweakcn.com/themes/cmwvupuop000004lb6tqjhsrp). The file
+keeps some values of its own, so that text and lines stay readable: `--destructive` and `--risk`, darker so that
+their text passes 4.5 to 1, `--primary-foreground`, dark text on the light teal primary, `--primary-mark`, the color
+of a line or a dot (the dark teal on the white page, the primary on the dark page), and `--highlight`, the amber of
+the second word of the landing page. The guide uses the dark teal for its links and its commands on the white page.
 The page also loads the dashboard's `theme.js` for its dark theme.
 The guide at `https://lvhy.cc/docs/` is written in Markdown in `docs/guide/`.
 [Zensical](https://zensical.org/) builds it. `zensical.toml` at the root holds
