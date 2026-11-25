@@ -120,6 +120,7 @@ public final class Layout {
         .attrClass("ml-auto flex items-center gap-2 lg:order-last")
         .of(Layout::statusDots)
         .of(Layout::themeToggle)
+        .of(Layout::docsLink)
         .__()
         .of(bar -> navigation(bar, current))
         .__()
