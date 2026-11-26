@@ -21,3 +21,7 @@ Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/ag
 ### Checks
 
 The shell starts in the repo root: run commands from there, with relative paths. While you work, run `mise run test:unit` (unit tests only, a few seconds). Run `mise run check` before committing. After you change a dashboard component test, run `mise run test:flaky`. To try a change across Workstations, `mise run dev:up` starts two test Workstations on this computer. For a check on real Windows, read `docs/windows-test-vm.md`. See `docs/development.md`.
+
+### Releases
+
+Release status: `mise run release:status`. The steps are in `docs/development.md#releasing`.

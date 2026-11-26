@@ -609,7 +609,9 @@ last run to see what grew.
 
 ## Releasing
 
-Run `mise run check`, then push a tag:
+Run `mise run check`, push the commit to `main`, and run `mise run release:status`.
+It lists the last tag, CI on `HEAD`, the live site and installer URLs, the
+visibility of the image, and the tickets that are not done. Then push a tag:
 
 ```sh
 git tag v0.1.0
@@ -618,16 +620,21 @@ git push origin v0.1.0
 
 The Release workflow (`.github/workflows/release.yml`) then does these steps:
 
-1. It builds the dashboard image for amd64 and arm64, with the tag as its
+1. The `ci-gate` job looks for a successful CI run on the tagged commit. It
+   waits for a run that is still going. With no run, or a failed one, it fails
+   and the later jobs do not start. Push the commit to `main`, wait for CI, and
+   push the tag again.
+2. It builds the dashboard image for amd64 and arm64, with the tag as its
    version.
-2. It pushes the image to `ghcr.io/ppalazon/lvh-yard-dashboard` as `0.1.0`,
+3. It pushes the image to `ghcr.io/ppalazon/lvh-yard-dashboard` as `0.1.0`,
    `0.1` and `latest`.
-3. It runs the CLI tests and builds `lvh-yard` for each platform.
-4. It attaches the archives and their `SHA256SUMS` to a GitHub release. The
+4. It runs the CLI tests and builds `lvh-yard` for each platform.
+5. It attaches the archives and their `SHA256SUMS` to a GitHub release. The
    release notes list the commits since the last tag.
 
 When the image and every archive are ready, the release appears. After the
-first release, make the package public once in its settings on GitHub.
+first release, make the package public once in its settings on GitHub;
+`mise run release:status` shows whether it is public.
 
 The `cli` job calls `dev/package-cli.sh` on one `ubuntu-latest` runner,
 without C code. It cross-compiles stripped executables for `linux-amd64`,
