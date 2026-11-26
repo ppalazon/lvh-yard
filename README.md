@@ -127,9 +127,10 @@ To add a second Workstation to your Yard, read [Create a Yard and join it](https
 LVH Yard follows [Semantic Versioning](https://semver.org/). Before 1.0.0, any
 minor release can change how it works. The version comes from the Git tag.
 Pushing a tag such as `v0.1.0` builds the dashboard image, the `lvh-yard`
-archives and `SHA256SUMS`. The notes of each
-[GitHub release](https://github.com/ppalazon/lvh-yard/releases) list the
-commits since the last release.
+archives and `SHA256SUMS`. [CHANGELOG.md](CHANGELOG.md) lists the changes of
+each release, with the action to take for a breaking change. It is also the
+text of each stable [GitHub release](https://github.com/ppalazon/lvh-yard/releases).
+A pre-release lists the commits since the last tag.
 
 ## AI-assisted development
 

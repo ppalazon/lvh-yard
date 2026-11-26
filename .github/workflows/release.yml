@@ -31,10 +31,31 @@ jobs:
           fi
           gh run watch "$pending" --repo "$GITHUB_REPOSITORY" --exit-status
 
+  # The release notes of a stable tag, from the section of CHANGELOG.md for that version. Without the section, this job
+  # fails and so does every job after it, so the image is never pushed for a release with no notes. A pre-release tag
+  # has no changelog section: its release lists the commits.
+  notes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        if: ${{ !contains(github.ref_name, '-') }}
+      - run: |
+          mkdir release-notes
+          sh dev/changelog-section.sh "${GITHUB_REF_NAME#v}" > release-notes/notes.md
+        if: ${{ !contains(github.ref_name, '-') }}
+      - uses: actions/upload-artifact@v7
+        if: ${{ !contains(github.ref_name, '-') }}
+        with:
+          name: release-notes
+          path: release-notes/notes.md
+          if-no-files-found: error
+
   # The dashboard image, at ghcr.io/<owner>/lvh-yard-dashboard, for amd64 and arm64.
   dashboard-image:
     runs-on: ubuntu-latest
-    needs: ci-gate
+    needs: [ci-gate, notes]
     permissions:
       contents: read
       # Lets GITHUB_TOKEN push to the GitHub Container Registry.
@@ -71,7 +92,7 @@ jobs:
   # The lvh-yard command as one executable per platform, tested and cross-compiled on one runner.
   cli:
     runs-on: ubuntu-latest
-    needs: ci-gate
+    needs: [ci-gate, notes]
     permissions:
       contents: read
     defaults:
@@ -97,8 +118,9 @@ jobs:
             cli/target/lvh-yard-*.zip
           if-no-files-found: error
 
-  # The GitHub release, after the image is pushed and every executable is built. Its notes come from the commits
-  # since the last tag. With SHA256SUMS and sha256sum -c, a user can make sure that a download is correct.
+  # The GitHub release, after the image is pushed and every executable is built. A stable release has the notes of its
+  # CHANGELOG.md section, and a pre-release lists the commits since the last tag. With SHA256SUMS and sha256sum -c, a
+  # user can make sure that a download is correct.
   release:
     needs: [dashboard-image, cli]
     runs-on: ubuntu-latest
@@ -110,11 +132,19 @@ jobs:
         with:
           pattern: lvh-yard-*
           merge-multiple: true
+      - uses: actions/download-artifact@v8
+        if: ${{ !contains(github.ref_name, '-') }}
+        with:
+          name: release-notes
+          path: release-notes
       - run: sha256sum lvh-yard-*.tar.gz lvh-yard-*.zip > SHA256SUMS
       # A tag with a hyphen, such as v0.1.1-rc.1, is a pre-release. GitHub's latest release, which install.sh and
       # install.ps1 download, never picks a pre-release.
       - run: |
-          case "$GITHUB_REF_NAME" in *-*) flag=--prerelease ;; *) flag= ;; esac
-          gh release create "$GITHUB_REF_NAME" $flag --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes lvh-yard-*.tar.gz lvh-yard-*.zip SHA256SUMS
+          case "$GITHUB_REF_NAME" in
+            *-*) args=(--prerelease --generate-notes) ;;
+            *) args=(--notes-file release-notes/notes.md) ;;
+          esac
+          gh release create "$GITHUB_REF_NAME" "${args[@]}" --repo "$GITHUB_REPOSITORY" --verify-tag lvh-yard-*.tar.gz lvh-yard-*.zip SHA256SUMS
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

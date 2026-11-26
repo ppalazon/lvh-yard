@@ -611,6 +611,12 @@ last run to see what grew.
 
 ## Releasing
 
+Before the release, move the entries of `## [Unreleased]` in `CHANGELOG.md`
+into a new section `## [0.1.0] - 2026-11-26`, with the version and the date of
+the release. Leave `## [Unreleased]` empty above it, and update the two links at
+the end of the file. Put the breaking changes first, each with the action to
+take. Commit the change, because the workflow reads the file at the tag.
+
 Run `mise run check`, push the commit to `main`, and run `mise run release:status`.
 It lists the last tag, CI on `HEAD`, the live site and installer URLs, the
 visibility of the image, and the tickets that are not done. Then push a tag:
@@ -626,13 +632,19 @@ The Release workflow (`.github/workflows/release.yml`) then does these steps:
    waits for a run that is still going. With no run, or a failed one, it fails
    and the later jobs do not start. Push the commit to `main`, wait for CI, and
    push the tag again.
-2. It builds the dashboard image for amd64 and arm64, with the tag as its
+2. The `notes` job runs `dev/changelog-section.sh` for the version of the tag.
+   It saves the section of `CHANGELOG.md` for that version as the release
+   notes. Without the section, or with an empty one, it fails and the later
+   jobs do not start. Delete the tag (`git push origin :refs/tags/v0.1.0`), add the section, commit and tag again.
+   A tag with a hyphen, such as `v0.2.0-rc.1`, needs no section.
+3. It builds the dashboard image for amd64 and arm64, with the tag as its
    version.
-3. It pushes the image to `ghcr.io/ppalazon/lvh-yard-dashboard` as `0.1.0`,
+4. It pushes the image to `ghcr.io/ppalazon/lvh-yard-dashboard` as `0.1.0`,
    `0.1` and `latest`.
-4. It runs the CLI tests and builds `lvh-yard` for each platform.
-5. It attaches the archives and their `SHA256SUMS` to a GitHub release. The
-   release notes list the commits since the last tag.
+5. It runs the CLI tests and builds `lvh-yard` for each platform.
+6. It attaches the archives and their `SHA256SUMS` to a GitHub release. The
+   release notes are the section of the changelog. A pre-release has the
+   commits since the last tag instead.
 
 When the image and every archive are ready, the release appears. After the
 first release, make the package public once in its settings on GitHub;
