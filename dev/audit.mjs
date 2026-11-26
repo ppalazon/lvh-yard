@@ -120,6 +120,62 @@ section(
   ),
 );
 
+const tickets = tracked
+  .filter((path) => /^\.scratch\/[^/]+\/issues\/\d+-[^/]+\.md$/.test(path))
+  .map((path) => {
+    const text = readFileSync(path, "utf8");
+    const [, feature, file] = path.match(/^\.scratch\/([^/]+)\/issues\/(.+)$/);
+    const blockedBy = text.match(/^\**Blocked by:\**\s*(.*)$/m)?.[1] ?? "";
+    return {
+      path,
+      feature,
+      number: file.match(/^\d+/)[0],
+      status: text.match(/^\**Status:\**\s*(\S+)/m)?.[1],
+      blockers: blockedBy
+        .split(/[,;]/)
+        .map((item) => item.match(/^\s*(\d+)\b/)?.[1])
+        .filter(Boolean),
+      ticked: (text.match(/^\s*- \[x\]/gim) ?? []).length,
+      boxes: (text.match(/^\s*- \[[ x]\]/gim) ?? []).length,
+    };
+  });
+const isDone = (feature, number) =>
+  tickets.some(
+    (t) => t.feature === feature && t.number === number && t.status === "done",
+  );
+section(
+  "Tickets for a human with every blocker done (decide, then close the ticket or write down what it waits for)",
+  tickets
+    .filter(
+      (t) =>
+        t.status === "ready-for-human" &&
+        t.blockers.every((n) => isDone(t.feature, n)),
+    )
+    .map((t) => `${t.path}: ${t.ticked} of ${t.boxes} boxes ticked`),
+);
+
+// A note that says the site is not deployed is stale once the installer is live.
+const siteLive = await fetch("https://lvhy.cc/install.ps1")
+  .then((response) => response.ok)
+  .catch(() => false);
+const notDeployed = /not (yet )?deployed|until the (guide|site) is deployed/i;
+section(
+  siteLive
+    ? "Notes in .scratch/ that say the site is not deployed, while https://lvhy.cc/install.ps1 answers 200"
+    : "Notes that say the site is not deployed (skipped: https://lvhy.cc/install.ps1 did not answer 200)",
+  siteLive
+    ? tracked
+        .filter((path) => path.startsWith(".scratch/") && path.endsWith(".md"))
+        .flatMap((path) =>
+          readFileSync(path, "utf8")
+            .split("\n")
+            .flatMap((line, index) =>
+              notDeployed.test(line) ? [`${path}:${index + 1}`] : [],
+            ),
+        )
+    : [],
+);
+
 const tests = tracked.filter((path) => /\/src\/test\/.*\.java$/.test(path));
 const kind = (path) =>
   path.endsWith("ComponentTest.java")

@@ -53,7 +53,7 @@ keeps package managers, Authenticode signing and a self-update command out of sc
 - [x] Install on the real Windows 11 computer against the published files, partly. As `yarddev`, in Windows PowerShell 5.1
       and PowerShell 7, the installer file from the branch installed the published ZIP: the executable's SHA-256
       matched the one inside the ZIP, `--version` printed `lvh-yard 0.1.1-rc.1`, a reinstall left one PATH entry, and
-      the PATH was restored exactly. Not run: the documented one-line command (the site is not deployed).
+      the PATH was restored exactly. Not run: the documented one-line command (it reads `releases/latest`, and no stable release exists yet).
 - [x] Run the `windows` CI job on GitHub once: done on pull request #3 on 2026-11-16 ([10-github-ci-run.md](10-github-ci-run.md)).
       The first two runs failed and found two real defects, fixed on the branch: a virtual machine's own network card
       was refused as a tunnel adapter, and the artifact dropped hidden files. The third run passed all six jobs.

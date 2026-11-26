@@ -8,7 +8,7 @@
 
 - [x] Release packaging produces a Windows x64 ZIP containing the executable and license. Archive upload, release publication and SHA256SUMS include that ZIP. (Observed on the pre-release `v0.1.1-rc.1` on 2026-11-16: `evidence/10-test-release.md`.)
 - [ ] The PowerShell installer reaches the published installation assets through the existing site build. Verify the installer against actual packaged artifacts before the final support announcement.
-      Open: the installer file from the branch installed the published ZIP of `v0.1.1-rc.1` in both PowerShell versions (checksum, version, PATH). The site is not deployed, so `https://lvhy.cc/install.ps1` does not serve it yet and the documented one-line command was not run.
+      Open: the installer file from the branch installed the published ZIP of `v0.1.1-rc.1` in both PowerShell versions (checksum, version, PATH). `https://lvhy.cc/install.ps1` serves the installer since 2026-11-16 (observed again 2026-11-26: 200, same SHA-256 as `dev/install.ps1`). The documented one-line command is not run yet, because it reads `releases/latest` and no stable release exists. Run it in both shells after `v0.2.0`.
 - [x] Installation works as an ordinary user under Windows PowerShell 5.1 and PowerShell 7. The installed executable reports its version from a newly opened terminal.
 - [x] The installer verifies the selected archive against SHA256SUMS before installing it. A mismatch rejects the archive without replacing the installed executable.
 - [x] Preserve the existing version and destination override conventions. Default installation uses a separate bin folder in the application's LocalAppData folder.
@@ -29,5 +29,7 @@ Explorer-launched terminal window.
 
 The site build copies the tested installer into its published-assets directory.
 The release workflow includes the ZIP in archive upload, checksums and release
-upload. Live Pages deployment and GitHub publication remain unobserved and
-are held for the maintainer's release gate; the public-assets item stays open.
+upload. Both are observed: the site serves the installer, and the pre-release
+`v0.2.0-rc.1` has the ZIP and `SHA256SUMS`. The one-line command against
+`releases/latest` waits for the first stable release; the public-assets item
+stays open until then.

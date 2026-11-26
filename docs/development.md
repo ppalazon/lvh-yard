@@ -600,6 +600,8 @@ the leads for a cleanup:
 - learnings that a newer one replaces
 - learnings that name files or classes the code no longer has
 - done specs that are still in `.scratch/`
+- tickets for a human whose blockers are all done
+- notes in `.scratch/` that say the site is not deployed, while `lvhy.cc` answers 200 (the audit needs the network for this)
 - the number of tests of each kind, and test files over 800 lines
 
 Each line is a lead to read, not a verdict. For example, a learning can name a

@@ -42,8 +42,8 @@ from the branch, `LVH_YARD_VERSION=0.1.1-rc.1` and a test install folder:
 
 ## Not observed
 
-- The site was not deployed, so `https://lvhy.cc/install.ps1` does not serve the installer. The documented one-line
-  command was not run. The test used the installer file from the branch.
+- On the day of the test (2026-11-16) the site had no deployment of the installer, so `https://lvhy.cc/install.ps1` did not
+  serve it. The documented one-line command was not run. The test used the installer file from the branch.
 - The macOS arm64 and Linux arm64 executables were not run, because no such computer was used.
 - The `windows` CI job has not run on GitHub. It starts on a pull request or a push to `main`, not on a tag.
 - The test image was not deleted, because the token cannot delete packages. The release and the tag still exist.
