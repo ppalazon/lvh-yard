@@ -28,7 +28,6 @@ extra_css = [
   "stylesheets/base-domain.css",
   "stylesheets/steps.css",
 ]
-# The navigation tree is in .scratch/guide-site/spec.md. Each page ticket adds its page here.
 nav = [
   { "Home" = "index.md" },
   { "Start" = [

@@ -33,6 +33,3 @@ node_modules/
 
 # The built landing page and guide
 /dist/
-
-# Stage 1 drafts of the guide pages, kept until the maintainer approves each page
-/.scratch/guide-site/drafts/
