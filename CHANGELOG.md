@@ -12,7 +12,7 @@ This entry compares 0.2.0 with 0.1.0. The pre-release 0.2.0-rc.1 of 2026-11-19 h
 
 ### Breaking changes
 
-- **`lvh-yard init` is now `lvh-yard ws init`, and `init --upgrade` and `init --reinit` are gone.** After you install a new `lvh-yard`, run `lvh-yard update`, then `lvh-yard ws compose update` and `lvh-yard ws compose recreate` in each Workstation Folder. `ws compose update` saves a Backup first. See "Upgrading" in the [user guide](docs/user-guide.md).
+- **`lvh-yard init` is now `lvh-yard ws init`, and `init --upgrade` and `init --reinit` are gone.** After you install a new `lvh-yard`, run `lvh-yard update`, then `lvh-yard ws compose update` and `lvh-yard ws compose recreate` in each Workstation Folder. `ws compose update` saves a Backup first. See "Upgrading" in the [user guide](https://github.com/ppalazon/lvh-yard/blob/v0.2.0/docs/user-guide.md#upgrading).
 - **A Yard is formed with an invitation, and `--peers` and `--gossip-key` are gone.** On the Workstation that starts the Yard, run `lvh-yard ws tls ca create`, then `lvh-yard ws yard init`. For each new member, run `lvh-yard ws yard share <name>` there and `lvh-yard ws yard join <invitation>` on the new Workstation. The invitation is an AES-256 encrypted zip file, and every connection of a Yard uses Consul TLS.
 - **A new Workstation on Linux and macOS listens on `127.0.0.1` only, until `ws yard init` or `ws yard join` opens it.** Before, Consul listened on the LAN from the first start. A Workstation that must be reachable by the Yard needs the commands above. Windows keeps its LAN address, because Docker Desktop needs it.
 - **`ws init` asks for the Base Domain and has no default.** 0.1.0 offered `lvh.me`. Without a terminal, give `--base-domain`, for example `--base-domain lvh.me`.
